@@ -1,103 +1,303 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const [exams, setExams] = useState<any[]>([])
+  const [subtests, setSubtests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Form State Tambah Ujian Baru
+  // State Form Edit / Tambah Ujian
+  const [editingExamId, setEditingExamId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
-  const [subtest, setSubtest] = useState('KUANTITATIF')
+  const [selectedSubtest, setSelectedSubtest] = useState('')
   const [description, setDescription] = useState('')
   const [duration, setDuration] = useState(15)
+  const [examToken, setExamToken] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  const [isPublished, setIsPublished] = useState(true)
+
+  // State Toggle Pengaturan CBT
+  const [shuffleQuestions, setShuffleQuestions] = useState(true)
+  const [shuffleOptions, setShuffleOptions] = useState(true)
+  const [showResults, setShowResults] = useState(true)
+  const [showExplanations, setShowExplanations] = useState(true)
+
+  // State Modal Kelola Master Subtes
+  const [isSubtestModalOpen, setIsSubtestModalOpen] = useState(false)
+  const [newSubtestName, setNewSubtestName] = useState('')
+  const [editingSubtestId, setEditingSubtestId] = useState<string | null>(null)
+  const [editingSubtestName, setEditingSubtestName] = useState('')
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
-  const fetchExams = async () => {
+  const fetchData = async () => {
     const supabase = createClient()
-    const { data } = await supabase
+
+    // Load Subtests
+    const { data: subtestData } = await supabase
+      .from('subtests')
+      .select('*')
+      .order('name', { ascending: true })
+
+    if (subtestData) {
+      setSubtests(subtestData)
+      if (subtestData.length > 0 && !selectedSubtest) {
+        setSelectedSubtest(subtestData[0].name)
+      }
+    }
+
+    // Load Exams
+    const { data: examData } = await supabase
       .from('exams')
       .select('*')
       .order('created_at', { ascending: false })
 
-    if (data) setExams(data)
+    if (examData) setExams(examData)
     setLoading(false)
   }
 
   useEffect(() => {
-    fetchExams()
+    fetchData()
   }, [])
 
-  const handleCreateExam = async (e: React.FormEvent) => {
+  const generateRandomToken = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let generated = ''
+    for (let i = 0; i < 6; i++) {
+      generated += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    setExamToken(generated)
+  }
+
+  const resetForm = () => {
+    setEditingExamId(null)
+    setTitle('')
+    if (subtests.length > 0) setSelectedSubtest(subtests[0].name)
+    setDescription('')
+    setDuration(15)
+    setExamToken('')
+    setStartTime('')
+    setEndTime('')
+    setIsPublished(true)
+    setShuffleQuestions(true)
+    setShuffleOptions(true)
+    setShowResults(true)
+    setShowExplanations(true)
+    setMsg(null)
+  }
+
+  const handleEditClick = (exam: any) => {
+    setEditingExamId(exam.id)
+    setTitle(exam.title || '')
+    setSelectedSubtest(exam.subtest || (subtests[0]?.name || 'KUANTITATIF'))
+    setDescription(exam.description || '')
+    setDuration(exam.duration_minutes || 15)
+    setExamToken(exam.token || '')
+    setIsPublished(exam.is_published ?? true)
+    setShuffleQuestions(exam.shuffle_questions ?? true)
+    setShuffleOptions(exam.shuffle_options ?? true)
+    setShowResults(exam.show_results ?? true)
+    setShowExplanations(exam.show_explanations ?? true)
+
+    if (exam.start_time) {
+      const dt = new Date(exam.start_time)
+      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset())
+      setStartTime(dt.toISOString().slice(0, 16))
+    } else {
+      setStartTime('')
+    }
+
+    if (exam.end_time) {
+      const dt = new Date(exam.end_time)
+      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset())
+      setEndTime(dt.toISOString().slice(0, 16))
+    } else {
+      setEndTime('')
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleSaveExam = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setMsg(null)
 
     const supabase = createClient()
-    const { error } = await supabase.from('exams').insert([
-      {
-        title,
-        subtest: subtest.toUpperCase(),
-        description,
-        duration_minutes: Number(duration),
-      },
-    ])
+    const payload = {
+      title,
+      subtest: selectedSubtest.toUpperCase(),
+      description,
+      duration_minutes: Number(duration),
+      token: examToken.trim() ? examToken.trim().toUpperCase() : null,
+      start_time: startTime ? new Date(startTime).toISOString() : null,
+      end_time: endTime ? new Date(endTime).toISOString() : null,
+      is_published: isPublished,
+      shuffle_questions: shuffleQuestions,
+      shuffle_options: shuffleOptions,
+      show_results: showResults,
+      show_explanations: showExplanations,
+    }
+
+    let error: any = null
+
+    if (editingExamId) {
+      const res = await supabase
+        .from('exams')
+        .update(payload)
+        .eq('id', editingExamId)
+      error = res.error
+    } else {
+      const res = await supabase.from('exams').insert([payload])
+      error = res.error
+    }
 
     if (error) {
       setMsg(`Error: ${error.message}`)
     } else {
-      setMsg('Ujian baru berhasil ditambahkan!')
-      setTitle('')
-      setDescription('')
-      fetchExams()
+      setMsg(
+        editingExamId
+          ? 'Paket ujian berhasil diperbarui!'
+          : 'Ujian baru berhasil ditambahkan!'
+      )
+      resetForm()
+      fetchData()
     }
     setIsSubmitting(false)
   }
 
-  const handleDeleteExam = async (id: string) => {
-    if (!confirm('Apakah Anda yakin ingin menghapus ujian ini beserta seluruh soalnya?')) return
+  const handleDeleteExam = async (id: string, examTitle: string) => {
+    if (
+      !confirm(
+        `Apakah Anda yakin ingin menghapus ujian "${examTitle}" beserta seluruh soalnya?`
+      )
+    )
+      return
 
     const supabase = createClient()
     await supabase.from('exams').delete().eq('id', id)
-    fetchExams()
+    fetchData()
+  }
+
+  // Toggle Publikasi Cepat dari Kartu Daftar Ujian
+  const handleTogglePublish = async (exam: any) => {
+    const supabase = createClient()
+    const newStatus = !exam.is_published
+    await supabase
+      .from('exams')
+      .update({ is_published: newStatus })
+      .eq('id', exam.id)
+    fetchData()
+  }
+
+  // --- FUNGSI CRUD MASTER SUBTES ---
+  const handleAddSubtest = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newSubtestName.trim()) return
+
+    const supabase = createClient()
+    const { error } = await supabase.from('subtests').insert([
+      { name: newSubtestName.trim().toUpperCase() },
+    ])
+
+    if (error) {
+      alert(`Gagal menambah subtes: ${error.message}`)
+    } else {
+      setNewSubtestName('')
+      fetchData()
+    }
+  }
+
+  const handleUpdateSubtest = async (id: string) => {
+    if (!editingSubtestName.trim()) return
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('subtests')
+      .update({ name: editingSubtestName.trim().toUpperCase() })
+      .eq('id', id)
+
+    if (error) {
+      alert(`Gagal mengubah subtes: ${error.message}`)
+    } else {
+      setEditingSubtestId(null)
+      setEditingSubtestName('')
+      fetchData()
+    }
+  }
+
+  const handleDeleteSubtest = async (id: string, name: string) => {
+    if (!confirm(`Hapus opsi subtes "${name}"?`)) return
+    const supabase = createClient()
+    await supabase.from('subtests').delete().eq('id', id)
+    fetchData()
   }
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <Navbar />
 
-      <main className="p-8 max-w-5xl mx-auto">
-        <div className="flex justify-between items-center mb-8 border-b pb-4 border-slate-200">
+      <main className="p-8 max-w-6xl mx-auto space-y-8">
+        <div className="flex justify-between items-center border-b pb-4 border-slate-200">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">
               Dashboard Admin / CMS
             </h1>
             <p className="text-slate-600 mt-1">
-              Kelola ujian, subtes, dan butir soal TKA
+              Kelola paket ujian, token, visibilitas, subtes, dan butir soal TKA
             </p>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            ← Lihat Beranda Utama
-          </Link>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsSubtestModalOpen(true)}
+              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
+              suppressHydrationWarning
+            >
+              <span>⚙️</span>
+              <span>Kelola Dropdown Subtes</span>
+            </button>
+            <Link
+              href="/admin/users"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              👥 Kelola Akun & Admin
+            </Link>
+            <Link
+              href="/"
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              ← Lihat Beranda Utama
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form Buat Ujian Baru (1 Kolom) */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit">
-            <h2 className="text-lg font-bold text-slate-800 mb-4 pb-2 border-b">
-              ➕ Tambah Ujian Baru
-            </h2>
+          {/* Form Buat / Edit Ujian */}
+          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit space-y-4">
+            <div className="flex justify-between items-center pb-2 border-b">
+              <h2 className="text-lg font-bold text-slate-800">
+                {editingExamId ? '✏️ Edit Paket Ujian' : '➕ Tambah Ujian Baru'}
+              </h2>
+              {editingExamId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded font-semibold transition-colors"
+                  suppressHydrationWarning
+                >
+                  ✕ Batal Edit
+                </button>
+              )}
+            </div>
 
             {msg && (
               <div
-                className={`p-3 rounded-lg text-xs font-medium mb-4 ${
+                className={`p-3 rounded-lg text-xs font-medium ${
                   msg.startsWith('Error')
                     ? 'bg-red-50 text-red-600 border border-red-200'
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -107,7 +307,7 @@ export default function AdminDashboardPage() {
               </div>
             )}
 
-            <form onSubmit={handleCreateExam} className="space-y-4">
+            <form onSubmit={handleSaveExam} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
                   Judul Ujian / Paket
@@ -119,22 +319,36 @@ export default function AdminDashboardPage() {
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  suppressHydrationWarning
                 />
               </div>
 
+              {/* Select Option Subtes Dinamis */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Subtes
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase">
+                    Pilihan Subtes
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsSubtestModalOpen(true)}
+                    className="text-[11px] text-amber-600 font-bold hover:underline"
+                    suppressHydrationWarning
+                  >
+                    + Edit Opsi Subtes
+                  </button>
+                </div>
                 <select
-                  value={subtest}
-                  onChange={(e) => setSubtest(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  value={selectedSubtest}
+                  onChange={(e) => setSelectedSubtest(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  suppressHydrationWarning
                 >
-                  <option value="KUANTITATIF">KUANTITATIF</option>
-                  <option value="PENALARAN">PENALARAN</option>
-                  <option value="LITERASI">LITERASI</option>
-                  <option value="BAHASA INGGRIS">BAHASA INGGRIS</option>
+                  {subtests.map((st) => (
+                    <option key={st.id} value={st.name}>
+                      {st.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -149,7 +363,130 @@ export default function AdminDashboardPage() {
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  suppressHydrationWarning
                 />
+              </div>
+
+              {/* Status Visibilitas ke Siswa */}
+              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1">
+                <label className="block text-xs font-bold text-indigo-900 uppercase">
+                  👁 Status Tampilan di Layar Siswa
+                </label>
+                <select
+                  value={isPublished ? 'published' : 'hidden'}
+                  onChange={(e) => setIsPublished(e.target.value === 'published')}
+                  className="w-full px-3 py-1.5 rounded-lg border border-indigo-200 text-xs font-bold text-indigo-800 bg-white"
+                  suppressHydrationWarning
+                >
+                  <option value="published">🟢 Tampilkan di Layar Siswa (Published)</option>
+                  <option value="hidden">🔴 Sembunyikan dari Siswa (Draft / Hidden)</option>
+                </select>
+              </div>
+
+              {/* Token Ujian */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                  Token Ujian (Dapat Diubah)
+                </label>
+                <div className="flex space-x-2">
+                  <input
+                    type="text"
+                    maxLength={6}
+                    placeholder="Kosongkan jika bebas"
+                    value={examToken}
+                    onChange={(e) => setExamToken(e.target.value.toUpperCase())}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono font-bold uppercase text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    suppressHydrationWarning
+                  />
+                  <button
+                    type="button"
+                    onClick={generateRandomToken}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border transition-colors shrink-0"
+                    title="Acak Token Baru"
+                    suppressHydrationWarning
+                  >
+                    🎲 Acak
+                  </button>
+                </div>
+              </div>
+
+              {/* Jadwal Buka & Tutup */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                    Jadwal Buka
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    suppressHydrationWarning
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                    Jadwal Tutup
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    suppressHydrationWarning
+                  />
+                </div>
+              </div>
+
+              {/* Toggle Pengaturan Fitur CBT */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
+                <span className="block text-xs font-bold text-slate-800 uppercase">
+                  ⚙️ Pengaturan Fitur Ujian
+                </span>
+
+                <label className="flex items-center space-x-2 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={shuffleQuestions}
+                    onChange={(e) => setShuffleQuestions(e.target.checked)}
+                    className="rounded text-indigo-600"
+                    suppressHydrationWarning
+                  />
+                  <span className="font-medium text-slate-700">🔀 Acak Urutan Soal</span>
+                </label>
+
+                <label className="flex items-center space-x-2 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={shuffleOptions}
+                    onChange={(e) => setShuffleOptions(e.target.checked)}
+                    className="rounded text-indigo-600"
+                    suppressHydrationWarning
+                  />
+                  <span className="font-medium text-slate-700">🔀 Acak Pilihan Opsi (A/B/C/D)</span>
+                </label>
+
+                <label className="flex items-center space-x-2 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={showResults}
+                    onChange={(e) => setShowResults(e.target.checked)}
+                    className="rounded text-indigo-600"
+                    suppressHydrationWarning
+                  />
+                  <span className="font-medium text-slate-700">📊 Tampilkan Nilai Setelah Selesai</span>
+                </label>
+
+                <label className="flex items-center space-x-2 cursor-pointer text-xs">
+                  <input
+                    type="checkbox"
+                    checked={showExplanations}
+                    onChange={(e) => setShowExplanations(e.target.checked)}
+                    className="rounded text-indigo-600"
+                    suppressHydrationWarning
+                  />
+                  <span className="font-medium text-slate-700">💡 Tampilkan Kunci & Pembahasan</span>
+                </label>
               </div>
 
               <div>
@@ -157,25 +494,35 @@ export default function AdminDashboardPage() {
                   Deskripsi / Petunjuk
                 </label>
                 <textarea
-                  rows={3}
+                  rows={2}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Contoh: Latihan soal aljabar dan geometri dasar."
                   className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  suppressHydrationWarning
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50"
+                className={`w-full py-2.5 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50 ${
+                  editingExamId
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+                suppressHydrationWarning
               >
-                {isSubmitting ? 'Simpan...' : 'Simpan Ujian'}
+                {isSubmitting
+                  ? 'Menyimpan...'
+                  : editingExamId
+                  ? 'Simpan Perubahan Paket Ujian'
+                  : 'Simpan Ujian Baru'}
               </button>
             </form>
           </div>
 
-          {/* Daftar Ujian Aktif (2 Kolom) */}
+          {/* Daftar Ujian Aktif */}
           <div className="lg:col-span-2 space-y-4">
             <h2 className="text-lg font-bold text-slate-800">
               📋 Daftar Ujian Terdaftar ({exams.length})
@@ -187,56 +534,246 @@ export default function AdminDashboardPage() {
               exams.map((exam) => (
                 <div
                   key={exam.id}
-                  className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between sm:items-center gap-4"
+                  className={`bg-white p-5 rounded-xl border shadow-sm space-y-3 ${
+                    exam.is_published ? 'border-slate-200' : 'border-amber-300 bg-amber-50/30'
+                  }`}
                 >
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
-                        {exam.subtest}
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        ⏱ {exam.duration_minutes} Menit
-                      </span>
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
+                          {exam.subtest}
+                        </span>
+
+                        {/* Badge Status Visibilitas Siswa */}
+                        <button
+                          type="button"
+                          onClick={() => handleTogglePublish(exam)}
+                          className={`px-2 py-0.5 text-[10px] font-bold rounded border cursor-pointer transition-colors ${
+                            exam.is_published
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                          }`}
+                          title="Klik untuk mengubah status visibilitas siswa"
+                          suppressHydrationWarning
+                        >
+                          {exam.is_published ? '🟢 Tampil pada Siswa' : '🔴 Sembunyi dari Siswa'}
+                        </button>
+
+                        <span className="text-xs text-slate-400">
+                          ⏱ {exam.duration_minutes} Menit
+                        </span>
+                      </div>
+                      <h3 className="text-base font-bold text-slate-800 mt-1">
+                        {exam.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {exam.description || 'Tidak ada deskripsi'}
+                      </p>
                     </div>
-                    <h3 className="text-base font-bold text-slate-800 mt-1">
-                      {exam.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {exam.description || 'Tidak ada deskripsi'}
-                    </p>
+
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <button
+                        onClick={() => handleEditClick(exam)}
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg transition-colors"
+                        suppressHydrationWarning
+                      >
+                        ✏️ Edit
+                      </button>
+                      <Link
+                        href={`/admin/exam/${exam.id}/results`}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        📊 Rekap Nilai
+                      </Link>
+                      <Link
+                        href={`/admin/exam/${exam.id}`}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        Kelola Soal →
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteExam(exam.id, exam.title)}
+                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
+                        suppressHydrationWarning
+                      >
+                        Hapus
+                      </button>
+                    </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 shrink-0">
-                    {/* Tombol Baru: Rekap Nilai */}
-                    <Link
-                      href={`/admin/exam/${exam.id}/results`}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                    >
-                      📊 Rekap Nilai
-                    </Link>
-                    <Link
-                      href={`/admin/exam/${exam.id}`}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                    >
-                      Kelola Soal →
-                    </Link>
-                    <button
-                      onClick={() => handleDeleteExam(exam.id)}
-                      className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
-                    >
-                      Hapus
-                    </button>
+                  {/* Meta Tag Informasi Ujian */}
+                  <div className="flex flex-wrap gap-2 text-[11px] pt-2 border-t border-slate-100">
+                    {exam.token ? (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded font-mono font-bold">
+                        🔑 Token: {exam.token}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
+                        🔓 Tanpa Token
+                      </span>
+                    )}
+
+                    {exam.shuffle_questions && (
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-medium">
+                        🔀 Soal Diacak
+                      </span>
+                    )}
+
+                    {exam.shuffle_options && (
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-medium">
+                        🔀 Opsi Diacak
+                      </span>
+                    )}
+
+                    {exam.show_results ? (
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium">
+                        📊 Tampil Nilai
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded font-medium">
+                        🚫 Nilai Sembunyi
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
             ) : (
               <div className="bg-white p-8 text-center rounded-xl border border-slate-200 text-slate-500 text-sm">
-                Belum ada paket ujian. Silakan buat ujian baru di formulir sebelah kiri.
+                Belum ada paket ujian.
               </div>
             )}
           </div>
         </div>
       </main>
+
+      {/* MODAL KELOLA MASTER SUBTES */}
+      {isSubtestModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-base font-bold text-slate-800">
+                ⚙️ Kelola Pilihan Dropdown Subtes
+              </h3>
+              <button
+                onClick={() => setIsSubtestModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
+                suppressHydrationWarning
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Form Tambah Subtes Baru */}
+            <form onSubmit={handleAddSubtest} className="flex space-x-2">
+              <input
+                type="text"
+                required
+                placeholder="Nama Subtes Baru (cth: BIOLOGI)"
+                value={newSubtestName}
+                onChange={(e) => setNewSubtestName(e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-lg text-xs uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                suppressHydrationWarning
+              />
+              <button
+                type="submit"
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
+                suppressHydrationWarning
+              >
+                + Tambah
+              </button>
+            </form>
+
+            {/* Daftar Subtes */}
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {subtests.map((st) => (
+                <div
+                  key={st.id}
+                  className="flex justify-between items-center p-2.5 bg-slate-50 border rounded-lg text-xs"
+                >
+                  {editingSubtestId === st.id ? (
+                    <div className="flex items-center space-x-1 flex-1 mr-2">
+                      <input
+                        type="text"
+                        value={editingSubtestName}
+                        onChange={(e) => setEditingSubtestName(e.target.value)}
+                        className="px-2 py-1 border rounded text-xs uppercase font-bold flex-1"
+                        suppressHydrationWarning
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateSubtest(st.id)}
+                        className="px-2 py-1 bg-emerald-600 text-white font-bold rounded"
+                        suppressHydrationWarning
+                      >
+                        ✓
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingSubtestId(null)}
+                        className="px-2 py-1 bg-slate-200 text-slate-700 font-bold rounded"
+                        suppressHydrationWarning
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-bold text-slate-800">{st.name}</span>
+                      <div className="flex space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingSubtestId(st.id)
+                            setEditingSubtestName(st.name)
+                          }}
+                          className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold rounded"
+                          suppressHydrationWarning
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubtest(st.id, st.name)}
+                          className="px-2 py-1 bg-red-50 text-red-600 font-bold rounded"
+                          suppressHydrationWarning
+                        >
+                          Hapus
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t text-right">
+              <button
+                type="button"
+                onClick={() => setIsSubtestModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                suppressHydrationWarning
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+          <p className="text-slate-600 font-medium">Memuat dashboard admin...</p>
+        </div>
+      }
+    >
+      <AdminDashboardContent />
+    </Suspense>
   )
 }
