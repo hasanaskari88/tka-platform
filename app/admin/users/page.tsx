@@ -71,7 +71,7 @@ function AdminUsersContent() {
 
     const supabase = createClient()
     const cleanUsername = newUsername.trim().toLowerCase()
-    const fakeEmail = `${cleanUsername}@tka.internal`
+    const fakeEmail = `${cleanUsername}@grisan.com`
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: fakeEmail,
