@@ -5,10 +5,9 @@ import { useTheme } from '@/context/ThemeContext'
 
 export default function Footer() {
   const { theme } = useTheme()
-  // 🟢 Inisialisasi awal dengan tahun statis agar aman saat prerender di Vercel
+  // 🟢 Tahun statis awal agar lolos prerender di Vercel/Next.js 16
   const [currentYear, setCurrentYear] = useState<number>(2026)
 
-  // 🟢 Pindahkan pemanggilan new Date() ke dalam useEffect (Sesuai petunjuk Next.js 16)
   useEffect(() => {
     setCurrentYear(new Date().getFullYear())
   }, [])
