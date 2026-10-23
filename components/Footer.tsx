@@ -1,19 +1,10 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useTheme } from '@/context/ThemeContext'
 
 export default function Footer() {
   const { theme } = useTheme()
-
-  // Tahun awal konsisten saat prerendering.
-  // Tahun akan diperbarui setelah komponen berjalan di browser.
-  const [currentYear, setCurrentYear] = useState<number>(2026)
-
-  useEffect(() => {
-    setCurrentYear(new Date().getFullYear())
-  }, [])
 
   const themeFooterStyles = {
     space: {
@@ -80,7 +71,7 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Alamat */}
+          {/* Alamat Sekolah */}
           <div className="text-center md:text-left space-y-1">
             <p className={`text-xs font-semibold ${themeFooterStyles.title}`}>
               📍 Alamat Sekolah
@@ -98,7 +89,7 @@ export default function Footer() {
             </p>
           </div>
 
-          {/* Hak Cipta & Badge Tema */}
+          {/* Hak Cipta dan Tema */}
           <div className="text-center md:text-right space-y-2">
             <span
               className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold border uppercase tracking-wider ${themeFooterStyles.badge}`}
@@ -106,11 +97,8 @@ export default function Footer() {
               {themeFooterStyles.icon} TEMA: {theme.toUpperCase()}
             </span>
 
-            <p
-              className={`text-xs ${themeFooterStyles.textMuted}`}
-              suppressHydrationWarning
-            >
-              © {currentYear} CBT SD Negeri Getasan. All Rights Reserved.
+            <p className={`text-xs ${themeFooterStyles.textMuted}`}>
+              © 2026 CBT SD Negeri Getasan. All Rights Reserved.
             </p>
           </div>
         </div>
