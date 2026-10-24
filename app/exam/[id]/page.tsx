@@ -95,7 +95,7 @@ function ExamContent() {
     async function loadExamDataAndCreateSession() {
       const supabase = createClient()
 
-      // 1. Ambil data User secara aman
+      // 1. Ambil data User secara pasti
       let activeUser = null
       const { data: userData } = await supabase.auth.getUser()
       if (userData?.user) {
@@ -103,6 +103,11 @@ function ExamContent() {
       } else {
         const { data: sessionData } = await supabase.auth.getSession()
         activeUser = sessionData?.session?.user || null
+      }
+
+      if (!activeUser) {
+        router.push('/login')
+        return
       }
 
       // 2. Ambil Data Ujian dan Soal
@@ -142,32 +147,37 @@ function ExamContent() {
         setQuestions(processedQuestions)
 
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
-        let activeSessionId = null
+        let activeSessionId: string | null = null
 
-        // 🟢 3. Cek apakah ada sesi ONGOING & Hitung Sisa Waktu Akurat saat Refresh / Putus Koneksi
-        if (activeUser?.id) {
-          const { data: existingSession } = await supabase
-            .from('exam_sessions')
-            .select('id, start_time')
-            .eq('exam_id', examId)
-            .eq('user_id', activeUser.id)
-            .eq('status', 'ongoing')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle()
+        // 🟢 3. MANAJEMEN SESI UJIAN & SISA WAKTU (MENCEGAH TERJEBAK DI SESI LAMA)
+        const { data: existingSession } = await supabase
+          .from('exam_sessions')
+          .select('id, start_time')
+          .eq('exam_id', examId)
+          .eq('user_id', activeUser.id)
+          .eq('status', 'ongoing')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
 
-          if (existingSession && existingSession.start_time) {
-            activeSessionId = existingSession.id
+        if (existingSession && existingSession.start_time) {
+          const startTimeMs = new Date(existingSession.start_time).getTime()
+          const nowMs = new Date().getTime()
+          const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
+          const remainingSeconds = totalDurationSeconds - elapsedSeconds
 
-            // Hitung sisa waktu berdasarkan selisih start_time dengan waktu sekarang
-            const startTimeMs = new Date(existingSession.start_time).getTime()
-            const nowMs = new Date().getTime()
-            const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
-            const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds)
+          // Jika sesi ongoing lama sudah habis waktunya, selesaikan & buat sesi baru secara bersih
+          if (remainingSeconds <= 0) {
+            await supabase
+              .from('exam_sessions')
+              .update({
+                status: 'completed',
+                score: 0,
+                completed_at: new Date().toISOString(),
+              })
+              .eq('id', existingSession.id)
 
-            setTimeLeft(remainingSeconds)
-          } else {
-            // Buat sesi baru jika belum ada sesi ongoing
+            // Buat Sesi Baru untuk Ujian Sekarang
             const nowIso = new Date().toISOString()
             const { data: newSession } = await supabase
               .from('exam_sessions')
@@ -179,15 +189,37 @@ function ExamContent() {
                   start_time: nowIso,
                 },
               ])
-              .select('id, start_time')
+              .select('id')
               .single()
 
             if (newSession) {
               activeSessionId = newSession.id
             }
             setTimeLeft(totalDurationSeconds)
+          } else {
+            // Sesi ongoing masih aktif
+            activeSessionId = existingSession.id
+            setTimeLeft(remainingSeconds)
           }
         } else {
+          // Buat Sesi Baru jika tidak ada sesi ongoing
+          const nowIso = new Date().toISOString()
+          const { data: newSession } = await supabase
+            .from('exam_sessions')
+            .insert([
+              {
+                exam_id: examId,
+                user_id: activeUser.id,
+                status: 'ongoing',
+                start_time: nowIso,
+              },
+            ])
+            .select('id')
+            .single()
+
+          if (newSession) {
+            activeSessionId = newSession.id
+          }
           setTimeLeft(totalDurationSeconds)
         }
 
@@ -196,7 +228,7 @@ function ExamContent() {
         }
       }
 
-      // 🟢 4. Muat Jawaban Sementara dari LocalStorage jika halaman di-refresh/terputus
+      // 4. Muat Jawaban Sementara dari LocalStorage
       const savedLocalAns = localStorage.getItem(`cbt_temp_answers_${examId}`)
       if (savedLocalAns) {
         try {
@@ -292,7 +324,7 @@ function ExamContent() {
     setFlagged((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }
 
-  // 🟢 HANDLER SELESAI & SIMPAN NILAI
+  // 🟢 HANDLER SELESAI & SIMPAN NILAI (GARANSI RECORD BARU TERSIMPAN)
   const handleSubmit = async () => {
     if (isSaving || isSubmitted) return
     setIsSaving(true)
@@ -318,13 +350,44 @@ function ExamContent() {
 
       const supabase = createClient()
 
+      let currentUser = null
       const { data: userData } = await supabase.auth.getUser()
-      const currentUser = userData?.user || null
+      if (userData?.user) {
+        currentUser = userData.user
+      } else {
+        const { data: sessData } = await supabase.auth.getSession()
+        currentUser = sessData?.session?.user || null
+      }
 
-      let activeSessionId = sessionId
+      const nowIso = new Date().toISOString()
+      let finalSessionId = sessionId
+      let isDbSaved = false
 
-      if (!activeSessionId && currentUser?.id) {
-        const { data: newSess } = await supabase
+      // 1. Coba UPDATE Sesi Ongoing Yang Ada
+      if (finalSessionId) {
+        const { error: updateError, data: updatedRows } = await supabase
+          .from('exam_sessions')
+          .update({
+            status: 'completed',
+            score: calculatedScore,
+            total_correct: correct,
+            end_time: nowIso,
+            submitted_at: nowIso,
+            completed_at: nowIso,
+          })
+          .eq('id', finalSessionId)
+          .select()
+
+        if (!updateError && updatedRows && updatedRows.length > 0) {
+          isDbSaved = true
+        } else {
+          console.warn('Update sesi gagal, menjalankan fallback insert:', updateError)
+        }
+      }
+
+      // 2. Fallback: Buat Sesi Completed BARU Jika Update Sesi Lama Gagal / NULL
+      if (!isDbSaved && currentUser?.id) {
+        const { data: newCompletedSession, error: insertError } = await supabase
           .from('exam_sessions')
           .insert([
             {
@@ -333,35 +396,29 @@ function ExamContent() {
               status: 'completed',
               score: calculatedScore,
               total_correct: correct,
-              start_time: new Date().toISOString(),
-              end_time: new Date().toISOString(),
-              submitted_at: new Date().toISOString(),
-              completed_at: new Date().toISOString(),
+              start_time: nowIso,
+              end_time: nowIso,
+              submitted_at: nowIso,
+              completed_at: nowIso,
             },
           ])
           .select()
           .single()
 
-        if (newSess) activeSessionId = newSess.id
-      } else if (activeSessionId) {
-        await supabase
-          .from('exam_sessions')
-          .update({
-            status: 'completed',
-            score: calculatedScore,
-            total_correct: correct,
-            end_time: new Date().toISOString(),
-            submitted_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-          })
-          .eq('id', activeSessionId)
+        if (!insertError && newCompletedSession) {
+          finalSessionId = newCompletedSession.id
+          isDbSaved = true
+        } else {
+          console.error('Insert fallback sesi gagal:', insertError)
+        }
       }
 
-      if (activeSessionId) {
-        await supabase.from('answers').delete().eq('session_id', activeSessionId)
+      // 3. Simpan Rincian Jawaban ke Tabel answers
+      if (finalSessionId) {
+        await supabase.from('answers').delete().eq('session_id', finalSessionId)
 
         const answerRecords = questions.map((q) => ({
-          session_id: activeSessionId,
+          session_id: finalSessionId,
           question_id: q.id,
           user_answer:
             typeof userAnswers[q.id] === 'string'
@@ -380,10 +437,11 @@ function ExamContent() {
         }
       }
 
-      const finalSessionRef = activeSessionId || `local_${Date.now()}`
-
+      // 4. Bersihkan memori sementara & Simpan cache hasil
+      const sessionRef = finalSessionId || `local_${Date.now()}`
+      localStorage.removeItem(`cbt_temp_answers_${examId}`)
       localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(userAnswers))
-      localStorage.setItem(`cbt_answers_session_${finalSessionRef}`, JSON.stringify(userAnswers))
+      localStorage.setItem(`cbt_answers_session_${sessionRef}`, JSON.stringify(userAnswers))
       localStorage.setItem(`cbt_score_${examId}`, String(calculatedScore))
 
       triggerVictoryConfetti()
@@ -392,7 +450,7 @@ function ExamContent() {
       setIsSaving(false)
 
       setTimeout(() => {
-        router.push(`/exam/${examId}/summary?session_id=${finalSessionRef}`)
+        router.push(`/exam/${examId}/summary?session_id=${sessionRef}`)
       }, 1200)
     } catch (err) {
       console.error('Gagal mengirimkan jawaban ujian:', err)
