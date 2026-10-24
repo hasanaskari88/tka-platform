@@ -24,11 +24,7 @@ export default function BulkUploadModal({
 
   if (!isOpen) return null
 
-  // -------------------------------------------------------------
-  // FUNGSI UNDUH TEMPLATE CONTOH (MEMUAT 4 TIPE SOAL LENGKAP)
-  // -------------------------------------------------------------
-
-  // 1. Unduh Template Excel (.xlsx) - Memuat 4 Tipe Soal Lengkap
+  // 1. Unduh Template Excel (.xlsx)
   const handleDownloadExcelTemplate = () => {
     const sampleData = [
       {
@@ -186,7 +182,7 @@ ANSWER: A
     URL.revokeObjectURL(url)
   }
 
-  // 4. Unduh Template JSON (.json) - Memuat 4 Tipe Soal Lengkap
+  // 4. Unduh Template JSON (.json)
   const handleDownloadJSONTemplate = () => {
     const sampleJSON = [
       {
@@ -195,10 +191,10 @@ ANSWER: A
         max_score: 1,
         explanation: 'Sifat eksponen: $a^m \\times a^n = a^{m+n}$, maka $2^{3+2} = 2^5 = 32$.',
         options: [
-          { key: 'A', text: '16' },
-          { key: 'B', text: '32' },
-          { key: 'C', text: '64' },
-          { key: 'D', text: '128' }
+          { key: 'A', text: '16', image_url: '' },
+          { key: 'B', text: '32', image_url: '' },
+          { key: 'C', text: '64', image_url: '' },
+          { key: 'D', text: '128', image_url: '' }
         ],
         correct_option: 'B',
         correct_answers: ['B']
@@ -209,10 +205,10 @@ ANSWER: A
         max_score: 2,
         explanation: '2 dan 7 adalah bilangan prima karena hanya bisa dibagi 1 dan dirinya sendiri.',
         options: [
-          { key: 'A', text: '2' },
-          { key: 'B', text: '4' },
-          { key: 'C', text: '7' },
-          { key: 'D', text: '9' }
+          { key: 'A', text: '2', image_url: '' },
+          { key: 'B', text: '4', image_url: '' },
+          { key: 'C', text: '7', image_url: '' },
+          { key: 'D', text: '9', image_url: '' }
         ],
         correct_option: 'A,C',
         correct_answers: ['A', 'C']
@@ -223,8 +219,8 @@ ANSWER: A
         max_score: 2,
         explanation: '$\\sin 90^\\circ = 1$ (Benar) dan $\\cos 0^\\circ = 1$ (Pernyataan senilai 0 adalah Salah).',
         options: [
-          { id: '1', text: 'Nilai dari $\\sin 90^\\circ$ adalah 1', correct_val: 'Benar' },
-          { id: '2', text: 'Nilai dari $\\cos 0^\\circ$ adalah 0', correct_val: 'Salah' }
+          { id: '1', text: 'Nilai dari $\\sin 90^\\circ$ adalah 1', image_url: '', correct_val: 'Benar' },
+          { id: '2', text: 'Nilai dari $\\cos 0^\\circ$ adalah 0', image_url: '', correct_val: 'Salah' }
         ],
         correct_option: 'MATRIX',
         correct_answers: { '1': 'Benar', '2': 'Salah' }
@@ -251,14 +247,13 @@ ANSWER: A
   }
 
   // -------------------------------------------------------------
-  // PARSER HELPER UNTUK AIKEN, MOODLE, EXCEL, JSON
+  // PARSER HELPER FOR AIKEN & MOODLE
   // -------------------------------------------------------------
-
   const parseAikenText = (text: string) => {
     const lines = text.split(/\r?\n/)
     const questions: any[] = []
     let currentQText: string[] = []
-    let currentOptions: { key: string; text: string }[] = []
+    let currentOptions: { key: string; text: string; image_url: string }[] = []
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim()
@@ -286,6 +281,7 @@ ANSWER: A
         currentOptions.push({
           key: optMatch[1].toUpperCase(),
           text: optMatch[2],
+          image_url: '',
         })
       } else {
         currentQText.push(line)
@@ -330,7 +326,7 @@ ANSWER: A
       }
 
       const answerNodes = node.querySelectorAll('answer')
-      const options: { key: string; text: string }[] = []
+      const options: { key: string; text: string; image_url: string }[] = []
       const correctAnswers: string[] = []
 
       answerNodes.forEach((ansNode, index) => {
@@ -339,7 +335,7 @@ ANSWER: A
         const optText = textNode ? textNode.textContent || '' : ''
         const fraction = parseFloat(ansNode.getAttribute('fraction') || '0')
 
-        options.push({ key, text: optText })
+        options.push({ key, text: optText, image_url: '' })
         if (fraction > 0) {
           correctAnswers.push(key)
         }
@@ -353,7 +349,7 @@ ANSWER: A
           max_score: maxScore,
           explanation: explanation,
           options: options,
-          correct_option: correctAnswers.join(',').slice(0, 10),
+          correct_option: correctAnswers.join(','),
           correct_answers: correctAnswers,
         })
       }
@@ -363,7 +359,7 @@ ANSWER: A
   }
 
   // -------------------------------------------------------------
-  // HANDLER PEMBACAAN FILE UTAMA
+  // PEMBACAAN FILE UTAMA
   // -------------------------------------------------------------
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg(null)
@@ -438,7 +434,6 @@ ANSWER: A
             const isMatrix = rawType.includes('matrix') || rawType.includes('matriks') || rawType.includes('true_false')
 
             if (isEssay) {
-              // Parse Soal Essay dari Excel
               return {
                 question_type: 'essay',
                 question_text: String(row.question_text),
@@ -449,27 +444,29 @@ ANSWER: A
                 correct_answers: null,
               }
             } else if (isMatrix) {
-              // Parse Soal Matriks dari Excel
               const statements: any[] = []
               const answerObj: { [key: string]: string } = {}
 
               for (let i = 1; i <= 10; i++) {
                 const stText = row[`statement_${i}`]
-                const stKey = row[`statement_${i}_key`] || 'Benar'
-                if (stText) {
+                const rawKey = row[`statement_${i}_key`] || 'Benar'
+                if (stText !== undefined && stText !== null && String(stText).trim() !== '') {
                   const stId = String(i)
-                  statements.push({ id: stId, text: String(stText) })
-                  answerObj[stId] = String(stKey).trim()
+                  statements.push({ id: stId, text: String(stText), image_url: '' })
+
+                  const sKey = String(rawKey).trim().toLowerCase()
+                  const normKey = (sKey === 'salah' || sKey === 'false' || sKey === '0' || sKey === 's') ? 'Salah' : 'Benar'
+                  answerObj[stId] = normKey
                 }
               }
 
               if (statements.length === 0) {
                 const keys = ['A', 'B', 'C', 'D']
                 keys.forEach((k, index) => {
-                  const optText = row[`option_${k}`]
-                  if (optText) {
+                  const optText = row[`option_${k}`] ?? row[`option_${k.toLowerCase()}`]
+                  if (optText !== undefined && optText !== null && String(optText).trim() !== '') {
                     const stId = String(index + 1)
-                    statements.push({ id: stId, text: String(optText) })
+                    statements.push({ id: stId, text: String(optText), image_url: '' })
                     answerObj[stId] = 'Benar'
                   }
                 })
@@ -485,19 +482,37 @@ ANSWER: A
                 correct_answers: answerObj,
               }
             } else {
-              // Parse Soal PG & PG Kompleks dari Excel
+              // PG & PG KOMPLEKS
               const isComplex = rawType.includes('complex') || rawType.includes('kompleks')
 
-              const options = [
-                { key: 'A', text: String(row.option_A || '') },
-                { key: 'B', text: String(row.option_B || '') },
-                { key: 'C', text: String(row.option_C || '') },
-                { key: 'D', text: String(row.option_D || '') },
-              ].filter((opt) => opt.text.trim() !== '')
+              const rawOptA = row.option_A ?? row.option_a
+              const rawOptB = row.option_B ?? row.option_b
+              const rawOptC = row.option_C ?? row.option_c
+              const rawOptD = row.option_D ?? row.option_d
 
-              const rawCorrect = String(row.correct_option || 'A')
-                .replace(/\s+/g, '')
-                .toUpperCase()
+              const rawOptionsMap = [
+                { key: 'A', val: rawOptA },
+                { key: 'B', val: rawOptB },
+                { key: 'C', val: rawOptC },
+                { key: 'D', val: rawOptD },
+              ]
+
+              const options = rawOptionsMap
+                .filter((o) => o.val !== undefined && o.val !== null && String(o.val).trim() !== '')
+                .map((o) => ({
+                  key: o.key,
+                  text: String(o.val),
+                  image_url: '',
+                }))
+
+              if (options.length === 0) {
+                options.push(
+                  { key: 'A', text: 'Opsi A', image_url: '' },
+                  { key: 'B', text: 'Opsi B', image_url: '' }
+                )
+              }
+
+              const rawCorrect = String(row.correct_option ?? 'A').replace(/\s+/g, '').toUpperCase()
               const correctAnswers = rawCorrect.split(',').filter(Boolean)
 
               return {
@@ -506,8 +521,8 @@ ANSWER: A
                 max_score: Number(row.max_score) || 1,
                 explanation: row.explanation ? String(row.explanation) : null,
                 options: options,
-                correct_option: rawCorrect.slice(0, 10),
-                correct_answers: correctAnswers,
+                correct_option: rawCorrect,
+                correct_answers: isComplex ? correctAnswers : [correctAnswers[0] || 'A'],
               }
             }
           })
@@ -524,7 +539,7 @@ ANSWER: A
   }
 
   // -------------------------------------------------------------
-  // SIMPAN BATCH KE DATABASE SUPABASE
+  // SIMPAN BATCH KE SUPABASE
   // -------------------------------------------------------------
   const handleUploadBatch = async () => {
     if (parsedQuestions.length === 0 || !examId) return
@@ -534,25 +549,44 @@ ANSWER: A
     const supabase = createClient()
 
     const recordsToInsert = parsedQuestions.map((q) => {
+      const qType = q.question_type || 'multiple_choice'
       let finalCorrectOption = String(q.correct_option || 'A').trim()
-      if (q.question_type === 'true_false_matrix') {
+      let finalCorrectAnswers = q.correct_answers
+
+      if (qType === 'true_false_matrix') {
         finalCorrectOption = 'MATRIX'
-      } else if (q.question_type === 'essay') {
+        if (!finalCorrectAnswers || typeof finalCorrectAnswers !== 'object') {
+          const ansObj: any = {}
+          if (Array.isArray(q.options)) {
+            q.options.forEach((st: any) => {
+              if (st.id) ansObj[st.id] = st.correct_val || 'Benar'
+            })
+          }
+          finalCorrectAnswers = ansObj
+        }
+      } else if (qType === 'essay') {
         finalCorrectOption = 'ESSAY'
+        finalCorrectAnswers = null
+      } else if (qType === 'complex_multiple_choice') {
+        if (!finalCorrectAnswers || !Array.isArray(finalCorrectAnswers)) {
+          finalCorrectAnswers = finalCorrectOption.split(',').map((s) => s.trim())
+        }
       } else {
-        finalCorrectOption = finalCorrectOption.replace(/\s+/g, '').slice(0, 10)
+        if (!finalCorrectAnswers || !Array.isArray(finalCorrectAnswers)) {
+          finalCorrectAnswers = [finalCorrectOption]
+        }
       }
 
       return {
         exam_id: examId,
-        question_type: q.question_type || 'multiple_choice',
-        question_text: q.question_text,
+        question_type: qType,
+        question_text: q.question_text || '',
         image_url: q.image_url || null,
         max_score: Number(q.max_score) || 1,
         explanation: q.explanation || null,
         options: q.options || [],
         correct_option: finalCorrectOption,
-        correct_answers: q.correct_answers || (q.question_type === 'essay' ? null : [finalCorrectOption]),
+        correct_answers: finalCorrectAnswers,
       }
     })
 

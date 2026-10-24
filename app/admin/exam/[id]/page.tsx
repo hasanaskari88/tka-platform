@@ -8,6 +8,55 @@ import MathRenderer from '@/components/MathRenderer'
 import BulkUploadModal from '@/components/BulkUploadModal'
 import Link from 'next/link'
 
+const DEFAULT_KEYS = ['A', 'B', 'C', 'D']
+
+// Helper Normalisasi Opsi PG/PG Kompleks (Selalu 4 Opsi A, B, C, D)
+function getNormalizedOptions(rawOptions: any) {
+  const optsArray = Array.isArray(rawOptions) ? rawOptions : []
+  return DEFAULT_KEYS.map((key, index) => {
+    const found =
+      optsArray.find((o: any) => typeof o === 'object' && o?.key === key) ||
+      optsArray[index]
+
+    if (typeof found === 'string' || typeof found === 'number') {
+      return { key, text: String(found), image_url: '' }
+    } else if (found && typeof found === 'object') {
+      return {
+        key: found.key || key,
+        text: found.text !== undefined && found.text !== null ? String(found.text) : '',
+        image_url: found.image_url ? String(found.image_url) : '',
+      }
+    }
+    return { key, text: '', image_url: '' }
+  })
+}
+
+// Helper Normalisasi Pernyataan Matriks
+function getNormalizedStatements(rawOptions: any, correctAnswers: any) {
+  const stArray = Array.isArray(rawOptions) ? rawOptions : []
+  if (stArray.length === 0) {
+    return [
+      { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
+      { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
+    ]
+  }
+  return stArray.map((st: any, idx: number) => {
+    const stId = String(st.id || idx + 1)
+    let cVal = 'Benar'
+    if (correctAnswers && typeof correctAnswers === 'object' && correctAnswers[stId]) {
+      cVal = String(correctAnswers[stId])
+    } else if (st.correct_val) {
+      cVal = String(st.correct_val)
+    }
+    return {
+      id: stId,
+      text: typeof st === 'string' ? st : String(st.text || ''),
+      image_url: st.image_url ? String(st.image_url) : '',
+      correct_val: cVal,
+    }
+  })
+}
+
 function QuestionManagerContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -16,13 +65,13 @@ function QuestionManagerContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Mode Tab: 'form' atau 'list'
+  // Mode Navigasi Tab: 'form' (Input/Edit) atau 'list' (Daftar Soal)
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form')
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
 
-  // Form State (Mendukung 4 Tipe Soal)
+  // State Form Soal
   const [questionType, setQuestionType] = useState<
     'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
   >('multiple_choice')
@@ -31,7 +80,7 @@ function QuestionManagerContent() {
   const [maxScore, setMaxScore] = useState(1.0)
   const [explanation, setExplanation] = useState('')
 
-  // State Opsi PG & PG Kompleks (Teks & URL Gambar)
+  // State Opsi PG & PG Kompleks
   const [options, setOptions] = useState([
     { key: 'A', text: '', image_url: '' },
     { key: 'B', text: '', image_url: '' },
@@ -43,7 +92,7 @@ function QuestionManagerContent() {
   const [correctSingleOption, setCorrectSingleOption] = useState('A')
   const [correctComplexOptions, setCorrectComplexOptions] = useState<string[]>([])
 
-  // State Pernyataan untuk Matriks Benar - Salah
+  // State Matriks Benar-Salah
   const [statements, setStatements] = useState([
     { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
     { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
@@ -77,7 +126,7 @@ function QuestionManagerContent() {
     loadData()
   }, [examId])
 
-  // Helper Menyisipkan Teks / Tag HTML / Latex pada Kursor Textarea
+  // Helper Sisip Teks Toolbar LaTeX / HTML
   const insertFormatText = (before: string, after: string = '') => {
     const textarea = document.getElementById('questionTextarea') as HTMLTextAreaElement
     if (!textarea) {
@@ -172,49 +221,30 @@ function QuestionManagerContent() {
     ])
   }
 
+  // KLIK EDIT SOAL -> SELALU NORMALISASI OPSI A, B, C, D
   const handleEditClick = (q: any) => {
     setEditingQuestionId(q.id)
-    setQuestionType(q.question_type || 'multiple_choice')
+    const type = q.question_type || 'multiple_choice'
+    setQuestionType(type)
     setQuestionText(q.question_text || '')
     setImageUrl(q.image_url || '')
     setMaxScore(Number(q.max_score) || 1.0)
     setExplanation(q.explanation || '')
 
-    if (
-      q.question_type === 'multiple_choice' ||
-      q.question_type === 'complex_multiple_choice'
-    ) {
-      if (Array.isArray(q.options) && q.options.length > 0) {
-        const normalizedOptions = q.options.map((opt: any, index: number) => ({
-          key: opt.key || String.fromCharCode(65 + index),
-          text: opt.text || '',
-          image_url: opt.image_url || '',
-        }))
-        setOptions(normalizedOptions)
-      }
+    // Normalisasi opsi & matriks
+    setOptions(getNormalizedOptions(q.options))
+    setStatements(getNormalizedStatements(q.options, q.correct_answers))
 
-      if (q.question_type === 'multiple_choice') {
-        setCorrectSingleOption(
-          q.correct_option || (Array.isArray(q.correct_answers) ? q.correct_answers[0] : 'A')
-        )
+    if (type === 'multiple_choice') {
+      const keyVal = q.correct_option || (Array.isArray(q.correct_answers) ? q.correct_answers[0] : 'A')
+      setCorrectSingleOption(String(keyVal).trim().toUpperCase())
+    } else if (type === 'complex_multiple_choice') {
+      if (Array.isArray(q.correct_answers)) {
+        setCorrectComplexOptions(q.correct_answers.map(String))
+      } else if (q.correct_option) {
+        setCorrectComplexOptions(String(q.correct_option).split(',').map((s) => s.trim()))
       } else {
-        if (Array.isArray(q.correct_answers)) {
-          setCorrectComplexOptions(q.correct_answers)
-        } else if (q.correct_option) {
-          setCorrectComplexOptions(q.correct_option.split(',').map((s: string) => s.trim()))
-        } else {
-          setCorrectComplexOptions([])
-        }
-      }
-    } else if (q.question_type === 'true_false_matrix') {
-      if (Array.isArray(q.options) && q.options.length > 0) {
-        const formattedStatements = q.options.map((st: any) => ({
-          id: String(st.id),
-          text: st.text || '',
-          image_url: st.image_url || '',
-          correct_val: q.correct_answers?.[st.id] || st.correct_val || 'Benar',
-        }))
-        setStatements(formattedStatements)
+        setCorrectComplexOptions(['A'])
       }
     }
 
@@ -321,7 +351,7 @@ function QuestionManagerContent() {
       <Navbar />
 
       <main className="p-8 max-w-6xl mx-auto space-y-6">
-        {/* HEADER INFORMASI UJIAN & TOKEN */}
+        {/* HEADER */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
             <div className="flex items-center space-x-2">
@@ -356,10 +386,15 @@ function QuestionManagerContent() {
           </div>
         </div>
 
-        {/* BARS NAVIGASI TAB UTAMA */}
+        {/* TAB BAR NAVIGASI */}
         <div className="flex border-b border-slate-200 space-x-4">
           <button
-            onClick={() => setActiveTab('form')}
+            onClick={() => {
+              if (activeTab === 'list' && !editingQuestionId) {
+                resetForm()
+              }
+              setActiveTab('form')
+            }}
             className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center space-x-2 ${
               activeTab === 'form'
                 ? 'border-indigo-600 text-indigo-600'
@@ -754,28 +789,29 @@ function QuestionManagerContent() {
                     {(qType === 'multiple_choice' || qType === 'complex_multiple_choice') &&
                       Array.isArray(q.options) && (
                         <div className="space-y-1.5 pl-3 border-l-2 border-slate-200 text-xs">
-                          {q.options.map((opt: any) => {
+                          {q.options.map((opt: any, oIdx: number) => {
+                            const optKey = opt.key || String.fromCharCode(65 + oIdx)
                             let isKey = false
                             if (qType === 'multiple_choice') {
-                              isKey = q.correct_option === opt.key
+                              isKey = String(q.correct_option).trim().toUpperCase() === optKey
                             } else {
                               isKey = Array.isArray(q.correct_answers)
-                                ? q.correct_answers.includes(opt.key)
-                                : String(q.correct_option).includes(opt.key)
+                                ? q.correct_answers.includes(optKey)
+                                : String(q.correct_option).includes(optKey)
                             }
 
                             return (
                               <div
-                                key={opt.key}
+                                key={optKey || oIdx}
                                 className={`flex items-start space-x-2 ${
                                   isKey ? 'font-bold text-emerald-700' : 'text-slate-600'
                                 }`}
                               >
-                                <span className="w-4">{opt.key}.</span>
+                                <span className="w-4">{optKey}.</span>
                                 <div className="flex-1">
-                                  <MathRenderer content={opt.text} />
+                                  <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
                                   {opt.image_url && (
-                                    <img src={opt.image_url} alt={`Gambar Opsi ${opt.key}`} className="max-h-24 mt-1 rounded border" />
+                                    <img src={opt.image_url} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
                                   )}
                                 </div>
                                 {isKey && <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded font-bold">Kunci</span>}
@@ -801,7 +837,7 @@ function QuestionManagerContent() {
                               return (
                                 <tr key={st.id || sIdx}>
                                   <td className="p-2.5">
-                                    <MathRenderer content={st.text} />
+                                    <MathRenderer content={typeof st === 'string' ? st : st.text} />
                                     {st.image_url && (
                                       <img src={st.image_url} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
                                     )}
