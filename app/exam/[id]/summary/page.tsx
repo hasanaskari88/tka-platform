@@ -182,7 +182,8 @@ function ExamSummaryContent() {
           localStorage.removeItem(`cbt_answers_session_${sessionId}`)
         }
       }
-      router.push(`/exam/${examId}`)
+      // Tambahkan ?force_new=true pada URL
+      router.push(`/exam/${examId}?force_new=true`)
     }
   }
 
