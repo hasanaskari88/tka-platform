@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
+// 🟢 Selalu ambil data riwayat paling segar dari database (mencegah cache Vercel)
+export const revalidate = 0
+
 function HistoryContent() {
   const router = useRouter()
   const [profile, setProfile] = useState<any>(null)
@@ -22,7 +25,6 @@ function HistoryContent() {
     } = await supabase.auth.getUser()
 
     if (!user) {
-      // Alihkan pengguna ke halaman login jika belum autentikasi
       router.push('/login')
       return
     }
@@ -111,6 +113,22 @@ function HistoryContent() {
     loadStudentHistory()
   }, [])
 
+  // 🟢 HANDLER MENGERJAKAN KEMBALI (RETAKE EXAM)
+  const handleRetakeExam = (examId: string, examTitle: string) => {
+    if (
+      confirm(
+        `Apakah Anda yakin ingin mengerjakan kembali ujian "${examTitle}"? Pengerjaan baru akan dicatat sebagai sesi ujian baru.`
+      )
+    ) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`cbt_temp_answers_${examId}`)
+        localStorage.removeItem(`cbt_answers_${examId}`)
+        localStorage.removeItem(`cbt_score_${examId}`)
+      }
+      router.push(`/exam/${examId}`)
+    }
+  }
+
   // Kalkulasi Statistik Keseluruhan
   const totalCompleted = historyList.length
   const totalAllScores = historyList.map((h) => h.score)
@@ -149,13 +167,16 @@ function HistoryContent() {
 
           {profile && (
             <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3 text-xs">
-              <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+              <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
                 {profile.full_name?.charAt(0).toUpperCase() || 'S'}
               </div>
               <div>
                 <div className="font-bold text-slate-800">{profile.full_name}</div>
                 <div className="text-slate-400">
-                  @{profile.username} • Kelas: <span className="font-semibold text-indigo-600">{profile.class_code || '-'}</span>
+                  @{profile.username} | Kelas:{' '}
+                  <span className="font-semibold text-indigo-600">
+                    {profile.class_code || '-'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -249,7 +270,7 @@ function HistoryContent() {
           )}
         </div>
 
-        {/* SECTION 2: TABEL RIWAYAT UJIAN & TOMBOL REVIEW */}
+        {/* SECTION 2: TABEL RIWAYAT UJIAN & TOMBOL ACTION */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
           <div className="border-b pb-3 flex justify-between items-center">
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -319,14 +340,25 @@ function HistoryContent() {
                         )}
                       </td>
 
-                      {/* TOMBOL REVIEW PEMBAHASAN */}
+                      {/* 🟢 TOMBOL AKSI: REVIEW & COBA LAGI */}
                       <td className="p-3 text-center">
-                        <Link
-                          href={`/exam/${item.exam_id}/summary?session_id=${item.session_id}`}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-block shadow-sm"
-                        >
-                          👁️ Review Pembahasan
-                        </Link>
+                        <div className="flex items-center justify-center space-x-2">
+                          <Link
+                            href={`/exam/${item.exam_id}/summary?session_id=${item.session_id}`}
+                            className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                          >
+                            <span>👁️</span>
+                            <span>Review</span>
+                          </Link>
+
+                          <button
+                            onClick={() => handleRetakeExam(item.exam_id, item.exam_title)}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                          >
+                            <span>🔄</span>
+                            <span>Coba Lagi</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
