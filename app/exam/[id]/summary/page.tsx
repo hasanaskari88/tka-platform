@@ -171,6 +171,21 @@ function ExamSummaryContent() {
     loadSummaryAndReview()
   }, [examId, sessionId])
 
+  // 🟢 HANDLER KERJAKAN KEMBALI (RETAKE EXAM)
+  const handleRetakeExam = () => {
+    if (confirm('Apakah Anda yakin ingin mengerjakan kembali ujian ini? Pengerjaan baru akan dicatat sebagai sesi ujian baru.')) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(`cbt_temp_answers_${examId}`)
+        localStorage.removeItem(`cbt_answers_${examId}`)
+        localStorage.removeItem(`cbt_score_${examId}`)
+        if (sessionId) {
+          localStorage.removeItem(`cbt_answers_session_${sessionId}`)
+        }
+      }
+      router.push(`/exam/${examId}`)
+    }
+  }
+
   // 🟢 PERHITUNGAN POPULASI SKOR
   let totalPointsEarned = 0
   let totalMaxPoints = 0
@@ -199,7 +214,7 @@ function ExamSummaryContent() {
   const accuracyPercentage =
     totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
 
-  // 🟢 SKOR AKHIR REAL-TIME (Mengatasi Bug Nilai DB 0)
+  // 🟢 SKOR AKHIR REAL-TIME
   const localSavedScore = typeof window !== 'undefined' ? localStorage.getItem(`cbt_score_${examId}`) : null
   const calculatedScore = sessionData?.score && sessionData.score > 0
     ? sessionData.score
@@ -294,20 +309,31 @@ function ExamSummaryContent() {
           </div>
         </div>
 
+        {/* 🟢 TOMBOL AKSI & KERJAKAN KEMBALI */}
         <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
-          <Link
-            href="/"
-            className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-lg transition-all active:scale-95"
-          >
-            🏠 Kembali ke Beranda Ujian
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link
+              href="/"
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-bold rounded-xl border border-white/20 transition-all active:scale-95"
+            >
+              🏠 Beranda
+            </Link>
 
-          <Link
-            href="/history"
-            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-bold rounded-xl border border-white/20 transition-all"
+            <Link
+              href="/history"
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-xs font-bold rounded-xl border border-white/20 transition-all active:scale-95"
+            >
+              📊 Riwayat Ujian
+            </Link>
+          </div>
+
+          <button
+            onClick={handleRetakeExam}
+            className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg transition-all active:scale-95 flex items-center space-x-2 border border-indigo-400/30"
           >
-            📊 Lihat Semua Riwayat Nilai
-          </Link>
+            <span>🔄</span>
+            <span>Mengerjakan Kembali</span>
+          </button>
         </div>
       </div>
 
