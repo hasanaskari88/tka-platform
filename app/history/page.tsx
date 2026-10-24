@@ -108,10 +108,11 @@ function HistoryContent() {
     loadStudentHistory()
   }, [])
 
+  // 🟢 Mengerjakan kembali membawa parameter ?force_new=true untuk membuat sesi baru
   const handleRetakeExam = (examId: string, examTitle: string) => {
     if (
       confirm(
-        `Apakah Anda yakin ingin mengerjakan kembali ujian "${examTitle}"? Pengerjaan baru akan dicatat sebagai sesi ujian baru.`
+        `Apakah Anda yakin ingin mengerjakan kembali ujian "${examTitle}"? Sesi baru akan dibuat dengan waktu awal utuh.`
       )
     ) {
       if (typeof window !== 'undefined') {
@@ -119,7 +120,7 @@ function HistoryContent() {
         localStorage.removeItem(`cbt_answers_${examId}`)
         localStorage.removeItem(`cbt_score_${examId}`)
       }
-      router.push(`/exam/${examId}`)
+      router.push(`/exam/${examId}?force_new=true`)
     }
   }
 

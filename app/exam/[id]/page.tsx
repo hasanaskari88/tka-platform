@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
@@ -62,7 +62,9 @@ export function checkQuestionAccuracy(q: any, userAns: any) {
 function ExamContent() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const examId = params?.id as string
+  const forceNew = searchParams?.get('force_new') === 'true'
 
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
@@ -71,8 +73,8 @@ function ExamContent() {
 
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [flagged, setFlagged] = useState<{ [key: string]: boolean }>({})
-  const [timeLeft, setTimeLeft] = useState<number>(0)
-  const [isTimerStarted, setIsTimerStarted] = useState(false) // 🟢 FLAG PENGUNCI TIMER (PENCEGAH SUBMIT PREMATUR)
+  const [timeLeft, setTimeLeft] = useState<number | null>(null) // 🟢 Nilai awal NULL mencegah auto-submit
+  const [isTimerStarted, setIsTimerStarted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
@@ -147,57 +149,25 @@ function ExamContent() {
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
         let activeSessionId: string | null = null
 
-        // 🟢 Cek Sesi Ongoing di Supabase
-        const { data: existingSession } = await supabase
-          .from('exam_sessions')
-          .select('id, start_time')
-          .eq('exam_id', examId)
-          .eq('user_id', activeUser.id)
-          .eq('status', 'ongoing')
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+        // 🟢 MANAJEMEN SESI (FORCE NEW VS RESUME)
+        if (forceNew) {
+          // Tutup semua sesi ongoing lama
+          await supabase
+            .from('exam_sessions')
+            .update({
+              status: 'completed',
+              score: 0,
+              completed_at: new Date().toISOString(),
+            })
+            .eq('exam_id', examId)
+            .eq('user_id', activeUser.id)
+            .eq('status', 'ongoing')
 
-        if (existingSession && existingSession.start_time) {
-          const startTimeMs = new Date(existingSession.start_time).getTime()
-          const nowMs = new Date().getTime()
-          const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
-          const remainingSeconds = totalDurationSeconds - elapsedSeconds
+          // Bersihkan jawaban sementara
+          localStorage.removeItem(`cbt_temp_answers_${examId}`)
+          setUserAnswers({})
 
-          if (remainingSeconds <= 0) {
-            // Sesi lama sudah kadaluarsa secara real-time, selesaikan & buat baru
-            await supabase
-              .from('exam_sessions')
-              .update({
-                status: 'completed',
-                score: 0,
-                completed_at: new Date().toISOString(),
-              })
-              .eq('id', existingSession.id)
-
-            const nowIso = new Date().toISOString()
-            const { data: newSession } = await supabase
-              .from('exam_sessions')
-              .insert([
-                {
-                  exam_id: examId,
-                  user_id: activeUser.id,
-                  status: 'ongoing',
-                  start_time: nowIso,
-                },
-              ])
-              .select('id')
-              .single()
-
-            if (newSession) activeSessionId = newSession.id
-            setTimeLeft(totalDurationSeconds)
-          } else {
-            // Sesi ongoing masih aktif dengan sisa waktu tersisa!
-            activeSessionId = existingSession.id
-            setTimeLeft(remainingSeconds)
-          }
-        } else {
-          // Buat Sesi Baru jika belum ada sesi ongoing
+          // Buat Sesi Baru Bersih
           const nowIso = new Date().toISOString()
           const { data: newSession } = await supabase
             .from('exam_sessions')
@@ -214,6 +184,85 @@ function ExamContent() {
 
           if (newSession) activeSessionId = newSession.id
           setTimeLeft(totalDurationSeconds)
+        } else {
+          // Mode Normal: Cari sesi ongoing
+          const { data: existingSession } = await supabase
+            .from('exam_sessions')
+            .select('id, start_time')
+            .eq('exam_id', examId)
+            .eq('user_id', activeUser.id)
+            .eq('status', 'ongoing')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+
+          if (existingSession && existingSession.start_time) {
+            const startTimeMs = new Date(existingSession.start_time).getTime()
+            const nowMs = new Date().getTime()
+            const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
+            const remainingSeconds = totalDurationSeconds - elapsedSeconds
+
+            if (remainingSeconds > 0) {
+              // Lanjutkan sesi aktif
+              activeSessionId = existingSession.id
+              setTimeLeft(remainingSeconds)
+
+              const savedLocalAns = localStorage.getItem(`cbt_temp_answers_${examId}`)
+              if (savedLocalAns) {
+                try {
+                  setUserAnswers(JSON.parse(savedLocalAns))
+                } catch (e) {}
+              }
+            } else {
+              // Sesi lama sudah kadaluarsa -> Buat Baru
+              await supabase
+                .from('exam_sessions')
+                .update({
+                  status: 'completed',
+                  score: 0,
+                  completed_at: new Date().toISOString(),
+                })
+                .eq('id', existingSession.id)
+
+              localStorage.removeItem(`cbt_temp_answers_${examId}`)
+              setUserAnswers({})
+
+              const nowIso = new Date().toISOString()
+              const { data: newSession } = await supabase
+                .from('exam_sessions')
+                .insert([
+                  {
+                    exam_id: examId,
+                    user_id: activeUser.id,
+                    status: 'ongoing',
+                    start_time: nowIso,
+                  },
+                ])
+                .select('id')
+                .single()
+
+              if (newSession) activeSessionId = newSession.id
+              setTimeLeft(totalDurationSeconds)
+            }
+          } else {
+            // Buat Sesi Baru jika belum ada
+            const nowIso = new Date().toISOString()
+            const { data: newSession } = await supabase
+              .from('exam_sessions')
+              .insert([
+                {
+                  exam_id: examId,
+                  user_id: activeUser.id,
+                  status: 'ongoing',
+                  start_time: nowIso,
+                },
+              ])
+              .select('id')
+              .single()
+
+            if (newSession) activeSessionId = newSession.id
+            setTimeLeft(totalDurationSeconds)
+          }
         }
 
         if (activeSessionId) {
@@ -221,26 +270,17 @@ function ExamContent() {
         }
       }
 
-      // Muat Jawaban Sementara dari LocalStorage
-      const savedLocalAns = localStorage.getItem(`cbt_temp_answers_${examId}`)
-      if (savedLocalAns) {
-        try {
-          setUserAnswers(JSON.parse(savedLocalAns))
-        } catch (e) {}
-      }
-
       setLoading(false)
-      setIsTimerStarted(true) // 🟢 HANYA NAIKKAN BENDERA JIKA WAKTU SUDAH TERTULIS DENGAN BENAR
+      setIsTimerStarted(true)
     }
 
     loadExamDataAndCreateSession()
-  }, [examId])
+  }, [examId, forceNew])
 
-  // Timer Countdown Effect (Diuji dengan Aman)
+  // Timer Countdown Effect
   useEffect(() => {
-    if (loading || isSubmitted || !isTimerStarted) return
+    if (loading || isSubmitted || !isTimerStarted || timeLeft === null) return
 
-    // Waktu benar-benar habis dihitung countdown
     if (timeLeft <= 0) {
       handleSubmit()
       return
@@ -248,19 +288,20 @@ function ExamContent() {
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
+        if (prev !== null && prev <= 1) {
           clearInterval(timer)
           handleSubmit()
           return 0
         }
-        return prev - 1
+        return prev !== null ? prev - 1 : 0
       })
     }, 1000)
 
     return () => clearInterval(timer)
   }, [timeLeft, isSubmitted, loading, isTimerStarted])
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | null) => {
+    if (seconds === null) return '00:00'
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
