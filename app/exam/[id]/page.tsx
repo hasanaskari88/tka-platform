@@ -1,107 +1,38 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import Navbar from '@/components/Navbar'
 import MathRenderer from '@/components/MathRenderer'
-import BulkUploadModal from '@/components/BulkUploadModal'
-import Link from 'next/link'
 
-const DEFAULT_KEYS = ['A', 'B', 'C', 'D']
-
-// Helper Normalisasi Opsi PG/PG Kompleks (Selalu 4 Opsi A, B, C, D)
-function getNormalizedOptions(rawOptions: any) {
-  const optsArray = Array.isArray(rawOptions) ? rawOptions : []
-  return DEFAULT_KEYS.map((key, index) => {
-    const found =
-      optsArray.find((o: any) => typeof o === 'object' && o?.key === key) ||
-      optsArray[index]
-
-    if (typeof found === 'string' || typeof found === 'number') {
-      return { key, text: String(found), image_url: '' }
-    } else if (found && typeof found === 'object') {
-      return {
-        key: found.key || key,
-        text: found.text !== undefined && found.text !== null ? String(found.text) : '',
-        image_url: found.image_url ? String(found.image_url) : '',
-      }
-    }
-    return { key, text: '', image_url: '' }
-  })
-}
-
-// Helper Normalisasi Pernyataan Matriks
-function getNormalizedStatements(rawOptions: any, correctAnswers: any) {
-  const stArray = Array.isArray(rawOptions) ? rawOptions : []
-  if (stArray.length === 0) {
-    return [
-      { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
-      { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
-    ]
-  }
-  return stArray.map((st: any, idx: number) => {
-    const stId = String(st.id || idx + 1)
-    let cVal = 'Benar'
-    if (correctAnswers && typeof correctAnswers === 'object' && correctAnswers[stId]) {
-      cVal = String(correctAnswers[stId])
-    } else if (st.correct_val) {
-      cVal = String(st.correct_val)
-    }
-    return {
-      id: stId,
-      text: typeof st === 'string' ? st : String(st.text || ''),
-      image_url: st.image_url ? String(st.image_url) : '',
-      correct_val: cVal,
-    }
-  })
-}
-
-function QuestionManagerContent() {
+function ExamEngineContent() {
   const params = useParams()
   const examId = params?.id as string
+  const router = useRouter()
 
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  
+  // State Jawaban Siswa & Ragu-ragu
+  const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
+  const [flaggedQuestions, setFlaggedQuestions] = useState<{ [key: string]: boolean }>({})
+  
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-
-  // Mode Navigasi Tab: 'form' (Input/Edit) atau 'list' (Daftar Soal)
-  const [activeTab, setActiveTab] = useState<'form' | 'list'>('form')
-
-  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
-  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
-
-  // State Form Soal
-  const [questionType, setQuestionType] = useState<
-    'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
-  >('multiple_choice')
-  const [questionText, setQuestionText] = useState('')
-  const [imageUrl, setImageUrl] = useState('')
-  const [maxScore, setMaxScore] = useState(1.0)
-  const [explanation, setExplanation] = useState('')
-
-  // State Opsi PG & PG Kompleks
-  const [options, setOptions] = useState([
-    { key: 'A', text: '', image_url: '' },
-    { key: 'B', text: '', image_url: '' },
-    { key: 'C', text: '', image_url: '' },
-    { key: 'D', text: '', image_url: '' },
-  ])
-
-  // State Kunci Jawaban
-  const [correctSingleOption, setCorrectSingleOption] = useState('A')
-  const [correctComplexOptions, setCorrectComplexOptions] = useState<string[]>([])
-
-  // State Matriks Benar-Salah
-  const [statements, setStatements] = useState([
-    { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
-    { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
-  ])
-
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
 
-  const loadData = async () => {
+  // Helper Acak Array
+  const shuffleArray = (array: any[]) => {
+    const arr = [...array]
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr
+  }
+
+  const loadExamData = async () => {
     if (!examId) return
     const supabase = createClient()
 
@@ -111,840 +42,540 @@ function QuestionManagerContent() {
       .eq('id', examId)
       .single()
 
+    if (!examData) {
+      alert('Ujian tidak ditemukan!')
+      router.push('/')
+      return
+    }
+
     const { data: questionData } = await supabase
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: true })
 
-    if (examData) setExam(examData)
-    if (questionData) setQuestions(questionData)
+    if (questionData) {
+      let processedQuestions = [...questionData]
+
+      if (examData.shuffle_questions) {
+        processedQuestions = shuffleArray(processedQuestions)
+      }
+
+      if (examData.shuffle_options) {
+        processedQuestions = processedQuestions.map((q) => {
+          if (
+            (q.question_type === 'multiple_choice' || q.question_type === 'complex_multiple_choice') &&
+            Array.isArray(q.options) &&
+            q.options.length > 0
+          ) {
+            return {
+              ...q,
+              options: shuffleArray(q.options),
+            }
+          }
+          return q
+        })
+      }
+
+      setQuestions(processedQuestions)
+    }
+
+    setExam(examData)
+    setTimeLeft((examData.duration_minutes || 15) * 60)
     setLoading(false)
   }
 
   useEffect(() => {
-    loadData()
+    loadExamData()
   }, [examId])
 
-  // Helper Sisip Teks Toolbar LaTeX / HTML pada Kursor Textarea
-  const insertFormatText = (before: string, after: string = '') => {
-    const textarea = document.getElementById('questionTextarea') as HTMLTextAreaElement
-    if (!textarea) {
-      setQuestionText((prev) => prev + before + after)
-      return
-    }
+  // Timer Countdown Ujian
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0) return
 
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const selected = questionText.substring(start, end)
-    const replacement = before + (selected || '') + after
-
-    const newText = questionText.substring(0, start) + replacement + questionText.substring(end)
-    setQuestionText(newText)
-
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(
-        start + before.length,
-        start + before.length + (selected ? selected.length : 0)
-      )
-    }, 0)
-  }
-
-  const handleOptionChange = (
-    idx: number,
-    field: 'text' | 'image_url',
-    value: string
-  ) => {
-    const updated = [...options]
-    updated[idx][field] = value || ''
-    setOptions(updated)
-  }
-
-  const handleComplexToggle = (key: string) => {
-    if (correctComplexOptions.includes(key)) {
-      setCorrectComplexOptions(correctComplexOptions.filter((k) => k !== key))
-    } else {
-      setCorrectComplexOptions([...correctComplexOptions, key])
-    }
-  }
-
-  const handleStatementChange = (
-    idx: number,
-    field: 'text' | 'correct_val' | 'image_url',
-    val: string
-  ) => {
-    const updated = [...statements]
-    updated[idx][field] = val || ''
-    setStatements(updated)
-  }
-
-  const addStatement = () => {
-    const newId = String(Date.now())
-    setStatements([
-      ...statements,
-      {
-        id: newId,
-        text: `Pernyataan ${statements.length + 1}`,
-        image_url: '',
-        correct_val: 'Benar',
-      },
-    ])
-  }
-
-  const removeStatement = (idx: number) => {
-    if (statements.length <= 1) {
-      alert('Minimal harus ada 1 pernyataan!')
-      return
-    }
-    setStatements(statements.filter((_, i) => i !== idx))
-  }
-
-  const resetForm = () => {
-    setEditingQuestionId(null)
-    setQuestionType('multiple_choice')
-    setQuestionText('')
-    setImageUrl('')
-    setMaxScore(1.0)
-    setExplanation('')
-    setOptions([
-      { key: 'A', text: '', image_url: '' },
-      { key: 'B', text: '', image_url: '' },
-      { key: 'C', text: '', image_url: '' },
-      { key: 'D', text: '', image_url: '' },
-    ])
-    setCorrectSingleOption('A')
-    setCorrectComplexOptions([])
-    setStatements([
-      { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
-      { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
-    ])
-  }
-
-  const handleEditClick = (q: any) => {
-    setEditingQuestionId(q.id)
-    const type = q.question_type || 'multiple_choice'
-    setQuestionType(type)
-    setQuestionText(q.question_text || '')
-    setImageUrl(q.image_url || '')
-    setMaxScore(Number(q.max_score) || 1.0)
-    setExplanation(q.explanation || '')
-
-    setOptions(getNormalizedOptions(q.options))
-    setStatements(getNormalizedStatements(q.options, q.correct_answers))
-
-    if (type === 'multiple_choice') {
-      const keyVal = q.correct_option || (Array.isArray(q.correct_answers) ? q.correct_answers[0] : 'A')
-      setCorrectSingleOption(String(keyVal).trim().toUpperCase())
-    } else if (type === 'complex_multiple_choice') {
-      if (Array.isArray(q.correct_answers)) {
-        setCorrectComplexOptions(q.correct_answers.map(String))
-      } else if (q.correct_option) {
-        setCorrectComplexOptions(String(q.correct_option).split(',').map((s) => s.trim()))
-      } else {
-        setCorrectComplexOptions(['A'])
-      }
-    }
-
-    setActiveTab('form')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleSaveQuestion = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setMsg(null)
-
-    const supabase = createClient()
-
-    let payload: any = {
-      exam_id: examId,
-      question_type: questionType,
-      question_text: questionText,
-      image_url: imageUrl.trim() || null,
-      max_score: Number(maxScore),
-      explanation: explanation.trim() || null,
-    }
-
-    if (questionType === 'multiple_choice') {
-      payload.options = options
-      payload.correct_option = correctSingleOption
-      payload.correct_answers = [correctSingleOption]
-    } else if (questionType === 'complex_multiple_choice') {
-      if (correctComplexOptions.length === 0) {
-        setMsg('Error: Pilih minimal 1 kunci jawaban untuk PG Kompleks.')
-        setIsSubmitting(false)
-        return
-      }
-      payload.options = options
-      payload.correct_option = correctComplexOptions.join(',')
-      payload.correct_answers = correctComplexOptions
-    } else if (questionType === 'true_false_matrix') {
-      if (statements.length === 0) {
-        setMsg('Error: Tambahkan minimal 1 pernyataan untuk Matriks.')
-        setIsSubmitting(false)
-        return
-      }
-      payload.options = statements
-      const answerObj: { [key: string]: string } = {}
-      statements.forEach((st) => {
-        answerObj[st.id] = st.correct_val
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev !== null && prev <= 1) {
+          clearInterval(timer)
+          handleFinishExam(true) // Auto finish saat waktu habis
+          return 0
+        }
+        return prev !== null ? prev - 1 : null
       })
-      payload.correct_answers = answerObj
-      payload.correct_option = 'MATRIX'
-    } else if (questionType === 'essay') {
-      payload.options = []
-      payload.correct_option = 'ESSAY'
-      payload.correct_answers = null
-    }
+    }, 1000)
 
-    let error: any = null
+    return () => clearInterval(timer)
+  }, [timeLeft])
 
-    if (editingQuestionId) {
-      const res = await supabase
-        .from('questions')
-        .update(payload)
-        .eq('id', editingQuestionId)
-      error = res.error
-    } else {
-      const res = await supabase.from('questions').insert([payload])
-      error = res.error
-    }
-
-    if (error) {
-      setMsg(`Error: ${error.message}`)
-    } else {
-      setMsg(
-        editingQuestionId
-          ? 'Soal berhasil diperbarui!'
-          : 'Soal baru berhasil ditambahkan!'
-      )
-      resetForm()
-      loadData()
-      setActiveTab('list')
-    }
-    setIsSubmitting(false)
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-  const handleDeleteQuestion = async (qId: string) => {
-    if (!confirm('Hapus butir soal ini?')) return
+  // Handler Jawaban Pilihan Ganda Biasa
+  const handleSelectSingleOption = (questionId: string, optKey: string) => {
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionId]: optKey,
+    }))
+  }
+
+  // Handler Jawaban PG Kompleks (Multiple Checkbox)
+  const handleToggleComplexOption = (questionId: string, optKey: string) => {
+    const currentAns = Array.isArray(userAnswers[questionId]) ? userAnswers[questionId] : []
+    let updated: string[] = []
+    if (currentAns.includes(optKey)) {
+      updated = currentAns.filter((k: string) => k !== optKey)
+    } else {
+      updated = [...currentAns, optKey]
+    }
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionId]: updated,
+    }))
+  }
+
+  // Handler Jawaban Matriks Benar-Salah
+  const handleSelectMatrixValue = (questionId: string, statementId: string, val: 'Benar' | 'Salah') => {
+    const currentMatrix = typeof userAnswers[questionId] === 'object' && !Array.isArray(userAnswers[questionId])
+      ? userAnswers[questionId]
+      : {}
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionId]: {
+        ...currentMatrix,
+        [statementId]: val,
+      },
+    }))
+  }
+
+  // Handler Jawaban Essay
+  const handleEssayChange = (questionId: string, text: string) => {
+    setUserAnswers((prev) => ({
+      ...prev,
+      [questionId]: text,
+    }))
+  }
+
+  // Handler Ragu-Ragu
+  const handleToggleFlag = (questionId: string) => {
+    setFlaggedQuestions((prev) => ({
+      ...prev,
+      [questionId]: !prev[questionId],
+    }))
+  }
+
+  // Selesaikan Ujian & Simpan Hasil
+  const handleFinishExam = async (autoFinish = false) => {
+    if (isSubmitting) return
+    if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
+
+    setIsSubmitting(true)
     const supabase = createClient()
-    await supabase.from('questions').delete().eq('id', qId)
-    loadData()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    // Hitung Skor Otomatis untuk PG, PG Kompleks, dan Matriks
+    let earnedScore = 0
+    questions.forEach((q) => {
+      const qType = q.question_type || 'multiple_choice'
+      const userAns = userAnswers[q.id]
+
+      if (qType === 'multiple_choice') {
+        if (userAns && String(userAns).trim().toUpperCase() === String(q.correct_option).trim().toUpperCase()) {
+          earnedScore += Number(q.max_score) || 1
+        }
+      } else if (qType === 'complex_multiple_choice') {
+        if (Array.isArray(userAns) && Array.isArray(q.correct_answers)) {
+          const sortedUser = [...userAns].sort().join(',')
+          const sortedKey = [...q.correct_answers].sort().join(',')
+          if (sortedUser === sortedKey) {
+            earnedScore += Number(q.max_score) || 1
+          }
+        }
+      } else if (qType === 'true_false_matrix') {
+        if (userAns && typeof userAns === 'object' && q.correct_answers) {
+          let isAllCorrect = true
+          const stKeys = Object.keys(q.correct_answers)
+          if (stKeys.length === 0) isAllCorrect = false
+
+          for (const key of stKeys) {
+            if (userAns[key] !== q.correct_answers[key]) {
+              isAllCorrect = false
+              break
+            }
+          }
+          if (isAllCorrect) {
+            earnedScore += Number(q.max_score) || 1
+          }
+        }
+      }
+      // Note: Essay dinilai manual oleh Admin/Guru
+    })
+
+    const nowIso = new Date().toISOString()
+
+    // 1. Simpan Sesi Ujian
+    const { data: session, error: sessionErr } = await supabase
+      .from('exam_sessions')
+      .insert([
+        {
+          exam_id: examId,
+          user_id: user?.id || null,
+          status: 'completed',
+          score: earnedScore,
+          submitted_at: nowIso,
+          completed_at: nowIso,
+        },
+      ])
+      .select()
+      .single()
+
+    if (sessionErr || !session) {
+      alert(`Gagal menyimpan hasil ujian: ${sessionErr?.message || 'Error'}`)
+      setIsSubmitting(false)
+      return
+    }
+
+    // 2. Simpan Detail Jawaban
+    const answerRecords = questions.map((q) => ({
+      session_id: session.id,
+      question_id: q.id,
+      user_answer: userAnswers[q.id] !== undefined ? userAnswers[q.id] : null,
+    }))
+
+    await supabase.from('answers').insert(answerRecords)
+
+    // 3. Pindah ke Halaman Summary
+    router.push(`/exam/${examId}/summary?session_id=${session.id}`)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 font-sans">
-        <Navbar />
-        <main className="p-8 text-center text-slate-600 font-medium">
-          Memuat data soal admin...
-        </main>
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
+        <p className="font-semibold text-sm">Memuat ruang ujian CBT...</p>
       </div>
     )
   }
 
+  const currentQuestion = questions[currentIndex]
+  const qType = currentQuestion?.question_type || 'multiple_choice'
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      <Navbar />
-
-      <main className="p-8 max-w-6xl mx-auto space-y-6">
-        {/* HEADER */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
-                {exam?.subtest || 'SUBTES TKA'}
-              </span>
-              <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-full">
-                🔑 Token Ujian: {exam?.token_code || exam?.token || 'AKTIF'}
-              </span>
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800 mt-1">
-              ⚙️ Kelola Soal: {exam?.title}
-            </h1>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setIsBulkModalOpen(true)}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
-              suppressHydrationWarning
-            >
-              <span>📥</span>
-              <span>Import Soal (Bulk)</span>
-            </button>
-
-            <Link
-              href="/admin"
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-xl transition-colors"
-            >
-              ← Dashboard Admin
-            </Link>
-          </div>
+    <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
+      {/* HEADER CBT SISWA */}
+      <header className="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow-md">
+        <div>
+          <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
+            {exam?.subtest || 'TKA'}
+          </span>
+          <h1 className="text-base font-bold mt-0.5">{exam?.title}</h1>
         </div>
 
-        {/* TAB BAR NAVIGASI */}
-        <div className="flex border-b border-slate-200 space-x-4">
-          <button
-            onClick={() => {
-              if (activeTab === 'list' && !editingQuestionId) {
-                resetForm()
-              }
-              setActiveTab('form')
-            }}
-            className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center space-x-2 ${
-              activeTab === 'form'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <span>{editingQuestionId ? '✏️ Edit Soal' : '➕ Tambah Soal Manual'}</span>
-          </button>
+        <div className="flex items-center space-x-6">
+          <div className="text-right">
+            <span className="text-[10px] text-slate-400 block font-bold uppercase">
+              Sisa Waktu
+            </span>
+            <span className="font-mono text-lg font-bold text-amber-400">
+              ⏱ {timeLeft !== null ? formatTime(timeLeft) : '00:00'}
+            </span>
+          </div>
 
           <button
-            onClick={() => setActiveTab('list')}
-            className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center space-x-2 ${
-              activeTab === 'list'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+            onClick={() => handleFinishExam(false)}
+            disabled={isSubmitting}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+            suppressHydrationWarning
           >
-            <span>📚 Daftar Soal Aktif ({questions.length})</span>
+            {isSubmitting ? 'Menyimpan...' : 'Selesaikan Ujian ✓'}
           </button>
         </div>
+      </header>
 
-        {/* TAB 1: FORM INPUT & EDIT SOAL */}
-        {activeTab === 'form' && (
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm max-w-4xl mx-auto space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <h2 className="text-lg font-bold text-slate-800">
-                {editingQuestionId ? '✏️ Edit Butir Soal' : '➕ Input Soal Baru'}
-              </h2>
-              {editingQuestionId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-semibold transition-colors"
-                  suppressHydrationWarning
-                >
-                  ✕ Batal Edit
-                </button>
-              )}
-            </div>
-
-            {msg && (
-              <div
-                className={`p-3 rounded-xl text-xs font-medium ${
-                  msg.startsWith('Error')
-                    ? 'bg-red-50 text-red-600 border border-red-200'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                }`}
-              >
-                {msg}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveQuestion} className="space-y-4" suppressHydrationWarning>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Tipe Soal TKA
-                  </label>
-                  <select
-                    value={questionType}
-                    onChange={(e: any) => setQuestionType(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    suppressHydrationWarning
-                  >
-                    <option value="multiple_choice">Pilihan Ganda (1 Jawaban Benar)</option>
-                    <option value="complex_multiple_choice">Pilihan Ganda Kompleks</option>
-                    <option value="true_false_matrix">Matriks (Benar - Salah)</option>
-                    <option value="essay">Uraian / Essay (Penilaian Manual Guru)</option>
-                  </select>
+      {/* BODY KONTEN SOAL & NAVIGASI */}
+      <div className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* LEMBAR SOAL */}
+        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-6">
+          {currentQuestion ? (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b pb-3">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-800 text-sm">
+                    Soal Nomor {currentIndex + 1} dari {questions.length}
+                  </span>
+                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">
+                    {qType === 'complex_multiple_choice'
+                      ? 'PG Kompleks'
+                      : qType === 'true_false_matrix'
+                      ? 'Matriks'
+                      : qType === 'essay'
+                      ? 'Uraian / Essay'
+                      : 'Pilihan Ganda'}
+                  </span>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Bobot Nilai Maksimal
+                <button
+                  onClick={() => handleToggleFlag(currentQuestion.id)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
+                    flaggedQuestions[currentQuestion.id]
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                  suppressHydrationWarning
+                >
+                  🚩 {flaggedQuestions[currentQuestion.id] ? 'Ragu-Ragu' : 'Tandai Ragu'}
+                </button>
+              </div>
+
+              {/* TEKS SOAL & GAMBAR */}
+              <div className="text-slate-800 text-sm font-medium leading-relaxed">
+                <MathRenderer content={currentQuestion.question_text} />
+              </div>
+
+              {currentQuestion.image_url && (
+                <div className="my-2">
+                  <img src={currentQuestion.image_url} alt="Gambar Soal" className="max-h-60 rounded-xl border" />
+                </div>
+              )}
+
+              {/* RENDER LEMBAR JAWAB SESUAI TIPE SOAL */}
+
+              {/* 1. PILIHAN GANDA BIASA */}
+              {qType === 'multiple_choice' && Array.isArray(currentQuestion.options) && (
+                <div className="space-y-2 pt-2">
+                  {currentQuestion.options.map((opt: any, oIdx: number) => {
+                    const optKey = opt.key || String.fromCharCode(65 + oIdx)
+                    const isSelected = userAnswers[currentQuestion.id] === optKey
+
+                    return (
+                      <button
+                        key={optKey || oIdx}
+                        onClick={() => handleSelectSingleOption(currentQuestion.id, optKey)}
+                        className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 text-indigo-900 font-bold'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-medium'
+                        }`}
+                        suppressHydrationWarning
+                      >
+                        <span
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
+                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          {optKey}
+                        </span>
+                        <div className="flex-1">
+                          <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
+                          {opt.image_url && (
+                            <img src={opt.image_url} alt={`Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* 2. PILIHAN GANDA KOMPLEKS (CHECKBOX) */}
+              {qType === 'complex_multiple_choice' && Array.isArray(currentQuestion.options) && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                    ℹ️ Pilih satu atau beberapa jawaban yang Anda anggap benar.
+                  </p>
+                  {currentQuestion.options.map((opt: any, oIdx: number) => {
+                    const optKey = opt.key || String.fromCharCode(65 + oIdx)
+                    const currentAns = Array.isArray(userAnswers[currentQuestion.id]) ? userAnswers[currentQuestion.id] : []
+                    const isSelected = currentAns.includes(optKey)
+
+                    return (
+                      <button
+                        key={optKey || oIdx}
+                        onClick={() => handleToggleComplexOption(currentQuestion.id, optKey)}
+                        className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${
+                          isSelected
+                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 text-indigo-900 font-bold'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-medium'
+                        }`}
+                        suppressHydrationWarning
+                      >
+                        <input
+                          type="checkbox"
+                          readOnly
+                          checked={isSelected}
+                          className="w-4 h-4 text-indigo-600 rounded"
+                        />
+                        <span className="font-bold text-xs shrink-0">{optKey}.</span>
+                        <div className="flex-1">
+                          <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
+                          {opt.image_url && (
+                            <img src={opt.image_url} alt={`Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* 3. MATRIKS BENAR - SALAH */}
+              {qType === 'true_false_matrix' && Array.isArray(currentQuestion.options) && (
+                <div className="space-y-3 pt-2">
+                  <p className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                    ℹ️ Tentukan pilihan Benar atau Salah untuk setiap baris pernyataan di bawah ini.
+                  </p>
+                  <div className="border rounded-xl overflow-hidden text-xs">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-100 border-b font-bold text-slate-700">
+                        <tr>
+                          <th className="p-3">Pernyataan</th>
+                          <th className="p-3 w-32 text-center border-l">Pilihan Jawaban</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {currentQuestion.options.map((st: any, sIdx: number) => {
+                          const stId = String(st.id || sIdx + 1)
+                          const currentMatrix = typeof userAnswers[currentQuestion.id] === 'object' ? userAnswers[currentQuestion.id] : {}
+                          const selectedVal = currentMatrix?.[stId]
+
+                          return (
+                            <tr key={stId || sIdx} className="hover:bg-slate-50">
+                              <td className="p-3">
+                                <MathRenderer content={typeof st === 'string' ? st : st.text} />
+                                {st.image_url && (
+                                  <img src={st.image_url} alt="Gambar Pernyataan" className="max-h-24 mt-1 rounded border" />
+                                )}
+                              </td>
+                              <td className="p-3 border-l">
+                                <div className="flex justify-center space-x-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectMatrixValue(currentQuestion.id, stId, 'Benar')}
+                                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors ${
+                                      selectedVal === 'Benar'
+                                        ? 'bg-emerald-600 text-white shadow-sm'
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                    }`}
+                                    suppressHydrationWarning
+                                  >
+                                    Benar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSelectMatrixValue(currentQuestion.id, stId, 'Salah')}
+                                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors ${
+                                      selectedVal === 'Salah'
+                                        ? 'bg-rose-600 text-white shadow-sm'
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                    }`}
+                                    suppressHydrationWarning
+                                  >
+                                    Salah
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* 4. URAIAN / ESSAY */}
+              {qType === 'essay' && (
+                <div className="space-y-2 pt-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                    Lembar Jawaban Essay Anda:
                   </label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    required
-                    value={maxScore}
-                    onChange={(e) => setMaxScore(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  <textarea
+                    rows={6}
+                    placeholder="Tuliskan jawaban lengkap Anda di sini..."
+                    value={userAnswers[currentQuestion.id] || ''}
+                    onChange={(e) => handleEssayChange(currentQuestion.id, e.target.value)}
+                    className="w-full p-3.5 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600 font-medium"
                     suppressHydrationWarning
                   />
                 </div>
-              </div>
-
-              {/* TOOLBAR FORMATTING TEKS & MATH HELPER DENGAN 4 ALIGNMENT LENGKAP */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase">
-                    Stimulus / Teks Soal
-                  </label>
-                  <span className="text-[10px] text-slate-400">Mendukung Format HTML & Math (LaTeX)</span>
-                </div>
-
-                {/* BARIS BANNER TOOLBAR */}
-                <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-300 text-xs">
-                  {/* Format Teks */}
-                  <button type="button" onClick={() => insertFormatText('<b>', '</b>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-bold" title="Cetak Tebal (Bold)">B</button>
-                  <button type="button" onClick={() => insertFormatText('<i>', '</i>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded italic" title="Cetak Miring (Italic)">I</button>
-                  <button type="button" onClick={() => insertFormatText('<u>', '</u>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded underline" title="Garis Bawah (Underline)">U</button>
-                  
-                  <span className="border-r border-slate-300 h-4 mx-0.5"></span>
-
-                  {/* 4 OPSI ALIGNMENT PARAGRAF LENGKAP */}
-                  <button type="button" onClick={() => insertFormatText('<div style="text-align: left;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-slate-700" title="Rata Kiri">⬅ Kiri</button>
-                  <button type="button" onClick={() => insertFormatText('<div style="text-align: center;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-indigo-700" title="Rata Tengah">↔ Tengah</button>
-                  <button type="button" onClick={() => insertFormatText('<div style="text-align: right;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-slate-700" title="Rata Kanan">➡️ Kanan</button>
-                  <button type="button" onClick={() => insertFormatText('<div style="text-align: justify;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-emerald-700" title="Rata Kiri-Kanan (Justify)">↔ Justify</button>
-
-                  <span className="border-r border-slate-300 h-4 mx-0.5"></span>
-
-                  {/* Element Kutipan & Tabel */}
-                  <button type="button" onClick={() => insertFormatText('<blockquote>', '</blockquote>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded" title="Blok Kutipan">Kutipan</button>
-                  <button type="button" onClick={() => insertFormatText('<table border="1"><tr><td>', '</td></tr></table>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded" title="Tabel Simple">Tabel</button>
-                  
-                  <span className="border-r border-slate-300 h-4 mx-0.5"></span>
-
-                  {/* Formulasi Matematika LaTeX */}
-                  <button type="button" onClick={() => insertFormatText('$\\frac{', '}{}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"½ Pecahan"}</button>
-                  <button type="button" onClick={() => insertFormatText('$\\sqrt{', '}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"√ Akar"}</button>
-                  <button type="button" onClick={() => insertFormatText('$x^{', '}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"x² Pangkat"}</button>
-                  <button type="button" onClick={() => insertFormatText('$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"[ Matrix ]"}</button>
-                </div>
-
-                <textarea
-                  id="questionTextarea"
-                  rows={4}
-                  required
-                  value={questionText || ''}
-                  onChange={(e) => setQuestionText(e.target.value)}
-                  placeholder="Ketik teks soal / gunakan toolbar di atas..."
-                  className="w-full px-3 py-2 rounded-b-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
-                  suppressHydrationWarning
-                />
-
-                {/* 👁️ LIVE PREVIEW REAL-TIME UNTUK SOAL */}
-                {questionText && (
-                  <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
-                      👁️ Pratinjau Tampilan Teks Soal (Live Preview):
-                    </span>
-                    <div className="text-sm font-medium text-slate-800 bg-white p-3 rounded-lg border shadow-inner">
-                      <MathRenderer content={questionText} />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  URL Gambar Soal (Opsional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={imageUrl || ''}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                />
-                {imageUrl && (
-                  <div className="mt-2 p-2 border rounded-xl bg-slate-50">
-                    <span className="text-[10px] font-bold text-slate-500 block mb-1">Pratinjau Gambar Soal:</span>
-                    <img src={imageUrl} alt="Pratinjau Soal" className="max-h-40 rounded-lg border" />
-                  </div>
-                )}
-              </div>
-
-              {/* 🟢 PILIHAN GANDA BIASA */}
-              {questionType === 'multiple_choice' && (
-                <div className="space-y-3 pt-3 border-t">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase">
-                    Pilihan Jawaban & Kunci (Pilih 1 Radio)
-                  </label>
-                  {options.map((opt, idx) => (
-                    <div key={opt.key} className="space-y-1.5 p-3 border rounded-xl bg-slate-50">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="radio"
-                          name="correct_single"
-                          checked={correctSingleOption === opt.key}
-                          onChange={() => setCorrectSingleOption(opt.key)}
-                          suppressHydrationWarning
-                        />
-                        <span className="font-bold text-xs">{opt.key}.</span>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Teks Jawaban Opsi ${opt.key}`}
-                          value={opt.text || ''}
-                          onChange={(e) => handleOptionChange(idx, 'text', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-white"
-                          suppressHydrationWarning
-                        />
-                      </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Opsi ${opt.key} (Opsional)`}
-                          value={opt.image_url || ''}
-                          onChange={(e) => handleOptionChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
-                      {/* Live Preview Opsi */}
-                      {opt.text && (
-                        <div className="pl-6 text-xs text-slate-700 bg-white p-2 rounded-lg border">
-                          <span className="text-[10px] text-slate-400 font-bold block">Pratinjau Render Opsi {opt.key}:</span>
-                          <MathRenderer content={opt.text} />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
               )}
-
-              {/* 🟢 PILIHAN GANDA KOMPLEKS */}
-              {questionType === 'complex_multiple_choice' && (
-                <div className="space-y-3 pt-3 border-t">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase">
-                    Pilihan Jawaban & Kunci (Centang Semua Opsi Benar)
-                  </label>
-                  {options.map((opt, idx) => (
-                    <div key={opt.key} className="space-y-1.5 p-3 border rounded-xl bg-slate-50">
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          checked={correctComplexOptions.includes(opt.key)}
-                          onChange={() => handleComplexToggle(opt.key)}
-                          suppressHydrationWarning
-                        />
-                        <span className="font-bold text-xs">{opt.key}.</span>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Teks Jawaban Opsi ${opt.key}`}
-                          value={opt.text || ''}
-                          onChange={(e) => handleOptionChange(idx, 'text', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-white"
-                          suppressHydrationWarning
-                        />
-                      </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Opsi ${opt.key} (Opsional)`}
-                          value={opt.image_url || ''}
-                          onChange={(e) => handleOptionChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
-                      {/* Live Preview Opsi */}
-                      {opt.text && (
-                        <div className="pl-6 text-xs text-slate-700 bg-white p-2 rounded-lg border">
-                          <span className="text-[10px] text-slate-400 font-bold block">Pratinjau Render Opsi {opt.key}:</span>
-                          <MathRenderer content={opt.text} />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 🟢 MATRIKS BENAR - SALAH */}
-              {questionType === 'true_false_matrix' && (
-                <div className="space-y-3 pt-3 border-t">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-xs font-semibold text-slate-700 uppercase">
-                      Daftar Pernyataan & Kunci Jawaban
-                    </label>
-                    <button
-                      type="button"
-                      onClick={addStatement}
-                      className="px-3 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-lg hover:bg-indigo-100 transition-colors"
-                      suppressHydrationWarning
-                    >
-                      + Tambah Pernyataan
-                    </button>
-                  </div>
-
-                  {statements.map((st, idx) => (
-                    <div key={st.id || idx} className="space-y-1.5 p-3 border rounded-xl bg-slate-50">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-xs w-6 text-center">{idx + 1}.</span>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Pernyataan ${idx + 1}`}
-                          value={st.text || ''}
-                          onChange={(e) => handleStatementChange(idx, 'text', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-white"
-                          suppressHydrationWarning
-                        />
-                        <select
-                          value={st.correct_val}
-                          onChange={(e) => handleStatementChange(idx, 'correct_val', e.target.value)}
-                          className="px-3 py-1.5 rounded-lg border text-xs font-bold bg-white text-indigo-700"
-                          suppressHydrationWarning
-                        >
-                          <option value="Benar">Benar</option>
-                          <option value="Salah">Salah</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => removeStatement(idx)}
-                          className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1"
-                          suppressHydrationWarning
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div className="pl-8">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Pernyataan ${idx + 1} (Opsional)`}
-                          value={st.image_url || ''}
-                          onChange={(e) => handleStatementChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
-                      {/* Live Preview Pernyataan */}
-                      {st.text && (
-                        <div className="pl-8 text-xs text-slate-700 bg-white p-2 rounded-lg border">
-                          <span className="text-[10px] text-slate-400 font-bold block">Pratinjau Render Pernyataan {idx + 1}:</span>
-                          <MathRenderer content={st.text} />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* 🟢 URAIAN / ESSAY */}
-              {questionType === 'essay' && (
-                <div className="p-4 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
-                  <p className="font-bold">📝 Catatan Soal Uraian / Essay:</p>
-                  <p className="leading-relaxed text-[11px]">
-                    Siswa akan menjawab dalam bentuk lembar esai teks bebas. Nilai akhir soal ini akan diberikan atau disesuaikan secara manual oleh Guru/Admin di halaman Rekap Nilai Hasil Ujian.
-                  </p>
-                </div>
-              )}
-
-              <div className="pt-3 border-t space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 uppercase">
-                  💡 Pembahasan Soal / Pedoman Penskoran Guru
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
-                  value={explanation || ''}
-                  onChange={(e) => setExplanation(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs"
-                  suppressHydrationWarning
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-full py-3 text-white font-bold rounded-xl text-sm transition-colors disabled:opacity-50 ${
-                  editingQuestionId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'
-                }`}
-                suppressHydrationWarning
-              >
-                {isSubmitting ? 'Menyimpan...' : editingQuestionId ? 'Simpan Perubahan Soal' : 'Tambah Soal Manual'}
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* TAB 2: DAFTAR SOAL AKTIF */}
-        {activeTab === 'list' && (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-800">
-                📚 Daftar Soal Aktif ({questions.length})
-              </h2>
-              <button
-                onClick={() => {
-                  resetForm()
-                  setActiveTab('form')
-                }}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl"
-              >
-                + Tambah Soal Baru
-              </button>
             </div>
+          ) : (
+            <p className="text-slate-500 text-center py-10">Belum ada soal pada ujian ini.</p>
+          )}
 
-            {questions.length > 0 ? (
-              questions.map((q, idx) => {
-                const qType = q.question_type || 'multiple_choice'
+          {/* NAVIGASI SEBELUMNYA / SELANJUTNYA */}
+          <div className="flex justify-between items-center pt-4 border-t">
+            <button
+              disabled={currentIndex === 0}
+              onClick={() => setCurrentIndex((prev) => prev - 1)}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
+              suppressHydrationWarning
+            >
+              ← Sebelumnya
+            </button>
 
-                return (
-                  <div key={q.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-                    <div className="flex justify-between items-center border-b pb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-indigo-600 text-sm">No. {idx + 1}</span>
-                        <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full uppercase">
-                          {qType === 'complex_multiple_choice'
-                            ? 'PG Kompleks'
-                            : qType === 'true_false_matrix'
-                            ? 'Matriks'
-                            : qType === 'essay'
-                            ? 'Uraian / Essay'
-                            : 'Pilihan Ganda'}
-                        </span>
-                        <span className="text-xs text-slate-400 font-semibold">
-                          (Bobot: {q.max_score || 1} Poin)
-                        </span>
-                      </div>
-
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEditClick(q)}
-                          className="text-xs text-amber-600 hover:text-amber-800 font-bold bg-amber-50 px-3 py-1 rounded-lg border border-amber-200"
-                          suppressHydrationWarning
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteQuestion(q.id)}
-                          className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1"
-                          suppressHydrationWarning
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="text-slate-800 text-sm font-medium">
-                      <MathRenderer content={q.question_text} />
-                    </div>
-
-                    {q.image_url && (
-                      <div className="my-2">
-                        <img src={q.image_url} alt="Gambar Soal" className="max-h-56 rounded-xl border" />
-                      </div>
-                    )}
-
-                    {/* Pratinjau Opsi PG & PG Kompleks */}
-                    {(qType === 'multiple_choice' || qType === 'complex_multiple_choice') &&
-                      Array.isArray(q.options) && (
-                        <div className="space-y-1.5 pl-3 border-l-2 border-slate-200 text-xs">
-                          {q.options.map((opt: any, oIdx: number) => {
-                            const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                            let isKey = false
-                            if (qType === 'multiple_choice') {
-                              isKey = String(q.correct_option).trim().toUpperCase() === optKey
-                            } else {
-                              isKey = Array.isArray(q.correct_answers)
-                                ? q.correct_answers.includes(optKey)
-                                : String(q.correct_option).includes(optKey)
-                            }
-
-                            return (
-                              <div
-                                key={optKey || oIdx}
-                                className={`flex items-start space-x-2 ${
-                                  isKey ? 'font-bold text-emerald-700' : 'text-slate-600'
-                                }`}
-                              >
-                                <span className="w-4">{optKey}.</span>
-                                <div className="flex-1">
-                                  <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
-                                  {opt.image_url && (
-                                    <img src={opt.image_url} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
-                                  )}
-                                </div>
-                                {isKey && <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded font-bold">Kunci</span>}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                    {/* Pratinjau Pernyataan Matriks */}
-                    {qType === 'true_false_matrix' && Array.isArray(q.options) && (
-                      <div className="border rounded-xl overflow-hidden text-xs">
-                        <table className="w-full text-left">
-                          <thead className="bg-slate-50 border-b font-bold text-slate-700">
-                            <tr>
-                              <th className="p-2.5">Pernyataan</th>
-                              <th className="p-2.5 w-24 text-center border-l">Kunci</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y">
-                            {q.options.map((st: any, sIdx: number) => {
-                              const keyVal = q.correct_answers?.[st.id] || st.correct_val || 'Benar'
-                              return (
-                                <tr key={st.id || sIdx}>
-                                  <td className="p-2.5">
-                                    <MathRenderer content={typeof st === 'string' ? st : st.text} />
-                                    {st.image_url && (
-                                      <img src={st.image_url} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
-                                    )}
-                                  </td>
-                                  <td className="p-2.5 text-center border-l font-bold text-indigo-700">
-                                    {keyVal}
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Pratinjau Essay */}
-                    {qType === 'essay' && (
-                      <div className="p-3 bg-slate-50 rounded-xl border text-xs text-slate-600 space-y-1">
-                        <span className="font-bold text-slate-800 block">Rubrik / Pedoman Guru:</span>
-                        <p>{q.explanation || 'Tidak ada pedoman penskoran khusus.'}</p>
-                      </div>
-                    )}
-                  </div>
-                )
-              })
-            ) : (
-              <div className="bg-white p-8 text-center rounded-2xl border border-slate-200 text-slate-500 text-sm">
-                Belum ada soal pada ujian ini.
-              </div>
-            )}
+            <button
+              disabled={currentIndex === questions.length - 1}
+              onClick={() => setCurrentIndex((prev) => prev + 1)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
+              suppressHydrationWarning
+            >
+              Selanjutnya →
+            </button>
           </div>
-        )}
-      </main>
+        </div>
 
-      <BulkUploadModal
-        examId={examId}
-        isOpen={isBulkModalOpen}
-        onClose={() => setIsBulkModalOpen(false)}
-        onSuccess={loadData}
-      />
+        {/* SIDEBAR NAVIGASI NOMOR SOAL */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-fit">
+          <h3 className="text-xs font-bold text-slate-700 uppercase border-b pb-2">
+            🧭 Navigasi Nomor Soal
+          </h3>
+
+          <div className="grid grid-cols-5 gap-2">
+            {questions.map((q, idx) => {
+              const ans = userAnswers[q.id]
+              const isAnswered = ans !== undefined && ans !== null && (Array.isArray(ans) ? ans.length > 0 : true)
+              const isFlagged = !!flaggedQuestions[q.id]
+              const isCurrent = idx === currentIndex
+
+              let btnClass = 'bg-slate-100 text-slate-600 border-slate-200'
+              if (isAnswered) btnClass = 'bg-emerald-600 text-white border-emerald-600 font-bold'
+              if (isFlagged) btnClass = 'bg-amber-500 text-white border-amber-500 font-bold'
+              if (isCurrent) btnClass += ' ring-2 ring-indigo-600 ring-offset-1 font-bold'
+
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => setCurrentIndex(idx)}
+                  className={`h-9 rounded-lg text-xs font-mono transition-all border flex items-center justify-center ${btnClass}`}
+                  suppressHydrationWarning
+                >
+                  {idx + 1}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
-export default function ExamQuestionManagerPage() {
+export default function ExamEnginePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-          <p className="text-slate-600 font-medium">Memuat manajer soal admin...</p>
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
+          <p className="font-semibold text-sm">Memuat ruang ujian CBT...</p>
         </div>
       }
     >
-      <QuestionManagerContent />
+      <ExamEngineContent />
     </Suspense>
   )
 }
