@@ -95,7 +95,7 @@ function ExamContent() {
     async function loadExamDataAndCreateSession() {
       const supabase = createClient()
 
-      // 1. Ambil data User secara pasti
+      // 1. Ambil data User secara pasti & terautentikasi
       let activeUser = null
       const { data: userData } = await supabase.auth.getUser()
       if (userData?.user) {
@@ -105,6 +105,7 @@ function ExamContent() {
         activeUser = sessionData?.session?.user || null
       }
 
+      // Jika user belum terautentikasi, alihkan ke login
       if (!activeUser) {
         router.push('/login')
         return
@@ -149,7 +150,7 @@ function ExamContent() {
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
         let activeSessionId: string | null = null
 
-        // 🟢 3. MANAJEMEN SESI UJIAN & SISA WAKTU (MENCEGAH TERJEBAK DI SESI LAMA)
+        // 3. MANAJEMEN SESI UJIAN & SISA WAKTU (GARANSI USER_ID TIDAK NULL)
         const { data: existingSession } = await supabase
           .from('exam_sessions')
           .select('id, start_time')
@@ -166,7 +167,7 @@ function ExamContent() {
           const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
           const remainingSeconds = totalDurationSeconds - elapsedSeconds
 
-          // Jika sesi ongoing lama sudah habis waktunya, selesaikan & buat sesi baru secara bersih
+          // Jika sesi ongoing lama sudah habis waktu (<= 0), selesaikan & buat sesi baru
           if (remainingSeconds <= 0) {
             await supabase
               .from('exam_sessions')
@@ -177,7 +178,6 @@ function ExamContent() {
               })
               .eq('id', existingSession.id)
 
-            // Buat Sesi Baru untuk Ujian Sekarang
             const nowIso = new Date().toISOString()
             const { data: newSession } = await supabase
               .from('exam_sessions')
@@ -202,7 +202,7 @@ function ExamContent() {
             setTimeLeft(remainingSeconds)
           }
         } else {
-          // Buat Sesi Baru jika tidak ada sesi ongoing
+          // Buat Sesi Baru jika belum ada sesi ongoing
           const nowIso = new Date().toISOString()
           const { data: newSession } = await supabase
             .from('exam_sessions')
@@ -241,7 +241,7 @@ function ExamContent() {
 
     loadExamDataAndCreateSession()
   }, [examId])
-
+  
   // Timer Countdown Effect
   useEffect(() => {
     if (loading || isSubmitted) return
