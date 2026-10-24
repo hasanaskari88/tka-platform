@@ -262,8 +262,10 @@ function ExamResultsContent() {
 
             if (userChoices.length > 0) {
               userChoices.forEach((choice) => {
-                const upperChoice = choice.toUpperCase()
+                const upperChoice = String(choice).toUpperCase()
                 if (['A', 'B', 'C', 'D'].includes(upperChoice)) {
+                  optionCounts[upperChoice] = (optionCounts[upperChoice] || 0) + 1
+                } else if (['BENAR', 'SALAH'].includes(upperChoice)) {
                   optionCounts[upperChoice] = (optionCounts[upperChoice] || 0) + 1
                 }
               })
@@ -599,23 +601,34 @@ function ExamResultsContent() {
                       </span>
                     </td>
                     <td className="p-3 text-center">
-                      <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
-                        {['A', 'B', 'C', 'D'].map((optKey) => {
-                          const isCorrectKey = item.correct_option.includes(optKey)
-                          const count = item.optionCounts?.[optKey] ?? 0
-                          let pillStyle = 'bg-slate-100 text-slate-600 border-slate-200'
-                          if (isCorrectKey) {
-                            pillStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
-                          } else if (optKey === item.topDistractorKey && count > 0) {
-                            pillStyle = 'bg-rose-100 text-rose-800 border-rose-300 font-bold'
-                          }
-                          return (
-                            <span key={optKey} className={`px-2 py-0.5 rounded border ${pillStyle}`}>
-                              {optKey}:{count}
-                            </span>
-                          )
-                        })}
-                      </div>
+                      {item.correct_option === 'Matriks' ? (
+                        <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded">
+                            B: {item.optionCounts?.BENAR ?? 0}
+                          </span>
+                          <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 font-bold rounded">
+                            S: {item.optionCounts?.SALAH ?? 0}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
+                          {['A', 'B', 'C', 'D'].map((optKey) => {
+                            const isCorrectKey = item.correct_option.includes(optKey)
+                            const count = item.optionCounts?.[optKey] ?? 0
+                            let pillStyle = 'bg-slate-100 text-slate-600 border-slate-200'
+                            if (isCorrectKey) {
+                              pillStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                            } else if (optKey === item.topDistractorKey && count > 0) {
+                              pillStyle = 'bg-rose-100 text-rose-800 border-rose-300 font-bold'
+                            }
+                            return (
+                              <span key={optKey} className={`px-2 py-0.5 rounded border ${pillStyle}`}>
+                                {optKey}:{count}
+                              </span>
+                            )
+                          })}
+                        </div>
+                      )}
                     </td>
                     <td className="p-3 text-center font-bold">
                       {item.topDistractorKey !== 'Tidak ada' ? (
