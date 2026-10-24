@@ -11,6 +11,105 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
+// 🟢 HELPER EVALUASI MULTI-TIPE SOAL (PILIHAN GANDA, KOMPLEKS, MATRIKS)
+function evaluateAnswer(q: any, rawAns: any) {
+  if (rawAns === null || rawAns === undefined || rawAns === '') {
+    return { isCorrect: false, ratio: 0, userChoices: [] }
+  }
+
+  let parsed = rawAns
+  if (typeof rawAns === 'string') {
+    const trimmed = rawAns.trim()
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    ) {
+      try {
+        parsed = JSON.parse(trimmed)
+      } catch (e) {
+        parsed = trimmed
+      }
+    }
+  }
+
+  const qType = q.question_type || 'multiple_choice'
+
+  // A. Pilihan Ganda Biasa
+  if (qType === 'multiple_choice') {
+    const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toUpperCase()
+    const userChoice = String(parsed || '').trim().toUpperCase()
+    const isCorrect = userChoice !== '' && userChoice === correctOpt
+    return {
+      isCorrect,
+      ratio: isCorrect ? 1 : 0,
+      userChoices: userChoice ? [userChoice] : []
+    }
+  }
+
+  // B. Pilihan Ganda Kompleks
+  if (qType === 'complex_multiple_choice') {
+    let correctKeys: string[] = []
+    if (Array.isArray(q.correct_answers)) {
+      correctKeys = q.correct_answers.map((k: any) => String(k).trim().toUpperCase())
+    } else if (q.correct_option || q.correct_answer) {
+      const str = String(q.correct_option ?? q.correct_answer)
+      correctKeys = str.split(',').map((k) => k.trim().toUpperCase()).filter(Boolean)
+    }
+
+    let userKeys: string[] = []
+    if (Array.isArray(parsed)) {
+      userKeys = parsed.map((k: any) => String(k).trim().toUpperCase())
+    } else if (typeof parsed === 'string' && parsed) {
+      userKeys = parsed.split(',').map((k) => k.trim().toUpperCase()).filter(Boolean)
+    }
+
+    if (userKeys.length === 0) {
+      return { isCorrect: false, ratio: 0, userChoices: [] }
+    }
+
+    const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
+    const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
+    const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
+    const ratio = correctKeys.length > 0 ? netCorrect / correctKeys.length : 0
+
+    return {
+      isCorrect: ratio === 1,
+      ratio,
+      userChoices: userKeys
+    }
+  }
+
+  // C. Matriks Benar / Salah
+  if (qType === 'true_false_matrix') {
+    const correctObj: { [key: string]: string } = q.correct_answers || {}
+    const userObj = typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null ? parsed : {}
+
+    const statementIds = Object.keys(correctObj)
+    if (statementIds.length === 0) return { isCorrect: false, ratio: 0, userChoices: [] }
+
+    let correctRows = 0
+    let attemptedRows = 0
+    statementIds.forEach((sId) => {
+      if (userObj[sId]) attemptedRows++
+      if (String(userObj[sId]).toLowerCase() === String(correctObj[sId]).toLowerCase()) {
+        correctRows++
+      }
+    })
+
+    if (attemptedRows === 0) return { isCorrect: false, ratio: 0, userChoices: [] }
+
+    const ratio = correctRows / statementIds.length
+    return {
+      isCorrect: ratio === 1,
+      ratio,
+      userChoices: Object.values(userObj).map((v: any) => String(v).trim())
+    }
+  }
+
+  return { isCorrect: false, ratio: 0, userChoices: [] }
+}
+
 function ExamResultsContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -22,15 +121,12 @@ function ExamResultsContent() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
-  // State Batch / Selected Sessions
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // State Sorting Tabel Peserta
   const [sortByStudent, setSortByStudent] = useState<'score' | 'name' | 'class' | 'date'>('score')
   const [sortOrderStudent, setSortOrderStudent] = useState<'asc' | 'desc'>('desc')
 
-  // State Sorting Tabel Analisis Soal
   const [sortByItem, setSortByItem] = useState<'no' | 'accuracy'>('no')
   const [sortOrderItem, setSortOrderItem] = useState<'asc' | 'desc'>('asc')
 
@@ -38,28 +134,24 @@ function ExamResultsContent() {
     if (!examId) return
     const supabase = createClient()
 
-    // 1. Ambil Informasi Ujian
     const { data: examData } = await supabase
       .from('exams')
       .select('*')
       .eq('id', examId)
       .single()
 
-    // 2. Ambil Soal Ujian
     const { data: questionData } = await supabase
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: true })
 
-    // 3. Ambil Sesi Ujian Seluruh Siswa
     const { data: sessionData } = await supabase
       .from('exam_sessions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: false })
 
-    // 4. Ambil Profil User & Jawaban Terkait
     const { data: profileData } = await supabase.from('profiles').select('*')
     
     const sessionIds = (sessionData || []).map((s) => s.id)
@@ -73,11 +165,9 @@ function ExamResultsContent() {
     }
 
     const questionMap = new Map()
-    let maxPossibleScore = 0
     if (questionData) {
       questionData.forEach((q) => {
         questionMap.set(q.id, q)
-        maxPossibleScore += Number(q.max_score) || 1
       })
     }
 
@@ -100,40 +190,30 @@ function ExamResultsContent() {
       }
 
       const userAnswers = answerMap.get(session.id) || []
-      let correctCount = 0
-
-      // Prioritas 1: Ambil total_correct langsung dari database jika tersedia
-      if (session.total_correct !== undefined && session.total_correct !== null && Number(session.total_correct) >= 0) {
-        correctCount = Number(session.total_correct)
-      } else {
-        // Prioritas 2: Evaluasi fleksibel & toleran karakter
-        userAnswers.forEach((ans) => {
-          const q = questionMap.get(ans.question_id)
-          if (q) {
-            let studentChoice = ans.selected_option || ans.user_answer || ans.selected_answers || ''
-            if (typeof studentChoice === 'string') {
-              try {
-                if ((studentChoice.startsWith('"') && studentChoice.endsWith('"')) || (studentChoice.startsWith('[') && studentChoice.endsWith(']'))) {
-                  const parsed = JSON.parse(studentChoice)
-                  studentChoice = Array.isArray(parsed) ? parsed[0] : parsed
-                }
-              } catch (e) {}
-            }
-            const cleanChoice = String(studentChoice || '').trim().toLowerCase()
-            const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toLowerCase()
-
-            if (cleanChoice && correctOpt && cleanChoice === correctOpt) {
-              correctCount += 1
-            }
-          }
-        })
-      }
-
+      const totalQ = questionData ? questionData.length : 0
       const finalScore = session.score !== undefined && session.score !== null
         ? Number(session.score)
         : 0
 
-      const accuracyPercentage = Math.round(finalScore)
+      let correctCount = 0
+
+      if (userAnswers.length > 0) {
+        userAnswers.forEach((ans) => {
+          const q = questionMap.get(ans.question_id)
+          if (q) {
+            const rawChoice = ans.selected_answers ?? ans.selected_option
+            const { isCorrect } = evaluateAnswer(q, rawChoice)
+            if (isCorrect) {
+              correctCount += 1
+            }
+          }
+        })
+      } else if (session.total_correct !== undefined && session.total_correct !== null && Number(session.total_correct) > 0) {
+        correctCount = Number(session.total_correct)
+      } else if (finalScore > 0 && totalQ > 0) {
+        correctCount = Math.round((finalScore / 100) * totalQ)
+      }
+
       const finishTime = session.end_time || session.submitted_at || session.completed_at || session.created_at
 
       return {
@@ -145,10 +225,9 @@ function ExamResultsContent() {
         status: session.status || 'completed',
         completed_at: finishTime,
         correct_count: correctCount,
-        total_questions: questionData ? questionData.length : 0,
+        total_questions: totalQ,
         earned_score: Math.round(finalScore),
-        max_possible_score: 100,
-        accuracy_percentage: accuracyPercentage,
+        accuracy_percentage: Math.round(finalScore),
       }
     })
 
@@ -157,29 +236,37 @@ function ExamResultsContent() {
     const analysisList = (questionData || []).map((q, qIdx) => {
       let correctAnswersCount = 0
       const optionCounts: { [key: string]: number } = { A: 0, B: 0, C: 0, D: 0, Kosong: 0 }
-
-      const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toUpperCase()
+      
+      let correctOptDisplay = ''
+      if (q.question_type === 'complex_multiple_choice') {
+        if (Array.isArray(q.correct_answers)) {
+          correctOptDisplay = q.correct_answers.join(',')
+        } else {
+          correctOptDisplay = String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
+        }
+      } else if (q.question_type === 'true_false_matrix') {
+        correctOptDisplay = 'Matriks'
+      } else {
+        correctOptDisplay = String(q.correct_option ?? q.correct_answer ?? 'A').trim().toUpperCase()
+      }
 
       if (answerData) {
         answerData.forEach((ans) => {
           if (ans.question_id === q.id) {
-            let rawChoice = ans.selected_option || ans.user_answer || ans.selected_answers || ''
-            if (typeof rawChoice === 'string') {
-              try {
-                if ((rawChoice.startsWith('"') && rawChoice.endsWith('"')) || (rawChoice.startsWith('[') && rawChoice.endsWith(']'))) {
-                  const parsed = JSON.parse(rawChoice)
-                  rawChoice = Array.isArray(parsed) ? parsed[0] : parsed
-                }
-              } catch (e) {}
-            }
-            const userChoice = String(rawChoice || '').toUpperCase().trim()
+            const rawChoice = ans.selected_answers ?? ans.selected_option
+            const { isCorrect, userChoices } = evaluateAnswer(q, rawChoice)
 
-            if (correctOpt && userChoice === correctOpt) {
+            if (isCorrect) {
               correctAnswersCount += 1
             }
 
-            if (['A', 'B', 'C', 'D'].includes(userChoice)) {
-              optionCounts[userChoice] = (optionCounts[userChoice] || 0) + 1
+            if (userChoices.length > 0) {
+              userChoices.forEach((choice) => {
+                const upperChoice = choice.toUpperCase()
+                if (['A', 'B', 'C', 'D'].includes(upperChoice)) {
+                  optionCounts[upperChoice] = (optionCounts[upperChoice] || 0) + 1
+                }
+              })
             } else {
               optionCounts['Kosong'] = (optionCounts['Kosong'] || 0) + 1
             }
@@ -195,7 +282,7 @@ function ExamResultsContent() {
       let maxDistractorCount = 0
 
       Object.keys(optionCounts).forEach((optKey) => {
-        if (optKey !== correctOpt && optKey !== 'Kosong') {
+        if (!correctOptDisplay.includes(optKey) && optKey !== 'Kosong') {
           if (optionCounts[optKey] > maxDistractorCount) {
             maxDistractorCount = optionCounts[optKey]
             topDistractorKey = optKey
@@ -224,7 +311,7 @@ function ExamResultsContent() {
         question_no: qIdx + 1,
         question_id: q.id,
         question_text: q.question_text || '',
-        correct_option: correctOpt || 'A',
+        correct_option: correctOptDisplay,
         max_score: q.max_score || 1,
         correct_count: correctAnswersCount,
         wrong_count: wrongAnswersCount,
@@ -248,7 +335,6 @@ function ExamResultsContent() {
     loadData()
   }, [examId])
 
-  // --- LOGIKA MENGHAPUS (HAPUS TUNGGAL, HAPUS BEBERAPA, HAPUS SEMUA) ---
   const handleDeleteSession = async (sessionId: string, studentName: string) => {
     if (!confirm(`Apakah Anda yakin ingin mereset hasil ujian siswa "${studentName}"?`)) return
 
@@ -274,12 +360,7 @@ function ExamResultsContent() {
 
   const handleDeleteAll = async () => {
     if (sessions.length === 0) return
-    if (
-      !confirm(
-        `⚠️ PERINGATAN BERSYARAT:\nApakah Anda YAKIN ingin menghapus SELURUH (${sessions.length}) hasil pengerjaan siswa pada ujian ini?\n\nSemua riwayat nilai dan jawaban peserta akan dihapus secara permanen!`
-      )
-    )
-      return
+    if (!confirm(`⚠️ PERINGATAN:\nHapus SELURUH (${sessions.length}) hasil pengerjaan siswa?`)) return
 
     setIsDeleting(true)
     const supabase = createClient()
@@ -293,7 +374,6 @@ function ExamResultsContent() {
     loadData()
   }
 
-  // --- LOGIKA CHECKBOX ---
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
       setSelectedSessionIds(sortedSessions.map((s) => s.id))
@@ -308,7 +388,6 @@ function ExamResultsContent() {
     )
   }
 
-  // --- LOGIKA FILTER & SORTING TABEL PESERTA ---
   const filteredSessions = sessions.filter((s) => {
     const term = searchTerm.toLowerCase()
     return (
@@ -338,7 +417,6 @@ function ExamResultsContent() {
     return 0
   })
 
-  // --- LOGIKA SORTING TABEL ANALISIS SOAL ---
   const sortedItems = [...itemAnalysisList].sort((a, b) => {
     if (sortByItem === 'accuracy') {
       return sortOrderItem === 'asc'
@@ -350,7 +428,6 @@ function ExamResultsContent() {
       : b.question_no - a.question_no
   })
 
-  // STATISTIK NILAI
   const totalParticipants = sessions.length
   const totalScores = sessions.map((s) => s.earned_score)
   const averageScore =
@@ -360,7 +437,6 @@ function ExamResultsContent() {
   const highestScore = totalParticipants > 0 ? Math.max(...totalScores) : 0
   const lowestScore = totalParticipants > 0 ? Math.min(...totalScores) : 0
 
-  // 📊 EXPORT KE EXCEL
   const handleExportToExcel = () => {
     if (sessions.length === 0) {
       alert('Belum ada data pengerjaan siswa untuk di-export.')
@@ -369,7 +445,6 @@ function ExamResultsContent() {
 
     const workbook = XLSX.utils.book_new()
 
-    // Sheet 1: Rekap Nilai Siswa
     const studentData = sortedSessions.map((s, idx) => ({
       No: idx + 1,
       'Nama Lengkap Siswa': s.full_name,
@@ -383,13 +458,8 @@ function ExamResultsContent() {
       'Akurasi (%)': `${s.accuracy_percentage}%`,
     }))
     const wsStudents = XLSX.utils.json_to_sheet(studentData)
-    wsStudents['!cols'] = [
-      { wch: 5 }, { wch: 28 }, { wch: 18 }, { wch: 12 },
-      { wch: 22 }, { wch: 16 }, { wch: 12 }, { wch: 14 }
-    ]
     XLSX.utils.book_append_sheet(workbook, wsStudents, 'Rekap Nilai Siswa')
 
-    // Sheet 2: Analisis Butir Soal
     const itemData = sortedItems.map((item) => ({
       'No Soal': item.question_no,
       'Teks Soal': (item.question_text || '').replace(/<[^>]*>?/gm, ''),
@@ -404,11 +474,6 @@ function ExamResultsContent() {
       'Kategori Kesulitan': item.difficultyLabel,
     }))
     const wsItems = XLSX.utils.json_to_sheet(itemData)
-    wsItems['!cols'] = [
-      { wch: 8 }, { wch: 45 }, { wch: 14 },
-      { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 14 },
-      { wch: 12 }, { wch: 16 }, { wch: 20 }
-    ]
     XLSX.utils.book_append_sheet(workbook, wsItems, 'Analisis Butir & Distraktor')
 
     const cleanTitle = (exam?.title || 'Ujian').replace(/[^a-zA-Z0-9]/g, '_')
@@ -431,7 +496,6 @@ function ExamResultsContent() {
       <Navbar />
 
       <main className="p-8 max-w-7xl mx-auto space-y-8">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b pb-4 border-slate-200 gap-3">
           <div>
             <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
@@ -449,7 +513,6 @@ function ExamResultsContent() {
             <button
               onClick={handleExportToExcel}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center space-x-1.5"
-              suppressHydrationWarning
             >
               <span>📊</span>
               <span>Export Rekap & Analisis (.xlsx)</span>
@@ -463,46 +526,29 @@ function ExamResultsContent() {
           </div>
         </div>
 
-        {/* Ringkasan Kartu Statistik */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase block">
-              👥 Total Peserta
-            </span>
-            <span className="text-2xl font-extrabold text-slate-800">
-              {totalParticipants} <span className="text-xs font-normal text-slate-500">Siswa</span>
-            </span>
+            <span className="text-xs font-bold text-slate-400 uppercase block">👥 Total Peserta</span>
+            <span className="text-2xl font-extrabold text-slate-800">{totalParticipants} Siswa</span>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase block">
-              📈 Rata-Rata Nilai
-            </span>
-            <span className="text-2xl font-extrabold text-indigo-600">
-              {averageScore} <span className="text-xs font-normal text-slate-500">Nilai</span>
-            </span>
+            <span className="text-xs font-bold text-slate-400 uppercase block">📈 Rata-Rata Nilai</span>
+            <span className="text-2xl font-extrabold text-indigo-600">{averageScore} Nilai</span>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase block">
-              🏆 Nilai Tertinggi
-            </span>
-            <span className="text-2xl font-extrabold text-emerald-600">
-              {highestScore} <span className="text-xs font-normal text-slate-500">Nilai</span>
-            </span>
+            <span className="text-xs font-bold text-slate-400 uppercase block">🏆 Nilai Tertinggi</span>
+            <span className="text-2xl font-extrabold text-emerald-600">{highestScore} Nilai</span>
           </div>
 
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-1">
-            <span className="text-xs font-bold text-slate-400 uppercase block">
-              📉 Nilai Terendah
-            </span>
-            <span className="text-2xl font-extrabold text-rose-600">
-              {lowestScore} <span className="text-xs font-normal text-slate-500">Nilai</span>
-            </span>
+            <span className="text-xs font-bold text-slate-400 uppercase block">📉 Nilai Terendah</span>
+            <span className="text-2xl font-extrabold text-rose-600">{lowestScore} Nilai</span>
           </div>
         </div>
 
-        {/* SECTION 1: TABEL ANALISIS BUTIR SOAL */}
+        {/* TABEL ANALISIS SOAL */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
           <div className="border-b pb-3 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
             <div>
@@ -510,31 +556,18 @@ function ExamResultsContent() {
                 <span>🎯</span>
                 <span>Analisis Butir Soal & Sebaran Pilihan Jawaban (A, B, C, D)</span>
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Mengevaluasi akurasi jawaban dan mengidentifikasi opsi pengecoh (*distractor*) yang paling banyak dipilih
-              </p>
             </div>
 
-            {/* OPSI SORTING TABEL SOAL */}
             <div className="flex items-center space-x-2 shrink-0">
               <span className="text-xs font-semibold text-slate-600">Urutkan Soal:</span>
               <select
                 value={sortByItem}
                 onChange={(e: any) => setSortByItem(e.target.value)}
-                className="px-2.5 py-1 border rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
-                suppressHydrationWarning
+                className="px-2.5 py-1 border rounded-lg text-xs font-semibold text-slate-700"
               >
                 <option value="no">Berdasarkan Nomor Soal</option>
-                <option value="accuracy">Berdasarkan Akurasi / Kesulitan</option>
+                <option value="accuracy">Berdasarkan Akurasi</option>
               </select>
-              <button
-                onClick={() => setSortOrderItem((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="px-2.5 py-1 bg-slate-100 border rounded-lg text-xs font-bold text-slate-700"
-                title="Ubah Arah Urutan"
-                suppressHydrationWarning
-              >
-                {sortOrderItem === 'asc' ? '⬆️ Asc' : '⬇️ Desc'}
-              </button>
             </div>
           </div>
 
@@ -552,104 +585,76 @@ function ExamResultsContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sortedItems.length > 0 ? (
-                  sortedItems.map((item) => (
-                    <tr key={item.question_id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3 text-center font-bold text-slate-700">
-                        {item.question_no}
-                      </td>
-                      <td className="p-3 max-w-xs">
-                        <div className="line-clamp-2 text-slate-800 font-medium">
-                          <MathRenderer content={item.question_text} />
-                        </div>
-                      </td>
-                      <td className="p-3 text-center font-bold text-indigo-700">
-                        <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 rounded-lg">
-                          {item.correct_option}
-                        </span>
-                      </td>
-
-                      <td className="p-3 text-center">
-                        <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
-                          {['A', 'B', 'C', 'D'].map((optKey) => {
-                            const isCorrectKey = optKey === item.correct_option
-                            const count = item.optionCounts?.[optKey] ?? 0
-
-                            let pillStyle = 'bg-slate-100 text-slate-600 border-slate-200'
-                            if (isCorrectKey) {
-                              pillStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold ring-1 ring-emerald-400'
-                            } else if (optKey === item.topDistractorKey && count > 0) {
-                              pillStyle = 'bg-rose-100 text-rose-800 border-rose-300 font-bold'
-                            }
-
-                            return (
-                              <span
-                                key={optKey}
-                                className={`px-2 py-0.5 rounded border ${pillStyle}`}
-                                title={`Opsi ${optKey}: ${count} siswa`}
-                              >
-                                {optKey}:{count}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      </td>
-
-                      <td className="p-3 text-center font-bold">
-                        {item.topDistractorKey !== 'Tidak ada' ? (
-                          <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[11px]">
-                            Opsi {item.topDistractorKey} ({item.maxDistractorCount})
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[11px] font-normal">-</span>
-                        )}
-                      </td>
-
-                      <td className="p-3 text-center">
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-[11px] font-bold">
-                            <span>{item.accuracy_rate}%</span>
-                            <span className="text-slate-400 font-normal">
-                              ({item.correct_count}/{totalParticipants})
+                {sortedItems.map((item) => (
+                  <tr key={item.question_id} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-center font-bold text-slate-700">{item.question_no}</td>
+                    <td className="p-3 max-w-xs">
+                      <div className="line-clamp-2 text-slate-800 font-medium">
+                        <MathRenderer content={item.question_text} />
+                      </div>
+                    </td>
+                    <td className="p-3 text-center font-bold text-indigo-700">
+                      <span className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        {item.correct_option}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
+                        {['A', 'B', 'C', 'D'].map((optKey) => {
+                          const isCorrectKey = item.correct_option.includes(optKey)
+                          const count = item.optionCounts?.[optKey] ?? 0
+                          let pillStyle = 'bg-slate-100 text-slate-600 border-slate-200'
+                          if (isCorrectKey) {
+                            pillStyle = 'bg-emerald-100 text-emerald-800 border-emerald-300 font-bold'
+                          } else if (optKey === item.topDistractorKey && count > 0) {
+                            pillStyle = 'bg-rose-100 text-rose-800 border-rose-300 font-bold'
+                          }
+                          return (
+                            <span key={optKey} className={`px-2 py-0.5 rounded border ${pillStyle}`}>
+                              {optKey}:{count}
                             </span>
-                          </div>
-                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full transition-all ${
-                                item.accuracy_rate >= 60
-                                  ? 'bg-emerald-500'
-                                  : item.accuracy_rate >= 40
-                                  ? 'bg-amber-500'
-                                  : 'bg-rose-500'
-                              }`}
-                              style={{ width: `${item.accuracy_rate}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td className="p-3 text-center">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${item.difficultyBadge}`}
-                        >
-                          {item.difficultyLabel}
+                          )
+                        })}
+                      </div>
+                    </td>
+                    <td className="p-3 text-center font-bold">
+                      {item.topDistractorKey !== 'Tidak ada' ? (
+                        <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[11px]">
+                          Opsi {item.topDistractorKey} ({item.maxDistractorCount})
                         </span>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="p-6 text-center text-slate-400">
-                      Belum ada butir soal.
+                      ) : (
+                        <span className="text-slate-400 text-[11px] font-normal">-</span>
+                      )}
+                    </td>
+                    <td className="p-3 text-center">
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[11px] font-bold">
+                          <span>{item.accuracy_rate}%</span>
+                          <span className="text-slate-400 font-normal">
+                            ({item.correct_count}/{totalParticipants})
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 transition-all"
+                            style={{ width: `${item.accuracy_rate}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-3 text-center">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${item.difficultyBadge}`}>
+                        {item.difficultyLabel}
+                      </span>
                     </td>
                   </tr>
-                )}
+                ))}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* SECTION 2: TABEL DAFTAR HASIL NILAI PESERTA */}
+        {/* TABEL DAFTAR PESERTA */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
           <div className="border-b pb-3 flex flex-col md:flex-row justify-between items-center gap-3">
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -657,59 +662,30 @@ function ExamResultsContent() {
               <span>Daftar Nilai Peserta Ujian ({sortedSessions.length})</span>
             </h2>
 
-            {/* ACTION BUTTONS & SORTING PESERTA */}
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
                 placeholder="🔍 Cari nama, username, kelas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600 w-48 sm:w-60"
-                suppressHydrationWarning
+                className="px-3 py-1.5 border rounded-lg text-xs w-48 sm:w-60"
               />
 
-              {/* SELECT CATEGORY FOR SORTING */}
-              <select
-                value={sortByStudent}
-                onChange={(e: any) => setSortByStudent(e.target.value)}
-                className="px-2.5 py-1.5 border rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
-                suppressHydrationWarning
-              >
-                <option value="score">Sort: Nilai Akhir</option>
-                <option value="name">Sort: Nama Siswa</option>
-                <option value="class">Sort: Kode Kelas</option>
-                <option value="date">Sort: Waktu Selesai</option>
-              </select>
-
-              <button
-                onClick={() => setSortOrderStudent((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-                className="px-2.5 py-1.5 bg-slate-100 border rounded-lg text-xs font-bold text-slate-700"
-                title="Ubah Arah Urutan"
-                suppressHydrationWarning
-              >
-                {sortOrderStudent === 'asc' ? '⬆️ Asc' : '⬇️ Desc'}
-              </button>
-
-              {/* BATCH DELETE BUTTON */}
               {selectedSessionIds.length > 0 && (
                 <button
                   onClick={handleDeleteSelected}
                   disabled={isDeleting}
-                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                  suppressHydrationWarning
+                  className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg"
                 >
                   🗑️ Hapus Terpilih ({selectedSessionIds.length})
                 </button>
               )}
 
-              {/* DELETE ALL BUTTON */}
               {sessions.length > 0 && (
                 <button
                   onClick={handleDeleteAll}
                   disabled={isDeleting}
-                  className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-700 border border-red-300 text-xs font-bold rounded-lg transition-colors disabled:opacity-50"
-                  title="Hapus seluruh riwayat pengerjaan paket ujian ini"
-                  suppressHydrationWarning
+                  className="px-3 py-1.5 bg-red-100 text-red-700 border border-red-300 text-xs font-bold rounded-lg"
                 >
                   ⚠️ Hapus Semua Hasil
                 </button>
@@ -729,8 +705,7 @@ function ExamResultsContent() {
                         sortedSessions.length > 0 &&
                         selectedSessionIds.length === sortedSessions.length
                       }
-                      className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                      suppressHydrationWarning
+                      className="rounded text-indigo-600"
                     />
                   </th>
                   <th className="p-3 text-center w-12">No</th>
@@ -743,73 +718,55 @@ function ExamResultsContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sortedSessions.length > 0 ? (
-                  sortedSessions.map((session, idx) => {
-                    const isSelected = selectedSessionIds.includes(session.id)
-
-                    return (
-                      <tr
-                        key={session.id}
-                        className={`transition-colors ${
-                          isSelected ? 'bg-indigo-50/60' : 'hover:bg-slate-50'
-                        }`}
-                      >
-                        <td className="p-3 text-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleSelectSession(session.id)}
-                            className="rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            suppressHydrationWarning
-                          />
-                        </td>
-                        <td className="p-3 text-center font-bold text-slate-400">
-                          {idx + 1}
-                        </td>
-                        <td className="p-3">
-                          <div className="font-bold text-slate-800">{session.full_name}</div>
-                          <div className="text-slate-400">@{session.username}</div>
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold">
-                            {session.class_code}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center text-slate-600">
-                          {session.completed_at
-                            ? new Date(session.completed_at).toLocaleString('id-ID', {
-                                dateStyle: 'medium',
-                                timeStyle: 'short',
-                              })
-                            : '-'}
-                        </td>
-                        <td className="p-3 text-center font-bold text-slate-700">
-                          {session.correct_count} / {session.total_questions}
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-bold">
-                            {session.earned_score} / 100
-                          </span>
-                        </td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => handleDeleteSession(session.id, session.full_name)}
-                            className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-[11px] font-bold rounded transition-colors"
-                            suppressHydrationWarning
-                          >
-                            Reset Ujian
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-400">
-                      Belum ada siswa yang menyelesaikan ujian ini atau data tidak ditemukan.
-                    </td>
-                  </tr>
-                )}
+                {sortedSessions.map((session, idx) => {
+                  const isSelected = selectedSessionIds.includes(session.id)
+                  return (
+                    <tr key={session.id} className={`transition-colors ${isSelected ? 'bg-indigo-50/60' : 'hover:bg-slate-50'}`}>
+                      <td className="p-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleSelectSession(session.id)}
+                          className="rounded text-indigo-600"
+                        />
+                      </td>
+                      <td className="p-3 text-center font-bold text-slate-400">{idx + 1}</td>
+                      <td className="p-3">
+                        <div className="font-bold text-slate-800">{session.full_name}</div>
+                        <div className="text-slate-400">@{session.username}</div>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold">
+                          {session.class_code}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center text-slate-600">
+                        {session.completed_at
+                          ? new Date(session.completed_at).toLocaleString('id-ID', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short',
+                            })
+                          : '-'}
+                      </td>
+                      <td className="p-3 text-center font-bold text-slate-700">
+                        {session.correct_count} / {session.total_questions}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-bold">
+                          {session.earned_score} / 100
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button
+                          onClick={() => handleDeleteSession(session.id, session.full_name)}
+                          className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-[11px] font-bold rounded"
+                        >
+                          Reset Ujian
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -821,13 +778,7 @@ function ExamResultsContent() {
 
 export default function ExamResultsPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-          <p className="text-slate-600 font-medium">Memuat rekap & analisis...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="p-8 text-center">Memuat rekap...</div>}>
       <ExamResultsContent />
     </Suspense>
   )
