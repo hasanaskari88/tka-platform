@@ -166,7 +166,7 @@ function ExamEngineContent() {
     }))
   }
 
-  // Selesaikan Ujian & Simpan Hasil
+  // Selesaikan Ujian & Simpan Hasil (Kalkulasi Skala 100)
   const handleFinishExam = async (autoFinish = false) => {
     if (isSubmitting) return
     if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
@@ -178,47 +178,75 @@ function ExamEngineContent() {
       data: { user },
     } = await supabase.auth.getUser()
 
-    // Hitung Skor Otomatis untuk PG, PG Kompleks, dan Matriks
-    let earnedScore = 0
+    let totalPointsEarned = 0
+    let totalMaxPoints = 0
+
+    // Hitung Poin Maksimal & Poin Perolehan Siswa
     questions.forEach((q) => {
+      const qMaxScore = Number(q.max_score) || 1
+      totalMaxPoints += qMaxScore
+
       const qType = q.question_type || 'multiple_choice'
       const userAns = userAnswers[q.id]
 
-      if (qType === 'multiple_choice') {
-        if (userAns && String(userAns).trim().toUpperCase() === String(q.correct_option).trim().toUpperCase()) {
-          earnedScore += Number(q.max_score) || 1
-        }
-      } else if (qType === 'complex_multiple_choice') {
-        if (Array.isArray(userAns) && Array.isArray(q.correct_answers)) {
-          const sortedUser = [...userAns].sort().join(',')
-          const sortedKey = [...q.correct_answers].sort().join(',')
-          if (sortedUser === sortedKey) {
-            earnedScore += Number(q.max_score) || 1
-          }
-        }
-      } else if (qType === 'true_false_matrix') {
-        if (userAns && typeof userAns === 'object' && q.correct_answers) {
-          let isAllCorrect = true
-          const stKeys = Object.keys(q.correct_answers)
-          if (stKeys.length === 0) isAllCorrect = false
+      // Cek apakah soal belum dijawab
+      const isUnattempted =
+        userAns === undefined ||
+        userAns === null ||
+        (Array.isArray(userAns) && userAns.length === 0) ||
+        (typeof userAns === 'object' && !Array.isArray(userAns) && Object.keys(userAns).length === 0)
 
-          for (const key of stKeys) {
-            if (userAns[key] !== q.correct_answers[key]) {
-              isAllCorrect = false
-              break
-            }
+      if (!isUnattempted) {
+        // 1. Pilihan Ganda Biasa
+        if (qType === 'multiple_choice') {
+          if (String(userAns).trim().toUpperCase() === String(q.correct_option).trim().toUpperCase()) {
+            totalPointsEarned += qMaxScore
           }
-          if (isAllCorrect) {
-            earnedScore += Number(q.max_score) || 1
+        } 
+        // 2. Pilihan Ganda Kompleks (Nilai Parsial / Proposional)
+        else if (qType === 'complex_multiple_choice') {
+          const correctKeys: string[] = Array.isArray(q.correct_answers)
+            ? q.correct_answers
+            : [q.correct_option]
+          const userKeys: string[] = Array.isArray(userAns) ? userAns : []
+
+          const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
+          const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
+
+          const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
+          if (correctKeys.length > 0) {
+            const ratio = netCorrect / correctKeys.length
+            totalPointsEarned += ratio * qMaxScore
+          }
+        } 
+        // 3. Matriks Benar - Salah (Nilai Parsial per Baris)
+        else if (qType === 'true_false_matrix') {
+          const correctObj: { [key: string]: string } = q.correct_answers || {}
+          const userObj = typeof userAns === 'object' && !Array.isArray(userAns) ? userAns : {}
+
+          const statementIds = Object.keys(correctObj)
+          if (statementIds.length > 0) {
+            let correctRows = 0
+            statementIds.forEach((sId) => {
+              if (userObj[sId] === correctObj[sId]) {
+                correctRows++
+              }
+            })
+            const ratio = correctRows / statementIds.length
+            totalPointsEarned += ratio * qMaxScore
           }
         }
       }
-      // Note: Essay dinilai manual oleh Admin/Guru
     })
+
+    // Konversi Nilai Akhir ke SKALA 100 (2 Desimal)
+    const finalScore = totalMaxPoints > 0
+      ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100
+      : 0
 
     const nowIso = new Date().toISOString()
 
-    // 1. Simpan Sesi Ujian
+    // 1. Simpan Sesi Ujian dengan Nilai Skala 100
     const { data: session, error: sessionErr } = await supabase
       .from('exam_sessions')
       .insert([
@@ -226,7 +254,7 @@ function ExamEngineContent() {
           exam_id: examId,
           user_id: user?.id || null,
           status: 'completed',
-          score: earnedScore,
+          score: finalScore,
           submitted_at: nowIso,
           completed_at: nowIso,
         },
@@ -240,7 +268,7 @@ function ExamEngineContent() {
       return
     }
 
-    // 2. Simpan Detail Jawaban
+    // 2. Simpan Detail Jawaban Siswa
     const answerRecords = questions.map((q) => ({
       session_id: session.id,
       question_id: q.id,
@@ -249,7 +277,7 @@ function ExamEngineContent() {
 
     await supabase.from('answers').insert(answerRecords)
 
-    // 3. Pindah ke Halaman Summary
+    // 3. Pindah ke Halaman Ringkasan Hasil
     router.push(`/exam/${examId}/summary?session_id=${session.id}`)
   }
 
