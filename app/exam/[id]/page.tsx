@@ -8,6 +8,55 @@ import MathRenderer from '@/components/MathRenderer'
 import BulkUploadModal from '@/components/BulkUploadModal'
 import Link from 'next/link'
 
+const DEFAULT_KEYS = ['A', 'B', 'C', 'D']
+
+// Helper Normalisasi Opsi PG/PG Kompleks (Selalu 4 Opsi A, B, C, D)
+function getNormalizedOptions(rawOptions: any) {
+  const optsArray = Array.isArray(rawOptions) ? rawOptions : []
+  return DEFAULT_KEYS.map((key, index) => {
+    const found =
+      optsArray.find((o: any) => typeof o === 'object' && o?.key === key) ||
+      optsArray[index]
+
+    if (typeof found === 'string' || typeof found === 'number') {
+      return { key, text: String(found), image_url: '' }
+    } else if (found && typeof found === 'object') {
+      return {
+        key: found.key || key,
+        text: found.text !== undefined && found.text !== null ? String(found.text) : '',
+        image_url: found.image_url ? String(found.image_url) : '',
+      }
+    }
+    return { key, text: '', image_url: '' }
+  })
+}
+
+// Helper Normalisasi Pernyataan Matriks
+function getNormalizedStatements(rawOptions: any, correctAnswers: any) {
+  const stArray = Array.isArray(rawOptions) ? rawOptions : []
+  if (stArray.length === 0) {
+    return [
+      { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
+      { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
+    ]
+  }
+  return stArray.map((st: any, idx: number) => {
+    const stId = String(st.id || idx + 1)
+    let cVal = 'Benar'
+    if (correctAnswers && typeof correctAnswers === 'object' && correctAnswers[stId]) {
+      cVal = String(correctAnswers[stId])
+    } else if (st.correct_val) {
+      cVal = String(st.correct_val)
+    }
+    return {
+      id: stId,
+      text: typeof st === 'string' ? st : String(st.text || ''),
+      image_url: st.image_url ? String(st.image_url) : '',
+      correct_val: cVal,
+    }
+  })
+}
+
 function QuestionManagerContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -22,7 +71,7 @@ function QuestionManagerContent() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
 
-  // Form State (Mendukung 4 Tipe Soal)
+  // State Form Soal
   const [questionType, setQuestionType] = useState<
     'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
   >('multiple_choice')
@@ -31,7 +80,7 @@ function QuestionManagerContent() {
   const [maxScore, setMaxScore] = useState(1.0)
   const [explanation, setExplanation] = useState('')
 
-  // State Opsi PG & PG Kompleks (Teks & URL Gambar)
+  // State Opsi PG & PG Kompleks
   const [options, setOptions] = useState([
     { key: 'A', text: '', image_url: '' },
     { key: 'B', text: '', image_url: '' },
@@ -39,11 +88,11 @@ function QuestionManagerContent() {
     { key: 'D', text: '', image_url: '' },
   ])
 
-  // State Kunci Jawaban PG & PG Kompleks
+  // State Kunci Jawaban
   const [correctSingleOption, setCorrectSingleOption] = useState('A')
   const [correctComplexOptions, setCorrectComplexOptions] = useState<string[]>([])
 
-  // State Pernyataan untuk Matriks Benar - Salah
+  // State Matriks Benar-Salah
   const [statements, setStatements] = useState([
     { id: '1', text: 'Pernyataan 1', image_url: '', correct_val: 'Benar' },
     { id: '2', text: 'Pernyataan 2', image_url: '', correct_val: 'Salah' },
@@ -77,7 +126,7 @@ function QuestionManagerContent() {
     loadData()
   }, [examId])
 
-  // Helper Menyisipkan Teks / Tag HTML / Latex pada Kursor Textarea
+  // Helper Sisip Teks Toolbar LaTeX / HTML pada Kursor Textarea
   const insertFormatText = (before: string, after: string = '') => {
     const textarea = document.getElementById('questionTextarea') as HTMLTextAreaElement
     if (!textarea) {
@@ -174,47 +223,26 @@ function QuestionManagerContent() {
 
   const handleEditClick = (q: any) => {
     setEditingQuestionId(q.id)
-    setQuestionType(q.question_type || 'multiple_choice')
+    const type = q.question_type || 'multiple_choice'
+    setQuestionType(type)
     setQuestionText(q.question_text || '')
     setImageUrl(q.image_url || '')
     setMaxScore(Number(q.max_score) || 1.0)
     setExplanation(q.explanation || '')
 
-    if (
-      q.question_type === 'multiple_choice' ||
-      q.question_type === 'complex_multiple_choice'
-    ) {
-      if (Array.isArray(q.options) && q.options.length > 0) {
-        const normalizedOptions = q.options.map((opt: any, index: number) => ({
-          key: opt.key || String.fromCharCode(65 + index),
-          text: opt.text || '',
-          image_url: opt.image_url || '',
-        }))
-        setOptions(normalizedOptions)
-      }
+    setOptions(getNormalizedOptions(q.options))
+    setStatements(getNormalizedStatements(q.options, q.correct_answers))
 
-      if (q.question_type === 'multiple_choice') {
-        setCorrectSingleOption(
-          q.correct_option || (Array.isArray(q.correct_answers) ? q.correct_answers[0] : 'A')
-        )
+    if (type === 'multiple_choice') {
+      const keyVal = q.correct_option || (Array.isArray(q.correct_answers) ? q.correct_answers[0] : 'A')
+      setCorrectSingleOption(String(keyVal).trim().toUpperCase())
+    } else if (type === 'complex_multiple_choice') {
+      if (Array.isArray(q.correct_answers)) {
+        setCorrectComplexOptions(q.correct_answers.map(String))
+      } else if (q.correct_option) {
+        setCorrectComplexOptions(String(q.correct_option).split(',').map((s) => s.trim()))
       } else {
-        if (Array.isArray(q.correct_answers)) {
-          setCorrectComplexOptions(q.correct_answers)
-        } else if (q.correct_option) {
-          setCorrectComplexOptions(q.correct_option.split(',').map((s: string) => s.trim()))
-        } else {
-          setCorrectComplexOptions([])
-        }
-      }
-    } else if (q.question_type === 'true_false_matrix') {
-      if (Array.isArray(q.options) && q.options.length > 0) {
-        const formattedStatements = q.options.map((st: any) => ({
-          id: String(st.id),
-          text: st.text || '',
-          image_url: st.image_url || '',
-          correct_val: q.correct_answers?.[st.id] || st.correct_val || 'Benar',
-        }))
-        setStatements(formattedStatements)
+        setCorrectComplexOptions(['A'])
       }
     }
 
@@ -321,7 +349,7 @@ function QuestionManagerContent() {
       <Navbar />
 
       <main className="p-8 max-w-6xl mx-auto space-y-6">
-        {/* HEADER INFORMASI UJIAN & TOKEN */}
+        {/* HEADER */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
             <div className="flex items-center space-x-2">
@@ -356,10 +384,15 @@ function QuestionManagerContent() {
           </div>
         </div>
 
-        {/* BARS NAVIGASI TAB UTAMA */}
+        {/* TAB BAR NAVIGASI */}
         <div className="flex border-b border-slate-200 space-x-4">
           <button
-            onClick={() => setActiveTab('form')}
+            onClick={() => {
+              if (activeTab === 'list' && !editingQuestionId) {
+                resetForm()
+              }
+              setActiveTab('form')
+            }}
             className={`pb-3 text-sm font-bold border-b-2 transition-colors flex items-center space-x-2 ${
               activeTab === 'form'
                 ? 'border-indigo-600 text-indigo-600'
@@ -448,7 +481,7 @@ function QuestionManagerContent() {
                 </div>
               </div>
 
-              {/* TOOLBAR FORMATTING TEKS & MATH HELPER */}
+              {/* TOOLBAR FORMATTING TEKS & MATH HELPER DENGAN 4 ALIGNMENT LENGKAP */}
               <div>
                 <div className="flex justify-between items-center mb-1">
                   <label className="block text-xs font-semibold text-slate-700 uppercase">
@@ -457,23 +490,39 @@ function QuestionManagerContent() {
                   <span className="text-[10px] text-slate-400">Mendukung Format HTML & Math (LaTeX)</span>
                 </div>
 
-                <div className="flex flex-wrap gap-1 bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-300 text-xs">
-                  <button type="button" onClick={() => insertFormatText('<b>', '</b>')} className="px-2 py-1 bg-white border rounded font-bold hover:bg-slate-50">B</button>
-                  <button type="button" onClick={() => insertFormatText('<i>', '</i>')} className="px-2 py-1 bg-white border rounded italic hover:bg-slate-50">I</button>
-                  <button type="button" onClick={() => insertFormatText('<u>', '</u>')} className="px-2 py-1 bg-white border rounded underline hover:bg-slate-50">U</button>
-                  <button type="button" onClick={() => insertFormatText('<div text-center>', '</div>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Align Center</button>
-                  <button type="button" onClick={() => insertFormatText('<blockquote>', '</blockquote>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Kutipan</button>
-                  <button type="button" onClick={() => insertFormatText('<table border="1"><tr><td>', '</td></tr></table>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Tabel</button>
-                  <span className="border-r border-slate-300 mx-1"></span>
-                  <button type="button" onClick={() => insertFormatText('$\\frac{', '}{}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pecahan $\\frac{a}{b}$"}</button>
-                  <button type="button" onClick={() => insertFormatText('$\\sqrt{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Akar $\\sqrt{x}$"}</button>
-                  <button type="button" onClick={() => insertFormatText('$x^{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pangkat $x^n$"}</button>
-                  <button type="button" onClick={() => insertFormatText('$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">Matriks Math</button>
+                {/* BARIS BANNER TOOLBAR */}
+                <div className="flex flex-wrap items-center gap-1 bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-300 text-xs">
+                  {/* Format Teks */}
+                  <button type="button" onClick={() => insertFormatText('<b>', '</b>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-bold" title="Cetak Tebal (Bold)">B</button>
+                  <button type="button" onClick={() => insertFormatText('<i>', '</i>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded italic" title="Cetak Miring (Italic)">I</button>
+                  <button type="button" onClick={() => insertFormatText('<u>', '</u>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded underline" title="Garis Bawah (Underline)">U</button>
+                  
+                  <span className="border-r border-slate-300 h-4 mx-0.5"></span>
+
+                  {/* 4 OPSI ALIGNMENT PARAGRAF LENGKAP */}
+                  <button type="button" onClick={() => insertFormatText('<div style="text-align: left;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-slate-700" title="Rata Kiri">⬅ Kiri</button>
+                  <button type="button" onClick={() => insertFormatText('<div style="text-align: center;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-indigo-700" title="Rata Tengah">↔ Tengah</button>
+                  <button type="button" onClick={() => insertFormatText('<div style="text-align: right;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-slate-700" title="Rata Kanan">➡️ Kanan</button>
+                  <button type="button" onClick={() => insertFormatText('<div style="text-align: justify;">', '</div>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded font-semibold text-emerald-700" title="Rata Kiri-Kanan (Justify)">↔ Justify</button>
+
+                  <span className="border-r border-slate-300 h-4 mx-0.5"></span>
+
+                  {/* Element Kutipan & Tabel */}
+                  <button type="button" onClick={() => insertFormatText('<blockquote>', '</blockquote>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded" title="Blok Kutipan">Kutipan</button>
+                  <button type="button" onClick={() => insertFormatText('<table border="1"><tr><td>', '</td></tr></table>')} className="px-2 py-1 bg-white hover:bg-slate-50 border rounded" title="Tabel Simple">Tabel</button>
+                  
+                  <span className="border-r border-slate-300 h-4 mx-0.5"></span>
+
+                  {/* Formulasi Matematika LaTeX */}
+                  <button type="button" onClick={() => insertFormatText('$\\frac{', '}{}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"½ Pecahan"}</button>
+                  <button type="button" onClick={() => insertFormatText('$\\sqrt{', '}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"√ Akar"}</button>
+                  <button type="button" onClick={() => insertFormatText('$x^{', '}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"x² Pangkat"}</button>
+                  <button type="button" onClick={() => insertFormatText('$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$')} className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded font-bold">{"[ Matrix ]"}</button>
                 </div>
 
                 <textarea
                   id="questionTextarea"
-                  rows={5}
+                  rows={4}
                   required
                   value={questionText || ''}
                   onChange={(e) => setQuestionText(e.target.value)}
@@ -481,6 +530,18 @@ function QuestionManagerContent() {
                   className="w-full px-3 py-2 rounded-b-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
                   suppressHydrationWarning
                 />
+
+                {/* 👁️ LIVE PREVIEW REAL-TIME UNTUK SOAL */}
+                {questionText && (
+                  <div className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1">
+                      👁️ Pratinjau Tampilan Teks Soal (Live Preview):
+                    </span>
+                    <div className="text-sm font-medium text-slate-800 bg-white p-3 rounded-lg border shadow-inner">
+                      <MathRenderer content={questionText} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -495,6 +556,12 @@ function QuestionManagerContent() {
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   suppressHydrationWarning
                 />
+                {imageUrl && (
+                  <div className="mt-2 p-2 border rounded-xl bg-slate-50">
+                    <span className="text-[10px] font-bold text-slate-500 block mb-1">Pratinjau Gambar Soal:</span>
+                    <img src={imageUrl} alt="Pratinjau Soal" className="max-h-40 rounded-lg border" />
+                  </div>
+                )}
               </div>
 
               {/* 🟢 PILIHAN GANDA BIASA */}
@@ -504,7 +571,7 @@ function QuestionManagerContent() {
                     Pilihan Jawaban & Kunci (Pilih 1 Radio)
                   </label>
                   {options.map((opt, idx) => (
-                    <div key={opt.key} className="space-y-1 p-3 border rounded-xl bg-slate-50">
+                    <div key={opt.key} className="space-y-1.5 p-3 border rounded-xl bg-slate-50">
                       <div className="flex items-center space-x-2">
                         <input
                           type="radio"
@@ -534,6 +601,13 @@ function QuestionManagerContent() {
                           suppressHydrationWarning
                         />
                       </div>
+                      {/* Live Preview Opsi */}
+                      {opt.text && (
+                        <div className="pl-6 text-xs text-slate-700 bg-white p-2 rounded-lg border">
+                          <span className="text-[10px] text-slate-400 font-bold block">Pratinjau Render Opsi {opt.key}:</span>
+                          <MathRenderer content={opt.text} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -546,7 +620,7 @@ function QuestionManagerContent() {
                     Pilihan Jawaban & Kunci (Centang Semua Opsi Benar)
                   </label>
                   {options.map((opt, idx) => (
-                    <div key={opt.key} className="space-y-1 p-3 border rounded-xl bg-slate-50">
+                    <div key={opt.key} className="space-y-1.5 p-3 border rounded-xl bg-slate-50">
                       <div className="flex items-center space-x-2">
                         <input
                           type="checkbox"
@@ -575,6 +649,13 @@ function QuestionManagerContent() {
                           suppressHydrationWarning
                         />
                       </div>
+                      {/* Live Preview Opsi */}
+                      {opt.text && (
+                        <div className="pl-6 text-xs text-slate-700 bg-white p-2 rounded-lg border">
+                          <span className="text-[10px] text-slate-400 font-bold block">Pratinjau Render Opsi {opt.key}:</span>
+                          <MathRenderer content={opt.text} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -598,7 +679,7 @@ function QuestionManagerContent() {
                   </div>
 
                   {statements.map((st, idx) => (
-                    <div key={st.id || idx} className="space-y-1 p-3 border rounded-xl bg-slate-50">
+                    <div key={st.id || idx} className="space-y-1.5 p-3 border rounded-xl bg-slate-50">
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-xs w-6 text-center">{idx + 1}.</span>
                         <input
@@ -638,6 +719,13 @@ function QuestionManagerContent() {
                           suppressHydrationWarning
                         />
                       </div>
+                      {/* Live Preview Pernyataan */}
+                      {st.text && (
+                        <div className="pl-8 text-xs text-slate-700 bg-white p-2 rounded-lg border">
+                          <span className="text-[10px] text-slate-400 font-bold block">Pratinjau Render Pernyataan {idx + 1}:</span>
+                          <MathRenderer content={st.text} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -754,28 +842,29 @@ function QuestionManagerContent() {
                     {(qType === 'multiple_choice' || qType === 'complex_multiple_choice') &&
                       Array.isArray(q.options) && (
                         <div className="space-y-1.5 pl-3 border-l-2 border-slate-200 text-xs">
-                          {q.options.map((opt: any) => {
+                          {q.options.map((opt: any, oIdx: number) => {
+                            const optKey = opt.key || String.fromCharCode(65 + oIdx)
                             let isKey = false
                             if (qType === 'multiple_choice') {
-                              isKey = q.correct_option === opt.key
+                              isKey = String(q.correct_option).trim().toUpperCase() === optKey
                             } else {
                               isKey = Array.isArray(q.correct_answers)
-                                ? q.correct_answers.includes(opt.key)
-                                : String(q.correct_option).includes(opt.key)
+                                ? q.correct_answers.includes(optKey)
+                                : String(q.correct_option).includes(optKey)
                             }
 
                             return (
                               <div
-                                key={opt.key}
+                                key={optKey || oIdx}
                                 className={`flex items-start space-x-2 ${
                                   isKey ? 'font-bold text-emerald-700' : 'text-slate-600'
                                 }`}
                               >
-                                <span className="w-4">{opt.key}.</span>
+                                <span className="w-4">{optKey}.</span>
                                 <div className="flex-1">
-                                  <MathRenderer content={opt.text} />
+                                  <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
                                   {opt.image_url && (
-                                    <img src={opt.image_url} alt={`Gambar Opsi ${opt.key}`} className="max-h-24 mt-1 rounded border" />
+                                    <img src={opt.image_url} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
                                   )}
                                 </div>
                                 {isKey && <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded font-bold">Kunci</span>}
@@ -801,7 +890,7 @@ function QuestionManagerContent() {
                               return (
                                 <tr key={st.id || sIdx}>
                                   <td className="p-2.5">
-                                    <MathRenderer content={st.text} />
+                                    <MathRenderer content={typeof st === 'string' ? st : st.text} />
                                     {st.image_url && (
                                       <img src={st.image_url} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
                                     )}
