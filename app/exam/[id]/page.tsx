@@ -167,36 +167,40 @@ function ExamContent() {
 
         // 🟢 PEMBERSIHAN LOCALSTORAGE JIKA MEMUAT SESI BARU
         if (forceNew) {
-          await supabase
-            .from('exam_sessions')
-            .update({
-              status: 'completed',
-              score: 0,
-              completed_at: new Date().toISOString(),
-            })
-            .eq('exam_id', examId)
-            .eq('user_id', activeUser.id)
-            .eq('status', 'ongoing')
+          // 1. Tutup/selesaikan semua sesi ongoing lama milik siswa untuk ujian ini
+  await supabase
+    .from('exam_sessions')
+    .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+    })
+    .eq('exam_id', examId)
+    .eq('user_id', activeUser.id)
+    .eq('status', 'ongoing')
 
-          localStorage.removeItem(`cbt_temp_answers_${examId}`)
-          setUserAnswers({})
+  // 2. Bersihkan seluruh penyimpanan lokal & state lembar ujian
+  localStorage.removeItem(`cbt_temp_answers_${examId}`)
+  setUserAnswers({})
+  setFlagged({})
+  setCurrentIndex(0)
 
-          const nowIso = new Date().toISOString()
-          const { data: newSession } = await supabase
-            .from('exam_sessions')
-            .insert([
-              {
-                exam_id: examId,
-                user_id: activeUser.id,
-                status: 'ongoing',
-                start_time: nowIso,
-              },
-            ])
-            .select('id')
-            .single()
+  // 3. Buat sesi pengerjaan baru yang benar-benar bersih
+  const nowIso = new Date().toISOString()
+  const { data: newSession } = await supabase
+    .from('exam_sessions')
+    .insert([
+      {
+        exam_id: examId,
+        user_id: activeUser.id,
+        status: 'ongoing',
+        start_time: nowIso,
+      },
+    ])
+    .select('id')
+    .single()
 
-          if (newSession) activeSessionId = newSession.id
-          setTimeLeft(totalDurationSeconds)
+  if (newSession) activeSessionId = newSession.id
+  setTimeLeft(totalDurationSeconds)
         } else {
           const { data: existingSession } = await supabase
             .from('exam_sessions')
