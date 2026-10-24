@@ -12,11 +12,27 @@ export function checkQuestionAccuracy(q: any, userAns: any) {
     return { isCorrect: false, isUnattempted: true, ratio: 0 }
   }
 
+  let parsedAns = userAns
+  if (typeof userAns === 'string') {
+    const trimmed = userAns.trim()
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    ) {
+      try {
+        parsedAns = JSON.parse(trimmed)
+      } catch (e) {
+        parsedAns = trimmed
+      }
+    }
+  }
+
   const qType = q.question_type || 'multiple_choice'
 
   if (qType === 'multiple_choice') {
     const correctOpt = (q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').toString().trim()
-    const isCorrect = String(userAns).trim().toLowerCase() === correctOpt.toLowerCase()
+    const isCorrect = String(parsedAns).trim().toLowerCase() === correctOpt.toLowerCase()
     return { isCorrect, isUnattempted: false, ratio: isCorrect ? 1 : 0 }
   }
 
@@ -24,7 +40,7 @@ export function checkQuestionAccuracy(q: any, userAns: any) {
     const correctKeys: string[] = Array.isArray(q.correct_answers)
       ? q.correct_answers
       : [q.correct_option].filter(Boolean)
-    const userKeys: string[] = Array.isArray(userAns) ? userAns : []
+    const userKeys: string[] = Array.isArray(parsedAns) ? parsedAns : [parsedAns]
 
     if (userKeys.length === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
 
@@ -38,7 +54,7 @@ export function checkQuestionAccuracy(q: any, userAns: any) {
 
   if (qType === 'true_false_matrix') {
     const correctObj: { [key: string]: string } = q.correct_answers || {}
-    const userObj = typeof userAns === 'object' && !Array.isArray(userAns) ? userAns : {}
+    const userObj = typeof parsedAns === 'object' && !Array.isArray(parsedAns) ? parsedAns : {}
 
     const statementIds = Object.keys(correctObj)
     if (statementIds.length === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
@@ -73,7 +89,7 @@ function ExamContent() {
 
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [flagged, setFlagged] = useState<{ [key: string]: boolean }>({})
-  const [timeLeft, setTimeLeft] = useState<number | null>(null) // 🟢 Nilai awal NULL mencegah auto-submit
+  const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [isTimerStarted, setIsTimerStarted] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -149,9 +165,7 @@ function ExamContent() {
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
         let activeSessionId: string | null = null
 
-        // 🟢 MANAJEMEN SESI (FORCE NEW VS RESUME)
         if (forceNew) {
-          // Tutup semua sesi ongoing lama
           await supabase
             .from('exam_sessions')
             .update({
@@ -163,11 +177,9 @@ function ExamContent() {
             .eq('user_id', activeUser.id)
             .eq('status', 'ongoing')
 
-          // Bersihkan jawaban sementara
           localStorage.removeItem(`cbt_temp_answers_${examId}`)
           setUserAnswers({})
 
-          // Buat Sesi Baru Bersih
           const nowIso = new Date().toISOString()
           const { data: newSession } = await supabase
             .from('exam_sessions')
@@ -185,7 +197,6 @@ function ExamContent() {
           if (newSession) activeSessionId = newSession.id
           setTimeLeft(totalDurationSeconds)
         } else {
-          // Mode Normal: Cari sesi ongoing
           const { data: existingSession } = await supabase
             .from('exam_sessions')
             .select('id, start_time')
@@ -203,7 +214,6 @@ function ExamContent() {
             const remainingSeconds = totalDurationSeconds - elapsedSeconds
 
             if (remainingSeconds > 0) {
-              // Lanjutkan sesi aktif
               activeSessionId = existingSession.id
               setTimeLeft(remainingSeconds)
 
@@ -214,7 +224,6 @@ function ExamContent() {
                 } catch (e) {}
               }
             } else {
-              // Sesi lama sudah kadaluarsa -> Buat Baru
               await supabase
                 .from('exam_sessions')
                 .update({
@@ -245,7 +254,6 @@ function ExamContent() {
               setTimeLeft(totalDurationSeconds)
             }
           } else {
-            // Buat Sesi Baru jika belum ada
             const nowIso = new Date().toISOString()
             const { data: newSession } = await supabase
               .from('exam_sessions')
@@ -277,7 +285,6 @@ function ExamContent() {
     loadExamDataAndCreateSession()
   }, [examId, forceNew])
 
-  // Timer Countdown Effect
   useEffect(() => {
     if (loading || isSubmitted || !isTimerStarted || timeLeft === null) return
 
@@ -360,6 +367,7 @@ function ExamContent() {
     setFlagged((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }
 
+  // 🟢 LOGIKA PROSES SUBMIT DENGAN SANITASI DATA PENCEGAH ERROR
   const handleSubmit = async () => {
     if (isSaving || isSubmitted) return
     setIsSaving(true)
@@ -442,26 +450,36 @@ function ExamContent() {
         }
       }
 
+      // 🟢 SIMPAN DATA JAWABAN KE TABEL ANSWERS DENGAN SANITASI AMAN
       if (finalSessionId) {
         await supabase.from('answers').delete().eq('session_id', finalSessionId)
 
-        const answerRecords = questions.map((q) => ({
-          session_id: finalSessionId,
-          question_id: q.id,
-          user_answer:
-            typeof userAnswers[q.id] === 'string'
-              ? userAnswers[q.id]
-              : JSON.stringify(userAnswers[q.id] || null),
-          selected_option:
-            typeof userAnswers[q.id] === 'string'
-              ? userAnswers[q.id]
-              : JSON.stringify(userAnswers[q.id] || null),
-          selected_answers: userAnswers[q.id] || null,
-          is_flagged: !!flagged[q.id],
-        }))
+        const answerRecords = questions.map((q) => {
+          const rawAns = userAnswers[q.id]
+          const isAnsDefined = rawAns !== undefined && rawAns !== null && rawAns !== ''
+
+          let stringifiedAns = null
+          if (isAnsDefined) {
+            stringifiedAns = typeof rawAns === 'string' ? rawAns : JSON.stringify(rawAns)
+          }
+
+          return {
+            session_id: finalSessionId,
+            question_id: q.id,
+            user_answer: stringifiedAns,
+            selected_option: typeof rawAns === 'string' ? rawAns : stringifiedAns,
+            selected_answers: isAnsDefined ? rawAns : null,
+            is_flagged: !!flagged[q.id],
+          }
+        })
 
         if (answerRecords.length > 0) {
-          await supabase.from('answers').insert(answerRecords)
+          const { error: insError } = await supabase.from('answers').insert(answerRecords)
+          if (insError) {
+            console.error('⚠️ Gagal menyimpan ke tabel answers:', insError)
+          } else {
+            console.log('✅ Berhasil menyimpan', answerRecords.length, 'jawaban ke tabel answers!')
+          }
         }
       }
 
