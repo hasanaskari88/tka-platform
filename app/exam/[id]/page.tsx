@@ -165,7 +165,7 @@ function ExamContent() {
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
         let activeSessionId: string | null = null
 
-        // 🟢 PEMBERSIHAN KETAT MEMORI JAWABAN SAAT SESI BARU DIBUAT
+        // 🟢 PEMBERSIHAN LOCALSTORAGE JIKA MEMUAT SESI BARU
         if (forceNew) {
           await supabase
             .from('exam_sessions')
@@ -215,7 +215,7 @@ function ExamContent() {
             const remainingSeconds = totalDurationSeconds - elapsedSeconds
 
             if (remainingSeconds > 0) {
-              // Hanya muat jawaban lama jika melanjutkan sesi berjalan
+              // Lanjutkan sesi berjalan
               activeSessionId = existingSession.id
               setTimeLeft(remainingSeconds)
 
@@ -226,7 +226,7 @@ function ExamContent() {
                 } catch (e) {}
               }
             } else {
-              // Sesi lama kadaluarsa -> Tutup sesi & Bersihkan memori lembar ujian
+              // Sesi lama habis waktu -> Buat sesi baru & bersihkan jawaban lama
               await supabase
                 .from('exam_sessions')
                 .update({
@@ -257,7 +257,7 @@ function ExamContent() {
               setTimeLeft(totalDurationSeconds)
             }
           } else {
-            // Sesi baru -> Bersihkan memori lembar ujian secara total
+            // Sesi baru -> Bersihkan jawaban lama
             localStorage.removeItem(`cbt_temp_answers_${examId}`)
             setUserAnswers({})
 
@@ -374,7 +374,7 @@ function ExamContent() {
     setFlagged((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }
 
-  // 🟢 LOGIKA SIMPAN JAWABAN DENGAN SERIALISASI JSONB VALID POSTGRESQL
+  // 🟢 LOGIKA SUBMIT YANG PRESISI 100% SESUAI DDL TABEL ANSWERS
   const handleSubmit = async () => {
     if (isSaving || isSubmitted) return
     setIsSaving(true)
@@ -457,7 +457,7 @@ function ExamContent() {
         }
       }
 
-      // 🟢 INSERT JAWABAN DENGAN STRUCTUR EKSPLISIT SESUAI DDL TABEL ANSWERS
+      // 🟢 PROSES INSERT KE TABEL ANSWERS (EKSPLISIT SESUAI SKEMA DDL)
       if (finalSessionId) {
         await supabase.from('answers').delete().eq('session_id', finalSessionId)
 
@@ -472,12 +472,11 @@ function ExamContent() {
 
           if (rawAns !== undefined && rawAns !== null && rawAns !== '') {
             if (typeof rawAns === 'string' && rawAns.length <= 10) {
-              optVal = rawAns.toUpperCase()
-              // Wajib JSON.stringify agar lolos validasi tipe jsonb PostgreSQL
-              jsonVal = JSON.stringify(rawAns)
+              optVal = rawAns
+              jsonVal = rawAns
             } else {
               optVal = null
-              jsonVal = typeof rawAns === 'string' ? JSON.stringify(rawAns) : rawAns
+              jsonVal = rawAns
             }
           }
 
@@ -494,10 +493,10 @@ function ExamContent() {
         if (answerRecords.length > 0) {
           const { error: insError } = await supabase.from('answers').insert(answerRecords)
           if (insError) {
-            console.error('⚠️ Gagal menyimpan ke tabel answers:', insError)
-            alert(`Sistem Ujian: Gagal menyimpan lembar jawaban ke database (${insError.message})`)
+            console.error('⚠️ GAGAL INSERT ANSWERS:', insError)
+            alert(`Peringatan: Jawaban gagal disimpan ke database. Error: ${insError.message}`)
           } else {
-            console.log('✅ Berhasil menyimpan', answerRecords.length, 'jawaban ke database!')
+            console.log('✅ SUKSES SIMPAN', answerRecords.length, 'JAWABAN KE TABEL ANSWERS')
           }
         }
       }
