@@ -1,5 +1,8 @@
 'use client'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { useEffect, useState, Suspense } from 'react'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -7,75 +10,6 @@ import Navbar from '@/components/Navbar'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
-
-// 🟢 Helper Evaluasi Jawaban Presisi (Mendukung Pilihan Ganda, Kompleks & Matriks)
-function checkQuestionAccuracy(q: any, userAns: any) {
-  if (userAns === null || userAns === undefined || userAns === '') {
-    return { isCorrect: false, isUnattempted: true, ratio: 0 }
-  }
-
-  let parsedAns = userAns
-  if (typeof userAns === 'string') {
-    const trimmed = userAns.trim()
-    if (
-      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
-      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
-      (trimmed.startsWith('"') && trimmed.endsWith('"'))
-    ) {
-      try {
-        parsedAns = JSON.parse(trimmed)
-      } catch (e) {
-        parsedAns = trimmed
-      }
-    }
-  }
-
-  const qType = q.question_type || 'multiple_choice'
-
-  if (qType === 'multiple_choice') {
-    const correctOpt = (q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').toString().trim()
-    const isCorrect = String(parsedAns).trim().toLowerCase() === correctOpt.toLowerCase()
-    return { isCorrect, isUnattempted: false, ratio: isCorrect ? 1 : 0 }
-  }
-
-  if (qType === 'complex_multiple_choice') {
-    const correctKeys: string[] = Array.isArray(q.correct_answers)
-      ? q.correct_answers
-      : [q.correct_option].filter(Boolean)
-    const userKeys: string[] = Array.isArray(parsedAns) ? parsedAns : [parsedAns]
-
-    if (userKeys.length === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
-
-    const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
-    const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
-
-    const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
-    const ratio = correctKeys.length > 0 ? netCorrect / correctKeys.length : 0
-    return { isCorrect: ratio === 1, isUnattempted: false, ratio }
-  }
-
-  if (qType === 'true_false_matrix') {
-    const correctObj: { [key: string]: string } = q.correct_answers || {}
-    const userObj = typeof parsedAns === 'object' && !Array.isArray(parsedAns) ? parsedAns : {}
-
-    const statementIds = Object.keys(correctObj)
-    if (statementIds.length === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
-
-    let correctRows = 0
-    let attemptedRows = 0
-    statementIds.forEach((sId) => {
-      if (userObj[sId]) attemptedRows++
-      if (userObj[sId] === correctObj[sId]) correctRows++
-    })
-
-    if (attemptedRows === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
-
-    const ratio = correctRows / statementIds.length
-    return { isCorrect: ratio === 1, isUnattempted: false, ratio }
-  }
-
-  return { isCorrect: false, isUnattempted: true, ratio: 0 }
-}
 
 function ExamResultsContent() {
   const params = useParams()
@@ -125,13 +59,13 @@ function ExamResultsContent() {
       .eq('exam_id', examId)
       .order('created_at', { ascending: false })
 
-    // 4. Ambil Profil User & Jawaban
+    // 4. Ambil Profil User & Jawaban Terkait
     const { data: profileData } = await supabase.from('profiles').select('*')
+    
     const sessionIds = (sessionData || []).map((s) => s.id)
-    const { data: answerData } =
-      sessionIds.length > 0
-        ? await supabase.from('answers').select('*').in('session_id', sessionIds)
-        : { data: [] }
+    const { data: answerData } = sessionIds.length > 0
+      ? await supabase.from('answers').select('*').in('session_id', sessionIds)
+      : { data: [] }
 
     const profileMap = new Map()
     if (profileData) {
@@ -168,17 +102,29 @@ function ExamResultsContent() {
       const userAnswers = answerMap.get(session.id) || []
       let correctCount = 0
 
-      // Prioritas 1: Gunakan total_correct dari database jika tersedia
-      if (session.total_correct !== undefined && session.total_correct !== null) {
+      // Prioritas 1: Ambil total_correct langsung dari database jika tersedia
+      if (session.total_correct !== undefined && session.total_correct !== null && Number(session.total_correct) >= 0) {
         correctCount = Number(session.total_correct)
       } else {
-        // Prioritas 2: Evaluasi jawaban presisi
+        // Prioritas 2: Evaluasi fleksibel & toleran karakter
         userAnswers.forEach((ans) => {
           const q = questionMap.get(ans.question_id)
-          const studentChoice = ans.selected_answers ?? ans.selected_option ?? ans.user_answer
           if (q) {
-            const { isCorrect } = checkQuestionAccuracy(q, studentChoice)
-            if (isCorrect) correctCount += 1
+            let studentChoice = ans.selected_option || ans.user_answer || ans.selected_answers || ''
+            if (typeof studentChoice === 'string') {
+              try {
+                if ((studentChoice.startsWith('"') && studentChoice.endsWith('"')) || (studentChoice.startsWith('[') && studentChoice.endsWith(']'))) {
+                  const parsed = JSON.parse(studentChoice)
+                  studentChoice = Array.isArray(parsed) ? parsed[0] : parsed
+                }
+              } catch (e) {}
+            }
+            const cleanChoice = String(studentChoice || '').trim().toLowerCase()
+            const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toLowerCase()
+
+            if (cleanChoice && correctOpt && cleanChoice === correctOpt) {
+              correctCount += 1
+            }
           }
         })
       }
@@ -212,27 +158,28 @@ function ExamResultsContent() {
       let correctAnswersCount = 0
       const optionCounts: { [key: string]: number } = { A: 0, B: 0, C: 0, D: 0, Kosong: 0 }
 
+      const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toUpperCase()
+
       if (answerData) {
         answerData.forEach((ans) => {
           if (ans.question_id === q.id) {
-            const rawChoice = ans.selected_answers ?? ans.selected_option ?? ans.user_answer
-            
-            // Evaluasi Kebenaran Soal
-            const { isCorrect } = checkQuestionAccuracy(q, rawChoice)
-            if (isCorrect) {
+            let rawChoice = ans.selected_option || ans.user_answer || ans.selected_answers || ''
+            if (typeof rawChoice === 'string') {
+              try {
+                if ((rawChoice.startsWith('"') && rawChoice.endsWith('"')) || (rawChoice.startsWith('[') && rawChoice.endsWith(']'))) {
+                  const parsed = JSON.parse(rawChoice)
+                  rawChoice = Array.isArray(parsed) ? parsed[0] : parsed
+                }
+              } catch (e) {}
+            }
+            const userChoice = String(rawChoice || '').toUpperCase().trim()
+
+            if (correctOpt && userChoice === correctOpt) {
               correctAnswersCount += 1
             }
 
-            // Ekstrak Opsi Pilihan (A, B, C, D)
-            let choiceStr = ''
-            if (typeof rawChoice === 'string') {
-              choiceStr = rawChoice.replace(/"/g, '').trim().toUpperCase()
-            } else if (Array.isArray(rawChoice) && rawChoice.length > 0) {
-              choiceStr = String(rawChoice[0]).replace(/"/g, '').trim().toUpperCase()
-            }
-
-            if (['A', 'B', 'C', 'D'].includes(choiceStr)) {
-              optionCounts[choiceStr] = (optionCounts[choiceStr] || 0) + 1
+            if (['A', 'B', 'C', 'D'].includes(userChoice)) {
+              optionCounts[userChoice] = (optionCounts[userChoice] || 0) + 1
             } else {
               optionCounts['Kosong'] = (optionCounts['Kosong'] || 0) + 1
             }
@@ -248,7 +195,7 @@ function ExamResultsContent() {
       let maxDistractorCount = 0
 
       Object.keys(optionCounts).forEach((optKey) => {
-        if (optKey !== q.correct_option && optKey !== 'Kosong') {
+        if (optKey !== correctOpt && optKey !== 'Kosong') {
           if (optionCounts[optKey] > maxDistractorCount) {
             maxDistractorCount = optionCounts[optKey]
             topDistractorKey = optKey
@@ -277,7 +224,7 @@ function ExamResultsContent() {
         question_no: qIdx + 1,
         question_id: q.id,
         question_text: q.question_text || '',
-        correct_option: q.correct_option || 'A',
+        correct_option: correctOpt || 'A',
         max_score: q.max_score || 1,
         correct_count: correctAnswersCount,
         wrong_count: wrongAnswersCount,
