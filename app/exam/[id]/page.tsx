@@ -95,6 +95,17 @@ function ExamContent() {
     async function loadExamDataAndCreateSession() {
       const supabase = createClient()
 
+      // 1. Ambil data User secara aman
+      let activeUser = null
+      const { data: userData } = await supabase.auth.getUser()
+      if (userData?.user) {
+        activeUser = userData.user
+      } else {
+        const { data: sessionData } = await supabase.auth.getSession()
+        activeUser = sessionData?.session?.user || null
+      }
+
+      // 2. Ambil Data Ujian dan Soal
       const { data: examData } = await supabase
         .from('exams')
         .select('*')
@@ -112,12 +123,10 @@ function ExamContent() {
 
         let processedQuestions = [...questionData]
 
-        // 🟢 PENGACAKAN SOAL
         if (examData.shuffle_questions) {
           processedQuestions = shuffleArray(processedQuestions)
         }
 
-        // 🟢 PENGACAKAN OPSI JAWABAN
         if (examData.shuffle_options) {
           processedQuestions = processedQuestions.map((q) => {
             if (Array.isArray(q.options) && q.options.length > 0) {
@@ -131,30 +140,63 @@ function ExamContent() {
         }
 
         setQuestions(processedQuestions)
-        setTimeLeft((examData.duration_minutes || 15) * 60)
 
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+        const totalDurationSeconds = (examData.duration_minutes || 15) * 60
+        let activeSessionId = null
 
-        const { data: sessionData } = await supabase
-          .from('exam_sessions')
-          .insert([
-            {
-              exam_id: examId,
-              user_id: user?.id || null,
-              status: 'ongoing',
-              start_time: new Date().toISOString(),
-            },
-          ])
-          .select()
-          .single()
+        // 🟢 3. Cek apakah ada sesi ONGOING & Hitung Sisa Waktu Akurat saat Refresh / Putus Koneksi
+        if (activeUser?.id) {
+          const { data: existingSession } = await supabase
+            .from('exam_sessions')
+            .select('id, start_time')
+            .eq('exam_id', examId)
+            .eq('user_id', activeUser.id)
+            .eq('status', 'ongoing')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle()
 
-        if (sessionData) {
-          setSessionId(sessionData.id)
+          if (existingSession && existingSession.start_time) {
+            activeSessionId = existingSession.id
+
+            // Hitung sisa waktu berdasarkan selisih start_time dengan waktu sekarang
+            const startTimeMs = new Date(existingSession.start_time).getTime()
+            const nowMs = new Date().getTime()
+            const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
+            const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds)
+
+            setTimeLeft(remainingSeconds)
+          } else {
+            // Buat sesi baru jika belum ada sesi ongoing
+            const nowIso = new Date().toISOString()
+            const { data: newSession } = await supabase
+              .from('exam_sessions')
+              .insert([
+                {
+                  exam_id: examId,
+                  user_id: activeUser.id,
+                  status: 'ongoing',
+                  start_time: nowIso,
+                },
+              ])
+              .select('id, start_time')
+              .single()
+
+            if (newSession) {
+              activeSessionId = newSession.id
+            }
+            setTimeLeft(totalDurationSeconds)
+          }
+        } else {
+          setTimeLeft(totalDurationSeconds)
+        }
+
+        if (activeSessionId) {
+          setSessionId(activeSessionId)
         }
       }
 
+      // 🟢 4. Muat Jawaban Sementara dari LocalStorage jika halaman di-refresh/terputus
       const savedLocalAns = localStorage.getItem(`cbt_temp_answers_${examId}`)
       if (savedLocalAns) {
         try {
@@ -168,8 +210,14 @@ function ExamContent() {
     loadExamDataAndCreateSession()
   }, [examId])
 
+  // Timer Countdown Effect
   useEffect(() => {
-    if (timeLeft <= 0 || isSubmitted || loading) return
+    if (loading || isSubmitted) return
+
+    if (timeLeft <= 0 && !loading && questions.length > 0) {
+      handleSubmit()
+      return
+    }
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -183,7 +231,7 @@ function ExamContent() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft, isSubmitted, loading])
+  }, [timeLeft, isSubmitted, loading, questions.length])
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -269,9 +317,33 @@ function ExamContent() {
         totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
 
       const supabase = createClient()
-      const currentSessionId = sessionId || `local_${Date.now()}`
 
-      if (sessionId) {
+      const { data: userData } = await supabase.auth.getUser()
+      const currentUser = userData?.user || null
+
+      let activeSessionId = sessionId
+
+      if (!activeSessionId && currentUser?.id) {
+        const { data: newSess } = await supabase
+          .from('exam_sessions')
+          .insert([
+            {
+              exam_id: examId,
+              user_id: currentUser.id,
+              status: 'completed',
+              score: calculatedScore,
+              total_correct: correct,
+              start_time: new Date().toISOString(),
+              end_time: new Date().toISOString(),
+              submitted_at: new Date().toISOString(),
+              completed_at: new Date().toISOString(),
+            },
+          ])
+          .select()
+          .single()
+
+        if (newSess) activeSessionId = newSess.id
+      } else if (activeSessionId) {
         await supabase
           .from('exam_sessions')
           .update({
@@ -282,10 +354,14 @@ function ExamContent() {
             submitted_at: new Date().toISOString(),
             completed_at: new Date().toISOString(),
           })
-          .eq('id', sessionId)
+          .eq('id', activeSessionId)
+      }
+
+      if (activeSessionId) {
+        await supabase.from('answers').delete().eq('session_id', activeSessionId)
 
         const answerRecords = questions.map((q) => ({
-          session_id: sessionId,
+          session_id: activeSessionId,
           question_id: q.id,
           user_answer:
             typeof userAnswers[q.id] === 'string'
@@ -304,8 +380,10 @@ function ExamContent() {
         }
       }
 
+      const finalSessionRef = activeSessionId || `local_${Date.now()}`
+
       localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(userAnswers))
-      localStorage.setItem(`cbt_answers_session_${currentSessionId}`, JSON.stringify(userAnswers))
+      localStorage.setItem(`cbt_answers_session_${finalSessionRef}`, JSON.stringify(userAnswers))
       localStorage.setItem(`cbt_score_${examId}`, String(calculatedScore))
 
       triggerVictoryConfetti()
@@ -314,7 +392,7 @@ function ExamContent() {
       setIsSaving(false)
 
       setTimeout(() => {
-        router.push(`/exam/${examId}/summary?session_id=${currentSessionId}`)
+        router.push(`/exam/${examId}/summary?session_id=${finalSessionRef}`)
       }, 1200)
     } catch (err) {
       console.error('Gagal mengirimkan jawaban ujian:', err)
@@ -336,7 +414,7 @@ function ExamContent() {
         <p className="text-slate-600 font-medium mb-4">
           Soal ujian tidak ditemukan.
         </p>
-        <Link href="/" className="px-4 py-2 bg-indigo-600 text-white rounded-lg">
+        <Link href="/" className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium">
           Kembali ke Beranda
         </Link>
       </div>
