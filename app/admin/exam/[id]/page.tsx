@@ -22,16 +22,16 @@ function QuestionManagerContent() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
 
-  // Form State
+  // Form State (Mendukung 4 Tipe Soal)
   const [questionType, setQuestionType] = useState<
-    'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix'
+    'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
   >('multiple_choice')
   const [questionText, setQuestionText] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [maxScore, setMaxScore] = useState(1.0)
   const [explanation, setExplanation] = useState('')
 
-  // State Opsi PG & PG Kompleks (dengan Teks & URL Gambar)
+  // State Opsi PG & PG Kompleks (Teks & URL Gambar)
   const [options, setOptions] = useState([
     { key: 'A', text: '', image_url: '' },
     { key: 'B', text: '', image_url: '' },
@@ -264,6 +264,10 @@ function QuestionManagerContent() {
       })
       payload.correct_answers = answerObj
       payload.correct_option = 'MATRIX'
+    } else if (questionType === 'essay') {
+      payload.options = []
+      payload.correct_option = 'ESSAY'
+      payload.correct_answers = null
     }
 
     let error: any = null
@@ -289,6 +293,7 @@ function QuestionManagerContent() {
       )
       resetForm()
       loadData()
+      setActiveTab('list')
     }
     setIsSubmitting(false)
   }
@@ -324,7 +329,7 @@ function QuestionManagerContent() {
                 {exam?.subtest || 'SUBTES TKA'}
               </span>
               <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-full">
-                🔑 Token: {exam?.token_code || exam?.token || 'AKTIF'}
+                🔑 Token Ujian: {exam?.token_code || exam?.token || 'AKTIF'}
               </span>
             </div>
             <h1 className="text-2xl font-bold text-slate-800 mt-1">
@@ -422,6 +427,7 @@ function QuestionManagerContent() {
                     <option value="multiple_choice">Pilihan Ganda (1 Jawaban Benar)</option>
                     <option value="complex_multiple_choice">Pilihan Ganda Kompleks</option>
                     <option value="true_false_matrix">Matriks (Benar - Salah)</option>
+                    <option value="essay">Uraian / Essay (Penilaian Manual Guru)</option>
                   </select>
                 </div>
 
@@ -451,7 +457,6 @@ function QuestionManagerContent() {
                   <span className="text-[10px] text-slate-400">Mendukung Format HTML & Math (LaTeX)</span>
                 </div>
 
-                {/* Toolbar Pintas */}
                 <div className="flex flex-wrap gap-1 bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-300 text-xs">
                   <button type="button" onClick={() => insertFormatText('<b>', '</b>')} className="px-2 py-1 bg-white border rounded font-bold hover:bg-slate-50">B</button>
                   <button type="button" onClick={() => insertFormatText('<i>', '</i>')} className="px-2 py-1 bg-white border rounded italic hover:bg-slate-50">I</button>
@@ -461,9 +466,9 @@ function QuestionManagerContent() {
                   <button type="button" onClick={() => insertFormatText('<table border="1"><tr><td>', '</td></tr></table>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Tabel</button>
                   <span className="border-r border-slate-300 mx-1"></span>
                   <button type="button" onClick={() => insertFormatText('$\\frac{', '}{}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pecahan $\\frac{a}{b}$"}</button>
-  <button type="button" onClick={() => insertFormatText('$\\sqrt{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Akar $\\sqrt{x}$"}</button>
-  <button type="button" onClick={() => insertFormatText('$x^{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pangkat $x^n$"}</button>
-  <button type="button" onClick={() => insertFormatText('$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">Matriks Math</button>
+                  <button type="button" onClick={() => insertFormatText('$\\sqrt{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Akar $\\sqrt{x}$"}</button>
+                  <button type="button" onClick={() => insertFormatText('$x^{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pangkat $x^n$"}</button>
+                  <button type="button" onClick={() => insertFormatText('$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">Matriks Math</button>
                 </div>
 
                 <textarea
@@ -638,13 +643,23 @@ function QuestionManagerContent() {
                 </div>
               )}
 
+              {/* 🟢 URAIAN / ESSAY */}
+              {questionType === 'essay' && (
+                <div className="p-4 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
+                  <p className="font-bold">📝 Catatan Soal Uraian / Essay:</p>
+                  <p className="leading-relaxed text-[11px]">
+                    Siswa akan menjawab dalam bentuk lembar esai teks bebas. Nilai akhir soal ini akan diberikan atau disesuaikan secara manual oleh Guru/Admin di halaman Rekap Nilai Hasil Ujian.
+                  </p>
+                </div>
+              )}
+
               <div className="pt-3 border-t space-y-1">
                 <label className="block text-xs font-semibold text-slate-700 uppercase">
-                  💡 Pembahasan Soal
+                  💡 Pembahasan Soal / Pedoman Penskoran Guru
                 </label>
                 <textarea
                   rows={3}
-                  placeholder="Tuliskan pembahasan di sini..."
+                  placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
                   value={explanation || ''}
                   onChange={(e) => setExplanation(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs"
@@ -698,6 +713,8 @@ function QuestionManagerContent() {
                             ? 'PG Kompleks'
                             : qType === 'true_false_matrix'
                             ? 'Matriks'
+                            : qType === 'essay'
+                            ? 'Uraian / Essay'
                             : 'Pilihan Ganda'}
                         </span>
                         <span className="text-xs text-slate-400 font-semibold">
@@ -797,6 +814,14 @@ function QuestionManagerContent() {
                             })}
                           </tbody>
                         </table>
+                      </div>
+                    )}
+
+                    {/* Pratinjau Essay */}
+                    {qType === 'essay' && (
+                      <div className="p-3 bg-slate-50 rounded-xl border text-xs text-slate-600 space-y-1">
+                        <span className="font-bold text-slate-800 block">Rubrik / Pedoman Guru:</span>
+                        <p>{q.explanation || 'Tidak ada pedoman penskoran khusus.'}</p>
                       </div>
                     )}
                   </div>

@@ -24,11 +24,11 @@ export default function BulkUploadModal({
 
   if (!isOpen) return null
 
-  // =============================================================
-  // 1. FUNGSI UNDUH TEMPLATE SAMPLING
-  // =============================================================
+  // -------------------------------------------------------------
+  // FUNGSI UNDUH TEMPLATE CONTOH (MEMUAT 4 TIPE SOAL LENGKAP)
+  // -------------------------------------------------------------
 
-  // Template Excel (.xlsx) + Data Validation (Dropdown Tipe Soal)
+  // 1. Unduh Template Excel (.xlsx) - Memuat 4 Tipe Soal Lengkap
   const handleDownloadExcelTemplate = () => {
     const sampleData = [
       {
@@ -40,10 +40,14 @@ export default function BulkUploadModal({
         option_C: '64',
         option_D: '128',
         correct_option: 'B',
+        statement_1: '',
+        statement_1_key: '',
+        statement_2: '',
+        statement_2_key: '',
         explanation: 'Sifat eksponen: $a^m \\times a^n = a^{m+n}$, maka $2^{3+2} = 2^5 = 32$.',
       },
       {
-        question_type: 'complex_partial',
+        question_type: 'complex_multiple_choice',
         question_text: 'Manakah di antara bilangan berikut yang merupakan bilangan prima?',
         max_score: 2,
         option_A: '2',
@@ -51,64 +55,68 @@ export default function BulkUploadModal({
         option_C: '7',
         option_D: '9',
         correct_option: 'A,C',
+        statement_1: '',
+        statement_1_key: '',
+        statement_2: '',
+        statement_2_key: '',
         explanation: '2 dan 7 adalah bilangan prima karena hanya memiliki dua faktor pembagi.',
       },
       {
-        question_type: 'short_answer',
-        question_text: 'Ibu kota negara Indonesia saat ini adalah...',
-        max_score: 1,
+        question_type: 'true_false_matrix',
+        question_text: 'Tentukan kebenaran dari pernyataan trigonometri berikut:',
+        max_score: 2,
         option_A: '',
         option_B: '',
         option_C: '',
         option_D: '',
-        correct_option: 'Nusantara,IKN,Jakarta',
-        explanation: 'Jawaban yang diterima: Nusantara, IKN, atau Jakarta.',
+        correct_option: 'MATRIX',
+        statement_1: 'Nilai dari $\\sin 90^\\circ$ adalah 1',
+        statement_1_key: 'Benar',
+        statement_2: 'Nilai dari $\\cos 0^\\circ$ adalah 0',
+        statement_2_key: 'Salah',
+        explanation: '$\\sin 90^\\circ = 1$ (Benar) dan $\\cos 0^\\circ = 1$ (Pernyataan senilai 0 adalah Salah).',
       },
       {
         question_type: 'essay',
-        question_text: 'Jelaskan secara singkat proses terjadinya fotosintesis!',
+        question_text: 'Jelaskan mengapa fotosintesis sangat penting bagi keberlangsungan ekosistem di bumi!',
         max_score: 5,
         option_A: '',
         option_B: '',
         option_C: '',
         option_D: '',
-        correct_option: '',
-        explanation: 'Koreksi manual oleh pengajar berdasarkan kata kunci CO2, Air, dan Cahaya Matahari.',
+        correct_option: 'ESSAY',
+        statement_1: '',
+        statement_1_key: '',
+        statement_2: '',
+        statement_2_key: '',
+        explanation: 'Pedoman Penskoran: Menjelaskan penghasil O2 (poin 2), penyerap CO2 (poin 2), dan produsen utama rantai makanan (poin 1).',
       },
     ]
 
     const worksheet = XLSX.utils.json_to_sheet(sampleData)
-
-    // Menyisipkan Dropdown Data Validation pada Kolom A (question_type)
-    worksheet['!dataValidation'] = [
-      {
-        sqref: 'A2:A200',
-        type: 'list',
-        allowBlank: false,
-        formula1:
-          '"multiple_choice,complex_multiple_choice,complex_partial,true_false,short_answer,numerical,dropdown,matching,essay,description"',
-      },
-    ]
-
-    // Lebar kolom otomatis
-    worksheet['!cols'] = [
-      { wch: 24 }, // question_type
-      { wch: 45 }, // question_text
-      { wch: 10 }, // max_score
-      { wch: 15 }, // option_A
-      { wch: 15 }, // option_B
-      { wch: 15 }, // option_C
-      { wch: 15 }, // option_D
-      { wch: 20 }, // correct_option
-      { wch: 45 }, // explanation
-    ]
-
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Soal TKA')
-    XLSX.writeFile(workbook, 'Template_Import_Soal_Lengkap.xlsx')
+
+    worksheet['!cols'] = [
+      { wch: 22 },
+      { wch: 45 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 14 },
+      { wch: 35 },
+      { wch: 15 },
+      { wch: 35 },
+      { wch: 15 },
+      { wch: 45 },
+    ]
+
+    XLSX.writeFile(workbook, 'Template_Import_Soal_Lengkap_TKA.xlsx')
   }
 
-  // Template Format Aiken (.txt)
+  // 2. Unduh Template Aiken (.txt)
   const handleDownloadAikenTemplate = () => {
     const sampleAiken = `Berapakah hasil dari $2^3 \\times 2^2$?
 A. 16
@@ -135,7 +143,7 @@ ANSWER: A
     URL.revokeObjectURL(url)
   }
 
-  // Template Moodle XML (.xml)
+  // 3. Unduh Template Moodle XML (.xml)
   const handleDownloadMoodleXMLTemplate = () => {
     const sampleMoodleXML = `<?xml version="1.0" encoding="UTF-8"?>
 <quiz>
@@ -178,7 +186,7 @@ ANSWER: A
     URL.revokeObjectURL(url)
   }
 
-  // Template JSON (.json)
+  // 4. Unduh Template JSON (.json) - Memuat 4 Tipe Soal Lengkap
   const handleDownloadJSONTemplate = () => {
     const sampleJSON = [
       {
@@ -190,28 +198,61 @@ ANSWER: A
           { key: 'A', text: '16' },
           { key: 'B', text: '32' },
           { key: 'C', text: '64' },
-          { key: 'D', text: '128' },
+          { key: 'D', text: '128' }
         ],
         correct_option: 'B',
-        correct_answers: ['B'],
+        correct_answers: ['B']
       },
+      {
+        question_type: 'complex_multiple_choice',
+        question_text: 'Manakah di antara bilangan berikut yang merupakan bilangan prima?',
+        max_score: 2,
+        explanation: '2 dan 7 adalah bilangan prima karena hanya bisa dibagi 1 dan dirinya sendiri.',
+        options: [
+          { key: 'A', text: '2' },
+          { key: 'B', text: '4' },
+          { key: 'C', text: '7' },
+          { key: 'D', text: '9' }
+        ],
+        correct_option: 'A,C',
+        correct_answers: ['A', 'C']
+      },
+      {
+        question_type: 'true_false_matrix',
+        question_text: 'Tentukan kebenaran dari pernyataan trigonometri berikut:',
+        max_score: 2,
+        explanation: '$\\sin 90^\\circ = 1$ (Benar) dan $\\cos 0^\\circ = 1$ (Pernyataan senilai 0 adalah Salah).',
+        options: [
+          { id: '1', text: 'Nilai dari $\\sin 90^\\circ$ adalah 1', correct_val: 'Benar' },
+          { id: '2', text: 'Nilai dari $\\cos 0^\\circ$ adalah 0', correct_val: 'Salah' }
+        ],
+        correct_option: 'MATRIX',
+        correct_answers: { '1': 'Benar', '2': 'Salah' }
+      },
+      {
+        question_type: 'essay',
+        question_text: 'Jelaskan mengapa fotosintesis sangat penting bagi keberlangsungan ekosistem di bumi!',
+        max_score: 5,
+        explanation: 'Rubrik: Penghasil O2 (2 Poin), Penyerap CO2 (2 Poin), Produsen Rantai Makanan (1 Poin)',
+        options: [],
+        correct_option: 'ESSAY',
+        correct_answers: null
+      }
     ]
-    const blob = new Blob([JSON.stringify(sampleJSON, null, 2)], {
-      type: 'application/json;charset=utf-8',
-    })
+    const blob = new Blob([JSON.stringify(sampleJSON, null, 2)], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'Template_Import_Soal_TKA.json'
+    a.download = 'Template_Import_Soal_Lengkap_TKA.json'
     document.body.appendChild(a)
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
   }
 
-  // =============================================================
-  // 2. PARSER UNTUK FORMAT TXT (AIKEN) & XML (MOODLE)
-  // =============================================================
+  // -------------------------------------------------------------
+  // PARSER HELPER UNTUK AIKEN, MOODLE, EXCEL, JSON
+  // -------------------------------------------------------------
 
   const parseAikenText = (text: string) => {
     const lines = text.split(/\r?\n/)
@@ -273,6 +314,21 @@ ANSWER: A
       const gradeNode = node.querySelector('defaultgrade')
       const maxScore = gradeNode ? parseFloat(gradeNode.textContent || '1') : 1
 
+      if (qType === 'essay') {
+        if (qText) {
+          questions.push({
+            question_type: 'essay',
+            question_text: qText,
+            max_score: maxScore,
+            explanation: explanation,
+            options: [],
+            correct_option: 'ESSAY',
+            correct_answers: null,
+          })
+        }
+        return
+      }
+
       const answerNodes = node.querySelectorAll('answer')
       const options: { key: string; text: string }[] = []
       const correctAnswers: string[] = []
@@ -297,7 +353,7 @@ ANSWER: A
           max_score: maxScore,
           explanation: explanation,
           options: options,
-          correct_option: correctAnswers.join(','),
+          correct_option: correctAnswers.join(',').slice(0, 10),
           correct_answers: correctAnswers,
         })
       }
@@ -306,10 +362,9 @@ ANSWER: A
     return questions
   }
 
-  // =============================================================
-  // 3. PEMBACAAN FILE
-  // =============================================================
-
+  // -------------------------------------------------------------
+  // HANDLER PEMBACAAN FILE UTAMA
+  // -------------------------------------------------------------
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg(null)
     setParsedQuestions([])
@@ -337,7 +392,7 @@ ANSWER: A
           const text = event.target?.result as string
           const parsed = parseAikenText(text)
           if (parsed.length === 0) {
-            throw new Error('Tidak terdeteksi soal Aiken yang valid. Pastikan ada baris "ANSWER: X".')
+            throw new Error('Tidak terdeteksi soal format Aiken yang valid. Pastikan ada baris "ANSWER: X".')
           }
           setParsedQuestions(parsed)
         } catch (err: any) {
@@ -373,30 +428,87 @@ ANSWER: A
           }
 
           const formattedQuestions = rawRows.map((row, idx) => {
-            const qType = row.question_type || 'multiple_choice'
+            const rawType = String(row.question_type || '').toLowerCase().trim()
 
             if (!row.question_text) {
               throw new Error(`Baris ke-${idx + 2} tidak memiliki teks soal (question_text).`)
             }
 
-            const options = [
-              { key: 'A', text: String(row.option_A || '') },
-              { key: 'B', text: String(row.option_B || '') },
-              { key: 'C', text: String(row.option_C || '') },
-              { key: 'D', text: String(row.option_D || '') },
-            ].filter((opt) => opt.text.trim() !== '')
+            const isEssay = rawType.includes('essay') || rawType.includes('uraian') || rawType.includes('esai')
+            const isMatrix = rawType.includes('matrix') || rawType.includes('matriks') || rawType.includes('true_false')
 
-            const rawCorrect = String(row.correct_option || 'A').toUpperCase()
-            const correctAnswers = rawCorrect.split(',').map((k) => k.trim())
+            if (isEssay) {
+              // Parse Soal Essay dari Excel
+              return {
+                question_type: 'essay',
+                question_text: String(row.question_text),
+                max_score: Number(row.max_score) || 5,
+                explanation: row.explanation ? String(row.explanation) : null,
+                options: [],
+                correct_option: 'ESSAY',
+                correct_answers: null,
+              }
+            } else if (isMatrix) {
+              // Parse Soal Matriks dari Excel
+              const statements: any[] = []
+              const answerObj: { [key: string]: string } = {}
 
-            return {
-              question_type: qType,
-              question_text: String(row.question_text),
-              max_score: Number(row.max_score) || 1,
-              explanation: row.explanation ? String(row.explanation) : null,
-              options: options,
-              correct_option: rawCorrect,
-              correct_answers: correctAnswers,
+              for (let i = 1; i <= 10; i++) {
+                const stText = row[`statement_${i}`]
+                const stKey = row[`statement_${i}_key`] || 'Benar'
+                if (stText) {
+                  const stId = String(i)
+                  statements.push({ id: stId, text: String(stText) })
+                  answerObj[stId] = String(stKey).trim()
+                }
+              }
+
+              if (statements.length === 0) {
+                const keys = ['A', 'B', 'C', 'D']
+                keys.forEach((k, index) => {
+                  const optText = row[`option_${k}`]
+                  if (optText) {
+                    const stId = String(index + 1)
+                    statements.push({ id: stId, text: String(optText) })
+                    answerObj[stId] = 'Benar'
+                  }
+                })
+              }
+
+              return {
+                question_type: 'true_false_matrix',
+                question_text: String(row.question_text),
+                max_score: Number(row.max_score) || 1,
+                explanation: row.explanation ? String(row.explanation) : null,
+                options: statements,
+                correct_option: 'MATRIX',
+                correct_answers: answerObj,
+              }
+            } else {
+              // Parse Soal PG & PG Kompleks dari Excel
+              const isComplex = rawType.includes('complex') || rawType.includes('kompleks')
+
+              const options = [
+                { key: 'A', text: String(row.option_A || '') },
+                { key: 'B', text: String(row.option_B || '') },
+                { key: 'C', text: String(row.option_C || '') },
+                { key: 'D', text: String(row.option_D || '') },
+              ].filter((opt) => opt.text.trim() !== '')
+
+              const rawCorrect = String(row.correct_option || 'A')
+                .replace(/\s+/g, '')
+                .toUpperCase()
+              const correctAnswers = rawCorrect.split(',').filter(Boolean)
+
+              return {
+                question_type: isComplex ? 'complex_multiple_choice' : 'multiple_choice',
+                question_text: String(row.question_text),
+                max_score: Number(row.max_score) || 1,
+                explanation: row.explanation ? String(row.explanation) : null,
+                options: options,
+                correct_option: rawCorrect.slice(0, 10),
+                correct_answers: correctAnswers,
+              }
             }
           })
 
@@ -407,14 +519,13 @@ ANSWER: A
       }
       reader.readAsArrayBuffer(file)
     } else {
-      setErrorMsg('Format file tidak didukung. Harap unggah .xlsx, .csv, .txt, .xml, atau .json.')
+      setErrorMsg('Format file tidak didukung. Harap unggah file .xlsx, .csv, .txt, .xml, atau .json.')
     }
   }
 
-  // =============================================================
-  // 4. UPLOAD KE SUPABASE
-  // =============================================================
-
+  // -------------------------------------------------------------
+  // SIMPAN BATCH KE DATABASE SUPABASE
+  // -------------------------------------------------------------
   const handleUploadBatch = async () => {
     if (parsedQuestions.length === 0 || !examId) return
     setIsUploading(true)
@@ -422,17 +533,28 @@ ANSWER: A
 
     const supabase = createClient()
 
-    const recordsToInsert = parsedQuestions.map((q) => ({
-      exam_id: examId,
-      question_type: q.question_type || 'multiple_choice',
-      question_text: q.question_text,
-      image_url: q.image_url || null,
-      max_score: Number(q.max_score) || 1,
-      explanation: q.explanation || null,
-      options: q.options || [],
-      correct_option: q.correct_option || 'A',
-      correct_answers: q.correct_answers || [q.correct_option || 'A'],
-    }))
+    const recordsToInsert = parsedQuestions.map((q) => {
+      let finalCorrectOption = String(q.correct_option || 'A').trim()
+      if (q.question_type === 'true_false_matrix') {
+        finalCorrectOption = 'MATRIX'
+      } else if (q.question_type === 'essay') {
+        finalCorrectOption = 'ESSAY'
+      } else {
+        finalCorrectOption = finalCorrectOption.replace(/\s+/g, '').slice(0, 10)
+      }
+
+      return {
+        exam_id: examId,
+        question_type: q.question_type || 'multiple_choice',
+        question_text: q.question_text,
+        image_url: q.image_url || null,
+        max_score: Number(q.max_score) || 1,
+        explanation: q.explanation || null,
+        options: q.options || [],
+        correct_option: finalCorrectOption,
+        correct_answers: q.correct_answers || (q.question_type === 'essay' ? null : [finalCorrectOption]),
+      }
+    })
 
     const { error } = await supabase.from('questions').insert(recordsToInsert)
 
@@ -463,7 +585,7 @@ ANSWER: A
           </button>
         </div>
 
-        {/* Pilihan Unduh Template */}
+        {/* Pilihan Unduh Template Contoh */}
         <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
           <p className="font-bold text-slate-700">📄 Unduh Contoh Template Format File:</p>
           <div className="grid grid-cols-2 gap-2">
