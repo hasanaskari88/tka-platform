@@ -6,8 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
-export const revalidate = 0
-
 function HistoryContent() {
   const router = useRouter()
   const [profile, setProfile] = useState<any>(null)
