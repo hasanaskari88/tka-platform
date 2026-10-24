@@ -165,6 +165,7 @@ function ExamContent() {
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
         let activeSessionId: string | null = null
 
+        // 🟢 PEMBERSIHAN KETAT MEMORI JAWABAN SAAT SESI BARU DIBUAT
         if (forceNew) {
           await supabase
             .from('exam_sessions')
@@ -214,6 +215,7 @@ function ExamContent() {
             const remainingSeconds = totalDurationSeconds - elapsedSeconds
 
             if (remainingSeconds > 0) {
+              // Hanya muat jawaban lama jika melanjutkan sesi berjalan
               activeSessionId = existingSession.id
               setTimeLeft(remainingSeconds)
 
@@ -224,6 +226,7 @@ function ExamContent() {
                 } catch (e) {}
               }
             } else {
+              // Sesi lama kadaluarsa -> Tutup sesi & Bersihkan memori lembar ujian
               await supabase
                 .from('exam_sessions')
                 .update({
@@ -254,6 +257,10 @@ function ExamContent() {
               setTimeLeft(totalDurationSeconds)
             }
           } else {
+            // Sesi baru -> Bersihkan memori lembar ujian secara total
+            localStorage.removeItem(`cbt_temp_answers_${examId}`)
+            setUserAnswers({})
+
             const nowIso = new Date().toISOString()
             const { data: newSession } = await supabase
               .from('exam_sessions')
@@ -367,7 +374,7 @@ function ExamContent() {
     setFlagged((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }
 
-  // 🟢 LOGIKA PROSES SUBMIT DENGAN SANITASI DATA PENCEGAH ERROR
+  // 🟢 LOGIKA SIMPAN JAWABAN DENGAN SERIALISASI JSONB VALID POSTGRESQL
   const handleSubmit = async () => {
     if (isSaving || isSubmitted) return
     setIsSaving(true)
@@ -450,26 +457,37 @@ function ExamContent() {
         }
       }
 
-      // 🟢 SIMPAN DATA JAWABAN KE TABEL ANSWERS DENGAN SANITASI AMAN
+      // 🟢 INSERT JAWABAN DENGAN STRUCTUR EKSPLISIT SESUAI DDL TABEL ANSWERS
       if (finalSessionId) {
         await supabase.from('answers').delete().eq('session_id', finalSessionId)
 
         const answerRecords = questions.map((q) => {
           const rawAns = userAnswers[q.id]
-          const isAnsDefined = rawAns !== undefined && rawAns !== null && rawAns !== ''
+          const { ratio } = checkQuestionAccuracy(q, rawAns)
+          const qMaxScore = Number(q.max_score) || 1
+          const pointsEarned = Number((ratio * qMaxScore).toFixed(2))
 
-          let stringifiedAns = null
-          if (isAnsDefined) {
-            stringifiedAns = typeof rawAns === 'string' ? rawAns : JSON.stringify(rawAns)
+          let optVal: string | null = null
+          let jsonVal: any = null
+
+          if (rawAns !== undefined && rawAns !== null && rawAns !== '') {
+            if (typeof rawAns === 'string' && rawAns.length <= 10) {
+              optVal = rawAns.toUpperCase()
+              // Wajib JSON.stringify agar lolos validasi tipe jsonb PostgreSQL
+              jsonVal = JSON.stringify(rawAns)
+            } else {
+              optVal = null
+              jsonVal = typeof rawAns === 'string' ? JSON.stringify(rawAns) : rawAns
+            }
           }
 
           return {
             session_id: finalSessionId,
             question_id: q.id,
-            user_answer: stringifiedAns,
-            selected_option: typeof rawAns === 'string' ? rawAns : stringifiedAns,
-            selected_answers: isAnsDefined ? rawAns : null,
+            selected_option: optVal,
+            selected_answers: jsonVal,
             is_flagged: !!flagged[q.id],
+            points_earned: pointsEarned,
           }
         })
 
@@ -477,8 +495,9 @@ function ExamContent() {
           const { error: insError } = await supabase.from('answers').insert(answerRecords)
           if (insError) {
             console.error('⚠️ Gagal menyimpan ke tabel answers:', insError)
+            alert(`Sistem Ujian: Gagal menyimpan lembar jawaban ke database (${insError.message})`)
           } else {
-            console.log('✅ Berhasil menyimpan', answerRecords.length, 'jawaban ke tabel answers!')
+            console.log('✅ Berhasil menyimpan', answerRecords.length, 'jawaban ke database!')
           }
         }
       }
