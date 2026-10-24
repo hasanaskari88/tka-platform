@@ -30,7 +30,7 @@ export default function LoginPage() {
     // Bersihkan username (tanpa spasi, huruf kecil)
     const cleanedUsername = username.trim().toLowerCase().replace(/\s+/g, '')
     // Konversi username ke domain email internal yang valid
-    const internalEmail = `${cleanedUsername}@grisan.com`
+    const internalEmail = `${cleanedUsername}@tka-simulasi.com`
 
     const supabase = createClient()
 
@@ -81,14 +81,14 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4 font-sans">
-      <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+    <main className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans">
+      <div className="max-w-md w-full bg-white rounded-2xl border border-slate-200 shadow-xl p-6 sm:p-8">
         {/* Header Form */}
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-800">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-extrabold text-slate-800">
             {isRegister ? 'Pendaftaran Siswa Baru' : 'Masuk Ujian TKA'}
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
+          <p className="text-slate-500 text-xs sm:text-sm mt-1">
             {isRegister
               ? 'Isi data & Kode Kelas dari Guru/Admin'
               : 'Gunakan Username & Password yang telah didaftarkan'}
@@ -97,13 +97,13 @@ export default function LoginPage() {
 
         {/* Notifikasi Error / Sukses */}
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-medium">
-            {errorMsg}
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold">
+            ⚠️ {errorMsg}
           </div>
         )}
         {successMsg && (
-          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-medium">
-            {successMsg}
+          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold">
+            ✓ {successMsg}
           </div>
         )}
 
@@ -111,7 +111,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isRegister && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Nama Lengkap Siswa
               </label>
               <input
@@ -120,13 +120,14 @@ export default function LoginPage() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="Contoh: Ahmad Rizki"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm font-medium"
+                suppressHydrationWarning
               />
             </div>
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Username / NISN
             </label>
             <input
@@ -135,13 +136,14 @@ export default function LoginPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Contoh: arizki123 atau 00543210"
-              className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm"
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm font-medium"
+              suppressHydrationWarning
             />
           </div>
 
           {isRegister && (
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+              <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
                 Kode Kelas / Kode Admin
               </label>
               <input
@@ -149,15 +151,16 @@ export default function LoginPage() {
                 required
                 value={classCode}
                 onChange={(e) => setClassCode(e.target.value)}
-                placeholder="Contoh: VIA atau VIB"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm uppercase"
+                placeholder="Contoh: TKA-IPA1 atau XII-2026"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm uppercase font-medium"
+                suppressHydrationWarning
               />
             </div>
           )}
 
           {/* Input Password dengan Tombol Toggle Mata */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+            <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
               Kata Sandi / Password
             </label>
             <div className="relative">
@@ -168,13 +171,15 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Minimal 6 karakter"
-                className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm pr-12"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent text-sm font-medium pr-20"
+                suppressHydrationWarning
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 text-xs font-semibold px-1 py-1 focus:outline-none transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-600 text-xs font-bold px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 transition-colors"
                 title={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                suppressHydrationWarning
               >
                 {showPassword ? '🙈 Sembunyi' : '👁️ Lihat'}
               </button>
@@ -184,13 +189,14 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50 mt-2"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-sm transition-all shadow-md active:scale-95 disabled:opacity-50 mt-2"
+            suppressHydrationWarning
           >
             {loading
               ? 'Memproses...'
               : isRegister
               ? 'Daftar Akun Siswa'
-              : 'Masuk Sekarang'}
+              : 'Masuk Sekarang 🚀'}
           </button>
         </form>
 
@@ -206,6 +212,7 @@ export default function LoginPage() {
                   setErrorMsg(null)
                 }}
                 className="text-indigo-600 font-bold hover:underline"
+                suppressHydrationWarning
               >
                 Masuk di sini
               </button>
@@ -220,6 +227,7 @@ export default function LoginPage() {
                   setErrorMsg(null)
                 }}
                 className="text-indigo-600 font-bold hover:underline"
+                suppressHydrationWarning
               >
                 Daftar akun siswa
               </button>
@@ -228,7 +236,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-4 text-center">
-          <Link href="/" className="text-xs text-slate-400 hover:text-slate-600">
+          <Link href="/" className="text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors">
             ← Kembali ke Beranda
           </Link>
         </div>
