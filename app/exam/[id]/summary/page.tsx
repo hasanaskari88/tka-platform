@@ -175,15 +175,16 @@ function ExamSummaryContent() {
   const handleRetakeExam = () => {
     if (confirm('Apakah Anda yakin ingin mengerjakan kembali ujian ini? Pengerjaan baru akan dicatat sebagai sesi ujian baru.')) {
       if (typeof window !== 'undefined') {
-        localStorage.removeItem(`cbt_temp_answers_${examId}`)
-        localStorage.removeItem(`cbt_answers_${examId}`)
-        localStorage.removeItem(`cbt_score_${examId}`)
-        if (sessionId) {
-          localStorage.removeItem(`cbt_answers_session_${sessionId}`)
-        }
+        // 1. Bersihkan seluruh cache jawaban di Local Storage
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith('cbt_')) {
+            localStorage.removeItem(key)
+          }
+        })
+
+        // 2. Paksa browser melakukan Hard Refresh ke URL ujian baru
+        window.location.href = `/exam/${examId}?force_new=true`
       }
-      // Tambahkan ?force_new=true pada URL
-      router.push(`/exam/${examId}?force_new=true`)
     }
   }
 
