@@ -8,6 +8,75 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
+// 🟢 Helper Evaluasi Jawaban Presisi (Mendukung Pilihan Ganda, Kompleks & Matriks)
+function checkQuestionAccuracy(q: any, userAns: any) {
+  if (userAns === null || userAns === undefined || userAns === '') {
+    return { isCorrect: false, isUnattempted: true, ratio: 0 }
+  }
+
+  let parsedAns = userAns
+  if (typeof userAns === 'string') {
+    const trimmed = userAns.trim()
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+      (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    ) {
+      try {
+        parsedAns = JSON.parse(trimmed)
+      } catch (e) {
+        parsedAns = trimmed
+      }
+    }
+  }
+
+  const qType = q.question_type || 'multiple_choice'
+
+  if (qType === 'multiple_choice') {
+    const correctOpt = (q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').toString().trim()
+    const isCorrect = String(parsedAns).trim().toLowerCase() === correctOpt.toLowerCase()
+    return { isCorrect, isUnattempted: false, ratio: isCorrect ? 1 : 0 }
+  }
+
+  if (qType === 'complex_multiple_choice') {
+    const correctKeys: string[] = Array.isArray(q.correct_answers)
+      ? q.correct_answers
+      : [q.correct_option].filter(Boolean)
+    const userKeys: string[] = Array.isArray(parsedAns) ? parsedAns : [parsedAns]
+
+    if (userKeys.length === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
+
+    const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
+    const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
+
+    const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
+    const ratio = correctKeys.length > 0 ? netCorrect / correctKeys.length : 0
+    return { isCorrect: ratio === 1, isUnattempted: false, ratio }
+  }
+
+  if (qType === 'true_false_matrix') {
+    const correctObj: { [key: string]: string } = q.correct_answers || {}
+    const userObj = typeof parsedAns === 'object' && !Array.isArray(parsedAns) ? parsedAns : {}
+
+    const statementIds = Object.keys(correctObj)
+    if (statementIds.length === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
+
+    let correctRows = 0
+    let attemptedRows = 0
+    statementIds.forEach((sId) => {
+      if (userObj[sId]) attemptedRows++
+      if (userObj[sId] === correctObj[sId]) correctRows++
+    })
+
+    if (attemptedRows === 0) return { isCorrect: false, isUnattempted: true, ratio: 0 }
+
+    const ratio = correctRows / statementIds.length
+    return { isCorrect: ratio === 1, isUnattempted: false, ratio }
+  }
+
+  return { isCorrect: false, isUnattempted: true, ratio: 0 }
+}
+
 function ExamResultsContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -58,7 +127,11 @@ function ExamResultsContent() {
 
     // 4. Ambil Profil User & Jawaban
     const { data: profileData } = await supabase.from('profiles').select('*')
-    const { data: answerData } = await supabase.from('answers').select('*')
+    const sessionIds = (sessionData || []).map((s) => s.id)
+    const { data: answerData } =
+      sessionIds.length > 0
+        ? await supabase.from('answers').select('*').in('session_id', sessionIds)
+        : { data: [] }
 
     const profileMap = new Map()
     if (profileData) {
@@ -95,13 +168,20 @@ function ExamResultsContent() {
       const userAnswers = answerMap.get(session.id) || []
       let correctCount = 0
 
-      userAnswers.forEach((ans) => {
-        const q = questionMap.get(ans.question_id)
-        const studentChoice = ans.selected_option || ans.user_answer
-        if (q && studentChoice && studentChoice === q.correct_option) {
-          correctCount += 1
-        }
-      })
+      // Prioritas 1: Gunakan total_correct dari database jika tersedia
+      if (session.total_correct !== undefined && session.total_correct !== null) {
+        correctCount = Number(session.total_correct)
+      } else {
+        // Prioritas 2: Evaluasi jawaban presisi
+        userAnswers.forEach((ans) => {
+          const q = questionMap.get(ans.question_id)
+          const studentChoice = ans.selected_answers ?? ans.selected_option ?? ans.user_answer
+          if (q) {
+            const { isCorrect } = checkQuestionAccuracy(q, studentChoice)
+            if (isCorrect) correctCount += 1
+          }
+        })
+      }
 
       const finalScore = session.score !== undefined && session.score !== null
         ? Number(session.score)
@@ -135,15 +215,24 @@ function ExamResultsContent() {
       if (answerData) {
         answerData.forEach((ans) => {
           if (ans.question_id === q.id) {
-            const rawChoice = ans.selected_option || ans.user_answer || ''
-            const userChoice = String(rawChoice).toUpperCase().replace(/"/g, '').trim()
-
-            if (userChoice === String(q.correct_option).toUpperCase().trim()) {
+            const rawChoice = ans.selected_answers ?? ans.selected_option ?? ans.user_answer
+            
+            // Evaluasi Kebenaran Soal
+            const { isCorrect } = checkQuestionAccuracy(q, rawChoice)
+            if (isCorrect) {
               correctAnswersCount += 1
             }
 
-            if (['A', 'B', 'C', 'D'].includes(userChoice)) {
-              optionCounts[userChoice] = (optionCounts[userChoice] || 0) + 1
+            // Ekstrak Opsi Pilihan (A, B, C, D)
+            let choiceStr = ''
+            if (typeof rawChoice === 'string') {
+              choiceStr = rawChoice.replace(/"/g, '').trim().toUpperCase()
+            } else if (Array.isArray(rawChoice) && rawChoice.length > 0) {
+              choiceStr = String(rawChoice[0]).replace(/"/g, '').trim().toUpperCase()
+            }
+
+            if (['A', 'B', 'C', 'D'].includes(choiceStr)) {
+              optionCounts[choiceStr] = (optionCounts[choiceStr] || 0) + 1
             } else {
               optionCounts['Kosong'] = (optionCounts['Kosong'] || 0) + 1
             }
@@ -217,6 +306,7 @@ function ExamResultsContent() {
     if (!confirm(`Apakah Anda yakin ingin mereset hasil ujian siswa "${studentName}"?`)) return
 
     const supabase = createClient()
+    await supabase.from('answers').delete().eq('session_id', sessionId)
     await supabase.from('exam_sessions').delete().eq('id', sessionId)
     setSelectedSessionIds((prev) => prev.filter((id) => id !== sessionId))
     loadData()
@@ -228,6 +318,7 @@ function ExamResultsContent() {
 
     setIsDeleting(true)
     const supabase = createClient()
+    await supabase.from('answers').delete().in('session_id', selectedSessionIds)
     await supabase.from('exam_sessions').delete().in('id', selectedSessionIds)
     setSelectedSessionIds([])
     setIsDeleting(false)
@@ -245,7 +336,11 @@ function ExamResultsContent() {
 
     setIsDeleting(true)
     const supabase = createClient()
-    await supabase.from('exam_sessions').delete().eq('exam_id', examId)
+    const allSessionIds = sessions.map((s) => s.id)
+    if (allSessionIds.length > 0) {
+      await supabase.from('answers').delete().in('session_id', allSessionIds)
+      await supabase.from('exam_sessions').delete().eq('exam_id', examId)
+    }
     setSelectedSessionIds([])
     setIsDeleting(false)
     loadData()
