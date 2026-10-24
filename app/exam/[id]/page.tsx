@@ -72,6 +72,7 @@ function ExamContent() {
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [flagged, setFlagged] = useState<{ [key: string]: boolean }>({})
   const [timeLeft, setTimeLeft] = useState<number>(0)
+  const [isTimerStarted, setIsTimerStarted] = useState(false) // 🟢 FLAG PENGUNCI TIMER (PENCEGAH SUBMIT PREMATUR)
   const [loading, setLoading] = useState(true)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
@@ -79,7 +80,6 @@ function ExamContent() {
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Helper Acak Array
   const shuffleArray = (array: any[]) => {
     const arr = [...array]
     for (let i = arr.length - 1; i > 0; i--) {
@@ -95,7 +95,6 @@ function ExamContent() {
     async function loadExamDataAndCreateSession() {
       const supabase = createClient()
 
-      // 1. Ambil data User secara pasti & terautentikasi
       let activeUser = null
       const { data: userData } = await supabase.auth.getUser()
       if (userData?.user) {
@@ -105,13 +104,11 @@ function ExamContent() {
         activeUser = sessionData?.session?.user || null
       }
 
-      // Jika user belum terautentikasi, alihkan ke login
       if (!activeUser) {
         router.push('/login')
         return
       }
 
-      // 2. Ambil Data Ujian dan Soal
       const { data: examData } = await supabase
         .from('exams')
         .select('*')
@@ -150,7 +147,7 @@ function ExamContent() {
         const totalDurationSeconds = (examData.duration_minutes || 15) * 60
         let activeSessionId: string | null = null
 
-        // 3. MANAJEMEN SESI UJIAN & SISA WAKTU (GARANSI USER_ID TIDAK NULL)
+        // 🟢 Cek Sesi Ongoing di Supabase
         const { data: existingSession } = await supabase
           .from('exam_sessions')
           .select('id, start_time')
@@ -167,8 +164,8 @@ function ExamContent() {
           const elapsedSeconds = Math.floor((nowMs - startTimeMs) / 1000)
           const remainingSeconds = totalDurationSeconds - elapsedSeconds
 
-          // Jika sesi ongoing lama sudah habis waktu (<= 0), selesaikan & buat sesi baru
           if (remainingSeconds <= 0) {
+            // Sesi lama sudah kadaluarsa secara real-time, selesaikan & buat baru
             await supabase
               .from('exam_sessions')
               .update({
@@ -192,12 +189,10 @@ function ExamContent() {
               .select('id')
               .single()
 
-            if (newSession) {
-              activeSessionId = newSession.id
-            }
+            if (newSession) activeSessionId = newSession.id
             setTimeLeft(totalDurationSeconds)
           } else {
-            // Sesi ongoing masih aktif
+            // Sesi ongoing masih aktif dengan sisa waktu tersisa!
             activeSessionId = existingSession.id
             setTimeLeft(remainingSeconds)
           }
@@ -217,9 +212,7 @@ function ExamContent() {
             .select('id')
             .single()
 
-          if (newSession) {
-            activeSessionId = newSession.id
-          }
+          if (newSession) activeSessionId = newSession.id
           setTimeLeft(totalDurationSeconds)
         }
 
@@ -228,7 +221,7 @@ function ExamContent() {
         }
       }
 
-      // 4. Muat Jawaban Sementara dari LocalStorage
+      // Muat Jawaban Sementara dari LocalStorage
       const savedLocalAns = localStorage.getItem(`cbt_temp_answers_${examId}`)
       if (savedLocalAns) {
         try {
@@ -237,16 +230,18 @@ function ExamContent() {
       }
 
       setLoading(false)
+      setIsTimerStarted(true) // 🟢 HANYA NAIKKAN BENDERA JIKA WAKTU SUDAH TERTULIS DENGAN BENAR
     }
 
     loadExamDataAndCreateSession()
   }, [examId])
-  
-  // Timer Countdown Effect
-  useEffect(() => {
-    if (loading || isSubmitted) return
 
-    if (timeLeft <= 0 && !loading && questions.length > 0) {
+  // Timer Countdown Effect (Diuji dengan Aman)
+  useEffect(() => {
+    if (loading || isSubmitted || !isTimerStarted) return
+
+    // Waktu benar-benar habis dihitung countdown
+    if (timeLeft <= 0) {
       handleSubmit()
       return
     }
@@ -263,7 +258,7 @@ function ExamContent() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft, isSubmitted, loading, questions.length])
+  }, [timeLeft, isSubmitted, loading, isTimerStarted])
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
@@ -324,7 +319,6 @@ function ExamContent() {
     setFlagged((prev) => ({ ...prev, [questionId]: !prev[questionId] }))
   }
 
-  // 🟢 HANDLER SELESAI & SIMPAN NILAI (GARANSI RECORD BARU TERSIMPAN)
   const handleSubmit = async () => {
     if (isSaving || isSubmitted) return
     setIsSaving(true)
@@ -363,7 +357,6 @@ function ExamContent() {
       let finalSessionId = sessionId
       let isDbSaved = false
 
-      // 1. Coba UPDATE Sesi Ongoing Yang Ada
       if (finalSessionId) {
         const { error: updateError, data: updatedRows } = await supabase
           .from('exam_sessions')
@@ -380,12 +373,9 @@ function ExamContent() {
 
         if (!updateError && updatedRows && updatedRows.length > 0) {
           isDbSaved = true
-        } else {
-          console.warn('Update sesi gagal, menjalankan fallback insert:', updateError)
         }
       }
 
-      // 2. Fallback: Buat Sesi Completed BARU Jika Update Sesi Lama Gagal / NULL
       if (!isDbSaved && currentUser?.id) {
         const { data: newCompletedSession, error: insertError } = await supabase
           .from('exam_sessions')
@@ -408,12 +398,9 @@ function ExamContent() {
         if (!insertError && newCompletedSession) {
           finalSessionId = newCompletedSession.id
           isDbSaved = true
-        } else {
-          console.error('Insert fallback sesi gagal:', insertError)
         }
       }
 
-      // 3. Simpan Rincian Jawaban ke Tabel answers
       if (finalSessionId) {
         await supabase.from('answers').delete().eq('session_id', finalSessionId)
 
@@ -437,7 +424,6 @@ function ExamContent() {
         }
       }
 
-      // 4. Bersihkan memori sementara & Simpan cache hasil
       const sessionRef = finalSessionId || `local_${Date.now()}`
       localStorage.removeItem(`cbt_temp_answers_${examId}`)
       localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(userAnswers))
@@ -507,7 +493,6 @@ function ExamContent() {
             className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${
               fontSizeClass === 'text-xs' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'
             }`}
-            suppressHydrationWarning
           >
             A-
           </button>
@@ -516,7 +501,6 @@ function ExamContent() {
             className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${
               fontSizeClass === 'text-sm' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'
             }`}
-            suppressHydrationWarning
           >
             A
           </button>
@@ -525,7 +509,6 @@ function ExamContent() {
             className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${
               fontSizeClass === 'text-base' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'
             }`}
-            suppressHydrationWarning
           >
             A+
           </button>
@@ -556,7 +539,6 @@ function ExamContent() {
                       ? 'bg-amber-500 text-white border-amber-600'
                       : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
                   }`}
-                  suppressHydrationWarning
                 >
                   {flagged[currentQuestion.id] ? '★ Ragu-Ragu' : '☆ Tandai Ragu'}
                 </button>
@@ -576,7 +558,6 @@ function ExamContent() {
                       type="button"
                       onClick={() => setZoomedImageUrl(currentQuestion.image_url)}
                       className="mt-1.5 px-3 py-1 bg-slate-800/80 hover:bg-slate-900 text-white text-[11px] font-bold rounded-lg transition-colors flex items-center space-x-1.5"
-                      suppressHydrationWarning
                     >
                       <span>🔍</span>
                       <span>Perbesar Gambar</span>
@@ -600,7 +581,6 @@ function ExamContent() {
                               ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-medium shadow-sm'
                               : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                           }`}
-                          suppressHydrationWarning
                         >
                           <span
                             className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-bold shrink-0 ${
@@ -646,7 +626,6 @@ function ExamContent() {
                               ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900 font-medium shadow-sm'
                               : 'border-slate-200 hover:border-slate-300 bg-white text-slate-700'
                           }`}
-                          suppressHydrationWarning
                         >
                           <div
                             className={`w-6 h-6 rounded flex items-center justify-center border text-xs font-bold shrink-0 mt-0.5 ${
@@ -707,7 +686,6 @@ function ExamContent() {
                                     handleSelectMatrixOption(currentQuestion.id, st.id, 'Benar')
                                   }
                                   className="w-4 h-4 text-indigo-600"
-                                  suppressHydrationWarning
                                 />
                               </td>
                               <td className="p-4 text-center border-l">
@@ -719,7 +697,6 @@ function ExamContent() {
                                     handleSelectMatrixOption(currentQuestion.id, st.id, 'Salah')
                                   }
                                   className="w-4 h-4 text-indigo-600"
-                                  suppressHydrationWarning
                                 />
                               </td>
                             </tr>
@@ -737,7 +714,6 @@ function ExamContent() {
                 disabled={currentIndex === 0}
                 onClick={() => setCurrentIndex((prev) => prev - 1)}
                 className="px-4 py-2 bg-slate-100 text-slate-700 font-medium rounded-lg disabled:opacity-50 hover:bg-slate-200 transition-colors"
-                suppressHydrationWarning
               >
                 ← Sebelumnya
               </button>
@@ -747,7 +723,6 @@ function ExamContent() {
                   onClick={handleSubmit}
                   disabled={isSaving}
                   className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-                  suppressHydrationWarning
                 >
                   {isSaving ? 'Menyimpan...' : 'Selesaikan Ujian'}
                 </button>
@@ -755,7 +730,6 @@ function ExamContent() {
                 <button
                   onClick={() => setCurrentIndex((prev) => prev + 1)}
                   className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors"
-                  suppressHydrationWarning
                 >
                   Selanjutnya →
                 </button>
@@ -794,7 +768,6 @@ function ExamContent() {
                   key={q.id}
                   onClick={() => setCurrentIndex(idx)}
                   className={`h-10 rounded-lg text-xs font-semibold border transition-all ${btnClass}`}
-                  suppressHydrationWarning
                 >
                   {idx + 1}
                 </button>
@@ -822,7 +795,6 @@ function ExamContent() {
                 type="button"
                 onClick={() => setZoomedImageUrl(null)}
                 className="px-3 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg text-xs font-bold transition-colors"
-                suppressHydrationWarning
               >
                 ✕ Tutup
               </button>

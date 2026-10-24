@@ -6,7 +6,6 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
-// 🟢 Selalu ambil data riwayat paling segar dari database (mencegah cache Vercel)
 export const revalidate = 0
 
 function HistoryContent() {
@@ -19,7 +18,6 @@ function HistoryContent() {
   const loadStudentHistory = async () => {
     const supabase = createClient()
 
-    // 1. Cek Otentikasi User (Proteksi Halaman)
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -29,7 +27,6 @@ function HistoryContent() {
       return
     }
 
-    // 2. Ambil Profil Siswa
     const { data: profileData } = await supabase
       .from('profiles')
       .select('*')
@@ -38,14 +35,12 @@ function HistoryContent() {
 
     if (profileData) setProfile(profileData)
 
-    // 3. Ambil Seluruh Sesi Ujian Siswa (Diurutkan dari yang paling baru dibuat)
     const { data: sessionData } = await supabase
       .from('exam_sessions')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
 
-    // 4. Ambil Data Seluruh Ujian untuk Di-join
     const { data: examData } = await supabase.from('exams').select('*')
 
     const examMap = new Map()
@@ -53,7 +48,6 @@ function HistoryContent() {
       examData.forEach((e) => examMap.set(e.id, e))
     }
 
-    // Gabungkan Sesi dengan Detail Paket Ujian
     const processedHistory = (sessionData || []).map((session) => {
       const exam = examMap.get(session.exam_id) || {
         title: 'Paket Ujian',
@@ -79,7 +73,6 @@ function HistoryContent() {
       }
     })
 
-    // 5. Kalkulasi Analisis Performa per Subtes (HANYA MENGHITUNG SESI COMPLETED)
     const subtestMap = new Map<string, { totalScore: number; count: number; maxScore: number }>()
 
     processedHistory
@@ -115,7 +108,6 @@ function HistoryContent() {
     loadStudentHistory()
   }, [])
 
-  // 🟢 HANDLER MENGERJAKAN KEMBALI (RETAKE EXAM)
   const handleRetakeExam = (examId: string, examTitle: string) => {
     if (
       confirm(
@@ -131,7 +123,6 @@ function HistoryContent() {
     }
   }
 
-  // Kalkulasi Statistik Keseluruhan (HANYA MENGHITUNG SESI COMPLETED)
   const completedHistory = historyList.filter((h) => h.status === 'completed')
   const totalCompleted = completedHistory.length
   const totalAllScores = completedHistory.map((h) => h.score)
@@ -157,7 +148,6 @@ function HistoryContent() {
       <Navbar />
 
       <main className="p-8 max-w-7xl mx-auto space-y-8">
-        {/* Header & Informasi Siswa */}
         <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b pb-4 border-slate-200 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -186,7 +176,6 @@ function HistoryContent() {
           )}
         </div>
 
-        {/* Ringkasan Kartu Performa Siswa */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-1">
             <span className="text-xs font-bold text-slate-400 uppercase block">
@@ -216,7 +205,6 @@ function HistoryContent() {
           </div>
         </div>
 
-        {/* SECTION 1: ANALYTICS PERFORMA PER SUBTES */}
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
           <div className="border-b pb-3">
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -273,7 +261,6 @@ function HistoryContent() {
           )}
         </div>
 
-        {/* SECTION 2: TABEL RIWAYAT UJIAN & TOMBOL ACTION */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
           <div className="border-b pb-3 flex justify-between items-center">
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -357,7 +344,6 @@ function HistoryContent() {
                           )}
                         </td>
 
-                        {/* 🟢 TOMBOL AKSI: "LANJUTKAN UJIAN" ATAU "REVIEW & COBA LAGI" */}
                         <td className="p-3 text-center">
                           {isOngoing ? (
                             <Link
@@ -393,7 +379,7 @@ function HistoryContent() {
                 ) : (
                   <tr>
                     <td colSpan={6} className="p-8 text-center text-slate-400">
-                      Anda belum pernah menyelesaikan ujian apapun.
+                      Anda belum memiliki riwayat ujian.
                     </td>
                   </tr>
                 )}
