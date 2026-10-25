@@ -2,12 +2,10 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useTheme } from '@/context/ThemeContext'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
 function AdminUsersContent() {
-  const { theme } = useTheme()
   const [profiles, setProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -334,60 +332,9 @@ function AdminUsersContent() {
 
   const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
 
-  // 🎨 PEMETAAN TEMA KARTU UJIAN CETAK
-  const cardThemeMap: Record<
-    string,
-    { headerBg: string; headerText: string; badgeBg: string; borderStyle: string; icon: string }
-  > = {
-    space: {
-      headerBg: 'bg-gradient-to-r from-purple-900 to-indigo-900',
-      headerText: 'text-purple-100',
-      badgeBg: 'bg-purple-950 text-purple-200 border-purple-700',
-      borderStyle: 'border-purple-300',
-      icon: '🚀',
-    },
-    jungle: {
-      headerBg: 'bg-gradient-to-r from-emerald-900 to-teal-900',
-      headerText: 'text-emerald-100',
-      badgeBg: 'bg-emerald-950 text-emerald-200 border-emerald-700',
-      borderStyle: 'border-emerald-300',
-      icon: '🌿',
-    },
-    ocean: {
-      headerBg: 'bg-gradient-to-r from-sky-900 to-blue-900',
-      headerText: 'text-sky-100',
-      badgeBg: 'bg-sky-950 text-cyan-200 border-cyan-700',
-      borderStyle: 'border-sky-300',
-      icon: '🌊',
-    },
-    disney: {
-      headerBg: 'bg-gradient-to-r from-pink-800 via-purple-800 to-amber-700',
-      headerText: 'text-amber-100',
-      badgeBg: 'bg-amber-900 text-amber-200 border-amber-500',
-      borderStyle: 'border-pink-300',
-      icon: '🏰',
-    },
-    cartoon3d: {
-      headerBg: 'bg-amber-400',
-      headerText: 'text-slate-950 font-black',
-      badgeBg: 'bg-slate-900 text-yellow-300 border-slate-900',
-      borderStyle: 'border-slate-900 border-2',
-      icon: '🎨',
-    },
-    school: {
-      headerBg: 'bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900',
-      headerText: 'text-white',
-      badgeBg: 'bg-indigo-950 text-indigo-200 border-indigo-700',
-      borderStyle: 'border-indigo-200',
-      icon: '🏫',
-    },
-  }
-
-  const currentThemeCard = cardThemeMap[theme] || cardThemeMap.school
-
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* CSS CETAK A4 MATS (3 x 5 = 15 KARTU) */}
+      {/* CSS CETAK KARTU A4 (15 KARTU PER LEMBAR) */}
       <style jsx global>{`
         @media print {
           body * {
@@ -404,7 +351,7 @@ function AdminUsersContent() {
             top: 0;
             width: 100%;
             background: white !important;
-            padding: 4mm !important;
+            padding: 3mm !important;
           }
           .no-print {
             display: none !important;
@@ -896,9 +843,9 @@ function AdminUsersContent() {
         )}
       </main>
 
-      {/* 🖨️ AREA CETAK KARTU MODERN SESUAI TEMA SELEKSI (15 PER HALAMAN A4) */}
+      {/* 🖨️ AREA CETAK KARTU SESUAI DESAIN LAMPIRAN (15 KARTU PER HALAMAN A4) */}
       <div id="print-area" className="hidden print:block">
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-3 gap-2">
           {selectedUserObjects.map((user, idx) => {
             const realPassword =
               user.plain_password ||
@@ -909,83 +856,100 @@ function AdminUsersContent() {
             return (
               <div
                 key={user.id || idx}
-                className={`p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative overflow-hidden border ${currentThemeCard.borderStyle}`}
+                className="w-full h-[53mm] rounded-2xl bg-white text-slate-900 border-2 border-slate-900 flex flex-col justify-between break-inside-avoid relative overflow-hidden p-0 shadow-sm"
               >
-                {/* WATERMARK LOGO DI BELAKANG (SANGAT HALUS & ESTETIK) */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-                  <img
-                    src="/logo-sd-getasan.png"
-                    alt=""
-                    className="w-24 h-24 object-contain opacity-[0.06] grayscale select-none"
-                    onError={(e: any) => (e.target.style.display = 'none')}
-                  />
-                </div>
-
-                {/* Header Kop Kartu Berwarna Tema */}
-                <div
-                  className={`relative z-10 flex items-center space-x-2 -mx-2.5 -mt-2.5 px-2.5 py-1.5 mb-1 border-b ${currentThemeCard.headerBg} ${currentThemeCard.headerText}`}
-                >
-                  <img
-                    src="/logo-sd-getasan.png"
-                    alt="Logo"
-                    className="w-6 h-6 object-contain shrink-0 drop-shadow-sm"
-                    onError={(e: any) => (e.target.style.display = 'none')}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-[9.5px] font-black leading-tight uppercase truncate tracking-wide">
-                      SD NEGERI GETASAN
-                    </h4>
-                    <p className="text-[7px] font-bold opacity-90 uppercase tracking-tighter">
-                      KARTU LOGIN UJIAN CBT {currentThemeCard.icon}
-                    </p>
+                {/* 1. KOP HEADER KUNING & LOGO */}
+                <div className="bg-amber-400 border-b-2 border-slate-900 px-2.5 py-1.5 flex items-center justify-between relative overflow-hidden">
+                  <div className="flex items-center space-x-2 relative z-10">
+                    <img
+                      src="/logo-sd-getasan.png"
+                      alt="Logo"
+                      className="w-7 h-7 object-contain shrink-0"
+                      onError={(e: any) => (e.target.style.display = 'none')}
+                    />
+                    <div className="h-6 w-[2px] bg-slate-800/40 rounded-full"></div>
+                    <div>
+                      <h4 className="text-[10px] font-black text-slate-950 uppercase leading-none tracking-tight">
+                        SD NEGERI GETASAN
+                      </h4>
+                      <p className="text-[7.5px] font-extrabold text-slate-900 uppercase tracking-tighter flex items-center gap-1 mt-0.5">
+                        <span>KARTU PESERTA UJIAN CBT</span>
+                        <span>🖥️</span>
+                      </p>
+                    </div>
                   </div>
-                  <span
-                    className={`px-1.5 py-0.5 text-[8px] font-black rounded border shrink-0 shadow-sm ${currentThemeCard.badgeBg}`}
-                  >
+
+                  {/* BADGE KELAS (Pill Hitam/Navy) */}
+                  <span className="bg-slate-950 text-white text-[9.5px] font-black px-2.5 py-0.5 rounded-full border border-slate-800 shrink-0 relative z-10">
                     {user.class_code || user.class_label || 'VIB'}
                   </span>
                 </div>
 
-                {/* Data Utama Peserta */}
-                <div className="relative z-10 my-auto space-y-1.5">
+                {/* 2. BODY UTAMA (NAMA & BOX KREDENSIAL) */}
+                <div className="px-3 py-1.5 flex-1 flex flex-col justify-between space-y-1">
+                  {/* Nama Peserta Ujian (Bisa 2 Baris) */}
                   <div>
-                    <span className="text-[7px] text-slate-400 font-extrabold uppercase tracking-wider block">
-                      NAMA PESERTA UJIAN
-                    </span>
-                    <span className="text-[10.5px] font-black text-slate-900 block truncate leading-tight uppercase">
-                      {user.full_name || 'Siswa CBT'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5 bg-slate-50/90 backdrop-blur-[1px] p-2 rounded-lg border border-slate-200/80 font-mono text-[9px] shadow-inner">
-                    <div>
-                      <span className="text-[6.5px] font-sans text-slate-400 block uppercase font-black tracking-wider">
-                        USERNAME
+                    <div className="flex items-center space-x-1 mb-0.5">
+                      <span className="w-3.5 h-3.5 bg-sky-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold">
+                        👤
                       </span>
-                      <span className="font-extrabold text-indigo-700 truncate block text-[10px]">
-                        {user.username || '-'}
+                      <span className="text-[7px] font-extrabold text-slate-500 uppercase tracking-wider">
+                        NAMA PESERTA UJIAN
                       </span>
                     </div>
-                    <div>
-                      <span className="text-[6.5px] font-sans text-slate-400 block uppercase font-black tracking-wider">
-                        PASSWORD
-                      </span>
-                      <span className="font-extrabold text-rose-600 truncate block text-[10px]">
-                        {realPassword}
-                      </span>
+
+                    {/* Properti 2 Baris Presisi */}
+                    <div className="text-[10px] font-black text-slate-900 uppercase leading-snug line-clamp-2 break-words min-h-[14px]">
+                      {user.full_name || 'SISWA CBT'}
+                    </div>
+                  </div>
+
+                  {/* Inset Box Kredensial Username & Password */}
+                  <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-1.5 grid grid-cols-2 gap-2 items-center relative">
+                    {/* Kolom Username */}
+                    <div className="flex items-center space-x-1.5 pr-1 border-r border-blue-200/80">
+                      <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm">
+                        👤
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[6.5px] font-extrabold text-slate-500 uppercase block tracking-wider leading-none mb-0.5">
+                          USERNAME
+                        </span>
+                        <span className="text-[10.5px] font-black text-indigo-700 truncate block leading-none">
+                          {user.username || '-'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Kolom Password */}
+                    <div className="flex items-center space-x-1.5 pl-0.5">
+                      <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm">
+                        🔒
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-[6.5px] font-extrabold text-slate-500 uppercase block tracking-wider leading-none mb-0.5">
+                          PASSWORD
+                        </span>
+                        <span className="text-[10.5px] font-black text-rose-500 truncate block leading-none">
+                          {realPassword}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer Kartu */}
-                <div className="relative z-10 flex justify-between items-center pt-1 border-t border-slate-200/80 text-[7.5px] text-slate-400 font-semibold">
-                  <span className="flex items-center space-x-1">
-                    <span>🌐</span>
+                {/* 3. FOOTER DENGAN AKSEN & MOTIVASI */}
+                <div className="px-3 py-1 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-[7.5px] relative">
+                  <div className="flex items-center space-x-1 text-slate-600 font-bold">
+                    <span className="w-3.5 h-3.5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[7px]">
+                      🌐
+                    </span>
                     <span>grisan.vercel.app</span>
-                  </span>
-                  <span className="font-black text-slate-400/80 uppercase tracking-wider">
-                    SDN GETASAN
-                  </span>
+                  </div>
+
+                  <div className="font-serif italic font-black text-slate-800 text-[8.5px] tracking-tight">
+                    Semangat dan Sukses!
+                  </div>
                 </div>
               </div>
             )
