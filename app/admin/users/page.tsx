@@ -2,10 +2,26 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTheme } from '@/context/ThemeContext'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
+// Tipe Data TypeScript Konfigurasi Tema Kartu Ujian Cetak
+interface ThemeCardConfig {
+  headerBg: string
+  headerText: string
+  badgeBg: string
+  borderStyle: string
+  icon: string
+  credBoxBg: string
+  credBoxBorder: string
+  userIconBg: string
+  passIconBg: string
+  accentText: string
+}
+
 function AdminUsersContent() {
+  const { theme } = useTheme()
   const [profiles, setProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -332,9 +348,87 @@ function AdminUsersContent() {
 
   const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
 
+  // 🎨 PEMETAAN TEMA KARTU UJIAN DINAMIS & PRESISI
+  const cardThemeMap: Record<string, ThemeCardConfig> = {
+    school: {
+      headerBg: 'bg-amber-400',
+      headerText: 'text-slate-950 font-black',
+      badgeBg: 'bg-slate-950 text-white border-slate-800',
+      borderStyle: 'border-slate-900 border-2',
+      icon: '🖥️',
+      credBoxBg: 'bg-blue-50/80',
+      credBoxBorder: 'border-blue-100',
+      userIconBg: 'bg-blue-500 text-white',
+      passIconBg: 'bg-blue-500 text-white',
+      accentText: 'text-indigo-700',
+    },
+    space: {
+      headerBg: 'bg-gradient-to-r from-purple-900 to-indigo-900',
+      headerText: 'text-purple-100 font-black',
+      badgeBg: 'bg-purple-950 text-purple-200 border-purple-700',
+      borderStyle: 'border-purple-800 border-2',
+      icon: '🚀',
+      credBoxBg: 'bg-purple-50/80',
+      credBoxBorder: 'border-purple-200',
+      userIconBg: 'bg-purple-600 text-white',
+      passIconBg: 'bg-indigo-600 text-white',
+      accentText: 'text-purple-700',
+    },
+    jungle: {
+      headerBg: 'bg-gradient-to-r from-emerald-900 to-teal-900',
+      headerText: 'text-emerald-100 font-black',
+      badgeBg: 'bg-emerald-950 text-emerald-200 border-emerald-700',
+      borderStyle: 'border-emerald-800 border-2',
+      icon: '🌿',
+      credBoxBg: 'bg-emerald-50/80',
+      credBoxBorder: 'border-emerald-200',
+      userIconBg: 'bg-emerald-600 text-white',
+      passIconBg: 'bg-teal-600 text-white',
+      accentText: 'text-emerald-700',
+    },
+    ocean: {
+      headerBg: 'bg-gradient-to-r from-sky-900 to-blue-900',
+      headerText: 'text-sky-100 font-black',
+      badgeBg: 'bg-sky-950 text-cyan-200 border-cyan-700',
+      borderStyle: 'border-sky-800 border-2',
+      icon: '🌊',
+      credBoxBg: 'bg-sky-50/80',
+      credBoxBorder: 'border-sky-200',
+      userIconBg: 'bg-sky-600 text-white',
+      passIconBg: 'bg-blue-600 text-white',
+      accentText: 'text-sky-700',
+    },
+    disney: {
+      headerBg: 'bg-gradient-to-r from-pink-800 via-purple-800 to-amber-700',
+      headerText: 'text-amber-100 font-black',
+      badgeBg: 'bg-amber-950 text-amber-200 border-amber-600',
+      borderStyle: 'border-pink-800 border-2',
+      icon: '🏰',
+      credBoxBg: 'bg-pink-50/80',
+      credBoxBorder: 'border-pink-200',
+      userIconBg: 'bg-pink-600 text-white',
+      passIconBg: 'bg-purple-600 text-white',
+      accentText: 'text-pink-700',
+    },
+    cartoon3d: {
+      headerBg: 'bg-amber-400',
+      headerText: 'text-slate-950 font-black',
+      badgeBg: 'bg-slate-950 text-yellow-300 border-slate-950',
+      borderStyle: 'border-slate-950 border-2',
+      icon: '🎨',
+      credBoxBg: 'bg-amber-50/90',
+      credBoxBorder: 'border-amber-200',
+      userIconBg: 'bg-amber-500 text-slate-950',
+      passIconBg: 'bg-amber-500 text-slate-950',
+      accentText: 'text-amber-900',
+    },
+  }
+
+  const currentThemeCard = cardThemeMap[theme] || cardThemeMap.school
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* CSS CETAK KARTU A4 (15 KARTU PER LEMBAR) */}
+      {/* CSS CETAK KARTU A4 MATS (15 KARTU PER HALAMAN) */}
       <style jsx global>{`
         @media print {
           body * {
@@ -843,7 +937,7 @@ function AdminUsersContent() {
         )}
       </main>
 
-      {/* 🖨️ AREA CETAK KARTU SESUAI DESAIN LAMPIRAN (15 KARTU PER HALAMAN A4) */}
+      {/* 🖨️ AREA CETAK KARTU GABUNGAN MODEL MODERN + TEMA DINAMIS (15 KARTU PER HALAMAN A4) */}
       <div id="print-area" className="hidden print:block">
         <div className="grid grid-cols-3 gap-2">
           {selectedUserObjects.map((user, idx) => {
@@ -856,41 +950,47 @@ function AdminUsersContent() {
             return (
               <div
                 key={user.id || idx}
-                className="w-full h-[53mm] rounded-2xl bg-white text-slate-900 border-2 border-slate-900 flex flex-col justify-between break-inside-avoid relative overflow-hidden p-0 shadow-sm"
+                className={`w-full h-[53mm] rounded-2xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid relative overflow-hidden p-0 shadow-sm ${currentThemeCard.borderStyle}`}
               >
-                {/* 1. KOP HEADER KUNING & LOGO */}
-                <div className="bg-amber-400 border-b-2 border-slate-900 px-2.5 py-1.5 flex items-center justify-between relative overflow-hidden">
+                {/* 1. KOP HEADER WARNA DINAMIS TEMA & LOGO */}
+                <div
+                  className={`${currentThemeCard.headerBg} border-b-2 border-slate-900/60 px-2.5 py-1.5 flex items-center justify-between relative overflow-hidden`}
+                >
                   <div className="flex items-center space-x-2 relative z-10">
                     <img
                       src="/logo-sd-getasan.png"
                       alt="Logo"
-                      className="w-7 h-7 object-contain shrink-0"
+                      className="w-7 h-7 object-contain shrink-0 drop-shadow-sm"
                       onError={(e: any) => (e.target.style.display = 'none')}
                     />
-                    <div className="h-6 w-[2px] bg-slate-800/40 rounded-full"></div>
+                    <div className="h-6 w-[2px] bg-slate-900/20 rounded-full"></div>
                     <div>
-                      <h4 className="text-[10px] font-black text-slate-950 uppercase leading-none tracking-tight">
+                      <h4
+                        className={`text-[10px] font-black uppercase leading-none tracking-tight ${currentThemeCard.headerText}`}
+                      >
                         SD NEGERI GETASAN
                       </h4>
-                      <p className="text-[7.5px] font-extrabold text-slate-900 uppercase tracking-tighter flex items-center gap-1 mt-0.5">
+                      <p className="text-[7.5px] font-extrabold opacity-95 uppercase tracking-tighter flex items-center gap-1 mt-0.5">
                         <span>KARTU PESERTA UJIAN CBT</span>
-                        <span>🖥️</span>
+                        <span>{currentThemeCard.icon}</span>
                       </p>
                     </div>
                   </div>
 
-                  {/* BADGE KELAS (Pill Hitam/Navy) */}
-                  <span className="bg-slate-950 text-white text-[9.5px] font-black px-2.5 py-0.5 rounded-full border border-slate-800 shrink-0 relative z-10">
+                  {/* BADGE KELAS (Pill Dinamis) */}
+                  <span
+                    className={`text-[9.5px] font-black px-2.5 py-0.5 rounded-full border shrink-0 shadow-sm relative z-10 ${currentThemeCard.badgeBg}`}
+                  >
                     {user.class_code || user.class_label || 'VIB'}
                   </span>
                 </div>
 
-                {/* 2. BODY UTAMA (NAMA & BOX KREDENSIAL) */}
+                {/* 2. BODY UTAMA (NAMA FLEXIBEL 2 BARIS & BOX KREDENSIAL) */}
                 <div className="px-3 py-1.5 flex-1 flex flex-col justify-between space-y-1">
-                  {/* Nama Peserta Ujian (Bisa 2 Baris) */}
+                  {/* Nama Peserta Ujian (Bisa 2 Baris Tanpa Terpotong) */}
                   <div>
                     <div className="flex items-center space-x-1 mb-0.5">
-                      <span className="w-3.5 h-3.5 bg-sky-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold">
+                      <span className="w-3.5 h-3.5 bg-sky-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs">
                         👤
                       </span>
                       <span className="text-[7px] font-extrabold text-slate-500 uppercase tracking-wider">
@@ -898,24 +998,29 @@ function AdminUsersContent() {
                       </span>
                     </div>
 
-                    {/* Properti 2 Baris Presisi */}
                     <div className="text-[10px] font-black text-slate-900 uppercase leading-snug line-clamp-2 break-words min-h-[14px]">
                       {user.full_name || 'SISWA CBT'}
                     </div>
                   </div>
 
                   {/* Inset Box Kredensial Username & Password */}
-                  <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-1.5 grid grid-cols-2 gap-2 items-center relative">
+                  <div
+                    className={`${currentThemeCard.credBoxBg} ${currentThemeCard.credBoxBorder} border rounded-xl p-1.5 grid grid-cols-2 gap-2 items-center relative shadow-inner`}
+                  >
                     {/* Kolom Username */}
-                    <div className="flex items-center space-x-1.5 pr-1 border-r border-blue-200/80">
-                      <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm">
+                    <div className="flex items-center space-x-1.5 pr-1 border-r border-slate-300/60">
+                      <div
+                        className={`w-5 h-5 ${currentThemeCard.userIconBg} rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm`}
+                      >
                         👤
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="text-[6.5px] font-extrabold text-slate-500 uppercase block tracking-wider leading-none mb-0.5">
                           USERNAME
                         </span>
-                        <span className="text-[10.5px] font-black text-indigo-700 truncate block leading-none">
+                        <span
+                          className={`text-[10.5px] font-black truncate block leading-none ${currentThemeCard.accentText}`}
+                        >
                           {user.username || '-'}
                         </span>
                       </div>
@@ -923,14 +1028,16 @@ function AdminUsersContent() {
 
                     {/* Kolom Password */}
                     <div className="flex items-center space-x-1.5 pl-0.5">
-                      <div className="w-5 h-5 bg-blue-500 text-white rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm">
+                      <div
+                        className={`w-5 h-5 ${currentThemeCard.passIconBg} rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm`}
+                      >
                         🔒
                       </div>
                       <div className="min-w-0 flex-1">
                         <span className="text-[6.5px] font-extrabold text-slate-500 uppercase block tracking-wider leading-none mb-0.5">
                           PASSWORD
                         </span>
-                        <span className="text-[10.5px] font-black text-rose-500 truncate block leading-none">
+                        <span className="text-[10.5px] font-black text-rose-600 truncate block leading-none">
                           {realPassword}
                         </span>
                       </div>
@@ -938,10 +1045,10 @@ function AdminUsersContent() {
                   </div>
                 </div>
 
-                {/* 3. FOOTER DENGAN AKSEN & MOTIVASI */}
+                {/* 3. FOOTER DENGAN URL AKSEN & STRIP MOTIVASI */}
                 <div className="px-3 py-1 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-[7.5px] relative">
                   <div className="flex items-center space-x-1 text-slate-600 font-bold">
-                    <span className="w-3.5 h-3.5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[7px]">
+                    <span className="w-3.5 h-3.5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[7px] shadow-xs">
                       🌐
                     </span>
                     <span>grisan.vercel.app</span>
