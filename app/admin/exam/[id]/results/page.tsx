@@ -151,6 +151,7 @@ function ExamResultsContent() {
   const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<any | null>(null)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
+  const [isOverrideScore, setIsOverrideScore] = useState<boolean>(false) // 🔘 Checkbox Override Manual
   const [customFinalScore, setCustomFinalScore] = useState<number>(0)
   const [isSavingScore, setIsSavingScore] = useState<boolean>(false)
 
@@ -376,6 +377,30 @@ function ExamResultsContent() {
     loadData()
   }, [examId])
 
+  // 🧮 HELPER HITUNG OTOMATIS NILAI SKALA 100
+  const calculateAutoScore = (
+    answersMap: { [qId: string]: any },
+    currentEssayScores: { [qId: string]: number }
+  ) => {
+    let totalPoints = 0
+    let maxPoints = 0
+
+    questions.forEach((q) => {
+      const qMax = Number(q.max_score) || 1
+      maxPoints += qMax
+
+      if (q.question_type === 'essay') {
+        totalPoints += currentEssayScores[q.id] ?? 0
+      } else {
+        const rawAns = answersMap[q.id]
+        const evalRes = evaluateAnswer(q, rawAns)
+        totalPoints += evalRes.ratio * qMax
+      }
+    })
+
+    return maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
+  }
+
   // 📝 Buka Modal Detail & Penilaian Siswa
   const handleOpenDetailModal = (session: any) => {
     const map: { [key: string]: any } = {}
@@ -387,53 +412,33 @@ function ExamResultsContent() {
     setSessionAnswersMap(map)
 
     const initialEssayScores: { [key: string]: number } = {}
-    let totalPoints = 0
-    let maxPoints = 0
-
     questions.forEach((q) => {
       const qMax = Number(q.max_score) || 1
-      maxPoints += qMax
-      const rawAns = map[q.id]
-      const evalRes = evaluateAnswer(q, rawAns)
-
       if (q.question_type === 'essay') {
-        const defaultEssayVal = evalRes.isUnanswered ? 0 : qMax
-        initialEssayScores[q.id] = defaultEssayVal
-        totalPoints += defaultEssayVal
-      } else {
-        totalPoints += evalRes.ratio * qMax
+        const rawAns = map[q.id]
+        const evalRes = evaluateAnswer(q, rawAns)
+        initialEssayScores[q.id] = evalRes.isUnanswered ? 0 : qMax
       }
     })
 
-    const calculated = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
     setEssayScores(initialEssayScores)
-    setCustomFinalScore(session.earned_score || calculated)
+    setIsOverrideScore(false) // Default: Checkbox Unchecked (Kalkulasi Otomatis)
+
+    const autoCalculated = calculateAutoScore(map, initialEssayScores)
+    setCustomFinalScore(autoCalculated)
     setSelectedSessionForDetail(session)
   }
 
-  // 📝 UBAH NILAI ESSAY
+  // 📝 UBAH NILAI ESSAY (OTOMATIS MEMPERBARUI NILAI AKHIR JIKA OVERRIDE OFF)
   const handleEssayScoreChange = (qId: string, value: number, maxScore: number) => {
     const val = Math.max(0, Math.min(value, maxScore))
     const updatedEssayScores = { ...essayScores, [qId]: val }
     setEssayScores(updatedEssayScores)
 
-    let totalPoints = 0
-    let maxPoints = 0
-
-    questions.forEach((q) => {
-      const qMax = Number(q.max_score) || 1
-      maxPoints += qMax
-      if (q.question_type === 'essay') {
-        totalPoints += updatedEssayScores[q.id] ?? 0
-      } else {
-        const rawAns = sessionAnswersMap[q.id]
-        const evalRes = evaluateAnswer(q, rawAns)
-        totalPoints += evalRes.ratio * qMax
-      }
-    })
-
-    const newCalculated = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
-    setCustomFinalScore(newCalculated)
+    if (!isOverrideScore) {
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores)
+      setCustomFinalScore(autoCalculated)
+    }
   }
 
   // 💾 SIMPAN PENILAIAN GURU KE DATABASE SUPABASE
@@ -975,7 +980,7 @@ function ExamResultsContent() {
                 <div>
                   <span className="font-bold">💡 Petunjuk Guru:</span>
                   <p className="text-[11px] text-amber-700 mt-0.5">
-                    Periksa jawaban essay siswa di bawah, tentukan poin nilai essay, atau sesuaikan Nilai Akhir jika diperlukan.
+                    Periksa jawaban essay siswa di bawah, tentukan poin nilai essay. Nilai Akhir akan otomatis terhitung secara presisi.
                   </p>
                 </div>
               </div>
@@ -1049,7 +1054,7 @@ function ExamResultsContent() {
                       </div>
                     </div>
 
-                    {/* FIELD NIALI KHUSUS SOAL ESSAY */}
+                    {/* FIELD NILAI KHUSUS SOAL ESSAY */}
                     {qType === 'essay' && (
                       <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
                         <span className="font-bold text-indigo-900 text-xs">
@@ -1076,24 +1081,50 @@ function ExamResultsContent() {
               })}
             </div>
 
-            {/* Footer Modal (Kalkulasi Skor & Simpan) */}
-            <div className="p-5 border-t bg-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
-              <div className="flex items-center space-x-3">
-                <div>
-                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
-                    Penetapan Nilai Akhir (Skala 100)
-                  </span>
-                  <div className="flex items-center space-x-2 mt-0.5">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={customFinalScore}
-                      onChange={(e) => setCustomFinalScore(Number(e.target.value))}
-                      className="w-24 px-3 py-1.5 border-2 border-indigo-600 rounded-xl text-center font-black text-indigo-700 bg-white text-base focus:outline-none"
-                    />
-                    <span className="font-bold text-slate-600 text-sm">/ 100</span>
-                  </div>
+            {/* Footer Modal (Kalkulasi Skor & Checkbox Override Manual) */}
+            <div className="p-5 border-t bg-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+              <div className="space-y-1.5">
+                {/* 🔘 CHECKBOX OVERRIDE MANUAL */}
+                <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isOverrideScore}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      setIsOverrideScore(checked)
+                      if (!checked) {
+                        // Reset kembali ke kalkulasi otomatis
+                        const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores)
+                        setCustomFinalScore(autoCalculated)
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <span>Override Nilai Akhir secara manual (Opsional)</span>
+                </label>
+
+                {/* INPUT NILAI AKHIR */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    disabled={!isOverrideScore} // 🔒 Terkunci jika checkbox tidak dicentang
+                    value={customFinalScore}
+                    onChange={(e) => setCustomFinalScore(Number(e.target.value))}
+                    className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-black text-base focus:outline-none transition-all ${
+                      isOverrideScore
+                        ? 'border-indigo-600 bg-white text-indigo-700 shadow-sm'
+                        : 'border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed'
+                    }`}
+                  />
+                  <span className="font-bold text-slate-600 text-sm">/ 100</span>
+
+                  {!isOverrideScore && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">
+                      ⚡ Otomatis Terhitung
+                    </span>
+                  )}
                 </div>
               </div>
 
