@@ -68,6 +68,9 @@ function QuestionManagerContent() {
   // Mode Navigasi Tab: 'form' (Input/Edit) atau 'list' (Daftar Soal)
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form')
 
+  // 🟢 STATE BARU: Mode Tampilan Dual-View Editor ('split' | 'preview' | 'code')
+  const [editorViewMode, setEditorViewMode] = useState<'split' | 'preview' | 'code'>('split')
+
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
 
@@ -126,21 +129,36 @@ function QuestionManagerContent() {
     loadData()
   }, [examId])
 
-  // Helper Sisip Teks Toolbar LaTeX / HTML
-  const insertFormatText = (before: string, after: string = '') => {
-    const textarea = document.getElementById('questionTextarea') as HTMLTextAreaElement
+  // 🟢 HELPER PERBAIKAN: Sisip Teks Toolbar LaTeX / HTML (Multi-Target & Safe Selection)
+  const insertFormatText = (
+    before: string,
+    after: string = '',
+    targetId: string = 'questionTextarea'
+  ) => {
+    const textarea = document.getElementById(targetId) as HTMLTextAreaElement
     if (!textarea) {
-      setQuestionText((prev) => prev + before + after)
+      if (targetId === 'questionTextarea') {
+        setQuestionText((prev) => prev + before + after)
+      } else if (targetId === 'explanationTextarea') {
+        setExplanation((prev) => prev + before + after)
+      }
       return
     }
 
     const start = textarea.selectionStart
     const end = textarea.selectionEnd
-    const selected = questionText.substring(start, end)
+    const currentVal = targetId === 'questionTextarea' ? questionText : explanation
+    const selected = currentVal.substring(start, end)
     const replacement = before + (selected || '') + after
 
-    const newText = questionText.substring(0, start) + replacement + questionText.substring(end)
-    setQuestionText(newText)
+    const newText =
+      currentVal.substring(0, start) + replacement + currentVal.substring(end)
+
+    if (targetId === 'questionTextarea') {
+      setQuestionText(newText)
+    } else {
+      setExplanation(newText)
+    }
 
     setTimeout(() => {
       textarea.focus()
@@ -447,7 +465,7 @@ function QuestionManagerContent() {
               </div>
             )}
 
-            <form onSubmit={handleSaveQuestion} className="space-y-4" suppressHydrationWarning>
+            <form onSubmit={handleSaveQuestion} className="space-y-5" suppressHydrationWarning>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
@@ -483,39 +501,237 @@ function QuestionManagerContent() {
                 </div>
               </div>
 
-              {/* TOOLBAR FORMATTING TEKS & MATH HELPER */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase">
+              {/* 🟢 DUAL-VIEW EDITOR MODERN (LIVE VISUAL UI PREVIEW + CODE INSPECTOR TEXTAREA) */}
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Stimulus / Teks Soal
                   </label>
-                  <span className="text-[10px] text-slate-400">Mendukung Format HTML & Math (LaTeX)</span>
+
+                  {/* Toggle Mode Tampilan Editor */}
+                  <div className="flex items-center space-x-1 bg-slate-200 p-1 rounded-lg text-[11px] font-bold self-start">
+                    <button
+                      type="button"
+                      onClick={() => setEditorViewMode('split')}
+                      className={`px-2.5 py-1 rounded-md transition-all ${
+                        editorViewMode === 'split'
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      📑 Dual-View (Split)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorViewMode('preview')}
+                      className={`px-2.5 py-1 rounded-md transition-all ${
+                        editorViewMode === 'preview'
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      👁️ Tampilan Visual UI
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorViewMode('code')}
+                      className={`px-2.5 py-1 rounded-md transition-all ${
+                        editorViewMode === 'code'
+                          ? 'bg-white text-indigo-700 shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      💻 Editor Kode Mentah
+                    </button>
+                  </div>
                 </div>
 
-                <div className="flex flex-wrap gap-1 bg-slate-100 p-2 rounded-t-xl border border-b-0 border-slate-300 text-xs">
-                  <button type="button" onClick={() => insertFormatText('<b>', '</b>')} className="px-2 py-1 bg-white border rounded font-bold hover:bg-slate-50">B</button>
-                  <button type="button" onClick={() => insertFormatText('<i>', '</i>')} className="px-2 py-1 bg-white border rounded italic hover:bg-slate-50">I</button>
-                  <button type="button" onClick={() => insertFormatText('<u>', '</u>')} className="px-2 py-1 bg-white border rounded underline hover:bg-slate-50">U</button>
-                  <button type="button" onClick={() => insertFormatText('<div text-center>', '</div>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Align Center</button>
-                  <button type="button" onClick={() => insertFormatText('<blockquote>', '</blockquote>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Kutipan</button>
-                  <button type="button" onClick={() => insertFormatText('<table border="1"><tr><td>', '</td></tr></table>')} className="px-2 py-1 bg-white border rounded hover:bg-slate-50">Tabel</button>
-                  <span className="border-r border-slate-300 mx-1"></span>
-                  <button type="button" onClick={() => insertFormatText('$\\frac{', '}{}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pecahan $\\frac{a}{b}$"}</button>
-                  <button type="button" onClick={() => insertFormatText('$\\sqrt{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Akar $\\sqrt{x}$"}</button>
-                  <button type="button" onClick={() => insertFormatText('$x^{', '}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">{"Pangkat $x^n$"}</button>
-                  <button type="button" onClick={() => insertFormatText('$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$')} className="px-2 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold hover:bg-indigo-100">Matriks Math</button>
-                </div>
+                <div className="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
+                  {/* 🛠️ BILAH ALAT FORMAT (TOOLBAR LENGKAP MODERN) */}
+                  <div className="p-2 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center gap-1.5 text-xs select-none">
+                    {/* Format Teks dasar */}
+                    <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<b>', '</b>')}
+                        className="w-7 h-7 flex items-center justify-center font-black text-slate-700 hover:bg-slate-100 rounded"
+                        title="Cetak Tebal (Bold)"
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<i>', '</i>')}
+                        className="w-7 h-7 flex items-center justify-center italic font-serif text-slate-700 hover:bg-slate-100 rounded"
+                        title="Cetak Miring (Italic)"
+                      >
+                        I
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<u>', '</u>')}
+                        className="w-7 h-7 flex items-center justify-center underline text-slate-700 hover:bg-slate-100 rounded"
+                        title="Garis Bawah (Underline)"
+                      >
+                        U
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<s>', '</s>')}
+                        className="w-7 h-7 flex items-center justify-center line-through text-slate-700 hover:bg-slate-100 rounded"
+                        title="Coret (Strikethrough)"
+                      >
+                        S
+                      </button>
+                    </div>
 
-                <textarea
-                  id="questionTextarea"
-                  rows={5}
-                  required
-                  value={questionText || ''}
-                  onChange={(e) => setQuestionText(e.target.value)}
-                  placeholder="Ketik teks soal / gunakan toolbar di atas..."
-                  className="w-full px-3 py-2 rounded-b-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 font-mono"
-                  suppressHydrationWarning
-                />
+                    {/* Perataan Teks */}
+                    <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<div style="text-align: left">', '</div>')}
+                        className="px-2 h-7 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 rounded text-[10px]"
+                        title="Rata Kiri"
+                      >
+                        ⬅️ Kiri
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<div style="text-align: center">', '</div>')}
+                        className="px-2 h-7 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 rounded text-[10px]"
+                        title="Rata Tengah"
+                      >
+                        ↔️ Tengah
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<div style="text-align: right">', '</div>')}
+                        className="px-2 h-7 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 rounded text-[10px]"
+                        title="Rata Kanan"
+                      >
+                        ➡️ Kanan
+                      </button>
+                    </div>
+
+                    {/* Elemen Struktur */}
+                    <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('<blockquote>', '</blockquote>')}
+                        className="px-2 h-7 flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 rounded text-[11px]"
+                        title="Kutipan (Quote)"
+                      >
+                        💬 Kutipan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          insertFormatText(
+                            '\n<table border="1" style="width:100%; border-collapse:collapse;" className="my-2">\n  <thead>\n    <tr className="bg-slate-100">\n      <th className="p-2 border">Kolom 1</th>\n      <th className="p-2 border">Kolom 2</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td className="p-2 border">Data 1</td>\n      <td className="p-2 border">Data 2</td>\n    </tr>\n  </tbody>\n</table>\n'
+                          )
+                        }
+                        className="px-2 h-7 flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 rounded text-[11px]"
+                        title="Tabel HTML"
+                      >
+                        📊 Tabel
+                      </button>
+                    </div>
+
+                    {/* Rumus Math KaTeX */}
+                    <div className="flex items-center space-x-1 bg-indigo-50 border border-indigo-200 rounded-lg p-0.5 shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('$\\frac{', '}{b}$')}
+                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
+                        title="Pecahan"
+                      >
+                        {"$\\frac{a}{b}$"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('$\\sqrt{', '}$') }
+                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
+                        title="Akar Matematika"
+                      >
+                        {"$\\sqrt{x}$"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('$x^{', '}$') }
+                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
+                        title="Pangkat (Superscript)"
+                      >
+                        {"$x^n$"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertFormatText('$x_{', '}$') }
+                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
+                        title="Indeks Bawah (Subscript)"
+                      >
+                        {"$x_n$"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          insertFormatText(
+                            '$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$'
+                          )
+                        }
+                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
+                        title="Matriks 2x2"
+                      >
+                        Matriks
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 👁️ KOTAK ATAS: TAMPILAN VISUAL UI (LIVE PREVIEW REAL-TIME) */}
+                  {(editorViewMode === 'split' || editorViewMode === 'preview') && (
+                    <div className="p-4 bg-slate-50 border-b border-slate-200 min-h-[120px] max-h-[260px] overflow-y-auto">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-2">
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest flex items-center space-x-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                          <span>Tampilan Visual UI (Live Preview)</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          Tampilan visual nyata siswa saat ujian
+                        </span>
+                      </div>
+
+                      {questionText.trim() ? (
+                        <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+                          <MathRenderer content={questionText} />
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-400 italic">
+                          Hasil visual UI akan langsung ditampilkan di sini secara real-time saat Anda mengetik kode di bawah...
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 💻 KOTAK BAWAH: EDITOR BARIS KODE (CODE INSPECTOR TEXTAREA) */}
+                  {(editorViewMode === 'split' || editorViewMode === 'code') && (
+                    <div className="relative">
+                      <div className="bg-slate-900 px-3 py-1 flex justify-between items-center text-[10px] font-mono text-slate-400 border-b border-slate-800">
+                        <span>💻 EDITOR BARIS KODE (HTML / LATEX)</span>
+                        <span className="text-slate-500">UTF-8</span>
+                      </div>
+                      <textarea
+                        id="questionTextarea"
+                        rows={5}
+                        required
+                        value={questionText || ''}
+                        onChange={(e) => setQuestionText(e.target.value)}
+                        placeholder="Ketik teks soal, tag HTML, atau rumus KaTeX di sini..."
+                        className="w-full p-3.5 font-mono text-xs bg-slate-950 text-emerald-400 focus:outline-none focus:ring-0 resize-y leading-relaxed"
+                        spellCheck={false}
+                        suppressHydrationWarning
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -693,6 +909,7 @@ function QuestionManagerContent() {
                   💡 Pembahasan Soal / Pedoman Penskoran Guru
                 </label>
                 <textarea
+                  id="explanationTextarea"
                   rows={3}
                   placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
                   value={explanation || ''}
