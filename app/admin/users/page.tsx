@@ -334,10 +334,10 @@ function AdminUsersContent() {
 
   const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
 
-  // 🎨 PEMETAAN TEMA KARTU UJIAN CETAK
+  // 🎨 PEMETAAN TEMA KARTU UJIAN CETAK (PERBAIKAN TIPE TYPESCRIPT)
   const cardThemeMap: Record<
     string,
-    { headerBg: string; headerText: string; badgeBg: string; badgeText: string; borderStyle: string; icon: string }
+    { headerBg: string; headerText: string; badgeBg: string; borderStyle: string; icon: string }
   > = {
     space: {
       headerBg: 'bg-gradient-to-r from-purple-900 to-indigo-900',
@@ -967,7 +967,7 @@ function AdminUsersContent() {
                   </div>
                 </div>
 
-                {/* Footer Kartu Tanpa Tulisan Garis Potong */}
+                {/* Footer Kartu */}
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[7.5px] text-slate-500 font-medium">
                   <span>🌐 grisan.vercel.app</span>
                   <span className="font-bold text-slate-400 opacity-60">SDN Getasan</span>
