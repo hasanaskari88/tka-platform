@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 
-export type ThemeMode = 'school' | 'space' | 'jungle' | 'ocean'
+export type ThemeMode = 'school' | 'space' | 'jungle' | 'ocean' | 'disney' | 'cartoon3d'
 
 interface ThemeContextType {
   theme: ThemeMode
@@ -19,7 +19,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('cbt_theme') as ThemeMode
-    if (savedTheme && ['school', 'space', 'jungle', 'ocean'].includes(savedTheme)) {
+    if (
+      savedTheme &&
+      ['school', 'space', 'jungle', 'ocean', 'disney', 'cartoon3d'].includes(savedTheme)
+    ) {
       setThemeState(savedTheme)
     }
   }, [])
