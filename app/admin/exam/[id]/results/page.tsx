@@ -151,9 +151,14 @@ function ExamResultsContent() {
   const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<any | null>(null)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
-  const [isOverrideScore, setIsOverrideScore] = useState<boolean>(false) // 🔘 Checkbox Override Manual
+  const [isOverrideScore, setIsOverrideScore] = useState<boolean>(false)
   const [customFinalScore, setCustomFinalScore] = useState<number>(0)
   const [isSavingScore, setIsSavingScore] = useState<boolean>(false)
+
+  // 🖨️ STATE CETAK RAPOR ADMIN
+  const [showPrintCertModal, setShowPrintCertModal] = useState<boolean>(false)
+
+  const KKM_TARGET = 70
 
   const loadData = async () => {
     if (!examId) return
@@ -377,7 +382,6 @@ function ExamResultsContent() {
     loadData()
   }, [examId])
 
-  // 🧮 HELPER HITUNG OTOMATIS NILAI SKALA 100
   const calculateAutoScore = (
     answersMap: { [qId: string]: any },
     currentEssayScores: { [qId: string]: number }
@@ -401,7 +405,6 @@ function ExamResultsContent() {
     return maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
   }
 
-  // 📝 Buka Modal Detail & Penilaian Siswa
   const handleOpenDetailModal = (session: any) => {
     const map: { [key: string]: any } = {}
     if (Array.isArray(session.rawAnswers)) {
@@ -422,14 +425,13 @@ function ExamResultsContent() {
     })
 
     setEssayScores(initialEssayScores)
-    setIsOverrideScore(false) // Default: Checkbox Unchecked (Kalkulasi Otomatis)
+    setIsOverrideScore(false)
 
     const autoCalculated = calculateAutoScore(map, initialEssayScores)
     setCustomFinalScore(autoCalculated)
     setSelectedSessionForDetail(session)
   }
 
-  // 📝 UBAH NILAI ESSAY (OTOMATIS MEMPERBARUI NILAI AKHIR JIKA OVERRIDE OFF)
   const handleEssayScoreChange = (qId: string, value: number, maxScore: number) => {
     const val = Math.max(0, Math.min(value, maxScore))
     const updatedEssayScores = { ...essayScores, [qId]: val }
@@ -441,7 +443,6 @@ function ExamResultsContent() {
     }
   }
 
-  // 💾 SIMPAN PENILAIAN GURU KE DATABASE SUPABASE
   const handleSaveAssessment = async () => {
     if (!selectedSessionForDetail) return
     setIsSavingScore(true)
@@ -474,6 +475,10 @@ function ExamResultsContent() {
     }
 
     setIsSavingScore(false)
+  }
+
+  const handlePrint = () => {
+    window.print()
   }
 
   const handleDeleteSession = async (sessionId: string, studentName: string) => {
@@ -634,9 +639,34 @@ function ExamResultsContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <Navbar />
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-area, #printable-area * {
+            visibility: visible;
+          }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
 
-      <main className="p-8 max-w-7xl mx-auto space-y-8">
+      <div className="no-print">
+        <Navbar />
+      </div>
+
+      <main className="p-8 max-w-7xl mx-auto space-y-8 no-print">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b pb-4 border-slate-200 gap-3">
           <div>
             <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
@@ -921,13 +951,23 @@ function ExamResultsContent() {
                       </td>
                       <td className="p-3 text-center">
                         <div className="flex justify-center items-center space-x-1.5">
-                          {/* 👁️ TOMBOL DETAIL & NILAI ESSAY */}
                           <button
                             onClick={() => handleOpenDetailModal(session)}
                             className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold rounded transition-colors shadow-sm"
                             title="Lihat lembar jawaban & beri nilai"
                           >
                             👁️ Detail & Nilai
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setSelectedSessionForDetail(session)
+                              setShowPrintCertModal(true)
+                            }}
+                            className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded transition-colors shadow-sm"
+                            title="Cetak Sertifikat Siswa"
+                          >
+                            📜 Cetak
                           </button>
 
                           <button
@@ -949,7 +989,7 @@ function ExamResultsContent() {
       </main>
 
       {/* 📝 MODAL REVIEW LEMBAR JAWABAN & PENILAIAN GURU */}
-      {selectedSessionForDetail && (
+      {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             {/* Header Modal */}
@@ -966,15 +1006,23 @@ function ExamResultsContent() {
                 </p>
               </div>
 
-              <button
-                onClick={() => setSelectedSessionForDetail(null)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-bold transition-colors"
-              >
-                ✕
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setShowPrintCertModal(true)}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
+                >
+                  📜 Pratinjau Sertifikat
+                </button>
+                <button
+                  onClick={() => setSelectedSessionForDetail(null)}
+                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-bold transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
 
-            {/* Body Modal (Daftar Jawaban Siswa & Penilaian Essay) */}
+            {/* Body Modal */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-between">
                 <div>
@@ -1016,7 +1064,6 @@ function ExamResultsContent() {
                         </span>
                       </span>
 
-                      {/* Status Kebeneran */}
                       {qType === 'essay' ? (
                         <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 font-bold rounded">
                           📝 Essay / Uraian
@@ -1054,7 +1101,6 @@ function ExamResultsContent() {
                       </div>
                     </div>
 
-                    {/* FIELD NILAI KHUSUS SOAL ESSAY */}
                     {qType === 'essay' && (
                       <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
                         <span className="font-bold text-indigo-900 text-xs">
@@ -1081,10 +1127,9 @@ function ExamResultsContent() {
               })}
             </div>
 
-            {/* Footer Modal (Kalkulasi Skor & Checkbox Override Manual) */}
+            {/* Footer Modal */}
             <div className="p-5 border-t bg-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
               <div className="space-y-1.5">
-                {/* 🔘 CHECKBOX OVERRIDE MANUAL */}
                 <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
                   <input
                     type="checkbox"
@@ -1093,7 +1138,6 @@ function ExamResultsContent() {
                       const checked = e.target.checked
                       setIsOverrideScore(checked)
                       if (!checked) {
-                        // Reset kembali ke kalkulasi otomatis
                         const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores)
                         setCustomFinalScore(autoCalculated)
                       }
@@ -1103,13 +1147,12 @@ function ExamResultsContent() {
                   <span>Override Nilai Akhir secara manual (Opsional)</span>
                 </label>
 
-                {/* INPUT NILAI AKHIR */}
                 <div className="flex items-center space-x-2">
                   <input
                     type="number"
                     min="0"
                     max="100"
-                    disabled={!isOverrideScore} // 🔒 Terkunci jika checkbox tidak dicentang
+                    disabled={!isOverrideScore}
                     value={customFinalScore}
                     onChange={(e) => setCustomFinalScore(Number(e.target.value))}
                     className={`w-24 px-3 py-1.5 border-2 rounded-xl text-center font-black text-base focus:outline-none transition-all ${
@@ -1145,6 +1188,89 @@ function ExamResultsContent() {
                 >
                   {isSavingScore ? 'Menyimpan...' : '💾 Simpan Penilaian'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📜 MODAL CETAK SERTIFIKAT VIA ADMIN */}
+      {showPrintCertModal && selectedSessionForDetail && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+              <span className="font-bold text-sm">📜 Pratinjau Sertifikat Siswa (Admin View)</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors"
+                >
+                  🖨️ Cetak / Simpan PDF
+                </button>
+                <button
+                  onClick={() => setShowPrintCertModal(false)}
+                  className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-lg transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            {/* AREA CETAK SERTIFIKAT */}
+            <div id="printable-area" className="p-10 font-serif text-slate-900 bg-amber-50/30 border-[12px] border-double border-indigo-900 rounded-xl relative m-4">
+              <div className="border border-indigo-900 p-8 text-center rounded-lg space-y-4 bg-white/90">
+                <div className="flex justify-center items-center space-x-2">
+                  <span className="text-2xl">🎓</span>
+                  <span className="text-xs font-sans font-extrabold uppercase tracking-widest text-indigo-900">
+                    SD NEGERI GETASAN
+                  </span>
+                  <span className="text-2xl">🎓</span>
+                </div>
+
+                <h1 className="text-3xl font-bold uppercase tracking-wider text-slate-900 font-serif border-b-2 border-amber-500 pb-2 inline-block px-8">
+                  SERTIFIKAT CAPAIAN UJIAN
+                </h1>
+
+                <p className="text-xs font-sans text-slate-600 uppercase tracking-widest">
+                  Diberikan secara resmi kepada:
+                </p>
+
+                <div className="py-2">
+                  <h2 className="text-2xl font-black text-indigo-900 underline decoration-amber-500 uppercase tracking-wide">
+                    {selectedSessionForDetail.full_name}
+                  </h2>
+                  <p className="text-xs font-sans font-bold text-slate-500 mt-1">
+                    NIS/Username: @{selectedSessionForDetail.username} | Kelas: {selectedSessionForDetail.class_code || '-'}
+                  </p>
+                </div>
+
+                <p className="text-xs font-sans text-slate-700 max-w-xl mx-auto leading-relaxed">
+                  Telah menyelesaikan Ujian <strong className="text-indigo-900">"{exam?.title}"</strong> Subtes <strong className="uppercase text-indigo-900">{exam?.subtest}</strong> dengan perolehan nilai resmi:
+                </p>
+
+                <div className="py-2">
+                  <span className="text-4xl font-black font-sans text-indigo-700 bg-indigo-50 border-2 border-indigo-200 px-6 py-2 rounded-2xl inline-block shadow-inner">
+                    {selectedSessionForDetail.earned_score} <span className="text-xs font-normal text-slate-500">/ 100</span>
+                  </span>
+                </div>
+
+                <p className="text-xs font-sans font-bold text-emerald-700">
+                  Status: {selectedSessionForDetail.earned_score >= KKM_TARGET ? '✓ DILATIH DENGAN SANGAT BAIK (TUNTAS KKM)' : 'PERLU LATIHAN LANJUTAN'}
+                </p>
+
+                <div className="flex justify-between items-end pt-8 font-sans text-xs">
+                  <div className="text-left">
+                    <p className="text-slate-500">Tanggal Selesai:</p>
+                    <p className="font-bold text-slate-800">
+                      {selectedSessionForDetail.completed_at ? new Date(selectedSessionForDetail.completed_at).toLocaleDateString('id-ID', { dateStyle: 'full' }) : '-'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-slate-500">Kepala Sekolah / Panitia Ujian,</p>
+                    <div className="h-12"></div>
+                    <p className="font-bold underline text-slate-900">SD NEGERI GETASAN</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

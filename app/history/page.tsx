@@ -13,6 +13,12 @@ function HistoryContent() {
   const [subtestStats, setSubtestStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // 🖨️ State Modal Cetak
+  const [showRaporModal, setShowRaporModal] = useState(false)
+  const [selectedCertSession, setSelectedCertSession] = useState<any | null>(null)
+
+  const KKM_TARGET = 70 // Batas Minimal Ketuntasan KKM
+
   const loadStudentHistory = async () => {
     const supabase = createClient()
 
@@ -106,7 +112,6 @@ function HistoryContent() {
     loadStudentHistory()
   }, [])
 
-  // 🟢 Mengerjakan kembali membawa parameter ?force_new=true untuk membuat sesi baru
   const handleRetakeExam = (examId: string, examTitle: string) => {
     if (
       confirm(
@@ -120,6 +125,10 @@ function HistoryContent() {
       }
       router.push(`/exam/${examId}?force_new=true`)
     }
+  }
+
+  const handlePrint = () => {
+    window.print()
   }
 
   const completedHistory = historyList.filter((h) => h.status === 'completed')
@@ -144,9 +153,35 @@ function HistoryContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <Navbar />
+      {/* CSS Khusus Cetak Browser */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-area, #printable-area * {
+            visibility: visible;
+          }
+          #printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
 
-      <main className="p-8 max-w-7xl mx-auto space-y-8">
+      <div className="no-print">
+        <Navbar />
+      </div>
+
+      <main className="p-8 max-w-7xl mx-auto space-y-8 no-print">
         <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b pb-4 border-slate-200 gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-800">
@@ -157,22 +192,34 @@ function HistoryContent() {
             </p>
           </div>
 
-          {profile && (
-            <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3 text-xs">
-              <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
-                {profile.full_name?.charAt(0).toUpperCase() || 'S'}
-              </div>
-              <div>
-                <div className="font-bold text-slate-800">{profile.full_name}</div>
-                <div className="text-slate-400">
-                  @{profile.username} | Kelas:{' '}
-                  <span className="font-semibold text-indigo-600">
-                    {profile.class_code || '-'}
-                  </span>
+          <div className="flex items-center space-x-3">
+            {completedHistory.length > 0 && (
+              <button
+                onClick={() => setShowRaporModal(true)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center space-x-1.5"
+              >
+                <span>🖨️</span>
+                <span>Cetak Rapor Lengkap PDF</span>
+              </button>
+            )}
+
+            {profile && (
+              <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-3 text-xs">
+                <div className="w-8 h-8 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0">
+                  {profile.full_name?.charAt(0).toUpperCase() || 'S'}
+                </div>
+                <div>
+                  <div className="font-bold text-slate-800">{profile.full_name}</div>
+                  <div className="text-slate-400">
+                    @{profile.username} | Kelas:{' '}
+                    <span className="font-semibold text-indigo-600">
+                      {profile.class_code || '-'}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -353,21 +400,29 @@ function HistoryContent() {
                               <span>Lanjutkan Ujian</span>
                             </Link>
                           ) : (
-                            <div className="flex items-center justify-center space-x-2">
+                            <div className="flex items-center justify-center space-x-1.5">
                               <Link
                                 href={`/exam/${item.exam_id}/summary?session_id=${item.session_id}`}
-                                className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                                className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                                title="Review Jawaban"
                               >
-                                <span>👁️</span>
-                                <span>Review</span>
+                                <span>👁️ Review</span>
                               </Link>
 
                               <button
-                                onClick={() => handleRetakeExam(item.exam_id, item.exam_title)}
-                                className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                                onClick={() => setSelectedCertSession(item)}
+                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                                title="Cetak Sertifikat Tes"
                               >
-                                <span>🔄</span>
-                                <span>Coba Lagi</span>
+                                <span>📜 Sertifikat</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleRetakeExam(item.exam_id, item.exam_title)}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                                title="Coba Lagi Ujian"
+                              >
+                                <span>🔄 Retake</span>
                               </button>
                             </div>
                           )}
@@ -387,6 +442,257 @@ function HistoryContent() {
           </div>
         </div>
       </main>
+
+      {/* 📑 MODAL RAPOR HASIL UJIAN LENGKAP (A4 PORTRAIT) */}
+      {showRaporModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+              <span className="font-bold text-sm">🖨️ Pratinjau Rapor Hasil Ujian Siswa</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors"
+                >
+                  🖨️ Cetak / Simpan PDF
+                </button>
+                <button
+                  onClick={() => setShowRaporModal(false)}
+                  className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-lg transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            {/* AREA CETAK RAPOR */}
+            <div id="printable-area" className="p-8 overflow-y-auto font-sans text-slate-900 bg-white">
+              {/* KOP RESMI SEKOLAH */}
+              <div className="border-b-4 border-double border-slate-900 pb-4 mb-6 flex items-center justify-between text-center">
+                <div className="w-16 h-16 bg-indigo-700 text-white font-black text-2xl flex items-center justify-center rounded-2xl shrink-0">
+                  SD
+                </div>
+                <div className="flex-1 px-4">
+                  <h2 className="text-xl font-extrabold uppercase tracking-wide text-slate-900">
+                    SD NEGERI GETASAN
+                  </h2>
+                  <p className="text-xs text-slate-600 font-medium mt-0.5">
+                    Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang, Jawa Tengah (50774)
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    Platform Ujian CBT Interaktif & Simulasi Tes Kemampuan Akademik (TKA)
+                  </p>
+                </div>
+                <div className="w-16 h-16 border-2 border-indigo-600 text-indigo-700 font-black text-xs flex items-center justify-center rounded-2xl shrink-0 uppercase">
+                  TKA
+                </div>
+              </div>
+
+              <div className="text-center mb-6">
+                <h3 className="text-lg font-black uppercase text-indigo-900 tracking-wider">
+                  RAPOR CAPAIAN SIMULASI TKA
+                </h3>
+                <p className="text-xs font-semibold text-slate-500">
+                  Tahun Ajaran 2026/2027
+                </p>
+              </div>
+
+              {/* IDENTITAS SISWA */}
+              <div className="grid grid-cols-2 gap-4 text-xs font-medium border border-slate-300 rounded-xl p-4 mb-6 bg-slate-50/50">
+                <div>
+                  <table className="w-full">
+                    <tbody>
+                      <tr>
+                        <td className="w-32 py-1 text-slate-500">Nama Siswa</td>
+                        <td className="font-bold text-slate-900">: {profile?.full_name}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-1 text-slate-500">NIS / Username</td>
+                        <td className="font-bold text-slate-900">: @{profile?.username}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div>
+                  <table className="w-full">
+                    <tbody>
+                      <tr>
+                        <td className="w-32 py-1 text-slate-500">Kelas / Rombel</td>
+                        <td className="font-bold text-slate-900">: {profile?.class_code || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="py-1 text-slate-500">Tanggal Cetak</td>
+                        <td className="font-bold text-slate-900">: {new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* TABEL REKAP NILAI TES */}
+              <div className="mb-6">
+                <h4 className="text-xs font-bold text-slate-800 uppercase mb-2">
+                  A. Hasil Evaluasi Ujian & Subtes
+                </h4>
+                <table className="w-full border-collapse text-xs border border-slate-300 text-center">
+                  <thead className="bg-slate-100 font-bold text-slate-800">
+                    <tr>
+                      <th className="border border-slate-300 p-2 w-10">No</th>
+                      <th className="border border-slate-300 p-2 text-left">Nama Paket Ujian</th>
+                      <th className="border border-slate-300 p-2 w-28">Subtes</th>
+                      <th className="border border-slate-300 p-2 w-20">KKM</th>
+                      <th className="border border-slate-300 p-2 w-24">Skor Saya</th>
+                      <th className="border border-slate-300 p-2 w-28">Status Ketuntasan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {completedHistory.map((h, i) => {
+                      const isTuntas = h.score >= KKM_TARGET
+                      return (
+                        <tr key={h.session_id} className="even:bg-slate-50/50">
+                          <td className="border border-slate-300 p-2">{i + 1}</td>
+                          <td className="border border-slate-300 p-2 text-left font-bold">{h.exam_title}</td>
+                          <td className="border border-slate-300 p-2 uppercase">{h.subtest}</td>
+                          <td className="border border-slate-300 p-2 font-semibold">{KKM_TARGET}</td>
+                          <td className="border border-slate-300 p-2 font-black text-indigo-700">{h.score}</td>
+                          <td className="border border-slate-300 p-2 font-bold">
+                            {isTuntas ? (
+                              <span className="text-emerald-700">✓ TUNTAS</span>
+                            ) : (
+                              <span className="text-rose-600">✕ BELUM TUNTAS</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* RINGKASAN CAPAIAN SUBTES */}
+              <div className="mb-8">
+                <h4 className="text-xs font-bold text-slate-800 uppercase mb-2">
+                  B. Ringkasan Penguasaan Materi Subtes
+                </h4>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 border border-slate-300 rounded-xl bg-slate-50">
+                    <span className="text-slate-500 font-bold block mb-1">Rata-Rata Skor Total</span>
+                    <span className="text-xl font-black text-indigo-700">{overallAverage} / 100 Poin</span>
+                  </div>
+                  <div className="p-3 border border-slate-300 rounded-xl bg-slate-50">
+                    <span className="text-slate-500 font-bold block mb-1">Status Kelulusan KKM</span>
+                    <span className={`text-xl font-black ${overallAverage >= KKM_TARGET ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {overallAverage >= KKM_TARGET ? 'MEMENUHI KKM' : 'PERLU REMIDI'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* TANDA TANGAN TIGA PIHAK */}
+              <div className="grid grid-cols-3 gap-4 text-center text-xs pt-8 border-t border-slate-200">
+                <div>
+                  <p className="text-slate-500">Orang Tua / Wali Murid,</p>
+                  <div className="h-16"></div>
+                  <p className="font-bold underline text-slate-800">( .................................... )</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Guru Kelas,</p>
+                  <div className="h-16"></div>
+                  <p className="font-bold underline text-slate-800">( Wali Kelas {profile?.class_code || ''} )</p>
+                </div>
+                <div>
+                  <p className="text-slate-500">Kepala Sekolah,</p>
+                  <div className="h-16"></div>
+                  <p className="font-bold underline text-slate-800">SD NEGERI GETASAN</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📜 MODAL SERTIFIKAT PENHARGAAN UJIAN (LANDSCAPE A4) */}
+      {selectedCertSession && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+              <span className="font-bold text-sm">📜 Pratinjau Sertifikat Hasil Ujian</span>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePrint}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors"
+                >
+                  🖨️ Cetak / Simpan PDF
+                </button>
+                <button
+                  onClick={() => setSelectedCertSession(null)}
+                  className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-lg transition-colors"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            {/* AREA CETAK SERTIFIKAT */}
+            <div id="printable-area" className="p-10 font-serif text-slate-900 bg-amber-50/30 border-[12px] border-double border-indigo-900 rounded-xl relative m-4">
+              <div className="border border-indigo-900 p-8 text-center rounded-lg space-y-4 bg-white/90">
+                <div className="flex justify-center items-center space-x-2">
+                  <span className="text-2xl">🎓</span>
+                  <span className="text-xs font-sans font-extrabold uppercase tracking-widest text-indigo-900">
+                    SD NEGERI GETASAN
+                  </span>
+                  <span className="text-2xl">🎓</span>
+                </div>
+
+                <h1 className="text-3xl font-bold uppercase tracking-wider text-slate-900 font-serif border-b-2 border-amber-500 pb-2 inline-block px-8">
+                  SERTIFIKAT CAPAIAN UJIAN
+                </h1>
+
+                <p className="text-xs font-sans text-slate-600 uppercase tracking-widest">
+                  Diberikan secara resmi kepada:
+                </p>
+
+                <div className="py-2">
+                  <h2 className="text-2xl font-black text-indigo-900 underline decoration-amber-500 uppercase tracking-wide">
+                    {profile?.full_name}
+                  </h2>
+                  <p className="text-xs font-sans font-bold text-slate-500 mt-1">
+                    NIS/Username: @{profile?.username} | Kelas: {profile?.class_code || '-'}
+                  </p>
+                </div>
+
+                <p className="text-xs font-sans text-slate-700 max-w-xl mx-auto leading-relaxed">
+                  Telah menyelesaikan Simulasi Ujian CBT <strong className="text-indigo-900">"{selectedCertSession.exam_title}"</strong> Subtes <strong className="uppercase text-indigo-900">{selectedCertSession.subtest}</strong> dengan perolehan nilai:
+                </p>
+
+                <div className="py-2">
+                  <span className="text-4xl font-black font-sans text-indigo-700 bg-indigo-50 border-2 border-indigo-200 px-6 py-2 rounded-2xl inline-block shadow-inner">
+                    {selectedCertSession.score} <span className="text-xs font-normal text-slate-500">/ 100</span>
+                  </span>
+                </div>
+
+                <p className="text-xs font-sans font-bold text-emerald-700">
+                  Status: {selectedCertSession.score >= KKM_TARGET ? '✓ DILATIH DENGAN SANGAT BAIK (TUNTAS KKM)' : 'PERLU LATIHAN LANJUTAN'}
+                </p>
+
+                <div className="flex justify-between items-end pt-8 font-sans text-xs">
+                  <div className="text-left">
+                    <p className="text-slate-500">Tanggal Selesai:</p>
+                    <p className="font-bold text-slate-800">
+                      {new Date(selectedCertSession.completed_at).toLocaleDateString('id-ID', { dateStyle: 'full' })}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-slate-500">Kepala Sekolah / Panitia Ujian,</p>
+                    <div className="h-12"></div>
+                    <p className="font-bold underline text-slate-900">SD NEGERI GETASAN</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
