@@ -22,6 +22,9 @@ function ExamEngineContent() {
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 1. Catat timestamp persis saat siswa membuka ruang ujian
+  const [startTimeIso] = useState<string>(new Date().toISOString())
+
   // Helper Acak Array
   const shuffleArray = (array: any[]) => {
     const arr = [...array]
@@ -193,13 +196,15 @@ function ExamEngineContent() {
       const isUnattempted =
         userAns === undefined ||
         userAns === null ||
+        userAns === '' ||
         (Array.isArray(userAns) && userAns.length === 0) ||
         (typeof userAns === 'object' && !Array.isArray(userAns) && Object.keys(userAns).length === 0)
 
       if (!isUnattempted) {
         // 1. Pilihan Ganda Biasa
         if (qType === 'multiple_choice') {
-          if (String(userAns).trim().toUpperCase() === String(q.correct_option).trim().toUpperCase()) {
+          const correctOpt = String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
+          if (String(userAns).trim().toUpperCase() === correctOpt) {
             totalPointsEarned += qMaxScore
           }
         } 
@@ -207,7 +212,7 @@ function ExamEngineContent() {
         else if (qType === 'complex_multiple_choice') {
           const correctKeys: string[] = Array.isArray(q.correct_answers)
             ? q.correct_answers
-            : [q.correct_option]
+            : [q.correct_option || q.correct_answer]
           const userKeys: string[] = Array.isArray(userAns) ? userAns : []
 
           const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
@@ -244,9 +249,9 @@ function ExamEngineContent() {
       ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100
       : 0
 
-    const nowIso = new Date().toISOString()
+    const endTimeIso = new Date().toISOString()
 
-    // 1. Simpan Sesi Ujian dengan Nilai Skala 100
+    // 1. Simpan Sesi Ujian dengan Kolom Resmi (start_time dan end_time)
     const { data: session, error: sessionErr } = await supabase
       .from('exam_sessions')
       .insert([
@@ -255,8 +260,8 @@ function ExamEngineContent() {
           user_id: user?.id || null,
           status: 'completed',
           score: finalScore,
-          submitted_at: nowIso,
-          completed_at: nowIso,
+          start_time: startTimeIso, // ✅ Menggunakan nama kolom yang sesuai
+          end_time: endTimeIso,     // ✅ Menggunakan nama kolom yang sesuai
         },
       ])
       .select()
@@ -268,12 +273,21 @@ function ExamEngineContent() {
       return
     }
 
-    // 2. Simpan Detail Jawaban Siswa
-    const answerRecords = questions.map((q) => ({
-      session_id: session.id,
-      question_id: q.id,
-      user_answer: userAnswers[q.id] !== undefined ? userAnswers[q.id] : null,
-    }))
+    // 2. Simpan Detail Jawaban Siswa (Aman untuk Object/Array)
+    const answerRecords = questions.map((q) => {
+      const rawAns = userAnswers[q.id]
+      const formattedAns = rawAns === undefined || rawAns === null
+        ? null
+        : typeof rawAns === 'string'
+        ? rawAns
+        : JSON.stringify(rawAns)
+
+      return {
+        session_id: session.id,
+        question_id: q.id,
+        user_answer: formattedAns,
+      }
+    })
 
     await supabase.from('answers').insert(answerRecords)
 

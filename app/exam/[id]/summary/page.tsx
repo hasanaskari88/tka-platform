@@ -36,7 +36,7 @@ const evaluateQuestion = (q: any, userAns: any) => {
   if (qType === 'complex_multiple_choice') {
     const correctKeys: string[] = Array.isArray(q.correct_answers)
       ? q.correct_answers.map((k: any) => String(k).trim().toUpperCase())
-      : [String(q.correct_option || '').trim().toUpperCase()]
+      : [String(q.correct_option || q.correct_answer || '').trim().toUpperCase()]
 
     let userKeys: string[] = []
     if (Array.isArray(userAns)) {
@@ -156,7 +156,7 @@ function ExamSummaryContent() {
             .select('*')
             .eq('exam_id', examId)
             .eq('user_id', user.id)
-            .order('completed_at', { ascending: false })
+            .order('created_at', { ascending: false }) // ✅ Menggunakan created_at
             .limit(1)
             .single()
 
@@ -175,7 +175,7 @@ function ExamSummaryContent() {
         if (session) setSessionData(session)
       }
 
-      // 4. Jawaban Rinci
+      // 4. Jawaban Rinci dengan Auto-Parsing JSON
       if (currentSessionId) {
         const { data: answersData } = await supabase
           .from('answers')
@@ -185,7 +185,20 @@ function ExamSummaryContent() {
         if (answersData) {
           const map: { [key: string]: any } = {}
           answersData.forEach((ans) => {
-            map[ans.question_id] = ans.user_answer !== undefined ? ans.user_answer : ans.selected_option
+            let rawVal = ans.user_answer !== undefined && ans.user_answer !== null
+              ? ans.user_answer
+              : ans.selected_option
+
+            // Coba parse jika tersimpan sebagai JSON string
+            if (typeof rawVal === 'string') {
+              try {
+                const parsed = JSON.parse(rawVal)
+                if (parsed !== null) rawVal = parsed
+              } catch {
+                // Biarkan sebagai string biasa
+              }
+            }
+            map[ans.question_id] = rawVal
           })
           setUserAnswersMap(map)
         }
@@ -227,18 +240,29 @@ function ExamSummaryContent() {
     ? Math.round((totalPointsEarned / totalMaxPoints) * 100)
     : 0
 
-  // 🔄 PERBARUI DATABASE OTOMATIS JIKA NILAI DI DB MASIH SALAH/LAMA (misal 7)
+  // 🔄 PERBARUI DATABASE OTOMATIS JIKA NILAI/END_TIME DI DB MASIH NULL ATAU SALAH
   useEffect(() => {
     if (sessionData && !loading && questions.length > 0) {
       const dbScore = Number(sessionData.score)
-      if (dbScore !== calculatedScore) {
+      const needFixScore = dbScore !== calculatedScore
+      const needFixEndTime = !sessionData.end_time
+
+      if (needFixScore || needFixEndTime) {
         const supabase = createClient()
+        const nowIso = new Date().toISOString()
+        const updatedEndTime = sessionData.end_time || nowIso
+
         supabase
           .from('exam_sessions')
-          .update({ score: calculatedScore })
+          .update({
+            score: calculatedScore,
+            end_time: updatedEndTime, // ✅ Mengisi end_time jika NULL
+          })
           .eq('id', sessionData.id)
           .then(() => {
-            setSessionData((prev: any) => (prev ? { ...prev, score: calculatedScore } : prev))
+            setSessionData((prev: any) =>
+              prev ? { ...prev, score: calculatedScore, end_time: updatedEndTime } : prev
+            )
           })
       }
     }
@@ -477,7 +501,7 @@ function ExamSummaryContent() {
                     <div className="space-y-2 pt-1">
                       {q.options.map((opt: any, oIdx: number) => {
                         const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                        const correctOpt = String(q.correct_option || '').trim().toUpperCase()
+                        const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? '').trim().toUpperCase()
                         const userOpt = String(userAns || '').trim().toUpperCase()
 
                         const isSelected = userOpt === optKey.toUpperCase()
@@ -531,11 +555,25 @@ function ExamSummaryContent() {
                     <div className="space-y-2 pt-1">
                       {q.options.map((opt: any, oIdx: number) => {
                         const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                        const correctKeys: string[] = Array.isArray(q.correct_answers) ? q.correct_answers : []
-                        const userKeys: string[] = Array.isArray(userAns) ? userAns : []
+                        const correctKeys: string[] = Array.isArray(q.correct_answers)
+                          ? q.correct_answers.map((k: any) => String(k).trim().toUpperCase())
+                          : [String(q.correct_option || q.correct_answer || '').trim().toUpperCase()]
 
-                        const isSelected = userKeys.includes(optKey)
-                        const isCorrectOpt = correctKeys.includes(optKey)
+                        let userKeys: string[] = []
+                        if (Array.isArray(userAns)) {
+                          userKeys = userAns.map((k: any) => String(k).trim().toUpperCase())
+                        } else if (typeof userAns === 'string') {
+                          try {
+                            const parsed = JSON.parse(userAns)
+                            if (Array.isArray(parsed)) userKeys = parsed.map((k: any) => String(k).trim().toUpperCase())
+                            else userKeys = [userAns.trim().toUpperCase()]
+                          } catch {
+                            userKeys = [userAns.trim().toUpperCase()]
+                          }
+                        }
+
+                        const isSelected = userKeys.includes(optKey.toUpperCase())
+                        const isCorrectOpt = correctKeys.includes(optKey.toUpperCase())
 
                         let optionStyle = 'border-white/10 bg-white/5 opacity-80'
                         if (isCorrectOpt) {
@@ -586,11 +624,21 @@ function ExamSummaryContent() {
                           {q.options.map((st: any, sIdx: number) => {
                             const stId = String(st.id || sIdx + 1)
                             const correctObj = q.correct_answers || {}
-                            const userObj = typeof userAns === 'object' && !Array.isArray(userAns) ? userAns : {}
+
+                            let userObj: { [key: string]: string } = {}
+                            if (typeof userAns === 'object' && userAns !== null && !Array.isArray(userAns)) {
+                              userObj = userAns
+                            } else if (typeof userAns === 'string') {
+                              try {
+                                userObj = JSON.parse(userAns)
+                              } catch {
+                                userObj = {}
+                              }
+                            }
 
                             const userVal = userObj[stId] || 'Kosong'
                             const correctVal = correctObj[stId] || 'Benar'
-                            const isRowCorrect = userVal === correctVal
+                            const isRowCorrect = String(userVal).trim().toLowerCase() === String(correctVal).trim().toLowerCase()
 
                             return (
                               <tr key={stId} className="hover:bg-white/5">
@@ -623,7 +671,7 @@ function ExamSummaryContent() {
                   {qType === 'essay' && (
                     <div className="p-3 bg-white/5 border border-white/10 rounded-xl text-xs space-y-1">
                       <span className="font-bold text-amber-300">Jawaban Essay Siswa:</span>
-                      <p className="whitespace-pre-wrap text-white/90">{userAns || '(Belum dijawab)'}</p>
+                      <p className="whitespace-pre-wrap text-white/90">{typeof userAns === 'string' ? userAns : '(Belum dijawab)'}</p>
                     </div>
                   )}
 
