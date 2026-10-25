@@ -170,10 +170,8 @@ interface DocumentSettings {
   issuePlace: string
   issueDate: string
   kkmTarget: number
-  // Opsi Tanda Tangan fleksibel
   signatoryType: 'both' | 'principal_only' | 'teacher_only'
   includeParentSign: boolean
-  // Detail Identitas Penandatangan
   principalName: string
   principalNip: string
   teacherName: string
@@ -219,15 +217,15 @@ function ExamResultsContent() {
   // State Cetak Sertifikat Single
   const [showPrintCertModal, setShowPrintCertModal] = useState<boolean>(false)
 
-  // 🟢 STATE PENGATURAN DOKUMEN & TANDA TANGAN (DINAMIS)
+  // 🟢 STATE PENGATURAN DOKUMEN & TANDA TANGAN
   const [docSettings, setDocSettings] = useState<DocumentSettings>({
     schoolName: 'SD NEGERI GETASAN',
     schoolAddress: 'Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang (50774)',
-    certificateTitle: 'RAPOR & SERTIFIKAT CAPAIAN SIMULASI TKA',
+    certificateTitle: 'SERTIFIKAT CAPAIAN AKADEMIK',
     issuePlace: 'Getasan',
     issueDate: new Date().toLocaleDateString('id-ID', { dateStyle: 'full' }),
     kkmTarget: 70,
-    signatoryType: 'both', // 'both' | 'principal_only' | 'teacher_only'
+    signatoryType: 'both',
     includeParentSign: true,
     principalName: 'Siti Aminah, S.Pd., M.Pd.',
     principalNip: '19750812 199903 2 001',
@@ -701,48 +699,46 @@ function ExamResultsContent() {
     XLSX.writeFile(workbook, `Rekap_Lengkap_${cleanTitle}.xlsx`)
   }
 
-  // 🟢 KOMPONEN BLOK TANDA TANGAN DINAMIS (DINERDER DI PREVIEW & MODAL CETAK)
+  // 🟢 KOMPONEN BLOK TANDA TANGAN KEKINIAN & ADAPTIF
   const DynamicSignatureBlock = ({ studentClass }: { studentClass?: string }) => {
     const showParent = docSettings.includeParentSign
-    const type = docSettings.signatoryType // 'both' | 'principal_only' | 'teacher_only'
+    const type = docSettings.signatoryType
 
-    // Hitung jumlah kolom grid (1, 2, atau 3)
     let gridColsClass = 'grid-cols-3'
     if (showParent) {
       gridColsClass = type === 'both' ? 'grid-cols-3' : 'grid-cols-2'
     } else {
-      gridColsClass = type === 'both' ? 'grid-cols-2' : 'grid-cols-1'
+      gridColsClass = type === 'both' ? 'grid-cols-2' : 'grid-cols-1 font-sans text-center'
     }
 
     return (
-      <div className={`grid ${gridColsClass} gap-4 text-center text-xs pt-8 border-t border-slate-200`}>
-        {/* Kolom 1: Orang Tua / Wali (Jika Diaktifkan) */}
+      <div className={`grid ${gridColsClass} gap-6 text-center text-xs pt-8 border-t-2 border-slate-200`}>
         {showParent && (
-          <div>
-            <p className="text-slate-500">Orang Tua / Wali Murid,</p>
+          <div className="space-y-1">
+            <p className="text-slate-500 font-medium">Orang Tua / Wali Murid,</p>
             <div className="h-16"></div>
-            <p className="font-bold underline text-slate-800">( .................................... )</p>
+            <p className="font-bold text-slate-800 border-b-2 border-slate-400 inline-block px-4 pb-0.5">
+              ( .................................... )
+            </p>
           </div>
         )}
 
-        {/* Kolom 2: Guru / Wali Kelas (Jika 'both' atau 'teacher_only') */}
         {(type === 'both' || type === 'teacher_only') && (
-          <div>
-            <p className="text-slate-500">Guru / Wali Kelas {studentClass || ''},</p>
+          <div className="space-y-0.5">
+            <p className="text-slate-500 font-medium">Guru / Wali Kelas {studentClass || ''},</p>
             <div className="h-16"></div>
-            <p className="font-bold underline text-slate-800">{docSettings.teacherName}</p>
-            <p className="text-[10px] text-slate-500">NIP. {docSettings.teacherNip}</p>
+            <p className="font-bold text-slate-900 underline decoration-indigo-600 decoration-2">{docSettings.teacherName}</p>
+            <p className="text-[10px] text-slate-500 font-mono mt-0.5">NIP. {docSettings.teacherNip}</p>
           </div>
         )}
 
-        {/* Kolom 3: Kepala Sekolah (Jika 'both' atau 'principal_only') */}
         {(type === 'both' || type === 'principal_only') && (
-          <div>
-            <p className="text-slate-500">{docSettings.issuePlace}, {docSettings.issueDate}</p>
-            <p className="text-slate-500 font-semibold">Kepala Sekolah,</p>
+          <div className="space-y-0.5">
+            <p className="text-slate-500 font-medium">{docSettings.issuePlace}, {docSettings.issueDate}</p>
+            <p className="text-slate-700 font-bold uppercase tracking-wider text-[11px]">Kepala Sekolah,</p>
             <div className="h-14"></div>
-            <p className="font-bold underline text-slate-800">{docSettings.principalName}</p>
-            <p className="text-[10px] text-slate-500">NIP. {docSettings.principalNip}</p>
+            <p className="font-bold text-slate-900 underline decoration-amber-600 decoration-2">{docSettings.principalName}</p>
+            <p className="text-[10px] text-slate-500 font-mono mt-0.5">NIP. {docSettings.principalNip}</p>
           </div>
         )}
       </div>
@@ -751,7 +747,7 @@ function ExamResultsContent() {
 
   // Dummy Siswa untuk Live Preview
   const dummyStudent = {
-    full_name: 'Ahmad Fauzi (Contoh Siswa)',
+    full_name: 'Ahmad Fauzi, S.Pd (Contoh Siswa)',
     username: 'ahmad_fauzi',
     class_code: '6A',
     earned_score: 95,
@@ -811,10 +807,10 @@ function ExamResultsContent() {
               {exam?.subtest}
             </span>
             <h1 className="text-2xl font-bold text-slate-800 mt-1">
-              📊 Rekapitulasi & Pengaturan Dokumen: {exam?.title}
+              📊 Rekapitulasi & Desain Dokumen: {exam?.title}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Kelola hasil ujian siswa, atur format penandatanganan dokumen, serta cetak masal sertifikat & rapor.
+              Kelola hasil ujian siswa, sesuaikan format penandatanganan dokumen, dan cetak sertifikat & rapor berdesain kekinian.
             </p>
           </div>
 
@@ -854,7 +850,7 @@ function ExamResultsContent() {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            ⚙️ Pengaturan Penandatanganan & Live Preview
+            ⚙️ Desain Penandatanganan & Live Preview
           </button>
         </div>
 
@@ -990,7 +986,6 @@ function ExamResultsContent() {
                 </h2>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {/* Search */}
                   <input
                     type="text"
                     placeholder="🔍 Cari nama/kelas..."
@@ -999,7 +994,6 @@ function ExamResultsContent() {
                     className="px-3 py-1.5 border rounded-lg text-xs w-44"
                   />
 
-                  {/* Filter Dropdown Kelas */}
                   <select
                     value={filterClass}
                     onChange={(e) => setFilterClass(e.target.value)}
@@ -1013,7 +1007,6 @@ function ExamResultsContent() {
                     ))}
                   </select>
 
-                  {/* Tombol Cetak Kolektif Rapor Satu Kelas */}
                   <button
                     onClick={() => setShowBulkRaporModal(true)}
                     className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm"
@@ -1121,7 +1114,7 @@ function ExamResultsContent() {
               </h2>
 
               {/* OPSI PENANDATANGANAN UTAMA */}
-              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-2">
+              <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl space-y-2">
                 <label className="block text-xs font-bold text-indigo-900 uppercase">
                   ✍️ OPSI PENANDATANGAN DOKUMEN:
                 </label>
@@ -1133,7 +1126,7 @@ function ExamResultsContent() {
                       value="both"
                       checked={docSettings.signatoryType === 'both'}
                       onChange={() => setDocSettings({ ...docSettings, signatoryType: 'both' })}
-                      className="text-indigo-600"
+                      className="text-indigo-600 focus:ring-indigo-500"
                     />
                     <span>Keduanya (Guru Kelas & Kepala Sekolah)</span>
                   </label>
@@ -1144,7 +1137,7 @@ function ExamResultsContent() {
                       value="principal_only"
                       checked={docSettings.signatoryType === 'principal_only'}
                       onChange={() => setDocSettings({ ...docSettings, signatoryType: 'principal_only' })}
-                      className="text-indigo-600"
+                      className="text-indigo-600 focus:ring-indigo-500"
                     />
                     <span>Hanya Kepala Sekolah</span>
                   </label>
@@ -1155,20 +1148,19 @@ function ExamResultsContent() {
                       value="teacher_only"
                       checked={docSettings.signatoryType === 'teacher_only'}
                       onChange={() => setDocSettings({ ...docSettings, signatoryType: 'teacher_only' })}
-                      className="text-indigo-600"
+                      className="text-indigo-600 focus:ring-indigo-500"
                     />
                     <span>Hanya Guru Kelas / Wali Kelas</span>
                   </label>
                 </div>
 
-                {/* TOGGLE TANDA TANGAN ORANG TUA */}
                 <div className="pt-2 border-t border-indigo-200">
                   <label className="flex items-center space-x-2 text-xs font-bold text-indigo-950 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={docSettings.includeParentSign}
                       onChange={(e) => setDocSettings({ ...docSettings, includeParentSign: e.target.checked })}
-                      className="w-4 h-4 rounded text-indigo-600"
+                      className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
                     />
                     <span>Sertakan Kolom Tanda Tangan Orang Tua / Wali Murid</span>
                   </label>
@@ -1217,7 +1209,6 @@ function ExamResultsContent() {
                 </div>
               </div>
 
-              {/* IDENTITAS KEPALA SEKOLAH */}
               {(docSettings.signatoryType === 'both' || docSettings.signatoryType === 'principal_only') && (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                   <span className="text-xs font-bold text-indigo-700 block">👤 DATA KEPALA SEKOLAH</span>
@@ -1242,7 +1233,6 @@ function ExamResultsContent() {
                 </div>
               )}
 
-              {/* IDENTITAS GURU KELAS */}
               {(docSettings.signatoryType === 'both' || docSettings.signatoryType === 'teacher_only') && (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                   <span className="text-xs font-bold text-indigo-700 block">👤 DATA GURU / WALI KELAS</span>
@@ -1296,63 +1286,122 @@ function ExamResultsContent() {
                 </div>
               </div>
 
-              {/* KERTAS PREVIEW */}
+              {/* KERTAS PREVIEW DESAIN KEKINIAN */}
               <div className="flex-1 bg-slate-100 p-4 rounded-xl overflow-y-auto max-h-[650px] flex justify-center border">
                 {previewDocType === 'raport' ? (
-                  /* PREVIEW RAPOR */
-                  <div className="w-full bg-white p-6 shadow-md rounded-sm border text-slate-900 font-sans text-xs">
-                    <div className="border-b-4 border-double border-slate-900 pb-3 mb-4 text-center">
-                      <h2 className="text-sm font-extrabold uppercase">{docSettings.schoolName}</h2>
-                      <p className="text-[10px] text-slate-600">{docSettings.schoolAddress}</p>
+                  /* 🟢 PREVIEW RAPOR MODERN & KEKINIAN */
+                  <div className="w-full bg-white p-6 shadow-md rounded-xl border border-slate-200 text-slate-900 font-sans text-xs space-y-4">
+                    {/* Header Kop Minimalis Modern */}
+                    <div className="border-b-2 border-indigo-600 pb-3 flex items-center justify-between text-center">
+                      <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-12 h-12 object-contain" />
+                      <div className="flex-1 px-3">
+                        <span className="bg-indigo-600 text-white rounded-full px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase inline-block mb-1">
+                          Laporan Capaian CBT
+                        </span>
+                        <h2 className="text-base font-black uppercase text-slate-900 tracking-wide">{docSettings.schoolName}</h2>
+                        <p className="text-[10px] text-slate-500">{docSettings.schoolAddress}</p>
+                      </div>
+                      <SmartLogo candidates={TKA_LOGO_CANDIDATES} alt="Logo TKA" fallbackText="TKA" className="w-12 h-12 object-contain" />
                     </div>
 
-                    <div className="text-center mb-4">
-                      <h3 className="text-sm font-black uppercase text-indigo-900">RAPOR CAPAIAN SIMULASI TKA</h3>
-                      <p className="text-[10px] text-slate-500">Paket: {exam?.title || 'Ujian Contoh'}</p>
+                    {/* Card Identitas Siswa */}
+                    <div className="grid grid-cols-2 gap-3 text-xs border border-slate-200 rounded-xl p-3 bg-slate-50">
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Nama Peserta</span>
+                        <strong className="text-slate-900">{dummyStudent.full_name}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Kelas / Rombel</span>
+                        <strong className="text-slate-900">{dummyStudent.class_code}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Nama Ujian</span>
+                        <strong>{exam?.title || 'Simulasi TKA'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px] uppercase font-bold">Subtes / Topik</span>
+                        <strong className="uppercase">{exam?.subtest || 'TKA'}</strong>
+                      </div>
                     </div>
 
-                    <table className="w-full border-collapse border text-xs text-center mb-6">
-                      <thead className="bg-slate-100 font-bold">
-                        <tr>
-                          <th className="border p-2">Subtes</th>
-                          <th className="border p-2">KKM</th>
-                          <th className="border p-2">Skor Siswa</th>
-                          <th className="border p-2">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="border p-2 uppercase font-bold">{exam?.subtest || 'TKA'}</td>
-                          <td className="border p-2">{docSettings.kkmTarget}</td>
-                          <td className="border p-2 font-black text-indigo-700 text-sm">{dummyStudent.earned_score}</td>
-                          <td className="border p-2 font-bold text-emerald-700">✓ TUNTAS</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    {/* Tabel Hasil Modern */}
+                    <div className="rounded-xl border border-slate-200 overflow-hidden">
+                      <table className="w-full border-collapse text-xs text-center">
+                        <thead className="bg-slate-900 text-white font-bold">
+                          <tr>
+                            <th className="p-2.5 text-left pl-3">Subtes</th>
+                            <th className="p-2.5 w-16">KKM</th>
+                            <th className="p-2.5 w-24">Skor Siswa</th>
+                            <th className="p-2.5 w-28">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="bg-white border-t border-slate-200">
+                            <td className="p-2.5 text-left pl-3 font-bold uppercase text-slate-800">{exam?.subtest || 'TKA'}</td>
+                            <td className="p-2.5 font-semibold text-slate-600">{docSettings.kkmTarget}</td>
+                            <td className="p-2.5 font-black text-indigo-700 text-sm">{dummyStudent.earned_score}</td>
+                            <td className="p-2.5">
+                              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full font-bold text-[10px]">
+                                ✓ TUNTAS KKM
+                              </span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
 
-                    {/* BLOK TANDA TANGAN DINAMIS PREVIEW */}
+                    {/* Dynamic Signature Block */}
                     <DynamicSignatureBlock studentClass={dummyStudent.class_code} />
                   </div>
                 ) : (
-                  /* PREVIEW SERTIFIKAT */
-                  <div className="w-full bg-amber-50/40 p-6 shadow-md rounded-sm border-4 border-double border-indigo-900 text-slate-900 font-serif text-center flex flex-col justify-between">
-                    <div>
-                      <h2 className="text-xs font-bold uppercase tracking-widest text-indigo-900">{docSettings.schoolName}</h2>
-                      <h1 className="text-base font-black tracking-wider text-slate-900 uppercase my-2 border-b-2 border-amber-500 inline-block px-4 pb-0.5">
-                        SERTIFIKAT CAPAIAN UJIAN
+                  /* 🟢 PREVIEW SERTIFIKAT MODERN & ELEGANT (KEKINIAN) */
+                  <div className="w-full bg-gradient-to-br from-amber-50/80 via-white to-slate-50 p-6 shadow-xl rounded-xl border-4 border-indigo-950 relative overflow-hidden font-serif text-center flex flex-col justify-between">
+                    {/* Watermark Logo */}
+                    <img
+                      src="/logo-sd-getasan.png"
+                      alt="Watermark"
+                      onError={(e: any) => {
+                        e.target.src = 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_TUT_WURI_HANDAYANI.svg'
+                      }}
+                      className="absolute inset-0 m-auto w-56 h-56 opacity-[0.04] object-contain pointer-events-none"
+                    />
+
+                    {/* Aksen Sudut Geometris Modern */}
+                    <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-amber-500 m-2"></div>
+                    <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-amber-500 m-2"></div>
+                    <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-amber-500 m-2"></div>
+                    <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-amber-500 m-2"></div>
+
+                    <div className="relative z-10 space-y-2">
+                      <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-10 h-10 mx-auto object-contain mb-1" />
+                      <h2 className="text-[11px] font-sans font-extrabold uppercase tracking-widest text-indigo-950">
+                        {docSettings.schoolName}
+                      </h2>
+                      <h1 className="text-lg font-black tracking-widest text-slate-900 uppercase my-1 border-b-2 border-amber-500 inline-block px-6 pb-1">
+                        {docSettings.certificateTitle}
                       </h1>
-                      <p className="text-[10px] text-slate-500 italic">Diberikan kepada:</p>
-                      <h3 className="text-sm font-black text-indigo-900 underline decoration-amber-500 my-1">
+                      <p className="text-[10px] font-sans text-slate-500 uppercase tracking-wider">Diberikan Secara Resmi Kepada:</p>
+                      
+                      <h3 className="text-base font-black text-indigo-900 underline decoration-amber-500 decoration-2 tracking-wide py-0.5">
                         {dummyStudent.full_name}
                       </h3>
-                      <p className="text-[10px] text-slate-700 leading-relaxed max-w-sm mx-auto">
-                        Telah menyelesaikan Ujian <strong>{exam?.title}</strong> dengan Nilai Akhir{' '}
-                        <strong className="text-indigo-900 font-black">{dummyStudent.earned_score}</strong>.
+                      
+                      <p className="text-[10px] font-sans text-slate-700 max-w-sm mx-auto leading-relaxed">
+                        Telah menyelesaikan Ujian <strong>{exam?.title}</strong> dengan Capaian Skor Akhir:
                       </p>
+
+                      {/* Gold Badge Ribbon Skor */}
+                      <div className="my-2">
+                        <div className="inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 text-white font-sans font-black text-lg px-6 py-1.5 rounded-full shadow-md border-2 border-amber-300">
+                          {dummyStudent.earned_score} <span className="text-xs font-normal text-amber-100 ml-1">/ 100</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* BLOK TANDA TANGAN DINAMIS PREVIEW */}
-                    <DynamicSignatureBlock studentClass={dummyStudent.class_code} />
+                    {/* Dynamic Signature Block */}
+                    <div className="relative z-10 mt-4">
+                      <DynamicSignatureBlock studentClass={dummyStudent.class_code} />
+                    </div>
                   </div>
                 )}
               </div>
@@ -1408,12 +1457,12 @@ function ExamResultsContent() {
         </div>
       )}
 
-      {/* 📜 MODAL CETAK SERTIFIKAT SINGLE */}
+      {/* 📜 MODAL CETAK SERTIFIKAT SINGLE (KOKOH & ELEGANT) */}
       {showPrintCertModal && selectedSessionForDetail && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
             <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
-              <span className="font-bold text-sm">📜 Pratinjau Sertifikat Siswa</span>
+              <span className="font-bold text-sm">📜 Pratinjau Sertifikat Kelulusan Siswa</span>
               <div className="flex items-center space-x-2">
                 <button onClick={handlePrint} className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg">
                   🖨️ Cetak / Simpan PDF
@@ -1424,32 +1473,50 @@ function ExamResultsContent() {
               </div>
             </div>
 
-            <div id="printable-area" className="p-10 font-serif text-slate-900 bg-amber-50/30 border-[12px] border-double border-indigo-900 rounded-xl relative m-4 text-center">
-              <h2 className="text-xs font-sans font-black uppercase text-indigo-900 tracking-widest">{docSettings.schoolName}</h2>
-              <h1 className="text-2xl font-bold uppercase tracking-wider text-slate-900 border-b-2 border-amber-500 pb-1 inline-block px-8 my-3">
-                {docSettings.certificateTitle}
-              </h1>
-              <p className="text-xs font-sans text-slate-500">Diberikan secara resmi kepada:</p>
-              <h2 className="text-2xl font-black text-indigo-900 underline decoration-amber-500 uppercase my-2">
-                {selectedSessionForDetail.full_name}
-              </h2>
-              <p className="text-xs font-sans text-slate-700 max-w-xl mx-auto my-3">
-                Telah menyelesaikan Ujian <strong>"{exam?.title}"</strong> Subtes <strong className="uppercase">{exam?.subtest}</strong> dengan Skor Akhir:
-              </p>
-              <span className="text-3xl font-black font-sans text-indigo-700 bg-indigo-50 border-2 border-indigo-200 px-6 py-2 rounded-2xl inline-block">
-                {selectedSessionForDetail.earned_score} / 100
-              </span>
+            {/* AREA CETAK SERTIFIKAT DESAIN KEKINIAN */}
+            <div id="printable-area" className="p-10 font-serif text-slate-900 bg-gradient-to-br from-amber-50/80 via-white to-slate-50 border-[12px] border-double border-indigo-950 rounded-xl relative m-4 text-center">
+              {/* Watermark Logo */}
+              <img
+                src="/logo-sd-getasan.png"
+                alt="Watermark"
+                onError={(e: any) => {
+                  e.target.src = 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_TUT_WURI_HANDAYANI.svg'
+                }}
+                className="absolute inset-0 m-auto w-72 h-72 opacity-[0.04] object-contain pointer-events-none"
+              />
 
-              {/* TANDA TANGAN DINAMIS SERTIFIKAT SINGLE */}
-              <div className="mt-8">
-                <DynamicSignatureBlock studentClass={selectedSessionForDetail.class_code} />
+              <div className="relative z-10 space-y-3">
+                <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-14 h-14 mx-auto object-contain" />
+                <h2 className="text-xs font-sans font-black uppercase text-indigo-950 tracking-widest">{docSettings.schoolName}</h2>
+                <h1 className="text-2xl font-black tracking-widest text-slate-900 uppercase border-b-2 border-amber-500 pb-1 inline-block px-8 my-2">
+                  {docSettings.certificateTitle}
+                </h1>
+                <p className="text-xs font-sans text-slate-500 uppercase tracking-widest">Diberikan secara resmi kepada:</p>
+                
+                <h2 className="text-2xl font-black text-indigo-900 underline decoration-amber-500 decoration-2 uppercase my-2">
+                  {selectedSessionForDetail.full_name}
+                </h2>
+                
+                <p className="text-xs font-sans text-slate-700 max-w-xl mx-auto leading-relaxed">
+                  Telah menyelesaikan Ujian <strong>"{exam?.title}"</strong> Subtes <strong className="uppercase">{exam?.subtest}</strong> dengan Raihan Capaian Skor Resmi:
+                </p>
+
+                <div className="my-3">
+                  <div className="inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 text-white font-sans font-black text-2xl px-8 py-2 rounded-full shadow-lg border-2 border-amber-300">
+                    {selectedSessionForDetail.earned_score} <span className="text-xs font-normal text-amber-100 ml-1">/ 100</span>
+                  </div>
+                </div>
+
+                <div className="pt-6">
+                  <DynamicSignatureBlock studentClass={selectedSessionForDetail.class_code} />
+                </div>
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 📑 MODAL CETAK RAPOR MASSAL KELAS */}
+      {/* 📑 MODAL CETAK RAPOR MASSAL KELAS (DESAIN KEKINIAN) */}
       {showBulkRaporModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
@@ -1469,60 +1536,73 @@ function ExamResultsContent() {
             <div id="printable-area" className="p-8 overflow-y-auto font-sans text-slate-900 bg-white space-y-12">
               {sortedSessions.map((student, studentIndex) => (
                 <div key={student.id} className={studentIndex < sortedSessions.length - 1 ? 'page-break pb-12 border-b-2 border-dashed border-slate-300' : ''}>
-                  {/* KOP RESMI SEKOLAH */}
-                  <div className="border-b-4 border-double border-slate-900 pb-3 mb-4 flex items-center justify-between text-center">
-                    <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" />
+                  {/* Kop Resmi Sekolah Minimalis */}
+                  <div className="border-b-2 border-indigo-600 pb-3 mb-4 flex items-center justify-between text-center">
+                    <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-14 h-14 object-contain" />
                     <div className="flex-1 px-4">
-                      <h2 className="text-lg font-extrabold uppercase text-slate-900">{docSettings.schoolName}</h2>
-                      <p className="text-xs text-slate-600 font-medium mt-0.5">{docSettings.schoolAddress}</p>
+                      <span className="bg-indigo-600 text-white rounded-full px-3 py-0.5 text-[10px] font-bold tracking-widest uppercase inline-block mb-1">
+                        Laporan Capaian CBT
+                      </span>
+                      <h2 className="text-base font-black uppercase text-slate-900 tracking-wide">{docSettings.schoolName}</h2>
+                      <p className="text-xs text-slate-500">{docSettings.schoolAddress}</p>
                     </div>
-                    <SmartLogo candidates={TKA_LOGO_CANDIDATES} alt="Logo TKA" fallbackText="TKA" />
+                    <SmartLogo candidates={TKA_LOGO_CANDIDATES} alt="Logo TKA" fallbackText="TKA" className="w-14 h-14 object-contain" />
                   </div>
 
                   <div className="text-center mb-4">
-                    <h3 className="text-base font-black uppercase text-indigo-900">{docSettings.certificateTitle}</h3>
+                    <h3 className="text-sm font-black uppercase text-indigo-900 tracking-wider">RAPOR CAPAIAN SIMULASI TKA</h3>
                     <p className="text-xs font-semibold text-slate-500">Paket Ujian: {exam?.title} | Subtes: {exam?.subtest}</p>
                   </div>
 
-                  {/* IDENTITAS SISWA */}
-                  <div className="grid grid-cols-2 gap-4 text-xs font-medium border border-slate-300 rounded-xl p-3 mb-4 bg-slate-50/50">
+                  {/* Card Identitas Siswa */}
+                  <div className="grid grid-cols-2 gap-4 text-xs font-medium border border-slate-200 rounded-xl p-3.5 mb-4 bg-slate-50">
                     <div>
-                      <span className="text-slate-500 block">Nama Siswa: <strong>{student.full_name}</strong></span>
-                      <span className="text-slate-500 block">Username: <strong>@{student.username}</strong></span>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Nama Peserta</span>
+                      <strong className="text-slate-900">{student.full_name}</strong>
                     </div>
                     <div>
-                      <span className="text-slate-500 block">Kelas: <strong>{student.class_code}</strong></span>
-                      <span className="text-slate-500 block">Tanggal Cetak: <strong>{docSettings.issueDate}</strong></span>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Kelas / Rombel</span>
+                      <strong className="text-slate-900">{student.class_code}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Username</span>
+                      <strong>@{student.username}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold">Tanggal Cetak</span>
+                      <strong>{docSettings.issueDate}</strong>
                     </div>
                   </div>
 
-                  {/* TABEL SKOR SISWA */}
-                  <table className="w-full border-collapse text-xs border border-slate-300 text-center mb-6">
-                    <thead className="bg-slate-100 font-bold text-slate-800">
-                      <tr>
-                        <th className="border border-slate-300 p-2">Nama Ujian</th>
-                        <th className="border border-slate-300 p-2 w-28">Subtes</th>
-                        <th className="border border-slate-300 p-2 w-20">KKM</th>
-                        <th className="border border-slate-300 p-2 w-28">Skor Siswa</th>
-                        <th className="border border-slate-300 p-2 w-32">Status Ketuntasan</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className="border border-slate-300 p-2.5 text-left font-bold">{exam?.title}</td>
-                        <td className="border border-slate-300 p-2.5 uppercase">{exam?.subtest}</td>
-                        <td className="border border-slate-300 p-2.5 font-semibold">{docSettings.kkmTarget}</td>
-                        <td className="border border-slate-300 p-2.5 font-black text-indigo-700 text-sm">{student.earned_score}</td>
-                        <td className="border border-slate-300 p-2.5 font-bold">
-                          {student.earned_score >= docSettings.kkmTarget ? (
-                            <span className="text-emerald-700">✓ TUNTAS</span>
-                          ) : (
-                            <span className="text-rose-600">✕ BELUM TUNTAS</span>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  {/* Tabel Skor Modern */}
+                  <div className="rounded-xl border border-slate-200 overflow-hidden mb-6">
+                    <table className="w-full border-collapse text-xs text-center">
+                      <thead className="bg-slate-900 text-white font-bold">
+                        <tr>
+                          <th className="p-2.5 text-left pl-3">Nama Ujian</th>
+                          <th className="p-2.5 w-28">Subtes</th>
+                          <th className="p-2.5 w-20">KKM</th>
+                          <th className="p-2.5 w-28">Skor Siswa</th>
+                          <th className="p-2.5 w-32">Status Ketuntasan</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="bg-white border-t border-slate-200">
+                          <td className="p-2.5 text-left pl-3 font-bold">{exam?.title}</td>
+                          <td className="p-2.5 uppercase font-semibold text-slate-700">{exam?.subtest}</td>
+                          <td className="p-2.5 font-semibold text-slate-600">{docSettings.kkmTarget}</td>
+                          <td className="p-2.5 font-black text-indigo-700 text-sm">{student.earned_score}</td>
+                          <td className="p-2.5 font-bold">
+                            {student.earned_score >= docSettings.kkmTarget ? (
+                              <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[10px]">✓ TUNTAS</span>
+                            ) : (
+                              <span className="px-2.5 py-1 bg-rose-100 text-rose-800 rounded-full text-[10px]">✕ BELUM TUNTAS</span>
+                            )}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
 
                   {/* TANDA TANGAN DINAMIS BULK RAPOR */}
                   <DynamicSignatureBlock studentClass={student.class_code} />
