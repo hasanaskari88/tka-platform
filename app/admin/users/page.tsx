@@ -2,10 +2,12 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useTheme } from '@/context/ThemeContext'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
 function AdminUsersContent() {
+  const { theme } = useTheme()
   const [profiles, setProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -68,12 +70,12 @@ function AdminUsersContent() {
     fetchUsers()
   }, [])
 
-  // 1. Daftar Kelas Unik
+  // 1. Ekstraksi Daftar Kelas Unik
   const classList = Array.from(
     new Set(profiles.map((p) => p.class_code || p.class_label).filter(Boolean))
   )
 
-  // 2. Tambah Akun Baru (Menyimpan plain_password ke Supabase Profiles)
+  // 2. Tambah Akun Baru
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
@@ -116,7 +118,7 @@ function AdminUsersContent() {
           full_name: fullName.trim(),
           class_code: classCode.trim().toUpperCase(),
           role: userRole,
-          plain_password: userPassword, // Simpan password murni untuk kartu login
+          plain_password: userPassword,
         },
         { onConflict: 'id' }
       )
@@ -132,7 +134,7 @@ function AdminUsersContent() {
     setIsCreating(false)
   }
 
-  // 3. Buka Modal Edit User
+  // 3. Edit User
   const handleOpenEditModal = (user: any) => {
     setEditingUser(user)
     setEditFullName(user.full_name || '')
@@ -144,7 +146,6 @@ function AdminUsersContent() {
     setEditMsg(null)
   }
 
-  // 4. Simpan Edit User & Reset Password
   const handleSaveEditUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
@@ -183,7 +184,6 @@ function AdminUsersContent() {
       if (!res.ok) {
         setEditMsg(`Error: ${resData.error}`)
       } else {
-        // Update juga plain_password di profiles jika ada reset password
         if (editPassword.trim()) {
           const supabase = createClient()
           await supabase
@@ -205,7 +205,7 @@ function AdminUsersContent() {
     setIsSavingEdit(false)
   }
 
-  // 5. Hapus User
+  // 4. Hapus User
   const handleDeleteUser = async (userId: string, username: string) => {
     if (userId === currentUserId) {
       alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang login!')
@@ -232,7 +232,7 @@ function AdminUsersContent() {
     }
   }
 
-  // 6. Download Template CSV
+  // 5. Download Template CSV
   const handleDownloadTemplate = () => {
     const csvHeader = 'username,full_name,class_code,password,role\n'
     const csvSample =
@@ -250,7 +250,7 @@ function AdminUsersContent() {
     document.body.removeChild(link)
   }
 
-  // 7. Bulk Import Massal
+  // 6. Bulk Import
   const handleProcessBulkImport = async () => {
     if (!bulkInputText.trim()) return alert('Masukkan teks CSV atau isi file lebih dulu!')
     setIsProcessingBulk(true)
@@ -269,7 +269,7 @@ function AdminUsersContent() {
           username: uName,
           full_name: cols[1],
           class_code: cols[2].toUpperCase(),
-          plain_password: cols[3], // Simpan password murni ke Supabase
+          plain_password: cols[3],
           role: cols[4] ? cols[4].toLowerCase() : 'student',
         })
       }
@@ -294,7 +294,7 @@ function AdminUsersContent() {
     setIsProcessingBulk(false)
   }
 
-  // 8. Filter Pengguna
+  // 7. Filter Profil
   const filteredProfiles = profiles.filter((p) => {
     const nameMatch = p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
     const userMatch = p.username?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -308,7 +308,7 @@ function AdminUsersContent() {
     return matchesSearch && matchesRole && matchesClass
   })
 
-  // 9. Penanganan Checkbox Seleksi
+  // 8. Checkbox Seleksi
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedUserIds(filteredProfiles.map((p) => p.id))
@@ -334,9 +334,60 @@ function AdminUsersContent() {
 
   const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
 
+  // 🎨 PEMETAAN TEMA KARTU UJIAN CETAK
+  const cardThemeMap: Record<
+    string,
+    { headerBg: string; headerText: string; badgeBg: string; badgeText: string; borderStyle: string; icon: string }
+  > = {
+    space: {
+      headerBg: 'bg-gradient-to-r from-purple-900 to-indigo-900',
+      headerText: 'text-purple-100',
+      badgeBg: 'bg-purple-950 text-purple-200 border-purple-700',
+      borderStyle: 'border-purple-300',
+      icon: '🚀',
+    },
+    jungle: {
+      headerBg: 'bg-gradient-to-r from-emerald-900 to-teal-900',
+      headerText: 'text-emerald-100',
+      badgeBg: 'bg-emerald-950 text-emerald-200 border-emerald-700',
+      borderStyle: 'border-emerald-300',
+      icon: '🌿',
+    },
+    ocean: {
+      headerBg: 'bg-gradient-to-r from-sky-900 to-blue-900',
+      headerText: 'text-sky-100',
+      badgeBg: 'bg-sky-950 text-cyan-200 border-cyan-700',
+      borderStyle: 'border-sky-300',
+      icon: '🌊',
+    },
+    disney: {
+      headerBg: 'bg-gradient-to-r from-pink-800 via-purple-800 to-amber-700',
+      headerText: 'text-amber-100',
+      badgeBg: 'bg-amber-900 text-amber-200 border-amber-500',
+      borderStyle: 'border-pink-300',
+      icon: '🏰',
+    },
+    cartoon3d: {
+      headerBg: 'bg-amber-400',
+      headerText: 'text-slate-950 font-black',
+      badgeBg: 'bg-slate-900 text-yellow-300 border-slate-900',
+      borderStyle: 'border-slate-900 border-2',
+      icon: '🎨',
+    },
+    school: {
+      headerBg: 'bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900',
+      headerText: 'text-white',
+      badgeBg: 'bg-indigo-950 text-indigo-200 border-indigo-700',
+      borderStyle: 'border-indigo-200',
+      icon: '🏫',
+    },
+  }
+
+  const currentThemeCard = cardThemeMap[theme] || cardThemeMap.school
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* GAYA CETAK A4 (3 Kolom x 5 Baris = 15 Kartu) */}
+      {/* CSS CETAK A4 MATS (3 x 5 = 15 KARTU) */}
       <style jsx global>{`
         @media print {
           body * {
@@ -344,6 +395,8 @@ function AdminUsersContent() {
           }
           #print-area, #print-area * {
             visibility: visible;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           #print-area {
             position: absolute;
@@ -696,7 +749,7 @@ function AdminUsersContent() {
           </div>
         </div>
 
-        {/* Modal Edit & Reset Password Pengguna */}
+        {/* Modal Edit & Reset Password */}
         {editingUser && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50 font-sans">
             <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-md w-full p-6 space-y-4">
@@ -843,11 +896,10 @@ function AdminUsersContent() {
         )}
       </main>
 
-      {/* AREA CETAK KARTU (MEMBACA DATA MURNI PASSWORD SUPABASE) */}
+      {/* 🖨️ AREA CETAK KARTU MODERN SESUAI TEMA SELEKSI (15 PER HALAMAN A4) */}
       <div id="print-area" className="hidden print:block">
         <div className="grid grid-cols-3 gap-2.5">
           {selectedUserObjects.map((user, idx) => {
-            // Murni membaca dari kolom database: plain_password / password / user_password
             const realPassword =
               user.plain_password ||
               user.password ||
@@ -857,29 +909,35 @@ function AdminUsersContent() {
             return (
               <div
                 key={user.id || idx}
-                className="border-2 border-dashed border-slate-400 p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative"
+                className={`p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative overflow-hidden ${currentThemeCard.borderStyle}`}
               >
-                <div className="flex items-center space-x-2 border-b pb-1.5 border-slate-300">
+                {/* Header Kop Kartu Berwarna Tema */}
+                <div
+                  className={`flex items-center space-x-2 -mx-2.5 -mt-2.5 p-2 mb-1 border-b ${currentThemeCard.headerBg} ${currentThemeCard.headerText}`}
+                >
                   <img
                     src="/logo-sd-getasan.png"
                     alt="Logo"
-                    className="w-7 h-7 object-contain"
+                    className="w-6 h-6 object-contain shrink-0"
                     onError={(e: any) => (e.target.style.display = 'none')}
                   />
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-[9.5px] font-black leading-tight text-indigo-950 uppercase truncate">
+                    <h4 className="text-[9px] font-black leading-tight uppercase truncate">
                       SD NEGERI GETASAN
                     </h4>
-                    <p className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-tighter">
-                      KARTU LOGIN UJIAN CBT TKA
+                    <p className="text-[7px] font-bold opacity-90 uppercase tracking-tight">
+                      KARTU LOGIN UJIAN CBT {currentThemeCard.icon}
                     </p>
                   </div>
-                  <span className="px-1.5 py-0.5 text-[8px] font-black bg-indigo-100 text-indigo-800 rounded border border-indigo-200 shrink-0">
+                  <span
+                    className={`px-1.5 py-0.5 text-[8px] font-black rounded border shrink-0 ${currentThemeCard.badgeBg}`}
+                  >
                     {user.class_code || user.class_label || 'VIB'}
                   </span>
                 </div>
 
-                <div className="my-1 space-y-1">
+                {/* Data Utama Peserta */}
+                <div className="my-0.5 space-y-1">
                   <div>
                     <span className="text-[7.5px] text-slate-500 font-bold uppercase block">
                       Nama Peserta Ujian:
@@ -909,9 +967,10 @@ function AdminUsersContent() {
                   </div>
                 </div>
 
+                {/* Footer Kartu Tanpa Tulisan Garis Potong */}
                 <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[7.5px] text-slate-500 font-medium">
                   <span>🌐 grisan.vercel.app</span>
-                  <span className="font-bold text-slate-400">✂️ Garis Potong</span>
+                  <span className="font-bold text-slate-400 opacity-60">SDN Getasan</span>
                 </div>
               </div>
             )
