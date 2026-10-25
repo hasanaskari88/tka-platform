@@ -8,6 +8,45 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
+// 🖼️ KOMPONEN SMART LOGO BERBASIS REACT STATE
+function SmartLogo({
+  candidates,
+  alt,
+  fallbackText,
+  className = 'w-16 h-16 object-contain shrink-0',
+  fallbackClassName = 'w-16 h-16 bg-indigo-700 text-white font-black text-xl flex items-center justify-center rounded-2xl shrink-0',
+}: {
+  candidates: string[]
+  alt: string
+  fallbackText: string
+  className?: string
+  fallbackClassName?: string
+}) {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [failedAll, setFailedAll] = useState(false)
+
+  const handleImgError = () => {
+    if (currentIndex < candidates.length - 1) {
+      setCurrentIndex((prev) => prev + 1)
+    } else {
+      setFailedAll(true)
+    }
+  }
+
+  if (failedAll) {
+    return <div className={fallbackClassName}>{fallbackText}</div>
+  }
+
+  return (
+    <img
+      src={candidates[currentIndex]}
+      alt={alt}
+      className={className}
+      onError={handleImgError}
+    />
+  )
+}
+
 // 🟢 HELPER EVALUASI MULTI-TIPE SOAL
 function evaluateAnswer(q: any, rawAns: any) {
   if (rawAns === null || rawAns === undefined || rawAns === '') {
@@ -151,11 +190,25 @@ function ExamResultsContent() {
   const [customFinalScore, setCustomFinalScore] = useState<number>(0)
   const [isSavingScore, setIsSavingScore] = useState<boolean>(false)
 
-  // 🖨️ STATE CETAK RAPOR ADMIN
+  // 🖨️ STATE CETAK RAPOR & SERTIFIKAT VIA ADMIN
   const [showPrintCertModal, setShowPrintCertModal] = useState<boolean>(false)
 
-  const LOGO_SD_URL = '/logo-sd-getasan.png'
-  const LOGO_TKA_URL = '/logo-tka.png'
+  const SD_LOGO_CANDIDATES = [
+    '/logo-sd-getasan.png',
+    '/logo-sd-getasan.PNG',
+    '/logo-sd-getasan.jpg',
+    '/logo-sd-getasan.jpeg',
+    '/logo-sd.png',
+  ]
+
+  const TKA_LOGO_CANDIDATES = [
+    '/logo-tka.png',
+    '/logo-tka.PNG',
+    '/logo-tka.jpg',
+    '/logo-tka.jpeg',
+    '/logo-kemendikbud.png',
+  ]
+
   const KKM_TARGET = 70
 
   const loadData = async () => {
@@ -638,21 +691,24 @@ function ExamResultsContent() {
       <style>{`
         @media print {
           body * {
-            visibility: hidden;
+            visibility: hidden !important;
           }
           #printable-area, #printable-area * {
-            visibility: visible;
+            visibility: visible !important;
           }
           #printable-area {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            max-height: none !important;
+            overflow: visible !important;
             background: white !important;
             padding: 0 !important;
             margin: 0 !important;
           }
-          .no-print {
+          .no-print, .no-print * {
             display: none !important;
           }
         }
@@ -1213,20 +1269,22 @@ function ExamResultsContent() {
             <div id="printable-area" className="p-10 font-serif text-slate-900 bg-amber-50/30 border-[12px] border-double border-indigo-900 rounded-xl relative m-4">
               <div className="border border-indigo-900 p-8 text-center rounded-lg space-y-4 bg-white/90">
                 <div className="flex justify-center items-center space-x-3">
-                  <img
-                    src={LOGO_SD_URL}
+                  <SmartLogo
+                    candidates={SD_LOGO_CANDIDATES}
                     alt="Logo SD Getasan"
-                    className="w-10 h-10 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    fallbackText="SD"
+                    className="w-10 h-10 object-contain shrink-0"
+                    fallbackClassName="w-10 h-10 bg-indigo-700 text-white font-black text-xs flex items-center justify-center rounded-xl shrink-0"
                   />
                   <span className="text-xs font-sans font-extrabold uppercase tracking-widest text-indigo-900">
                     SD NEGERI GETASAN
                   </span>
-                  <img
-                    src={LOGO_TKA_URL}
+                  <SmartLogo
+                    candidates={TKA_LOGO_CANDIDATES}
                     alt="Logo Kemendikbud TKA"
-                    className="w-10 h-10 object-contain"
-                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                    fallbackText="TKA"
+                    className="w-10 h-10 object-contain shrink-0"
+                    fallbackClassName="w-10 h-10 border border-indigo-600 text-indigo-700 font-black text-xs flex items-center justify-center rounded-xl shrink-0 uppercase"
                   />
                 </div>
 
