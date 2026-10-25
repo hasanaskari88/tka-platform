@@ -334,7 +334,7 @@ function AdminUsersContent() {
 
   const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
 
-  // 🎨 PEMETAAN TEMA KARTU UJIAN CETAK (PERBAIKAN TIPE TYPESCRIPT)
+  // 🎨 PEMETAAN TEMA KARTU UJIAN CETAK
   const cardThemeMap: Record<
     string,
     { headerBg: string; headerText: string; badgeBg: string; borderStyle: string; icon: string }
@@ -909,58 +909,68 @@ function AdminUsersContent() {
             return (
               <div
                 key={user.id || idx}
-                className={`p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative overflow-hidden ${currentThemeCard.borderStyle}`}
+                className={`p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative overflow-hidden border ${currentThemeCard.borderStyle}`}
               >
+                {/* WATERMARK LOGO DI BELAKANG (SANGAT HALUS & ESTETIK) */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                  <img
+                    src="/logo-sd-getasan.png"
+                    alt=""
+                    className="w-24 h-24 object-contain opacity-[0.06] grayscale select-none"
+                    onError={(e: any) => (e.target.style.display = 'none')}
+                  />
+                </div>
+
                 {/* Header Kop Kartu Berwarna Tema */}
                 <div
-                  className={`flex items-center space-x-2 -mx-2.5 -mt-2.5 p-2 mb-1 border-b ${currentThemeCard.headerBg} ${currentThemeCard.headerText}`}
+                  className={`relative z-10 flex items-center space-x-2 -mx-2.5 -mt-2.5 px-2.5 py-1.5 mb-1 border-b ${currentThemeCard.headerBg} ${currentThemeCard.headerText}`}
                 >
                   <img
                     src="/logo-sd-getasan.png"
                     alt="Logo"
-                    className="w-6 h-6 object-contain shrink-0"
+                    className="w-6 h-6 object-contain shrink-0 drop-shadow-sm"
                     onError={(e: any) => (e.target.style.display = 'none')}
                   />
                   <div className="flex-1 min-w-0">
-                    <h4 className="text-[9px] font-black leading-tight uppercase truncate">
+                    <h4 className="text-[9.5px] font-black leading-tight uppercase truncate tracking-wide">
                       SD NEGERI GETASAN
                     </h4>
-                    <p className="text-[7px] font-bold opacity-90 uppercase tracking-tight">
+                    <p className="text-[7px] font-bold opacity-90 uppercase tracking-tighter">
                       KARTU LOGIN UJIAN CBT {currentThemeCard.icon}
                     </p>
                   </div>
                   <span
-                    className={`px-1.5 py-0.5 text-[8px] font-black rounded border shrink-0 ${currentThemeCard.badgeBg}`}
+                    className={`px-1.5 py-0.5 text-[8px] font-black rounded border shrink-0 shadow-sm ${currentThemeCard.badgeBg}`}
                   >
                     {user.class_code || user.class_label || 'VIB'}
                   </span>
                 </div>
 
                 {/* Data Utama Peserta */}
-                <div className="my-0.5 space-y-1">
+                <div className="relative z-10 my-auto space-y-1.5">
                   <div>
-                    <span className="text-[7.5px] text-slate-500 font-bold uppercase block">
-                      Nama Peserta Ujian:
+                    <span className="text-[7px] text-slate-400 font-extrabold uppercase tracking-wider block">
+                      NAMA PESERTA UJIAN
                     </span>
-                    <span className="text-[10px] font-extrabold text-slate-900 block truncate leading-tight">
+                    <span className="text-[10.5px] font-black text-slate-900 block truncate leading-tight uppercase">
                       {user.full_name || 'Siswa CBT'}
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200 font-mono text-[9px]">
+                  <div className="grid grid-cols-2 gap-1.5 bg-slate-50/90 backdrop-blur-[1px] p-2 rounded-lg border border-slate-200/80 font-mono text-[9px] shadow-inner">
                     <div>
-                      <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
-                        Username:
+                      <span className="text-[6.5px] font-sans text-slate-400 block uppercase font-black tracking-wider">
+                        USERNAME
                       </span>
-                      <span className="font-bold text-indigo-700 truncate block">
+                      <span className="font-extrabold text-indigo-700 truncate block text-[10px]">
                         {user.username || '-'}
                       </span>
                     </div>
                     <div>
-                      <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
-                        Password:
+                      <span className="text-[6.5px] font-sans text-slate-400 block uppercase font-black tracking-wider">
+                        PASSWORD
                       </span>
-                      <span className="font-bold text-rose-600 truncate block">
+                      <span className="font-extrabold text-rose-600 truncate block text-[10px]">
                         {realPassword}
                       </span>
                     </div>
@@ -968,9 +978,14 @@ function AdminUsersContent() {
                 </div>
 
                 {/* Footer Kartu */}
-                <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[7.5px] text-slate-500 font-medium">
-                  <span>🌐 grisan.vercel.app</span>
-                  <span className="font-bold text-slate-400 opacity-60">SDN Getasan</span>
+                <div className="relative z-10 flex justify-between items-center pt-1 border-t border-slate-200/80 text-[7.5px] text-slate-400 font-semibold">
+                  <span className="flex items-center space-x-1">
+                    <span>🌐</span>
+                    <span>grisan.vercel.app</span>
+                  </span>
+                  <span className="font-black text-slate-400/80 uppercase tracking-wider">
+                    SDN GETASAN
+                  </span>
                 </div>
               </div>
             )
