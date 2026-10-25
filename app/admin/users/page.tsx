@@ -6,7 +6,6 @@ import { useTheme } from '@/context/ThemeContext'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
-// Tipe Data TypeScript Konfigurasi Tema Kartu Ujian Cetak
 interface ThemeCardConfig {
   headerBg: string
   headerText: string
@@ -356,7 +355,7 @@ function AdminUsersContent() {
       badgeBg: 'bg-slate-950 text-white border-slate-800',
       borderStyle: 'border-slate-900 border-2',
       icon: '🖥️',
-      credBoxBg: 'bg-blue-50/80',
+      credBoxBg: 'bg-blue-50/90',
       credBoxBorder: 'border-blue-100',
       userIconBg: 'bg-blue-500 text-white',
       passIconBg: 'bg-blue-500 text-white',
@@ -368,7 +367,7 @@ function AdminUsersContent() {
       badgeBg: 'bg-purple-950 text-purple-200 border-purple-700',
       borderStyle: 'border-purple-800 border-2',
       icon: '🚀',
-      credBoxBg: 'bg-purple-50/80',
+      credBoxBg: 'bg-purple-50/90',
       credBoxBorder: 'border-purple-200',
       userIconBg: 'bg-purple-600 text-white',
       passIconBg: 'bg-indigo-600 text-white',
@@ -380,7 +379,7 @@ function AdminUsersContent() {
       badgeBg: 'bg-emerald-950 text-emerald-200 border-emerald-700',
       borderStyle: 'border-emerald-800 border-2',
       icon: '🌿',
-      credBoxBg: 'bg-emerald-50/80',
+      credBoxBg: 'bg-emerald-50/90',
       credBoxBorder: 'border-emerald-200',
       userIconBg: 'bg-emerald-600 text-white',
       passIconBg: 'bg-teal-600 text-white',
@@ -392,7 +391,7 @@ function AdminUsersContent() {
       badgeBg: 'bg-sky-950 text-cyan-200 border-cyan-700',
       borderStyle: 'border-sky-800 border-2',
       icon: '🌊',
-      credBoxBg: 'bg-sky-50/80',
+      credBoxBg: 'bg-sky-50/90',
       credBoxBorder: 'border-sky-200',
       userIconBg: 'bg-sky-600 text-white',
       passIconBg: 'bg-blue-600 text-white',
@@ -404,7 +403,7 @@ function AdminUsersContent() {
       badgeBg: 'bg-amber-950 text-amber-200 border-amber-600',
       borderStyle: 'border-pink-800 border-2',
       icon: '🏰',
-      credBoxBg: 'bg-pink-50/80',
+      credBoxBg: 'bg-pink-50/90',
       credBoxBorder: 'border-pink-200',
       userIconBg: 'bg-pink-600 text-white',
       passIconBg: 'bg-purple-600 text-white',
@@ -952,9 +951,19 @@ function AdminUsersContent() {
                 key={user.id || idx}
                 className={`w-full h-[53mm] rounded-2xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid relative overflow-hidden p-0 shadow-sm ${currentThemeCard.borderStyle}`}
               >
+                {/* WATERMARK LOGO DI BELAKANG (BISA UNTUK AREA KOSONG) */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                  <img
+                    src="/logo-sd-getasan.png"
+                    alt=""
+                    className="w-24 h-24 object-contain opacity-[0.07] grayscale select-none"
+                    onError={(e: any) => (e.target.style.display = 'none')}
+                  />
+                </div>
+
                 {/* 1. KOP HEADER WARNA DINAMIS TEMA & LOGO */}
                 <div
-                  className={`${currentThemeCard.headerBg} border-b-2 border-slate-900/60 px-2.5 py-1.5 flex items-center justify-between relative overflow-hidden`}
+                  className={`${currentThemeCard.headerBg} border-b-2 border-slate-900/60 px-2.5 py-1.5 flex items-center justify-between relative z-10 overflow-hidden`}
                 >
                   <div className="flex items-center space-x-2 relative z-10">
                     <img
@@ -985,9 +994,9 @@ function AdminUsersContent() {
                   </span>
                 </div>
 
-                {/* 2. BODY UTAMA (NAMA FLEXIBEL 2 BARIS & BOX KREDENSIAL) */}
-                <div className="px-3 py-1.5 flex-1 flex flex-col justify-between space-y-1">
-                  {/* Nama Peserta Ujian (Bisa 2 Baris Tanpa Terpotong) */}
+                {/* 2. BODY UTAMA (PROPORSI SEIMBANG & JARAK DEKAT) */}
+                <div className="px-3 py-2 flex-1 flex flex-col justify-center space-y-2 relative z-10">
+                  {/* Nama Peserta Ujian */}
                   <div>
                     <div className="flex items-center space-x-1 mb-0.5">
                       <span className="w-3.5 h-3.5 bg-sky-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-xs">
@@ -998,19 +1007,19 @@ function AdminUsersContent() {
                       </span>
                     </div>
 
-                    <div className="text-[10px] font-black text-slate-900 uppercase leading-snug line-clamp-2 break-words min-h-[14px]">
+                    <div className="text-[10.5px] font-black text-slate-900 uppercase leading-snug line-clamp-2 break-words">
                       {user.full_name || 'SISWA CBT'}
                     </div>
                   </div>
 
-                  {/* Inset Box Kredensial Username & Password */}
+                  {/* Box Kredensial Username & Password */}
                   <div
-                    className={`${currentThemeCard.credBoxBg} ${currentThemeCard.credBoxBorder} border rounded-xl p-1.5 grid grid-cols-2 gap-2 items-center relative shadow-inner`}
+                    className={`${currentThemeCard.credBoxBg} ${currentThemeCard.credBoxBorder} border rounded-xl p-1.5 grid grid-cols-2 gap-2 items-center relative shadow-xs`}
                   >
                     {/* Kolom Username */}
                     <div className="flex items-center space-x-1.5 pr-1 border-r border-slate-300/60">
                       <div
-                        className={`w-5 h-5 ${currentThemeCard.userIconBg} rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm`}
+                        className={`w-5 h-5 ${currentThemeCard.userIconBg} rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-xs`}
                       >
                         👤
                       </div>
@@ -1029,7 +1038,7 @@ function AdminUsersContent() {
                     {/* Kolom Password */}
                     <div className="flex items-center space-x-1.5 pl-0.5">
                       <div
-                        className={`w-5 h-5 ${currentThemeCard.passIconBg} rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-sm`}
+                        className={`w-5 h-5 ${currentThemeCard.passIconBg} rounded-full flex items-center justify-center text-[9px] shrink-0 shadow-xs`}
                       >
                         🔒
                       </div>
@@ -1046,7 +1055,7 @@ function AdminUsersContent() {
                 </div>
 
                 {/* 3. FOOTER DENGAN URL AKSEN & STRIP MOTIVASI */}
-                <div className="px-3 py-1 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-[7.5px] relative">
+                <div className="px-3 py-1 bg-slate-50/90 border-t border-slate-200 flex justify-between items-center text-[7.5px] relative z-10">
                   <div className="flex items-center space-x-1 text-slate-600 font-bold">
                     <span className="w-3.5 h-3.5 bg-blue-600 text-white rounded-full flex items-center justify-center text-[7px] shadow-xs">
                       🌐
