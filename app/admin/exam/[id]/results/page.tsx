@@ -115,7 +115,7 @@ function evaluateAnswer(q: any, rawAns: any) {
     const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
     const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
     return {
-      isCorrect: isAnswered, // Soal essay yang dijawab dihitung telah diisi
+      isCorrect: isAnswered,
       isUnanswered: !isAnswered,
       isEssay: true,
       ratio: isAnswered ? 1 : 0,
@@ -146,6 +146,13 @@ function ExamResultsContent() {
 
   const [sortByItem, setSortByItem] = useState<'no' | 'accuracy'>('no')
   const [sortOrderItem, setSortOrderItem] = useState<'asc' | 'desc'>('asc')
+
+  // 📝 STATE MODAL REVIEW & PENILAIAN GURU
+  const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<any | null>(null)
+  const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
+  const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
+  const [customFinalScore, setCustomFinalScore] = useState<number>(0)
+  const [isSavingScore, setIsSavingScore] = useState<boolean>(false)
 
   const loadData = async () => {
     if (!examId) return
@@ -219,7 +226,6 @@ function ExamResultsContent() {
           totalMaxPoints += qMaxScore
 
           const ans = userAnswers.find((a) => a.question_id === q.id)
-          // ✅ PERBAIKAN: Membaca ans.user_answer terlebih dahulu
           const rawChoice = ans ? (ans.user_answer ?? ans.selected_answers ?? ans.selected_option) : null
           const evalRes = evaluateAnswer(q, rawChoice)
 
@@ -230,7 +236,6 @@ function ExamResultsContent() {
         })
       }
 
-      // Prioritaskan nilai dari DB jika ada, atau hitung ulang skala 100
       const finalScore = session.score !== undefined && session.score !== null
         ? Number(session.score)
         : totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
@@ -249,6 +254,7 @@ function ExamResultsContent() {
         total_questions: totalQ,
         earned_score: Math.round(finalScore),
         accuracy_percentage: Math.round(finalScore),
+        rawAnswers: userAnswers,
       }
     })
 
@@ -277,7 +283,6 @@ function ExamResultsContent() {
       if (answerData) {
         answerData.forEach((ans) => {
           if (ans.question_id === q.id) {
-            // ✅ PERBAIKAN: Membaca ans.user_answer
             const rawChoice = ans.user_answer ?? ans.selected_answers ?? ans.selected_option
             const { isCorrect, isUnanswered, userChoices } = evaluateAnswer(q, rawChoice)
 
@@ -370,6 +375,101 @@ function ExamResultsContent() {
   useEffect(() => {
     loadData()
   }, [examId])
+
+  // 📝 Buka Modal Detail & Penilaian Siswa
+  const handleOpenDetailModal = (session: any) => {
+    const map: { [key: string]: any } = {}
+    if (Array.isArray(session.rawAnswers)) {
+      session.rawAnswers.forEach((ans: any) => {
+        map[ans.question_id] = ans.user_answer ?? ans.selected_answers ?? ans.selected_option
+      })
+    }
+    setSessionAnswersMap(map)
+
+    const initialEssayScores: { [key: string]: number } = {}
+    let totalPoints = 0
+    let maxPoints = 0
+
+    questions.forEach((q) => {
+      const qMax = Number(q.max_score) || 1
+      maxPoints += qMax
+      const rawAns = map[q.id]
+      const evalRes = evaluateAnswer(q, rawAns)
+
+      if (q.question_type === 'essay') {
+        const defaultEssayVal = evalRes.isUnanswered ? 0 : qMax
+        initialEssayScores[q.id] = defaultEssayVal
+        totalPoints += defaultEssayVal
+      } else {
+        totalPoints += evalRes.ratio * qMax
+      }
+    })
+
+    const calculated = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
+    setEssayScores(initialEssayScores)
+    setCustomFinalScore(session.earned_score || calculated)
+    setSelectedSessionForDetail(session)
+  }
+
+  // 📝 UBAH NILAI ESSAY
+  const handleEssayScoreChange = (qId: string, value: number, maxScore: number) => {
+    const val = Math.max(0, Math.min(value, maxScore))
+    const updatedEssayScores = { ...essayScores, [qId]: val }
+    setEssayScores(updatedEssayScores)
+
+    let totalPoints = 0
+    let maxPoints = 0
+
+    questions.forEach((q) => {
+      const qMax = Number(q.max_score) || 1
+      maxPoints += qMax
+      if (q.question_type === 'essay') {
+        totalPoints += updatedEssayScores[q.id] ?? 0
+      } else {
+        const rawAns = sessionAnswersMap[q.id]
+        const evalRes = evaluateAnswer(q, rawAns)
+        totalPoints += evalRes.ratio * qMax
+      }
+    })
+
+    const newCalculated = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
+    setCustomFinalScore(newCalculated)
+  }
+
+  // 💾 SIMPAN PENILAIAN GURU KE DATABASE SUPABASE
+  const handleSaveAssessment = async () => {
+    if (!selectedSessionForDetail) return
+    setIsSavingScore(true)
+
+    const supabase = createClient()
+    const newScore = Math.max(0, Math.min(100, Number(customFinalScore)))
+
+    const { error } = await supabase
+      .from('exam_sessions')
+      .update({ score: newScore })
+      .eq('id', selectedSessionForDetail.id)
+
+    if (error) {
+      alert(`Gagal menyimpan nilai: ${error.message}`)
+    } else {
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id === selectedSessionForDetail.id) {
+            return {
+              ...s,
+              earned_score: newScore,
+              accuracy_percentage: newScore,
+            }
+          }
+          return s
+        })
+      )
+      alert(`✅ Nilai siswa ${selectedSessionForDetail.full_name} berhasil diperbarui menjadi ${newScore}!`)
+      setSelectedSessionForDetail(null)
+    }
+
+    setIsSavingScore(false)
+  }
 
   const handleDeleteSession = async (sessionId: string, studentName: string) => {
     if (!confirm(`Apakah Anda yakin ingin mereset hasil ujian siswa "${studentName}"?`)) return
@@ -815,12 +915,24 @@ function ExamResultsContent() {
                         </span>
                       </td>
                       <td className="p-3 text-center">
-                        <button
-                          onClick={() => handleDeleteSession(session.id, session.full_name)}
-                          className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-[11px] font-bold rounded"
-                        >
-                          Reset Ujian
-                        </button>
+                        <div className="flex justify-center items-center space-x-1.5">
+                          {/* 👁️ TOMBOL DETAIL & NILAI ESSAY */}
+                          <button
+                            onClick={() => handleOpenDetailModal(session)}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-[11px] font-bold rounded transition-colors shadow-sm"
+                            title="Lihat lembar jawaban & beri nilai"
+                          >
+                            👁️ Detail & Nilai
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteSession(session.id, session.full_name)}
+                            className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-[11px] font-bold rounded transition-colors"
+                            title="Reset hasil pengerjaan"
+                          >
+                            Reset
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -830,6 +942,183 @@ function ExamResultsContent() {
           </div>
         </div>
       </main>
+
+      {/* 📝 MODAL REVIEW LEMBAR JAWABAN & PENILAIAN GURU */}
+      {selectedSessionForDetail && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header Modal */}
+            <div className="p-5 border-b bg-slate-900 text-white flex justify-between items-center">
+              <div>
+                <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                  PENILAIAN SISWA
+                </span>
+                <h3 className="text-base font-bold mt-0.5">
+                  📝 Lembar Jawaban: {selectedSessionForDetail.full_name}
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Kelas: <strong>{selectedSessionForDetail.class_code}</strong> | @{selectedSessionForDetail.username}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setSelectedSessionForDetail(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm font-bold transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Body Modal (Daftar Jawaban Siswa & Penilaian Essay) */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+              <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="font-bold">💡 Petunjuk Guru:</span>
+                  <p className="text-[11px] text-amber-700 mt-0.5">
+                    Periksa jawaban essay siswa di bawah, tentukan poin nilai essay, atau sesuaikan Nilai Akhir jika diperlukan.
+                  </p>
+                </div>
+              </div>
+
+              {questions.map((q, idx) => {
+                const qType = q.question_type || 'multiple_choice'
+                const rawAns = sessionAnswersMap[q.id]
+                const evalRes = evaluateAnswer(q, rawAns)
+                const qMax = Number(q.max_score) || 1
+
+                let correctOptDisplay = q.correct_option ?? q.correct_answer ?? '-'
+                if (qType === 'complex_multiple_choice') {
+                  correctOptDisplay = Array.isArray(q.correct_answers) ? q.correct_answers.join(', ') : correctOptDisplay
+                } else if (qType === 'true_false_matrix') {
+                  correctOptDisplay = 'Matriks Benar-Salah'
+                } else if (qType === 'essay') {
+                  correctOptDisplay = 'Uraian / Essay'
+                }
+
+                return (
+                  <div key={q.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                      <span className="font-bold text-slate-800">
+                        Soal #{idx + 1}{' '}
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-100 text-indigo-700 font-bold uppercase ml-2">
+                          {qType === 'complex_multiple_choice'
+                            ? 'PG Kompleks'
+                            : qType === 'true_false_matrix'
+                            ? 'Matriks'
+                            : qType === 'essay'
+                            ? 'Essay'
+                            : 'Pilihan Ganda'}
+                        </span>
+                      </span>
+
+                      {/* Status Kebeneran */}
+                      {qType === 'essay' ? (
+                        <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-800 font-bold rounded">
+                          📝 Essay / Uraian
+                        </span>
+                      ) : evalRes.isCorrect ? (
+                        <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded">
+                          ✅ Jawaban Tepat (+{qMax})
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 bg-rose-100 text-rose-800 font-bold rounded">
+                          ❌ Kurang Tepat
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="font-medium text-slate-800">
+                      <MathRenderer content={q.question_text} />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1 text-[11px]">
+                      <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+                        <span className="text-slate-400 font-bold block uppercase text-[9px]">
+                          Kunci Jawaban Resmi:
+                        </span>
+                        <span className="font-bold text-indigo-700">{correctOptDisplay}</span>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-white border border-slate-200 space-y-1">
+                        <span className="text-slate-400 font-bold block uppercase text-[9px]">
+                          Jawaban Siswa:
+                        </span>
+                        <span className={`font-bold ${evalRes.isCorrect ? 'text-emerald-700' : 'text-slate-800'}`}>
+                          {evalRes.displayVal}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* FIELD NIALI KHUSUS SOAL ESSAY */}
+                    {qType === 'essay' && (
+                      <div className="mt-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
+                        <span className="font-bold text-indigo-900 text-xs">
+                          Skor Nilai Essay (0 - {qMax}):
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            min="0"
+                            max={qMax}
+                            step="0.1"
+                            value={essayScores[q.id] ?? 0}
+                            onChange={(e) =>
+                              handleEssayScoreChange(q.id, parseFloat(e.target.value) || 0, qMax)
+                            }
+                            className="w-20 px-2.5 py-1 border border-indigo-300 rounded-lg text-center font-bold text-indigo-700 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                          />
+                          <span className="font-bold text-slate-500 text-xs">/ {qMax} Poin</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Footer Modal (Kalkulasi Skor & Simpan) */}
+            <div className="p-5 border-t bg-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="flex items-center space-x-3">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase block">
+                    Penetapan Nilai Akhir (Skala 100)
+                  </span>
+                  <div className="flex items-center space-x-2 mt-0.5">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={customFinalScore}
+                      onChange={(e) => setCustomFinalScore(Number(e.target.value))}
+                      className="w-24 px-3 py-1.5 border-2 border-indigo-600 rounded-xl text-center font-black text-indigo-700 bg-white text-base focus:outline-none"
+                    />
+                    <span className="font-bold text-slate-600 text-sm">/ 100</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSessionForDetail(null)}
+                  className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-colors flex-1 sm:flex-none"
+                >
+                  Batal
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveAssessment}
+                  disabled={isSavingScore}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50 flex-1 sm:flex-none"
+                >
+                  {isSavingScore ? 'Menyimpan...' : '💾 Simpan Penilaian'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
