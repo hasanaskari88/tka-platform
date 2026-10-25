@@ -30,7 +30,7 @@ export default function LoginPage() {
     // Bersihkan username (tanpa spasi, huruf kecil)
     const cleanedUsername = username.trim().toLowerCase().replace(/\s+/g, '')
     // Konversi username ke domain email internal yang valid
-    const internalEmail = `${cleanedUsername}@tka-simulasi.com`
+    const internalEmail = `${cleanedUsername}@grisan.com`
 
     const supabase = createClient()
 

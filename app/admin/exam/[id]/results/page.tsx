@@ -8,10 +8,10 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
-// 🟢 HELPER EVALUASI MULTI-TIPE SOAL (PILIHAN GANDA, KOMPLEKS, MATRIKS)
+// 🟢 HELPER EVALUASI MULTI-TIPE SOAL (PG, KOMPLEKS, MATRIKS, ESSAY)
 function evaluateAnswer(q: any, rawAns: any) {
   if (rawAns === null || rawAns === undefined || rawAns === '') {
-    return { isCorrect: false, ratio: 0, userChoices: [] }
+    return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
   }
 
   let parsed = rawAns
@@ -39,8 +39,10 @@ function evaluateAnswer(q: any, rawAns: any) {
     const isCorrect = userChoice !== '' && userChoice === correctOpt
     return {
       isCorrect,
+      isUnanswered: !userChoice,
       ratio: isCorrect ? 1 : 0,
-      userChoices: userChoice ? [userChoice] : []
+      userChoices: userChoice ? [userChoice] : [],
+      displayVal: userChoice || 'Kosong'
     }
   }
 
@@ -62,7 +64,7 @@ function evaluateAnswer(q: any, rawAns: any) {
     }
 
     if (userKeys.length === 0) {
-      return { isCorrect: false, ratio: 0, userChoices: [] }
+      return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
     }
 
     const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
@@ -72,8 +74,10 @@ function evaluateAnswer(q: any, rawAns: any) {
 
     return {
       isCorrect: ratio === 1,
+      isUnanswered: false,
       ratio,
-      userChoices: userKeys
+      userChoices: userKeys,
+      displayVal: userKeys.join(', ')
     }
   }
 
@@ -83,28 +87,44 @@ function evaluateAnswer(q: any, rawAns: any) {
     const userObj = typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null ? parsed : {}
 
     const statementIds = Object.keys(correctObj)
-    if (statementIds.length === 0) return { isCorrect: false, ratio: 0, userChoices: [] }
+    if (statementIds.length === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
 
     let correctRows = 0
     let attemptedRows = 0
     statementIds.forEach((sId) => {
       if (userObj[sId]) attemptedRows++
-      if (String(userObj[sId]).toLowerCase() === String(correctObj[sId]).toLowerCase()) {
+      if (String(userObj[sId]).trim().toLowerCase() === String(correctObj[sId]).trim().toLowerCase()) {
         correctRows++
       }
     })
 
-    if (attemptedRows === 0) return { isCorrect: false, ratio: 0, userChoices: [] }
+    if (attemptedRows === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
 
     const ratio = correctRows / statementIds.length
     return {
       isCorrect: ratio === 1,
+      isUnanswered: false,
       ratio,
-      userChoices: Object.values(userObj).map((v: any) => String(v).trim())
+      userChoices: Object.values(userObj).map((v: any) => String(v).trim()),
+      displayVal: `Benar ${correctRows}/${statementIds.length}`
     }
   }
 
-  return { isCorrect: false, ratio: 0, userChoices: [] }
+  // D. Essay / Uraian
+  if (qType === 'essay') {
+    const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
+    const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
+    return {
+      isCorrect: isAnswered, // Soal essay yang dijawab dihitung telah diisi
+      isUnanswered: !isAnswered,
+      isEssay: true,
+      ratio: isAnswered ? 1 : 0,
+      userChoices: isAnswered ? [textAns] : [],
+      displayVal: isAnswered ? textAns : 'Kosong'
+    }
+  }
+
+  return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
 }
 
 function ExamResultsContent() {
@@ -188,28 +208,32 @@ function ExamResultsContent() {
 
       const userAnswers = answerMap.get(session.id) || []
       const totalQ = questionData ? questionData.length : 0
-      const finalScore = session.score !== undefined && session.score !== null
-        ? Number(session.score)
-        : 0
 
       let correctCount = 0
+      let totalPointsEarned = 0
+      let totalMaxPoints = 0
 
-      if (userAnswers.length > 0) {
-        userAnswers.forEach((ans) => {
-          const q = questionMap.get(ans.question_id)
-          if (q) {
-            const rawChoice = ans.selected_answers ?? ans.selected_option
-            const { isCorrect } = evaluateAnswer(q, rawChoice)
-            if (isCorrect) {
-              correctCount += 1
-            }
+      if (questionData && questionData.length > 0) {
+        questionData.forEach((q) => {
+          const qMaxScore = Number(q.max_score) || 1
+          totalMaxPoints += qMaxScore
+
+          const ans = userAnswers.find((a) => a.question_id === q.id)
+          // ✅ PERBAIKAN: Membaca ans.user_answer terlebih dahulu
+          const rawChoice = ans ? (ans.user_answer ?? ans.selected_answers ?? ans.selected_option) : null
+          const evalRes = evaluateAnswer(q, rawChoice)
+
+          if (evalRes.isCorrect) {
+            correctCount += 1
           }
+          totalPointsEarned += evalRes.ratio * qMaxScore
         })
-      } else if (session.total_correct !== undefined && session.total_correct !== null && Number(session.total_correct) > 0) {
-        correctCount = Number(session.total_correct)
-      } else if (finalScore > 0 && totalQ > 0) {
-        correctCount = Math.round((finalScore / 100) * totalQ)
       }
+
+      // Prioritaskan nilai dari DB jika ada, atau hitung ulang skala 100
+      const finalScore = session.score !== undefined && session.score !== null
+        ? Number(session.score)
+        : totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
 
       const finishTime = session.end_time || session.submitted_at || session.completed_at || session.created_at
 
@@ -232,6 +256,7 @@ function ExamResultsContent() {
     const totalParticipants = processedSessions.length
     const analysisList = (questionData || []).map((q, qIdx) => {
       let correctAnswersCount = 0
+      let answeredCount = 0
       const optionCounts: { [key: string]: number } = { A: 0, B: 0, C: 0, D: 0, Kosong: 0 }
       
       let correctOptDisplay = ''
@@ -243,6 +268,8 @@ function ExamResultsContent() {
         }
       } else if (q.question_type === 'true_false_matrix') {
         correctOptDisplay = 'Matriks'
+      } else if (q.question_type === 'essay') {
+        correctOptDisplay = 'ESSAY'
       } else {
         correctOptDisplay = String(q.correct_option ?? q.correct_answer ?? 'A').trim().toUpperCase()
       }
@@ -250,11 +277,16 @@ function ExamResultsContent() {
       if (answerData) {
         answerData.forEach((ans) => {
           if (ans.question_id === q.id) {
-            const rawChoice = ans.selected_answers ?? ans.selected_option
-            const { isCorrect, userChoices } = evaluateAnswer(q, rawChoice)
+            // ✅ PERBAIKAN: Membaca ans.user_answer
+            const rawChoice = ans.user_answer ?? ans.selected_answers ?? ans.selected_option
+            const { isCorrect, isUnanswered, userChoices } = evaluateAnswer(q, rawChoice)
 
             if (isCorrect) {
               correctAnswersCount += 1
+            }
+
+            if (!isUnanswered) {
+              answeredCount += 1
             }
 
             if (userChoices.length > 0) {
@@ -292,7 +324,10 @@ function ExamResultsContent() {
       let difficultyLabel = 'Sedang'
       let difficultyBadge = 'bg-amber-50 text-amber-700 border-amber-200'
 
-      if (accuracyRate >= 80) {
+      if (q.question_type === 'essay') {
+        difficultyLabel = 'Soal Essay / Uraian'
+        difficultyBadge = 'bg-indigo-50 text-indigo-700 border-indigo-200'
+      } else if (accuracyRate >= 80) {
         difficultyLabel = 'Sangat Mudah'
         difficultyBadge = 'bg-emerald-50 text-emerald-700 border-emerald-200'
       } else if (accuracyRate >= 60) {
@@ -309,10 +344,12 @@ function ExamResultsContent() {
       return {
         question_no: qIdx + 1,
         question_id: q.id,
+        question_type: q.question_type || 'multiple_choice',
         question_text: q.question_text || '',
         correct_option: correctOptDisplay,
         max_score: q.max_score || 1,
         correct_count: correctAnswersCount,
+        answeredCount,
         wrong_count: wrongAnswersCount,
         accuracy_rate: accuracyRate,
         optionCounts: optionCounts || { A: 0, B: 0, C: 0, D: 0, Kosong: 0 },
@@ -463,10 +500,10 @@ function ExamResultsContent() {
       'No Soal': item.question_no,
       'Teks Soal': (item.question_text || '').replace(/<[^>]*>?/gm, ''),
       'Kunci Jawaban': item.correct_option,
-      'Pilihan A': item.optionCounts?.A ?? 0,
-      'Pilihan B': item.optionCounts?.B ?? 0,
-      'Pilihan C': item.optionCounts?.C ?? 0,
-      'Pilihan D': item.optionCounts?.D ?? 0,
+      'Pilihan A / Status': item.question_type === 'essay' ? `Dijawab: ${item.answeredCount}` : (item.optionCounts?.A ?? 0),
+      'Pilihan B': item.question_type === 'essay' ? '-' : (item.optionCounts?.B ?? 0),
+      'Pilihan C': item.question_type === 'essay' ? '-' : (item.optionCounts?.C ?? 0),
+      'Pilihan D': item.question_type === 'essay' ? '-' : (item.optionCounts?.D ?? 0),
       'Tidak Dijawab': item.optionCounts?.Kosong ?? 0,
       'Akurasi (%)': `${item.accuracy_rate}%`,
       'Pengecoh Utama': item.topDistractorKey !== 'Tidak ada' ? `Opsi ${item.topDistractorKey}` : '-',
@@ -598,13 +635,22 @@ function ExamResultsContent() {
                       </span>
                     </td>
                     <td className="p-3 text-center">
-                      {item.correct_option === 'Matriks' ? (
+                      {item.question_type === 'true_false_matrix' || item.correct_option === 'Matriks' ? (
                         <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
                           <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold rounded">
                             B: {item.optionCounts?.BENAR ?? 0}
                           </span>
                           <span className="px-2 py-0.5 bg-rose-100 text-rose-800 border border-rose-300 font-bold rounded">
                             S: {item.optionCounts?.SALAH ?? 0}
+                          </span>
+                        </div>
+                      ) : item.question_type === 'essay' || item.correct_option === 'ESSAY' ? (
+                        <div className="flex justify-center items-center space-x-1.5 font-mono text-[11px]">
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 border border-indigo-300 font-bold rounded">
+                            Dijawab: {item.answeredCount ?? 0}
+                          </span>
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 font-bold rounded">
+                            Kosong: {item.optionCounts?.Kosong ?? 0}
                           </span>
                         </div>
                       ) : (
@@ -628,7 +674,9 @@ function ExamResultsContent() {
                       )}
                     </td>
                     <td className="p-3 text-center font-bold">
-                      {item.topDistractorKey !== 'Tidak ada' ? (
+                      {item.question_type === 'essay' ? (
+                        <span className="text-slate-400 text-[11px] font-normal">Uraian</span>
+                      ) : item.topDistractorKey !== 'Tidak ada' ? (
                         <span className="px-2.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[11px]">
                           Opsi {item.topDistractorKey} ({item.maxDistractorCount})
                         </span>
