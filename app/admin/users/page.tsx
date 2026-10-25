@@ -10,13 +10,17 @@ function AdminUsersContent() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState<'ALL' | 'admin' | 'student'>('ALL')
+  const [filterClass, setFilterClass] = useState<string>('ALL')
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+
+  // State Checkbox Seleksi Cetak
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
 
   // State Form Tambah User
   const [newUsername, setNewUsername] = useState('')
   const [fullName, setFullName] = useState('')
-  const [classCode, setClassCode] = useState('XII-A')
+  const [classCode, setClassCode] = useState('VIB')
   const [userPassword, setUserPassword] = useState('')
   const [confirmUserPassword, setConfirmUserPassword] = useState('')
   const [showUserPassword, setShowUserPassword] = useState(false)
@@ -35,7 +39,14 @@ function AdminUsersContent() {
   const [editMsg, setEditMsg] = useState<string | null>(null)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
 
+  // State Modal Bulk Import
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
+  const [bulkInputText, setBulkInputText] = useState('')
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false)
+
   const fetchUsers = async () => {
+    setLoading(true)
     const supabase = createClient()
 
     const { data: authData } = await supabase.auth.getUser()
@@ -46,7 +57,8 @@ function AdminUsersContent() {
     const { data } = await supabase
       .from('profiles')
       .select('*')
-      .order('created_at', { ascending: false })
+      .order('class_code', { ascending: true })
+      .order('full_name', { ascending: true })
 
     if (data) setProfiles(data)
     setLoading(false)
@@ -56,13 +68,17 @@ function AdminUsersContent() {
     fetchUsers()
   }, [])
 
-  // 1. Tambah Akun Baru
+  // 1. Ekstraksi Daftar Kelas Unik
+  const classList = Array.from(
+    new Set(profiles.map((p) => p.class_code || p.class_label).filter(Boolean))
+  )
+
+  // 2. Tambah Akun Baru (Supabase Auth + Fake Email @grisan.com)
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
     setCreateMsg(null)
 
-    // Validasi Kesamaan Password
     if (userPassword !== confirmUserPassword) {
       setCreateMsg('Error: Konfirmasi password tidak cocok!')
       setIsCreating(false)
@@ -100,6 +116,7 @@ function AdminUsersContent() {
           full_name: fullName.trim(),
           class_code: classCode.trim().toUpperCase(),
           role: userRole,
+          plain_password: userPassword,
         },
         { onConflict: 'id' }
       )
@@ -115,7 +132,7 @@ function AdminUsersContent() {
     setIsCreating(false)
   }
 
-  // 2. Buka Modal Edit User
+  // 3. Buka Modal Edit User
   const handleOpenEditModal = (user: any) => {
     setEditingUser(user)
     setEditFullName(user.full_name || '')
@@ -127,7 +144,7 @@ function AdminUsersContent() {
     setEditMsg(null)
   }
 
-  // 3. Simpan Edit User & Reset Password
+  // 4. Simpan Edit User & Reset Password (Via API Route)
   const handleSaveEditUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
@@ -135,7 +152,6 @@ function AdminUsersContent() {
     setIsSavingEdit(true)
     setEditMsg(null)
 
-    // Validasi Reset Password jika Diisi
     if (editPassword.trim()) {
       if (editPassword.length < 6) {
         setEditMsg('Error: Password baru minimal 6 karakter!')
@@ -180,7 +196,7 @@ function AdminUsersContent() {
     setIsSavingEdit(false)
   }
 
-  // 4. Hapus User
+  // 5. Hapus User (Via API Route)
   const handleDeleteUser = async (userId: string, username: string) => {
     if (userId === currentUserId) {
       alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang login!')
@@ -207,48 +223,193 @@ function AdminUsersContent() {
     }
   }
 
+  // 6. Download Template CSV untuk Bulk Import
+  const handleDownloadTemplate = () => {
+    const csvHeader = 'username,full_name,class_code,password,role\n'
+    const csvSample =
+      'ulfah,TABINA ULFAH ARDANI,VIB,123456,student\n' +
+      'yoga,YOGA AGUNG WIBOWO,VIB,123456,student\n' +
+      'yasin,YASIN PUSPITA,VIB,123456,student\n'
+
+    const blob = new Blob([csvHeader + csvSample], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'template_import_user_cbt.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // 7. Memproses Bulk Import Massal dengan Domain @grisan.com
+  const handleProcessBulkImport = async () => {
+    if (!bulkInputText.trim()) return alert('Masukkan teks CSV atau isi file lebih dulu!')
+    setIsProcessingBulk(true)
+    setBulkMessage('Memproses pendaftaran massal...')
+
+    const lines = bulkInputText.trim().split('\n')
+    const rowsToInsert: any[] = []
+
+    lines.forEach((line, index) => {
+      if (index === 0 && line.toLowerCase().includes('username')) return
+
+      const cols = line.split(',').map((c) => c.trim())
+      if (cols.length >= 4) {
+        const uName = cols[0].toLowerCase()
+        rowsToInsert.push({
+          username: uName,
+          full_name: cols[1],
+          class_code: cols[2].toUpperCase(),
+          plain_password: cols[3],
+          role: cols[4] ? cols[4].toLowerCase() : 'student',
+        })
+      }
+    })
+
+    if (rowsToInsert.length === 0) {
+      setIsProcessingBulk(false)
+      return setBulkMessage('Format data tidak valid. Pastikan dipisahkan dengan tanda koma.')
+    }
+
+    const supabase = createClient()
+    const { error } = await supabase.from('profiles').insert(rowsToInsert)
+
+    if (error) {
+      setBulkMessage(`Gagal import: ${error.message}`)
+    } else {
+      setBulkMessage(`✅ Berhasil mengimpor ${rowsToInsert.length} akun pengguna!`)
+      setBulkInputText('')
+      fetchUsers()
+      setTimeout(() => setIsBulkModalOpen(false), 1500)
+    }
+    setIsProcessingBulk(false)
+  }
+
+  // 8. Filter Pengguna Berdasarkan Pencarian, Role, dan Kelas
   const filteredProfiles = profiles.filter((p) => {
     const nameMatch = p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
     const userMatch = p.username?.toLowerCase().includes(searchTerm.toLowerCase())
     const classMatch = p.class_code?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesSearch = nameMatch || userMatch || classMatch
-    const matchesRole = filterRole === 'ALL' || (p.role || 'student') === filterRole
 
-    return matchesSearch && matchesRole
+    const matchesRole = filterRole === 'ALL' || (p.role || 'student') === filterRole
+    const userClass = p.class_code || p.class_label || ''
+    const matchesClass = filterClass === 'ALL' || userClass === filterClass
+
+    return matchesSearch && matchesRole && matchesClass
   })
+
+  // 9. Penanganan Checkbox Seleksi Kartu
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedUserIds(filteredProfiles.map((p) => p.id))
+    } else {
+      setSelectedUserIds([])
+    }
+  }
+
+  const handleToggleSelectUser = (id: string) => {
+    if (selectedUserIds.includes(id)) {
+      setSelectedUserIds(selectedUserIds.filter((item) => item !== id))
+    } else {
+      setSelectedUserIds([...selectedUserIds, id])
+    }
+  }
+
+  const handleTriggerPrint = () => {
+    if (selectedUserIds.length === 0) {
+      return alert('Pilih setidaknya satu siswa menggunakan checkbox untuk dicetak!')
+    }
+    window.print()
+  }
+
+  const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <Navbar />
+      {/* GAYA KHUSUS CETAK Halaman A4 (3 Kolom x 5 Baris = 15 Kartu) */}
+      <style jsx global>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #print-area, #print-area * {
+            visibility: visible;
+          }
+          #print-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: white !important;
+            padding: 4mm !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
 
-      <main className="p-8 max-w-7xl mx-auto space-y-8">
-        <div className="flex justify-between items-center border-b pb-4 border-slate-200">
+      <div className="no-print">
+        <Navbar />
+      </div>
+
+      <main className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6 no-print">
+        <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 border-slate-200 gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">
-              👥 Kelola Akun & Pengguna
+            <h1 className="text-2xl font-bold text-slate-800 flex items-center space-x-2">
+              <span>👥</span>
+              <span>Kelola Akun & Pengguna</span>
             </h1>
             <p className="text-xs text-slate-500 mt-1">
-              Daftarkan pengguna baru, edit data, reset password, dan hapus akun
+              Daftarkan pengguna baru, import massal, edit data, reset password, dan cetak kartu login.
             </p>
           </div>
-          <Link
-            href="/admin"
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            ← Kembali ke Admin CMS
-          </Link>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsBulkModalOpen(true)}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center space-x-1"
+              suppressHydrationWarning
+            >
+              <span>📥</span>
+              <span>Import User Massal</span>
+            </button>
+
+            <button
+              onClick={handleTriggerPrint}
+              disabled={selectedUserIds.length === 0}
+              className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 ${
+                selectedUserIds.length > 0
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'
+                  : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+              }`}
+              suppressHydrationWarning
+            >
+              <span>🖨️</span>
+              <span>Cetak {selectedUserIds.length} Kartu Selected</span>
+            </button>
+
+            <Link
+              href="/admin"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-lg transition-colors"
+            >
+              ← Kembali ke Admin CMS
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Form Tambah Pengguna */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-fit">
-            <h2 className="text-sm font-bold text-slate-800 mb-3 pb-2 border-b">
-              ➕ Mendaftarkan Pengguna Baru
+          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm h-fit space-y-3">
+            <h2 className="text-sm font-bold text-slate-800 pb-2 border-b flex items-center space-x-1">
+              <span>➕</span>
+              <span>Mendaftarkan Pengguna Baru</span>
             </h2>
 
             {createMsg && (
               <div
-                className={`p-2.5 rounded-lg text-xs font-medium mb-3 ${
+                className={`p-2.5 rounded-lg text-xs font-medium ${
                   createMsg.startsWith('Error')
                     ? 'bg-red-50 text-red-600 border border-red-200'
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -260,9 +421,7 @@ function AdminUsersContent() {
 
             <form onSubmit={handleCreateUser} className="space-y-3" suppressHydrationWarning>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Username
-                </label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Username</label>
                 <input
                   type="text"
                   required
@@ -275,9 +434,7 @@ function AdminUsersContent() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Nama Lengkap
-                </label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap</label>
                 <input
                   type="text"
                   required
@@ -290,13 +447,11 @@ function AdminUsersContent() {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Kode Kelas / Label
-                </label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Kode Kelas / Label</label>
                 <input
                   type="text"
                   required
-                  placeholder="Contoh: XII-A atau ADMIN"
+                  placeholder="Contoh: XII-A atau VIB"
                   value={classCode}
                   onChange={(e) => setClassCode(e.target.value)}
                   className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-indigo-600 focus:outline-none"
@@ -304,11 +459,8 @@ function AdminUsersContent() {
                 />
               </div>
 
-              {/* Input Password Baru */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Password Akun
-                </label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Password Akun</label>
                 <div className="relative">
                   <input
                     type={showUserPassword ? 'text' : 'password'}
@@ -332,11 +484,8 @@ function AdminUsersContent() {
                 </div>
               </div>
 
-              {/* Input Konfirmasi Password */}
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Masukkan Ulang Password
-                </label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Masukkan Ulang Password</label>
                 <div className="relative">
                   <input
                     type={showUserPassword ? 'text' : 'password'}
@@ -352,27 +501,14 @@ function AdminUsersContent() {
                     }`}
                     suppressHydrationWarning
                   />
-                  <button
-                    type="button"
-                    onClick={() => setShowUserPassword(!showUserPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-                    title={showUserPassword ? 'Sembunyikan' : 'Tampilkan'}
-                    suppressHydrationWarning
-                  >
-                    {showUserPassword ? '🙈' : '👁️'}
-                  </button>
                 </div>
                 {confirmUserPassword && confirmUserPassword !== userPassword && (
-                  <p className="text-[10px] text-red-500 mt-1 font-medium">
-                    ⚠️ Password tidak cocok!
-                  </p>
+                  <p className="text-[10px] text-red-500 mt-1 font-medium">⚠️ Password tidak cocok!</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  Peran / Role
-                </label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Peran / Role</label>
                 <select
                   value={userRole}
                   onChange={(e: any) => setUserRole(e.target.value)}
@@ -395,30 +531,62 @@ function AdminUsersContent() {
             </form>
           </div>
 
-          {/* Tabel Daftar Pengguna */}
+          {/* Tabel Pengguna & Bilah Filter */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-              <input
-                type="text"
-                placeholder="🔍 Cari nama, username, atau kelas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                suppressHydrationWarning
-              />
+            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input
+                  type="text"
+                  placeholder="🔍 Cari nama, username, atau kelas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="px-3 py-1.5 border rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  suppressHydrationWarning
+                />
 
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-semibold text-slate-600">Filter Role:</span>
+                <select
+                  value={filterClass}
+                  onChange={(e) => setFilterClass(e.target.value)}
+                  className="px-2.5 py-1 border rounded-lg text-xs font-semibold text-indigo-700 focus:outline-none"
+                  suppressHydrationWarning
+                >
+                  <option value="ALL">🏫 Semua Kelas ({classList.length} Kelas)</option>
+                  {classList.map((cls) => (
+                    <option key={cls} value={cls}>
+                      Kelas {cls}
+                    </option>
+                  ))}
+                </select>
+
                 <select
                   value={filterRole}
                   onChange={(e: any) => setFilterRole(e.target.value)}
                   className="px-2.5 py-1 border rounded-lg text-xs font-semibold text-slate-700 focus:outline-none"
                   suppressHydrationWarning
                 >
-                  <option value="ALL">Semua Peran ({profiles.length})</option>
+                  <option value="ALL">👤 Semua Peran ({profiles.length})</option>
                   <option value="admin">ADMIN Saja</option>
                   <option value="student">STUDENT Saja</option>
                 </select>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-xs">
+                <label className="flex items-center space-x-2 cursor-pointer font-bold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredProfiles.length > 0 &&
+                      filteredProfiles.every((p) => selectedUserIds.includes(p.id))
+                    }
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded text-indigo-600 w-4 h-4"
+                  />
+                  <span>Pilih Semua Siswa ({filteredProfiles.length})</span>
+                </label>
+
+                <span className="font-bold text-indigo-600">
+                  {selectedUserIds.length} Siswa Terpilih untuk Dicetak
+                </span>
               </div>
             </div>
 
@@ -429,6 +597,7 @@ function AdminUsersContent() {
                 <table className="w-full text-left border-collapse">
                   <thead className="bg-slate-100 text-slate-700 border-b">
                     <tr>
+                      <th className="p-3 w-10 text-center font-bold">Pilih</th>
                       <th className="p-3 font-bold">Nama Lengkap & Username</th>
                       <th className="p-3 font-bold text-center">Kode Kelas</th>
                       <th className="p-3 font-bold text-center">Role Akses</th>
@@ -440,9 +609,23 @@ function AdminUsersContent() {
                       filteredProfiles.map((p) => {
                         const isAdmin = p.role === 'admin'
                         const isSelf = p.id === currentUserId
+                        const isSelected = selectedUserIds.includes(p.id)
 
                         return (
-                          <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                          <tr
+                            key={p.id}
+                            className={`hover:bg-slate-50 transition-colors ${
+                              isSelected ? 'bg-indigo-50/50' : ''
+                            }`}
+                          >
+                            <td className="p-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => handleToggleSelectUser(p.id)}
+                                className="rounded text-indigo-600 w-4 h-4 cursor-pointer"
+                              />
+                            </td>
                             <td className="p-3">
                               <div className="font-bold text-slate-800 flex items-center gap-1.5">
                                 <span>{p.full_name}</span>
@@ -492,7 +675,7 @@ function AdminUsersContent() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={4} className="p-6 text-center text-slate-400">
+                        <td colSpan={5} className="p-6 text-center text-slate-400">
                           Tidak ditemukan pengguna yang cocok.
                         </td>
                       </tr>
@@ -535,9 +718,7 @@ function AdminUsersContent() {
 
               <form onSubmit={handleSaveEditUser} className="space-y-3 text-xs" suppressHydrationWarning>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Nama Lengkap
-                  </label>
+                  <label className="block font-semibold text-slate-700 mb-1">Nama Lengkap</label>
                   <input
                     type="text"
                     required
@@ -549,9 +730,7 @@ function AdminUsersContent() {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Kode Kelas / Label
-                  </label>
+                  <label className="block font-semibold text-slate-700 mb-1">Kode Kelas / Label</label>
                   <input
                     type="text"
                     required
@@ -563,9 +742,7 @@ function AdminUsersContent() {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
-                    Peran Akses (Role)
-                  </label>
+                  <label className="block font-semibold text-slate-700 mb-1">Peran Akses (Role)</label>
                   <select
                     value={editRole}
                     onChange={(e: any) => setEditRole(e.target.value)}
@@ -577,7 +754,6 @@ function AdminUsersContent() {
                   </select>
                 </div>
 
-                {/* Input Reset Password Baru */}
                 <div className="pt-2 border-t space-y-2">
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">
@@ -605,7 +781,6 @@ function AdminUsersContent() {
                     </div>
                   </div>
 
-                  {/* Input Masukkan Ulang Password Baru */}
                   {editPassword.trim().length > 0 && (
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">
@@ -625,15 +800,6 @@ function AdminUsersContent() {
                           }`}
                           suppressHydrationWarning
                         />
-                        <button
-                          type="button"
-                          onClick={() => setShowEditPassword(!showEditPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
-                          title={showEditPassword ? 'Sembunyikan' : 'Tampilkan'}
-                          suppressHydrationWarning
-                        >
-                          {showEditPassword ? '🙈' : '👁️'}
-                        </button>
                       </div>
                       {confirmEditPassword && confirmEditPassword !== editPassword && (
                         <p className="text-[10px] text-red-500 mt-1 font-medium">
@@ -667,6 +833,161 @@ function AdminUsersContent() {
           </div>
         )}
       </main>
+
+      {/* Area Cetak Kartu (15 per Lembar A4) */}
+      <div id="print-area" className="hidden print:block">
+        <div className="grid grid-cols-3 gap-2.5">
+          {selectedUserObjects.map((user, idx) => (
+            <div
+              key={user.id || idx}
+              className="border-2 border-dashed border-slate-400 p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative"
+            >
+              <div className="flex items-center space-x-2 border-b pb-1.5 border-slate-300">
+                <img
+                  src="/logo-sd-getasan.png"
+                  alt="Logo"
+                  className="w-7 h-7 object-contain"
+                  onError={(e: any) => (e.target.style.display = 'none')}
+                />
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-[9.5px] font-black leading-tight text-indigo-950 uppercase truncate">
+                    SD NEGERI GETASAN
+                  </h4>
+                  <p className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-tighter">
+                    KARTU LOGIN UJIAN CBT TKA
+                  </p>
+                </div>
+                <span className="px-1.5 py-0.5 text-[8px] font-black bg-indigo-100 text-indigo-800 rounded border border-indigo-200 shrink-0">
+                  {user.class_code || user.class_label || 'VIB'}
+                </span>
+              </div>
+
+              <div className="my-1 space-y-1">
+                <div>
+                  <span className="text-[7.5px] text-slate-500 font-bold uppercase block">
+                    Nama Peserta Ujian:
+                  </span>
+                  <span className="text-[10px] font-extrabold text-slate-900 block truncate leading-tight">
+                    {user.full_name || 'Siswa CBT'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200 font-mono text-[9px]">
+                  <div>
+                    <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
+                      Username:
+                    </span>
+                    <span className="font-bold text-indigo-700 truncate block">
+                      {user.username}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
+                      Password:
+                    </span>
+                    <span className="font-bold text-rose-600 truncate block">
+                      {user.plain_password || '123456'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[7.5px] text-slate-500 font-medium">
+                <span>🌐 grisan.vercel.app</span>
+                <span className="font-bold text-slate-400">✂️ Garis Potong</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Modal Import Pengguna Banyak */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs no-print">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-base font-extrabold text-slate-800 flex items-center space-x-1.5">
+                <span>📥</span>
+                <span>Import Pengguna Banyak (Bulk Import)</span>
+              </h3>
+              <button
+                onClick={() => setIsBulkModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-base"
+                suppressHydrationWarning
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between gap-2">
+              <div>
+                <h4 className="font-bold text-indigo-900 text-xs">📄 Belum punya format file?</h4>
+                <p className="text-[11px] text-indigo-700">
+                  Unduh contoh berkas CSV standar agar tidak salah memasukkan data.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition-colors shrink-0 flex items-center space-x-1 shadow-sm"
+                suppressHydrationWarning
+              >
+                <span>⬇️</span>
+                <span>Download Template CSV</span>
+              </button>
+            </div>
+
+            {bulkMessage && (
+              <div
+                className={`p-3 rounded-xl text-xs font-semibold ${
+                  bulkMessage.startsWith('Gagal') || bulkMessage.startsWith('Format')
+                    ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}
+              >
+                {bulkMessage}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="block font-bold text-slate-700">
+                Tempelkan (Paste) Teks CSV di Sini:
+              </label>
+              <textarea
+                rows={6}
+                value={bulkInputText}
+                onChange={(e) => setBulkInputText(e.target.value)}
+                placeholder="username,full_name,class_code,password,role&#10;ulfah,TABINA ULFAH ARDANI,VIB,123456,student&#10;yoga,YOGA AGUNG WIBOWO,VIB,123456,student"
+                className="w-full p-3 border rounded-xl font-mono text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+              <p className="text-[11px] text-slate-500">
+                *Format per baris: <code className="font-bold">username,full_name,class_code,password,role</code>
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-2 border-t">
+              <button
+                type="button"
+                onClick={() => setIsBulkModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl"
+                suppressHydrationWarning
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleProcessBulkImport}
+                disabled={isProcessingBulk}
+                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm disabled:opacity-50"
+                suppressHydrationWarning
+              >
+                {isProcessingBulk ? 'Memproses...' : '🚀 Simpan & Daftarkan Massal'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
