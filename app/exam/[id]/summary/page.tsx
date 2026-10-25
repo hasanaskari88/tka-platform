@@ -156,7 +156,7 @@ function ExamSummaryContent() {
             .select('*')
             .eq('exam_id', examId)
             .eq('user_id', user.id)
-            .order('created_at', { ascending: false }) // ✅ Menggunakan created_at
+            .order('created_at', { ascending: false })
             .limit(1)
             .single()
 
@@ -189,13 +189,12 @@ function ExamSummaryContent() {
               ? ans.user_answer
               : ans.selected_option
 
-            // Coba parse jika tersimpan sebagai JSON string
             if (typeof rawVal === 'string') {
               try {
                 const parsed = JSON.parse(rawVal)
                 if (parsed !== null) rawVal = parsed
               } catch {
-                // Biarkan sebagai string biasa
+                // Biarkan string biasa
               }
             }
             map[ans.question_id] = rawVal
@@ -210,7 +209,7 @@ function ExamSummaryContent() {
     loadSummaryAndReview()
   }, [examId, sessionId])
 
-  // Hitung Skor & Statistik dengan Evaluasi Lengkap
+  // Hitung Skor & Statistik
   let totalPointsEarned = 0
   let totalMaxPoints = 0
   let totalCorrect = 0
@@ -235,12 +234,11 @@ function ExamSummaryContent() {
     }
   })
 
-  // Kalkulasi Skor Akhir Skala 100
   const calculatedScore = totalMaxPoints > 0
     ? Math.round((totalPointsEarned / totalMaxPoints) * 100)
     : 0
 
-  // 🔄 PERBARUI DATABASE OTOMATIS JIKA NILAI/END_TIME DI DB MASIH NULL ATAU SALAH
+  // Auto Update database jika nilai / end_time null
   useEffect(() => {
     if (sessionData && !loading && questions.length > 0) {
       const dbScore = Number(sessionData.score)
@@ -256,7 +254,7 @@ function ExamSummaryContent() {
           .from('exam_sessions')
           .update({
             score: calculatedScore,
-            end_time: updatedEndTime, // ✅ Mengisi end_time jika NULL
+            end_time: updatedEndTime,
           })
           .eq('id', sessionData.id)
           .then(() => {
@@ -268,7 +266,7 @@ function ExamSummaryContent() {
     }
   }, [sessionData, calculatedScore, loading, questions.length])
 
-  // Filter Soal untuk Pembahasan
+  // Filter Soal
   const filteredQuestions = questions.filter((q) => {
     const userAns = userAnswersMap[q.id]
     const evalResult = evaluateQuestion(q, userAns)
@@ -278,8 +276,8 @@ function ExamSummaryContent() {
     return true
   })
 
-  // Theme Styles
-  const themeStyles = {
+  // 🎨 Theme Styles (Dukungan Lengkap 6 Tema & Safe Fallback)
+  const themeStylesMap: Record<string, { card: string; statBg: string; badgeColor: string }> = {
     space: {
       card: 'bg-slate-900/85 border-purple-500/40 text-white shadow-purple-900/40',
       statBg: 'bg-purple-950/60 border-purple-800/50',
@@ -295,12 +293,24 @@ function ExamSummaryContent() {
       statBg: 'bg-sky-900/60 border-cyan-800/50',
       badgeColor: 'bg-sky-900/80 text-cyan-200 border-cyan-700/50',
     },
+    disney: {
+      card: 'bg-purple-950/90 border-2 border-amber-400/40 text-white shadow-pink-950/50',
+      statBg: 'bg-purple-900/60 border-amber-400/40 text-amber-200',
+      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-400/50',
+    },
+    cartoon3d: {
+      card: 'bg-white border-4 border-slate-900 text-slate-900 shadow-[5px_5px_0px_0px_rgba(15,23,42,1)]',
+      statBg: 'bg-amber-100 border-2 border-slate-900 text-slate-900',
+      badgeColor: 'bg-yellow-200 text-slate-900 border-2 border-slate-900 font-black',
+    },
     school: {
       card: 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-200/50',
       statBg: 'bg-slate-50 border-slate-200',
       badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     },
-  }[theme]
+  }
+
+  const themeStyles = themeStylesMap[theme] || themeStylesMap.school
 
   if (loading) {
     return (
