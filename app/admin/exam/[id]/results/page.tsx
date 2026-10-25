@@ -227,8 +227,8 @@ function ExamResultsContent() {
     kkmTarget: 70,
     signatoryType: 'both',
     includeParentSign: true,
-    principalName: 'Siti Aminah, S.Pd., M.Pd.',
-    principalNip: '19750812 199903 2 001',
+    principalName: 'GIYANTO, S.Pd.',
+    principalNip: '19670715 199903 1 006',
     teacherName: 'Hasan Askari, S.Pd.',
     teacherNip: '19880520 201201 1 002',
   })
@@ -747,8 +747,8 @@ function ExamResultsContent() {
 
   // Dummy Siswa untuk Live Preview
   const dummyStudent = {
-    full_name: 'Ahmad Fauzi, S.Pd (Contoh Siswa)',
-    username: 'ahmad_fauzi',
+    full_name: 'Cristiano Ronaldo (Contoh Siswa)',
+    username: 'cr7',
     class_code: '6A',
     earned_score: 95,
     correct_count: 19,
