@@ -8,7 +8,7 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
-// 🟢 HELPER EVALUASI MULTI-TIPE SOAL (PG, KOMPLEKS, MATRIKS, ESSAY)
+// 🟢 HELPER EVALUASI MULTI-TIPE SOAL
 function evaluateAnswer(q: any, rawAns: any) {
   if (rawAns === null || rawAns === undefined || rawAns === '') {
     return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
@@ -32,7 +32,6 @@ function evaluateAnswer(q: any, rawAns: any) {
 
   const qType = q.question_type || 'multiple_choice'
 
-  // A. Pilihan Ganda Biasa
   if (qType === 'multiple_choice') {
     const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toUpperCase()
     const userChoice = String(parsed || '').trim().toUpperCase()
@@ -46,7 +45,6 @@ function evaluateAnswer(q: any, rawAns: any) {
     }
   }
 
-  // B. Pilihan Ganda Kompleks
   if (qType === 'complex_multiple_choice') {
     let correctKeys: string[] = []
     if (Array.isArray(q.correct_answers)) {
@@ -81,7 +79,6 @@ function evaluateAnswer(q: any, rawAns: any) {
     }
   }
 
-  // C. Matriks Benar / Salah
   if (qType === 'true_false_matrix') {
     const correctObj: { [key: string]: string } = q.correct_answers || {}
     const userObj = typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null ? parsed : {}
@@ -110,7 +107,6 @@ function evaluateAnswer(q: any, rawAns: any) {
     }
   }
 
-  // D. Essay / Uraian
   if (qType === 'essay') {
     const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
     const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
@@ -158,6 +154,8 @@ function ExamResultsContent() {
   // 🖨️ STATE CETAK RAPOR ADMIN
   const [showPrintCertModal, setShowPrintCertModal] = useState<boolean>(false)
 
+  const LOGO_SD_URL = '/logo-sd-getasan.png'
+  const LOGO_TKA_URL = '/logo-tka.png'
   const KKM_TARGET = 70
 
   const loadData = async () => {
@@ -211,7 +209,6 @@ function ExamResultsContent() {
       })
     }
 
-    // A. Olah Sesi Pengerjaan Peserta
     const processedSessions = (sessionData || []).map((session) => {
       const student = profileMap.get(session.user_id) || {
         full_name: 'Siswa / Tamu',
@@ -264,7 +261,6 @@ function ExamResultsContent() {
       }
     })
 
-    // B. Olah Analisis Butir Soal & Pengecoh
     const totalParticipants = processedSessions.length
     const analysisList = (questionData || []).map((q, qIdx) => {
       let correctAnswersCount = 0
@@ -992,7 +988,6 @@ function ExamResultsContent() {
       {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            {/* Header Modal */}
             <div className="p-5 border-b bg-slate-900 text-white flex justify-between items-center">
               <div>
                 <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
@@ -1022,7 +1017,6 @@ function ExamResultsContent() {
               </div>
             </div>
 
-            {/* Body Modal */}
             <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl flex items-center justify-between">
                 <div>
@@ -1127,7 +1121,6 @@ function ExamResultsContent() {
               })}
             </div>
 
-            {/* Footer Modal */}
             <div className="p-5 border-t bg-slate-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
               <div className="space-y-1.5">
                 <label className="flex items-center space-x-2 text-xs font-bold text-slate-700 cursor-pointer select-none">
@@ -1219,12 +1212,22 @@ function ExamResultsContent() {
             {/* AREA CETAK SERTIFIKAT */}
             <div id="printable-area" className="p-10 font-serif text-slate-900 bg-amber-50/30 border-[12px] border-double border-indigo-900 rounded-xl relative m-4">
               <div className="border border-indigo-900 p-8 text-center rounded-lg space-y-4 bg-white/90">
-                <div className="flex justify-center items-center space-x-2">
-                  <span className="text-2xl">🎓</span>
+                <div className="flex justify-center items-center space-x-3">
+                  <img
+                    src={LOGO_SD_URL}
+                    alt="Logo SD Getasan"
+                    className="w-10 h-10 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
                   <span className="text-xs font-sans font-extrabold uppercase tracking-widest text-indigo-900">
                     SD NEGERI GETASAN
                   </span>
-                  <span className="text-2xl">🎓</span>
+                  <img
+                    src={LOGO_TKA_URL}
+                    alt="Logo Kemendikbud TKA"
+                    className="w-10 h-10 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
                 </div>
 
                 <h1 className="text-3xl font-bold uppercase tracking-wider text-slate-900 font-serif border-b-2 border-amber-500 pb-2 inline-block px-8">

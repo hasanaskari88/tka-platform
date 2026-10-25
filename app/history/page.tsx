@@ -17,6 +17,10 @@ function HistoryContent() {
   const [showRaporModal, setShowRaporModal] = useState(false)
   const [selectedCertSession, setSelectedCertSession] = useState<any | null>(null)
 
+  // 🖼️ Path Gambar Logo Sesuai File di public/
+  const LOGO_SD_URL = '/logo-sd-getasan.png'
+  const LOGO_TKA_URL = '/logo-tka.png'
+
   const KKM_TARGET = 70 // Batas Minimal Ketuntasan KKM
 
   const loadStudentHistory = async () => {
@@ -153,7 +157,6 @@ function HistoryContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* CSS Khusus Cetak Browser */}
       <style>{`
         @media print {
           body * {
@@ -443,7 +446,7 @@ function HistoryContent() {
         </div>
       </main>
 
-      {/* 📑 MODAL RAPOR HASIL UJIAN LENGKAP (A4 PORTRAIT) */}
+      {/* 📑 MODAL RAPOR HASIL UJIAN LENGKAP */}
       {showRaporModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
@@ -467,11 +470,25 @@ function HistoryContent() {
 
             {/* AREA CETAK RAPOR */}
             <div id="printable-area" className="p-8 overflow-y-auto font-sans text-slate-900 bg-white">
-              {/* KOP RESMI SEKOLAH */}
+              {/* KOP RESMI SEKOLAH DENGAN LOGO SD GETASAN & KEMENDIKBUD */}
               <div className="border-b-4 border-double border-slate-900 pb-4 mb-6 flex items-center justify-between text-center">
-                <div className="w-16 h-16 bg-indigo-700 text-white font-black text-2xl flex items-center justify-center rounded-2xl shrink-0">
-                  SD
+                {/* LOGO SD GETASAN (KIRI) */}
+                <div className="w-16 h-16 flex items-center justify-center shrink-0">
+                  <img
+                    src={LOGO_SD_URL}
+                    alt="Logo SD Getasan"
+                    className="w-16 h-16 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const parent = e.currentTarget.parentElement
+                      if (parent) {
+                        parent.className = 'w-16 h-16 bg-indigo-700 text-white font-black text-2xl flex items-center justify-center rounded-2xl shrink-0'
+                        parent.innerText = 'SD'
+                      }
+                    }}
+                  />
                 </div>
+
                 <div className="flex-1 px-4">
                   <h2 className="text-xl font-extrabold uppercase tracking-wide text-slate-900">
                     SD NEGERI GETASAN
@@ -483,8 +500,22 @@ function HistoryContent() {
                     Platform Ujian CBT Interaktif & Simulasi Tes Kemampuan Akademik (TKA)
                   </p>
                 </div>
-                <div className="w-16 h-16 border-2 border-indigo-600 text-indigo-700 font-black text-xs flex items-center justify-center rounded-2xl shrink-0 uppercase">
-                  TKA
+
+                {/* LOGO KEMENDIKBUD / TKA (KANAN) */}
+                <div className="w-16 h-16 flex items-center justify-center shrink-0">
+                  <img
+                    src={LOGO_TKA_URL}
+                    alt="Logo Kemendikbud TKA"
+                    className="w-16 h-16 object-contain"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none'
+                      const parent = e.currentTarget.parentElement
+                      if (parent) {
+                        parent.className = 'w-16 h-16 border-2 border-indigo-600 text-indigo-700 font-black text-xs flex items-center justify-center rounded-2xl shrink-0 uppercase'
+                        parent.innerText = 'TKA'
+                      }
+                    }}
+                  />
                 </div>
               </div>
 
@@ -611,7 +642,7 @@ function HistoryContent() {
         </div>
       )}
 
-      {/* 📜 MODAL SERTIFIKAT PENHARGAAN UJIAN (LANDSCAPE A4) */}
+      {/* 📜 MODAL SERTIFIKAT PENHARGAAN UJIAN */}
       {selectedCertSession && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
@@ -636,12 +667,22 @@ function HistoryContent() {
             {/* AREA CETAK SERTIFIKAT */}
             <div id="printable-area" className="p-10 font-serif text-slate-900 bg-amber-50/30 border-[12px] border-double border-indigo-900 rounded-xl relative m-4">
               <div className="border border-indigo-900 p-8 text-center rounded-lg space-y-4 bg-white/90">
-                <div className="flex justify-center items-center space-x-2">
-                  <span className="text-2xl">🎓</span>
+                <div className="flex justify-center items-center space-x-3">
+                  <img
+                    src={LOGO_SD_URL}
+                    alt="Logo SD Getasan"
+                    className="w-10 h-10 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
                   <span className="text-xs font-sans font-extrabold uppercase tracking-widest text-indigo-900">
                     SD NEGERI GETASAN
                   </span>
-                  <span className="text-2xl">🎓</span>
+                  <img
+                    src={LOGO_TKA_URL}
+                    alt="Logo Kemendikbud TKA"
+                    className="w-10 h-10 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none' }}
+                  />
                 </div>
 
                 <h1 className="text-3xl font-bold uppercase tracking-wider text-slate-900 font-serif border-b-2 border-amber-500 pb-2 inline-block px-8">
