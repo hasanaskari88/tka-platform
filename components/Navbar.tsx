@@ -37,7 +37,6 @@ export default function Navbar() {
     cartoon3d: { name: 'Cartoon 3D', icon: '🎨', bg: 'bg-amber-400 text-slate-950 border-2 border-slate-900 font-bold' },
   }
 
-  // Fallback aman untuk pemilih tema
   const currentThemeConfig = themeConfig[theme] || themeConfig.school
 
   return (
@@ -56,7 +55,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* 2. NAVBAR UTAMA (TAMPILAN DINAMIS MOBILE) */}
+      {/* 2. NAVBAR UTAMA */}
       <nav className="bg-white/90 backdrop-blur-md border-b border-slate-200 relative z-10">
         <div className="max-w-7xl mx-auto px-3 sm:px-8 h-16 sm:h-20 flex justify-between items-center gap-2">
           
@@ -85,10 +84,10 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* NAVIGASI & PEMILIH TEMA (RINGKAS DI HP) */}
+          {/* NAVIGASI & PEMILIH TEMA */}
           <div className="flex items-center space-x-1.5 sm:space-x-3 shrink-0">
             
-            {/* WIDGET PEMILIH TEMA INTERAKTIF */}
+            {/* WIDGET PEMILIH TEMA */}
             <div className="relative">
               <button
                 onClick={() => setShowThemeMenu(!showThemeMenu)}
