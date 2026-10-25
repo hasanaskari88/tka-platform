@@ -68,12 +68,12 @@ function AdminUsersContent() {
     fetchUsers()
   }, [])
 
-  // 1. Ekstraksi Daftar Kelas Unik
+  // 1. Daftar Kelas Unik
   const classList = Array.from(
     new Set(profiles.map((p) => p.class_code || p.class_label).filter(Boolean))
   )
 
-  // 2. Tambah Akun Baru (Supabase Auth + Fake Email @grisan.com)
+  // 2. Tambah Akun Baru (Menyimpan plain_password ke Supabase Profiles)
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
@@ -116,7 +116,7 @@ function AdminUsersContent() {
           full_name: fullName.trim(),
           class_code: classCode.trim().toUpperCase(),
           role: userRole,
-          plain_password: userPassword,
+          plain_password: userPassword, // Simpan password murni untuk kartu login
         },
         { onConflict: 'id' }
       )
@@ -144,7 +144,7 @@ function AdminUsersContent() {
     setEditMsg(null)
   }
 
-  // 4. Simpan Edit User & Reset Password (Via API Route)
+  // 4. Simpan Edit User & Reset Password
   const handleSaveEditUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
@@ -183,6 +183,15 @@ function AdminUsersContent() {
       if (!res.ok) {
         setEditMsg(`Error: ${resData.error}`)
       } else {
+        // Update juga plain_password di profiles jika ada reset password
+        if (editPassword.trim()) {
+          const supabase = createClient()
+          await supabase
+            .from('profiles')
+            .update({ plain_password: editPassword.trim() })
+            .eq('id', editingUser.id)
+        }
+
         setEditMsg('Data pengguna berhasil diperbarui!')
         setTimeout(() => {
           setEditingUser(null)
@@ -196,7 +205,7 @@ function AdminUsersContent() {
     setIsSavingEdit(false)
   }
 
-  // 5. Hapus User (Via API Route)
+  // 5. Hapus User
   const handleDeleteUser = async (userId: string, username: string) => {
     if (userId === currentUserId) {
       alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang login!')
@@ -223,7 +232,7 @@ function AdminUsersContent() {
     }
   }
 
-  // 6. Download Template CSV untuk Bulk Import
+  // 6. Download Template CSV
   const handleDownloadTemplate = () => {
     const csvHeader = 'username,full_name,class_code,password,role\n'
     const csvSample =
@@ -241,7 +250,7 @@ function AdminUsersContent() {
     document.body.removeChild(link)
   }
 
-  // 7. Memproses Bulk Import Massal dengan Domain @grisan.com
+  // 7. Bulk Import Massal
   const handleProcessBulkImport = async () => {
     if (!bulkInputText.trim()) return alert('Masukkan teks CSV atau isi file lebih dulu!')
     setIsProcessingBulk(true)
@@ -260,7 +269,7 @@ function AdminUsersContent() {
           username: uName,
           full_name: cols[1],
           class_code: cols[2].toUpperCase(),
-          plain_password: cols[3],
+          plain_password: cols[3], // Simpan password murni ke Supabase
           role: cols[4] ? cols[4].toLowerCase() : 'student',
         })
       }
@@ -285,7 +294,7 @@ function AdminUsersContent() {
     setIsProcessingBulk(false)
   }
 
-  // 8. Filter Pengguna Berdasarkan Pencarian, Role, dan Kelas
+  // 8. Filter Pengguna
   const filteredProfiles = profiles.filter((p) => {
     const nameMatch = p.full_name?.toLowerCase().includes(searchTerm.toLowerCase())
     const userMatch = p.username?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -299,7 +308,7 @@ function AdminUsersContent() {
     return matchesSearch && matchesRole && matchesClass
   })
 
-  // 9. Penanganan Checkbox Seleksi Kartu
+  // 9. Penanganan Checkbox Seleksi
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedUserIds(filteredProfiles.map((p) => p.id))
@@ -327,7 +336,7 @@ function AdminUsersContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      {/* GAYA KHUSUS CETAK Halaman A4 (3 Kolom x 5 Baris = 15 Kartu) */}
+      {/* GAYA CETAK A4 (3 Kolom x 5 Baris = 15 Kartu) */}
       <style jsx global>{`
         @media print {
           body * {
@@ -531,7 +540,7 @@ function AdminUsersContent() {
             </form>
           </div>
 
-          {/* Tabel Pengguna & Bilah Filter */}
+          {/* Tabel Pengguna */}
           <div className="lg:col-span-2 space-y-4">
             <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -834,70 +843,79 @@ function AdminUsersContent() {
         )}
       </main>
 
-      {/* Area Cetak Kartu (15 per Lembar A4) */}
+      {/* AREA CETAK KARTU (MEMBACA DATA MURNI PASSWORD SUPABASE) */}
       <div id="print-area" className="hidden print:block">
         <div className="grid grid-cols-3 gap-2.5">
-          {selectedUserObjects.map((user, idx) => (
-            <div
-              key={user.id || idx}
-              className="border-2 border-dashed border-slate-400 p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative"
-            >
-              <div className="flex items-center space-x-2 border-b pb-1.5 border-slate-300">
-                <img
-                  src="/logo-sd-getasan.png"
-                  alt="Logo"
-                  className="w-7 h-7 object-contain"
-                  onError={(e: any) => (e.target.style.display = 'none')}
-                />
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-[9.5px] font-black leading-tight text-indigo-950 uppercase truncate">
-                    SD NEGERI GETASAN
-                  </h4>
-                  <p className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-tighter">
-                    KARTU LOGIN UJIAN CBT TKA
-                  </p>
-                </div>
-                <span className="px-1.5 py-0.5 text-[8px] font-black bg-indigo-100 text-indigo-800 rounded border border-indigo-200 shrink-0">
-                  {user.class_code || user.class_label || 'VIB'}
-                </span>
-              </div>
+          {selectedUserObjects.map((user, idx) => {
+            // Murni membaca dari kolom database: plain_password / password / user_password
+            const realPassword =
+              user.plain_password ||
+              user.password ||
+              user.user_password ||
+              '******'
 
-              <div className="my-1 space-y-1">
-                <div>
-                  <span className="text-[7.5px] text-slate-500 font-bold uppercase block">
-                    Nama Peserta Ujian:
-                  </span>
-                  <span className="text-[10px] font-extrabold text-slate-900 block truncate leading-tight">
-                    {user.full_name || 'Siswa CBT'}
+            return (
+              <div
+                key={user.id || idx}
+                className="border-2 border-dashed border-slate-400 p-2.5 rounded-xl bg-white text-slate-900 flex flex-col justify-between break-inside-avoid h-[54mm] relative"
+              >
+                <div className="flex items-center space-x-2 border-b pb-1.5 border-slate-300">
+                  <img
+                    src="/logo-sd-getasan.png"
+                    alt="Logo"
+                    className="w-7 h-7 object-contain"
+                    onError={(e: any) => (e.target.style.display = 'none')}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-[9.5px] font-black leading-tight text-indigo-950 uppercase truncate">
+                      SD NEGERI GETASAN
+                    </h4>
+                    <p className="text-[7.5px] font-extrabold text-slate-500 uppercase tracking-tighter">
+                      KARTU LOGIN UJIAN CBT TKA
+                    </p>
+                  </div>
+                  <span className="px-1.5 py-0.5 text-[8px] font-black bg-indigo-100 text-indigo-800 rounded border border-indigo-200 shrink-0">
+                    {user.class_code || user.class_label || 'VIB'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200 font-mono text-[9px]">
+                <div className="my-1 space-y-1">
                   <div>
-                    <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
-                      Username:
+                    <span className="text-[7.5px] text-slate-500 font-bold uppercase block">
+                      Nama Peserta Ujian:
                     </span>
-                    <span className="font-bold text-indigo-700 truncate block">
-                      {user.username}
+                    <span className="text-[10px] font-extrabold text-slate-900 block truncate leading-tight">
+                      {user.full_name || 'Siswa CBT'}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
-                      Password:
-                    </span>
-                    <span className="font-bold text-rose-600 truncate block">
-                      {user.plain_password || '123456'}
-                    </span>
+
+                  <div className="grid grid-cols-2 gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200 font-mono text-[9px]">
+                    <div>
+                      <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
+                        Username:
+                      </span>
+                      <span className="font-bold text-indigo-700 truncate block">
+                        {user.username || '-'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[7px] font-sans text-slate-500 block uppercase font-bold">
+                        Password:
+                      </span>
+                      <span className="font-bold text-rose-600 truncate block">
+                        {realPassword}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[7.5px] text-slate-500 font-medium">
-                <span>🌐 grisan.vercel.app</span>
-                <span className="font-bold text-slate-400">✂️ Garis Potong</span>
+                <div className="flex justify-between items-center pt-1 border-t border-slate-200 text-[7.5px] text-slate-500 font-medium">
+                  <span>🌐 grisan.vercel.app</span>
+                  <span className="font-bold text-slate-400">✂️ Garis Potong</span>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
