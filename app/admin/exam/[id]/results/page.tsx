@@ -173,6 +173,10 @@ function ExamResultsContent() {
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
+  // 🟢 TAMBAHKAN 2 BARIS INI PADA STATE ANDA
+  const [filterClass, setFilterClass] = useState('ALL') // Untuk filter per kelas/rombel
+  const [showBulkRaporModal, setShowBulkRaporModal] = useState<boolean>(false) // Untuk modal cetak massal
+
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -316,6 +320,37 @@ function ExamResultsContent() {
 
     const totalParticipants = processedSessions.length
     const analysisList = (questionData || []).map((q, qIdx) => {
+      // 🟢 1. Urutkan sesi siswa dari nilai tertinggi ke terendah
+const sortedByScoreDesc = [...processedSessions].sort((a, b) => b.earned_score - a.earned_score)
+const N = sortedByScoreDesc.length
+const groupSize = Math.max(1, Math.floor(N * 0.27)) // 27% Kelompok Atas & Bawah
+const upperGroup = sortedByScoreDesc.slice(0, groupSize)
+const lowerGroup = sortedByScoreDesc.slice(Math.max(0, N - groupSize))
+
+// 🟢 2. Di dalam mapping questionData, hitung berapa siswa kelompok atas & bawah yang benar:
+let upperCorrect = 0
+let lowerCorrect = 0
+
+if (answerData) {
+  answerData.forEach((ans) => {
+    if (ans.question_id === q.id) {
+      const rawChoice = ans.user_answer ?? ans.selected_answers ?? ans.selected_option
+      const { isCorrect } = evaluateAnswer(q, rawChoice)
+
+      if (isCorrect) {
+        if (upperGroup.some((s) => s.id === ans.session_id)) upperCorrect++
+        if (lowerGroup.some((s) => s.id === ans.session_id)) lowerCorrect++
+      }
+    }
+  })
+}
+
+    // 🟢 3. Rumus Daya Beda (D) = (UpperCorrect - LowerCorrect) / GroupSize
+  const discriminationIndexVal = groupSize > 0 ? (upperCorrect - lowerCorrect) / groupSize : 0
+const discriminationPercent = Math.round(discriminationIndexVal * 100)
+
+      
+      
       let correctAnswersCount = 0
       let answeredCount = 0
       const optionCounts: { [key: string]: number } = { A: 0, B: 0, C: 0, D: 0, Kosong: 0 }
@@ -1337,6 +1372,145 @@ function ExamResultsContent() {
           </div>
         </div>
       )}
+    {/* 📑 MODAL CETAK RAPOR MASSAL 1 KELAS */}
+{showBulkRaporModal && (
+  <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+    <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+      <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+        <span className="font-bold text-sm">🖨️ Cetak Kolektif Rapor Ujian ({sortedSessions.length} Siswa)</span>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => window.print()}
+            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg transition-colors"
+          >
+            🖨️ Cetak / Simpan PDF Satu Kelas
+          </button>
+          <button
+            onClick={() => setShowBulkRaporModal(false)}
+            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold text-xs rounded-lg transition-colors"
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+
+      {/* AREA CETAK RAPOR KOLEKTIF */}
+      <div id="printable-area" className="p-8 overflow-y-auto font-sans text-slate-900 bg-white space-y-12">
+        {sortedSessions.map((student, studentIndex) => (
+          <div key={student.id} className={studentIndex < sortedSessions.length - 1 ? 'page-break pb-12 border-b-2 border-dashed border-slate-300' : ''}>
+            {/* KOP RESMI SEKOLAH */}
+            <div className="border-b-4 border-double border-slate-900 pb-4 mb-6 flex items-center justify-between text-center">
+              <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD Getasan" fallbackText="SD" />
+
+              <div className="flex-1 px-4">
+                <h2 className="text-xl font-extrabold uppercase tracking-wide text-slate-900">
+                  SD NEGERI GETASAN
+                </h2>
+                <p className="text-xs text-slate-600 font-medium mt-0.5">
+                  Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang, Jawa Tengah (50774)
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Platform Ujian CBT Interaktif & Simulasi Tes Kemampuan Akademik (TKA)
+                </p>
+              </div>
+
+              <SmartLogo candidates={TKA_LOGO_CANDIDATES} alt="Logo Kemendikbud TKA" fallbackText="TKA" />
+            </div>
+
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-black uppercase text-indigo-900 tracking-wider">
+                RAPOR CAPAIAN SIMULASI TKA
+              </h3>
+              <p className="text-xs font-semibold text-slate-500">
+                Paket Ujian: {exam?.title} | Subtes: {exam?.subtest}
+              </p>
+            </div>
+
+            {/* IDENTITAS SISWA */}
+            <div className="grid grid-cols-2 gap-4 text-xs font-medium border border-slate-300 rounded-xl p-4 mb-6 bg-slate-50/50">
+              <div>
+                <table className="w-full">
+                  <tbody>
+                    <tr>
+                      <td className="w-32 py-1 text-slate-500">Nama Siswa</td>
+                      <td className="font-bold text-slate-900">: {student.full_name}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 text-slate-500">NIS / Username</td>
+                      <td className="font-bold text-slate-900">: @{student.username}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <table className="w-full">
+                  <tbody>
+                    <tr>
+                      <td className="w-32 py-1 text-slate-500">Kelas / Rombel</td>
+                      <td className="font-bold text-slate-900">: {student.class_code}</td>
+                    </tr>
+                    <tr>
+                      <td className="py-1 text-slate-500">Tanggal Cetak</td>
+                      <td className="font-bold text-slate-900">: {new Date().toLocaleDateString('id-ID', { dateStyle: 'full' })}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* TABEL SKOR SISWA */}
+            <table className="w-full border-collapse text-xs border border-slate-300 text-center mb-8">
+              <thead className="bg-slate-100 font-bold text-slate-800">
+                <tr>
+                  <th className="border border-slate-300 p-2">Nama Ujian</th>
+                  <th className="border border-slate-300 p-2 w-28">Subtes</th>
+                  <th className="border border-slate-300 p-2 w-20">KKM</th>
+                  <th className="border border-slate-300 p-2 w-28">Skor Siswa</th>
+                  <th className="border border-slate-300 p-2 w-32">Status Ketuntasan</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="border border-slate-300 p-3 text-left font-bold">{exam?.title}</td>
+                  <td className="border border-slate-300 p-3 uppercase">{exam?.subtest}</td>
+                  <td className="border border-slate-300 p-3 font-semibold">{KKM_TARGET}</td>
+                  <td className="border border-slate-300 p-3 font-black text-indigo-700 text-sm">{student.earned_score}</td>
+                  <td className="border border-slate-300 p-3 font-bold">
+                    {student.earned_score >= KKM_TARGET ? (
+                      <span className="text-emerald-700">✓ TUNTAS</span>
+                    ) : (
+                      <span className="text-rose-600">✕ BELUM TUNTAS</span>
+                    )}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            {/* TANDA TANGAN */}
+            <div className="grid grid-cols-3 gap-4 text-center text-xs pt-8 border-t border-slate-200">
+              <div>
+                <p className="text-slate-500">Orang Tua / Wali Murid,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-800">( .................................... )</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Guru Kelas,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-800">( Wali Kelas {student.class_code} )</p>
+              </div>
+              <div>
+                <p className="text-slate-500">Kepala Sekolah,</p>
+                <div className="h-16"></div>
+                <p className="font-bold underline text-slate-800">SD NEGERI GETASAN</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   )
 }
