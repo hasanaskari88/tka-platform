@@ -8,6 +8,8 @@ import Link from 'next/link'
 function AdminDashboardContent() {
   const [exams, setExams] = useState<any[]>([])
   const [subtests, setSubtests] = useState<any[]>([])
+  const [announcements, setAnnouncements] = useState<any[]>([])
+  const [materials, setMaterials] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   // State Form Edit / Tambah Ujian
@@ -27,11 +29,26 @@ function AdminDashboardContent() {
   const [showResults, setShowResults] = useState(true)
   const [showExplanations, setShowExplanations] = useState(true)
 
-  // State Modal Kelola Master Subtes
+  // State Modal Master Subtes
   const [isSubtestModalOpen, setIsSubtestModalOpen] = useState(false)
   const [newSubtestName, setNewSubtestName] = useState('')
   const [editingSubtestId, setEditingSubtestId] = useState<string | null>(null)
   const [editingSubtestName, setEditingSubtestName] = useState('')
+
+  // 📢 State Modal Kelola Pengumuman & Materi
+  const [isCMSModalOpen, setIsCMSModalOpen] = useState(false)
+  const [cmsTab, setCmsTab] = useState<'announcement' | 'material'>('announcement')
+
+  // Form Pengumuman
+  const [annTitle, setAnnTitle] = useState('')
+  const [annContent, setAnnContent] = useState('')
+  const [annCategory, setAnnCategory] = useState('Penting')
+
+  // Form Materi
+  const [matTitle, setMatTitle] = useState('')
+  const [matUrl, setMatUrl] = useState('')
+  const [matDesc, setMatDesc] = useState('')
+  const [matSubject, setMatSubject] = useState('Umum')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -39,7 +56,7 @@ function AdminDashboardContent() {
   const fetchData = async () => {
     const supabase = createClient()
 
-    // Load Subtests
+    // 1. Subtests
     const { data: subtestData } = await supabase
       .from('subtests')
       .select('*')
@@ -52,13 +69,26 @@ function AdminDashboardContent() {
       }
     }
 
-    // Load Exams
+    // 2. Exams
     const { data: examData } = await supabase
       .from('exams')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (examData) setExams(examData)
+
+    // 3. Announcements (Fault-tolerant)
+    try {
+      const { data: annData } = await supabase.from('announcements').select('*').order('created_at', { ascending: false })
+      if (annData) setAnnouncements(annData)
+    } catch (e) {}
+
+    // 4. Materials (Fault-tolerant)
+    try {
+      const { data: matData } = await supabase.from('study_materials').select('*').order('created_at', { ascending: false })
+      if (matData) setMaterials(matData)
+    } catch (e) {}
+
     setLoading(false)
   }
 
@@ -148,10 +178,7 @@ function AdminDashboardContent() {
     let error: any = null
 
     if (editingExamId) {
-      const res = await supabase
-        .from('exams')
-        .update(payload)
-        .eq('id', editingExamId)
+      const res = await supabase.from('exams').update(payload).eq('id', editingExamId)
       error = res.error
     } else {
       const res = await supabase.from('exams').insert([payload])
@@ -161,11 +188,7 @@ function AdminDashboardContent() {
     if (error) {
       setMsg(`Error: ${error.message}`)
     } else {
-      setMsg(
-        editingExamId
-          ? 'Paket ujian berhasil diperbarui!'
-          : 'Ujian baru berhasil ditambahkan!'
-      )
+      setMsg(editingExamId ? 'Paket ujian berhasil diperbarui!' : 'Ujian baru berhasil ditambahkan!')
       resetForm()
       fetchData()
     }
@@ -173,42 +196,27 @@ function AdminDashboardContent() {
   }
 
   const handleDeleteExam = async (id: string, examTitle: string) => {
-    if (
-      !confirm(
-        `Apakah Anda yakin ingin menghapus ujian "${examTitle}" beserta seluruh soalnya?`
-      )
-    )
-      return
-
+    if (!confirm(`Apakah Anda yakin ingin menghapus ujian "${examTitle}" beserta seluruh soalnya?`)) return
     const supabase = createClient()
     await supabase.from('exams').delete().eq('id', id)
     fetchData()
   }
 
-  // Toggle Publikasi Cepat dari Kartu Daftar Ujian
   const handleTogglePublish = async (exam: any) => {
     const supabase = createClient()
     const newStatus = !exam.is_published
-    await supabase
-      .from('exams')
-      .update({ is_published: newStatus })
-      .eq('id', exam.id)
+    await supabase.from('exams').update({ is_published: newStatus }).eq('id', exam.id)
     fetchData()
   }
 
-  // --- FUNGSI CRUD MASTER SUBTES ---
+  // --- CRUD SUBTESTS ---
   const handleAddSubtest = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newSubtestName.trim()) return
-
     const supabase = createClient()
-    const { error } = await supabase.from('subtests').insert([
-      { name: newSubtestName.trim().toUpperCase() },
-    ])
-
-    if (error) {
-      alert(`Gagal menambah subtes: ${error.message}`)
-    } else {
+    const { error } = await supabase.from('subtests').insert([{ name: newSubtestName.trim().toUpperCase() }])
+    if (error) alert(`Gagal menambah subtes: ${error.message}`)
+    else {
       setNewSubtestName('')
       fetchData()
     }
@@ -217,14 +225,9 @@ function AdminDashboardContent() {
   const handleUpdateSubtest = async (id: string) => {
     if (!editingSubtestName.trim()) return
     const supabase = createClient()
-    const { error } = await supabase
-      .from('subtests')
-      .update({ name: editingSubtestName.trim().toUpperCase() })
-      .eq('id', id)
-
-    if (error) {
-      alert(`Gagal mengubah subtes: ${error.message}`)
-    } else {
+    const { error } = await supabase.from('subtests').update({ name: editingSubtestName.trim().toUpperCase() }).eq('id', id)
+    if (error) alert(`Gagal mengubah subtes: ${error.message}`)
+    else {
       setEditingSubtestId(null)
       setEditingSubtestName('')
       fetchData()
@@ -238,21 +241,72 @@ function AdminDashboardContent() {
     fetchData()
   }
 
+  // --- 📢 CRUD PENGUMUMAN & MATERI ---
+  const handleCreateAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!annTitle.trim() || !annContent.trim()) return alert('Judul dan konten pengumuman wajib diisi!')
+    const supabase = createClient()
+    const { error } = await supabase.from('announcements').insert([{ title: annTitle, content: annContent, category: annCategory }])
+    if (error) alert(`Gagal menambah pengumuman: ${error.message}`)
+    else {
+      setAnnTitle('')
+      setAnnContent('')
+      fetchData()
+    }
+  }
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    if (!confirm('Hapus pengumuman ini?')) return
+    const supabase = createClient()
+    await supabase.from('announcements').delete().eq('id', id)
+    fetchData()
+  }
+
+  const handleCreateMaterial = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
+    const supabase = createClient()
+    const { error } = await supabase.from('study_materials').insert([{ title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject }])
+    if (error) alert(`Gagal menambah materi: ${error.message}`)
+    else {
+      setMatTitle('')
+      setMatUrl('')
+      setMatDesc('')
+      fetchData()
+    }
+  }
+
+  const handleDeleteMaterial = async (id: string) => {
+    if (!confirm('Hapus materi ini?')) return
+    const supabase = createClient()
+    await supabase.from('study_materials').delete().eq('id', id)
+    fetchData()
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       <Navbar />
 
       <main className="p-8 max-w-6xl mx-auto space-y-8">
-        <div className="flex justify-between items-center border-b pb-4 border-slate-200">
+        <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 border-slate-200 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">
               Dashboard Admin / CMS
             </h1>
             <p className="text-slate-600 mt-1">
-              Kelola paket ujian, token, visibilitas, subtes, dan butir soal TKA
+              Kelola paket ujian, token, pengumuman, modul materi, dan visibilitas CBT.
             </p>
           </div>
-          <div className="flex items-center space-x-2">
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setIsCMSModalOpen(true)}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center space-x-1"
+              suppressHydrationWarning
+            >
+              <span>📢</span>
+              <span>Kelola Pengumuman & Materi</span>
+            </button>
             <button
               onClick={() => setIsSubtestModalOpen(true)}
               className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
@@ -263,15 +317,15 @@ function AdminDashboardContent() {
             </button>
             <Link
               href="/admin/users"
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition-colors"
             >
-              👥 Kelola Akun & Admin
+              👥 Akun & Admin
             </Link>
             <Link
               href="/"
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition-colors"
+              className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition-colors"
             >
-              ← Lihat Beranda Utama
+              ← Lihat Beranda
             </Link>
           </div>
         </div>
@@ -545,7 +599,6 @@ function AdminDashboardContent() {
                           {exam.subtest}
                         </span>
 
-                        {/* Badge Status Visibilitas Siswa */}
                         <button
                           type="button"
                           onClick={() => handleTogglePublish(exam)}
@@ -602,7 +655,6 @@ function AdminDashboardContent() {
                     </div>
                   </div>
 
-                  {/* Meta Tag Informasi Ujian */}
                   <div className="flex flex-wrap gap-2 text-[11px] pt-2 border-t border-slate-100">
                     {exam.token ? (
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded font-mono font-bold">
@@ -647,9 +699,196 @@ function AdminDashboardContent() {
         </div>
       </main>
 
+      {/* 📢 MODAL USER-FRIENDLY KELOLA PENGUMUMAN & MATERI */}
+      {isCMSModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex justify-between items-center border-b pb-3">
+              <h3 className="text-sm font-extrabold text-slate-800">
+                📢 CMS Pengumuman & Modul Materi Siswa
+              </h3>
+              <button
+                onClick={() => setIsCMSModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 font-bold text-base"
+                suppressHydrationWarning
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Tab Navigasi Modal */}
+            <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setCmsTab('announcement')}
+                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                  cmsTab === 'announcement' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                📢 Pengumuman Sekolah ({announcements.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setCmsTab('material')}
+                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
+                  cmsTab === 'material' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'
+                }`}
+              >
+                📚 Link Materi & Modul ({materials.length})
+              </button>
+            </div>
+
+            {/* KONTEN TAB 1: PENGUMUMAN */}
+            {cmsTab === 'announcement' && (
+              <div className="space-y-4">
+                <form onSubmit={handleCreateAnnouncement} className="p-4 bg-slate-50 border rounded-xl space-y-3">
+                  <h4 className="font-bold text-slate-800">➕ Tambah Pengumuman Baru</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Judul Pengumuman..."
+                        value={annTitle}
+                        onChange={(e) => setAnnTitle(e.target.value)}
+                        className="w-full p-2 border rounded-lg font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <select
+                        value={annCategory}
+                        onChange={(e) => setAnnCategory(e.target.value)}
+                        className="w-full p-2 border rounded-lg font-bold"
+                      >
+                        <option value="Penting">Penting</option>
+                        <option value="Informasi">Informasi</option>
+                        <option value="Jadwal">Jadwal Ujian</option>
+                      </select>
+                    </div>
+                  </div>
+                  <textarea
+                    rows={2}
+                    required
+                    placeholder="Isi pesan pengumuman untuk siswa..."
+                    value={annContent}
+                    onChange={(e) => setAnnContent(e.target.value)}
+                    className="w-full p-2 border rounded-lg font-medium"
+                  />
+                  <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
+                    + Simpan Pengumuman
+                  </button>
+                </form>
+
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {announcements.map((ann) => (
+                    <div key={ann.id} className="p-3 bg-white border rounded-lg flex justify-between items-center">
+                      <div>
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded uppercase">
+                          {ann.category}
+                        </span>
+                        <h5 className="font-bold text-slate-800 mt-1">{ann.title}</h5>
+                        <p className="text-[11px] text-slate-500 line-clamp-1">{ann.content}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteAnnouncement(ann.id)}
+                        className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded hover:bg-rose-100"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* KONTEN TAB 2: MATERI */}
+            {cmsTab === 'material' && (
+              <div className="space-y-4">
+                <form onSubmit={handleCreateMaterial} className="p-4 bg-slate-50 border rounded-xl space-y-3">
+                  <h4 className="font-bold text-slate-800">➕ Tambah Link Materi Pembelajaran</h4>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <input
+                        type="text"
+                        required
+                        placeholder="Judul Materi / Modul..."
+                        value={matTitle}
+                        onChange={(e) => setMatTitle(e.target.value)}
+                        className="w-full p-2 border rounded-lg font-semibold"
+                      />
+                    </div>
+                    <div>
+                      <select
+                        value={matSubject}
+                        onChange={(e) => setMatSubject(e.target.value)}
+                        className="w-full p-2 border rounded-lg font-bold"
+                      >
+                        <option value="Umum">Umum</option>
+                        <option value="Matematika">Matematika</option>
+                        <option value="Penalaran">Penalaran</option>
+                        <option value="Bahasa Inggris">Bahasa Inggris</option>
+                      </select>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    placeholder="URL Materi (Google Drive, PDF, Youtube...)"
+                    value={matUrl}
+                    onChange={(e) => setMatUrl(e.target.value)}
+                    className="w-full p-2 border rounded-lg font-mono text-xs"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Deskripsi singkat (opsional)..."
+                    value={matDesc}
+                    onChange={(e) => setMatDesc(e.target.value)}
+                    className="w-full p-2 border rounded-lg font-medium"
+                  />
+                  <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
+                    + Simpan Link Materi
+                  </button>
+                </form>
+
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {materials.map((mat) => (
+                    <div key={mat.id} className="p-3 bg-white border rounded-lg flex justify-between items-center">
+                      <div>
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded uppercase">
+                          {mat.subject}
+                        </span>
+                        <h5 className="font-bold text-slate-800 mt-1">{mat.title}</h5>
+                        <p className="text-[11px] text-slate-400 font-mono truncate max-w-xs">{mat.file_url}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteMaterial(mat.id)}
+                        className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded hover:bg-rose-100"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 border-t text-right">
+              <button
+                type="button"
+                onClick={() => setIsCMSModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                suppressHydrationWarning
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL KELOLA MASTER SUBTES */}
       {isSubtestModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="text-base font-bold text-slate-800">
@@ -664,7 +903,6 @@ function AdminDashboardContent() {
               </button>
             </div>
 
-            {/* Form Tambah Subtes Baru */}
             <form onSubmit={handleAddSubtest} className="flex space-x-2">
               <input
                 type="text"
@@ -684,7 +922,6 @@ function AdminDashboardContent() {
               </button>
             </form>
 
-            {/* Daftar Subtes */}
             <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
               {subtests.map((st) => (
                 <div
