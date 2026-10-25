@@ -13,11 +13,14 @@ function ExamEngineContent() {
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  
+
   // State Jawaban Siswa & Ragu-ragu
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [flaggedQuestions, setFlaggedQuestions] = useState<{ [key: string]: boolean }>({})
-  
+
+  // State Modal Zoom Gambar (Lightbox)
+  const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
+
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -25,7 +28,7 @@ function ExamEngineContent() {
   // 1. Catat timestamp persis saat siswa membuka ruang ujian
   const [startTimeIso] = useState<string>(new Date().toISOString())
 
-  // Helper Acak Array
+  // Helper Acak Array (Fisher-Yates Shuffle)
   const shuffleArray = (array: any[]) => {
     const arr = [...array]
     for (let i = arr.length - 1; i > 0; i--) {
@@ -60,14 +63,18 @@ function ExamEngineContent() {
     if (questionData) {
       let processedQuestions = [...questionData]
 
+      // 🟢 1. Acak Urutan Soal jika Diaktifkan
       if (examData.shuffle_questions) {
         processedQuestions = shuffleArray(processedQuestions)
       }
 
+      // 🟢 2. Acak Opsi / Pernyataan jika Diaktifkan (Termasuk PG, PG Kompleks, & Matriks)
       if (examData.shuffle_options) {
         processedQuestions = processedQuestions.map((q) => {
           if (
-            (q.question_type === 'multiple_choice' || q.question_type === 'complex_multiple_choice') &&
+            (q.question_type === 'multiple_choice' ||
+              q.question_type === 'complex_multiple_choice' ||
+              q.question_type === 'true_false_matrix') &&
             Array.isArray(q.options) &&
             q.options.length > 0
           ) {
@@ -140,10 +147,15 @@ function ExamEngineContent() {
   }
 
   // Handler Jawaban Matriks Benar-Salah
-  const handleSelectMatrixValue = (questionId: string, statementId: string, val: 'Benar' | 'Salah') => {
-    const currentMatrix = typeof userAnswers[questionId] === 'object' && !Array.isArray(userAnswers[questionId])
-      ? userAnswers[questionId]
-      : {}
+  const handleSelectMatrixValue = (
+    questionId: string,
+    statementId: string,
+    val: 'Benar' | 'Salah'
+  ) => {
+    const currentMatrix =
+      typeof userAnswers[questionId] === 'object' && !Array.isArray(userAnswers[questionId])
+        ? userAnswers[questionId]
+        : {}
     setUserAnswers((prev) => ({
       ...prev,
       [questionId]: {
@@ -198,16 +210,20 @@ function ExamEngineContent() {
         userAns === null ||
         userAns === '' ||
         (Array.isArray(userAns) && userAns.length === 0) ||
-        (typeof userAns === 'object' && !Array.isArray(userAns) && Object.keys(userAns).length === 0)
+        (typeof userAns === 'object' &&
+          !Array.isArray(userAns) &&
+          Object.keys(userAns).length === 0)
 
       if (!isUnattempted) {
         // 1. Pilihan Ganda Biasa
         if (qType === 'multiple_choice') {
-          const correctOpt = String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
+          const correctOpt = String(q.correct_option ?? q.correct_answer ?? '')
+            .trim()
+            .toUpperCase()
           if (String(userAns).trim().toUpperCase() === correctOpt) {
             totalPointsEarned += qMaxScore
           }
-        } 
+        }
         // 2. Pilihan Ganda Kompleks (Nilai Parsial / Proposional)
         else if (qType === 'complex_multiple_choice') {
           const correctKeys: string[] = Array.isArray(q.correct_answers)
@@ -223,7 +239,7 @@ function ExamEngineContent() {
             const ratio = netCorrect / correctKeys.length
             totalPointsEarned += ratio * qMaxScore
           }
-        } 
+        }
         // 3. Matriks Benar - Salah (Nilai Parsial per Baris)
         else if (qType === 'true_false_matrix') {
           const correctObj: { [key: string]: string } = q.correct_answers || {}
@@ -245,9 +261,8 @@ function ExamEngineContent() {
     })
 
     // Konversi Nilai Akhir ke SKALA 100 (2 Desimal)
-    const finalScore = totalMaxPoints > 0
-      ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100
-      : 0
+    const finalScore =
+      totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100 : 0
 
     const endTimeIso = new Date().toISOString()
 
@@ -260,8 +275,8 @@ function ExamEngineContent() {
           user_id: user?.id || null,
           status: 'completed',
           score: finalScore,
-          start_time: startTimeIso, // ✅ Menggunakan nama kolom yang sesuai
-          end_time: endTimeIso,     // ✅ Menggunakan nama kolom yang sesuai
+          start_time: startTimeIso,
+          end_time: endTimeIso,
         },
       ])
       .select()
@@ -273,14 +288,15 @@ function ExamEngineContent() {
       return
     }
 
-    // 2. Simpan Detail Jawaban Siswa (Aman untuk Object/Array)
+    // 2. Simpan Detail Jawaban Siswa
     const answerRecords = questions.map((q) => {
       const rawAns = userAnswers[q.id]
-      const formattedAns = rawAns === undefined || rawAns === null
-        ? null
-        : typeof rawAns === 'string'
-        ? rawAns
-        : JSON.stringify(rawAns)
+      const formattedAns =
+        rawAns === undefined || rawAns === null
+          ? null
+          : typeof rawAns === 'string'
+          ? rawAns
+          : JSON.stringify(rawAns)
 
       return {
         session_id: session.id,
@@ -373,14 +389,19 @@ function ExamEngineContent() {
                 </button>
               </div>
 
-              {/* TEKS SOAL & GAMBAR */}
+              {/* TEKS SOAL & GAMBAR (DILENGKAPI ZOOM GAMBAR) */}
               <div className="text-slate-800 text-sm font-medium leading-relaxed">
                 <MathRenderer content={currentQuestion.question_text} />
               </div>
 
               {currentQuestion.image_url && (
                 <div className="my-2">
-                  <img src={currentQuestion.image_url} alt="Gambar Soal" className="max-h-60 rounded-xl border" />
+                  <img
+                    src={currentQuestion.image_url}
+                    alt="Gambar Soal"
+                    onClick={() => setZoomedImageUrl(currentQuestion.image_url)}
+                    className="max-h-60 rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
+                  />
                 </div>
               )}
 
@@ -391,6 +412,8 @@ function ExamEngineContent() {
                 <div className="space-y-2 pt-2">
                   {currentQuestion.options.map((opt: any, oIdx: number) => {
                     const optKey = opt.key || String.fromCharCode(65 + oIdx)
+                    // 🟢 Label Visual Selalu Urut A, B, C, D dari Atas ke Bawah
+                    const displayLabel = String.fromCharCode(65 + oIdx)
                     const isSelected = userAnswers[currentQuestion.id] === optKey
 
                     return (
@@ -409,12 +432,20 @@ function ExamEngineContent() {
                             isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
                           }`}
                         >
-                          {optKey}
+                          {displayLabel}
                         </span>
                         <div className="flex-1">
                           <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
                           {opt.image_url && (
-                            <img src={opt.image_url} alt={`Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
+                            <img
+                              src={opt.image_url}
+                              alt={`Opsi ${displayLabel}`}
+                              onClick={(e) => {
+                                e.stopPropagation() // Mencegah kepilih saat mengklik zoom gambar
+                                setZoomedImageUrl(opt.image_url)
+                              }}
+                              className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
+                            />
                           )}
                         </div>
                       </button>
@@ -431,7 +462,11 @@ function ExamEngineContent() {
                   </p>
                   {currentQuestion.options.map((opt: any, oIdx: number) => {
                     const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                    const currentAns = Array.isArray(userAnswers[currentQuestion.id]) ? userAnswers[currentQuestion.id] : []
+                    // 🟢 Label Visual Selalu Urut A, B, C, D dari Atas ke Bawah
+                    const displayLabel = String.fromCharCode(65 + oIdx)
+                    const currentAns = Array.isArray(userAnswers[currentQuestion.id])
+                      ? userAnswers[currentQuestion.id]
+                      : []
                     const isSelected = currentAns.includes(optKey)
 
                     return (
@@ -451,11 +486,19 @@ function ExamEngineContent() {
                           checked={isSelected}
                           className="w-4 h-4 text-indigo-600 rounded"
                         />
-                        <span className="font-bold text-xs shrink-0">{optKey}.</span>
+                        <span className="font-bold text-xs shrink-0">{displayLabel}.</span>
                         <div className="flex-1">
                           <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
                           {opt.image_url && (
-                            <img src={opt.image_url} alt={`Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
+                            <img
+                              src={opt.image_url}
+                              alt={`Opsi ${displayLabel}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setZoomedImageUrl(opt.image_url)
+                              }}
+                              className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
+                            />
                           )}
                         </div>
                       </button>
@@ -481,22 +524,40 @@ function ExamEngineContent() {
                       <tbody className="divide-y">
                         {currentQuestion.options.map((st: any, sIdx: number) => {
                           const stId = String(st.id || sIdx + 1)
-                          const currentMatrix = typeof userAnswers[currentQuestion.id] === 'object' ? userAnswers[currentQuestion.id] : {}
+                          const currentMatrix =
+                            typeof userAnswers[currentQuestion.id] === 'object'
+                              ? userAnswers[currentQuestion.id]
+                              : {}
                           const selectedVal = currentMatrix?.[stId]
 
                           return (
                             <tr key={stId || sIdx} className="hover:bg-slate-50">
                               <td className="p-3">
-                                <MathRenderer content={typeof st === 'string' ? st : st.text} />
-                                {st.image_url && (
-                                  <img src={st.image_url} alt="Gambar Pernyataan" className="max-h-24 mt-1 rounded border" />
-                                )}
+                                <div className="flex items-start space-x-2">
+                                  {/* Nomor Urut Baris Pernyataan (1, 2, 3...) */}
+                                  <span className="font-bold text-slate-500 text-xs shrink-0">
+                                    {sIdx + 1}.
+                                  </span>
+                                  <div className="flex-1">
+                                    <MathRenderer content={typeof st === 'string' ? st : st.text} />
+                                    {st.image_url && (
+                                      <img
+                                        src={st.image_url}
+                                        alt={`Gambar Pernyataan ${sIdx + 1}`}
+                                        onClick={() => setZoomedImageUrl(st.image_url)}
+                                        className="max-h-24 mt-1.5 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
                               </td>
                               <td className="p-3 border-l">
                                 <div className="flex justify-center space-x-1">
                                   <button
                                     type="button"
-                                    onClick={() => handleSelectMatrixValue(currentQuestion.id, stId, 'Benar')}
+                                    onClick={() =>
+                                      handleSelectMatrixValue(currentQuestion.id, stId, 'Benar')
+                                    }
                                     className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors ${
                                       selectedVal === 'Benar'
                                         ? 'bg-emerald-600 text-white shadow-sm'
@@ -508,7 +569,9 @@ function ExamEngineContent() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleSelectMatrixValue(currentQuestion.id, stId, 'Salah')}
+                                    onClick={() =>
+                                      handleSelectMatrixValue(currentQuestion.id, stId, 'Salah')
+                                    }
                                     className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors ${
                                       selectedVal === 'Salah'
                                         ? 'bg-rose-600 text-white shadow-sm'
@@ -581,7 +644,14 @@ function ExamEngineContent() {
           <div className="grid grid-cols-5 gap-2">
             {questions.map((q, idx) => {
               const ans = userAnswers[q.id]
-              const isAnswered = ans !== undefined && ans !== null && (Array.isArray(ans) ? ans.length > 0 : true)
+              const isAnswered =
+                ans !== undefined &&
+                ans !== null &&
+                (Array.isArray(ans)
+                  ? ans.length > 0
+                  : typeof ans === 'object'
+                  ? Object.keys(ans).length > 0
+                  : true)
               const isFlagged = !!flaggedQuestions[q.id]
               const isCurrent = idx === currentIndex
 
@@ -604,6 +674,33 @@ function ExamEngineContent() {
           </div>
         </div>
       </div>
+
+      {/* 🖼️ MODAL ZOOM GAMBAR (LIGHTBOX INTERAKTIF FULLSCREEN) */}
+      {zoomedImageUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setZoomedImageUrl(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-white p-2 rounded-2xl shadow-2xl overflow-hidden flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setZoomedImageUrl(null)}
+              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center font-bold text-sm hover:bg-slate-900 transition-colors z-10"
+              title="Tutup Gambar"
+            >
+              ✕
+            </button>
+            <img
+              src={zoomedImageUrl}
+              alt="Gambar Diperbesar"
+              className="max-h-[85vh] max-w-full object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
