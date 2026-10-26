@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import ExamTokenModal from '@/components/ExamTokenModal'
 import { useTheme } from '@/context/ThemeContext'
+import MathRenderer from '@/components/MathRenderer'
 
 function HomePageContent() {
   const { theme } = useTheme()
@@ -231,7 +232,9 @@ function HomePageContent() {
                     </span>
                   </div>
                   <h3 className="text-sm sm:text-base font-extrabold">{ann.title}</h3>
-                  <p className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>{ann.content}</p>
+                  <div className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>
+                      <MathRenderer content={ann.content || ''} />
+                    </div>
                 </div>
               ))}
             </div>
@@ -265,7 +268,9 @@ function HomePageContent() {
                       {mat.subject || 'Modul'}
                     </span>
                     <h3 className="text-xs font-bold leading-snug">{mat.title}</h3>
-                    <p className={`text-[11px] line-clamp-2 ${themeDetails.textMuted}`}>{mat.description || '-'}</p>
+                    <div className={`text-[11px] line-clamp-2 ${themeDetails.textMuted}`}>
+                      <MathRenderer content={mat.description || '-'} />
+                    </div>
                   </div>
 
                   <a
