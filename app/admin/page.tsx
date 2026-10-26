@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
+import MathRenderer from '@/components/MathRenderer'
 
 function AdminDashboardContent() {
   const [exams, setExams] = useState<any[]>([])
@@ -39,12 +40,18 @@ function AdminDashboardContent() {
   const [isCMSModalOpen, setIsCMSModalOpen] = useState(false)
   const [cmsTab, setCmsTab] = useState<'announcement' | 'material'>('announcement')
 
+  // Mode View Editor CMS ('split' | 'edit' | 'preview')
+  const [annViewMode, setAnnViewMode] = useState<'split' | 'edit' | 'preview'>('split')
+  const [matViewMode, setMatViewMode] = useState<'split' | 'edit' | 'preview'>('split')
+
   // Form Pengumuman
+  const [editingAnnId, setEditingAnnId] = useState<string | null>(null)
   const [annTitle, setAnnTitle] = useState('')
   const [annContent, setAnnContent] = useState('')
   const [annCategory, setAnnCategory] = useState('Penting')
 
   // Form Materi
+  const [editingMatId, setEditingMatId] = useState<string | null>(null)
   const [matTitle, setMatTitle] = useState('')
   const [matUrl, setMatUrl] = useState('')
   const [matDesc, setMatDesc] = useState('')
@@ -79,13 +86,19 @@ function AdminDashboardContent() {
 
     // 3. Announcements (Fault-tolerant)
     try {
-      const { data: annData } = await supabase.from('announcements').select('*').order('created_at', { ascending: false })
+      const { data: annData } = await supabase
+        .from('announcements')
+        .select('*')
+        .order('created_at', { ascending: false })
       if (annData) setAnnouncements(annData)
     } catch (e) {}
 
     // 4. Materials (Fault-tolerant)
     try {
-      const { data: matData } = await supabase.from('study_materials').select('*').order('created_at', { ascending: false })
+      const { data: matData } = await supabase
+        .from('study_materials')
+        .select('*')
+        .order('created_at', { ascending: false })
       if (matData) setMaterials(matData)
     } catch (e) {}
 
@@ -241,50 +254,123 @@ function AdminDashboardContent() {
     fetchData()
   }
 
-  // --- 📢 CRUD PENGUMUMAN & MATERI ---
-  const handleCreateAnnouncement = async (e: React.FormEvent) => {
+  // --- 📢 CRUD PENGUMUMAN (DENGAN EDIT & TOOLBAR) ---
+  const resetAnnForm = () => {
+    setEditingAnnId(null)
+    setAnnTitle('')
+    setAnnContent('')
+    setAnnCategory('Penting')
+  }
+
+  const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!annTitle.trim() || !annContent.trim()) return alert('Judul dan konten pengumuman wajib diisi!')
     const supabase = createClient()
-    const { error } = await supabase.from('announcements').insert([{ title: annTitle, content: annContent, category: annCategory }])
-    if (error) alert(`Gagal menambah pengumuman: ${error.message}`)
-    else {
-      setAnnTitle('')
-      setAnnContent('')
-      fetchData()
+
+    if (editingAnnId) {
+      const { error } = await supabase
+        .from('announcements')
+        .update({ title: annTitle, content: annContent, category: annCategory })
+        .eq('id', editingAnnId)
+
+      if (error) alert(`Gagal memperbarui pengumuman: ${error.message}`)
+      else {
+        alert('✅ Pengumuman berhasil diperbarui!')
+        resetAnnForm()
+        fetchData()
+      }
+    } else {
+      const { error } = await supabase.from('announcements').insert([
+        { title: annTitle, content: annContent, category: annCategory, is_active: true },
+      ])
+      if (error) alert(`Gagal menambah pengumuman: ${error.message}`)
+      else {
+        resetAnnForm()
+        fetchData()
+      }
     }
+  }
+
+  const handleEditAnnClick = (ann: any) => {
+    setEditingAnnId(ann.id)
+    setAnnTitle(ann.title || '')
+    setAnnContent(ann.content || '')
+    setAnnCategory(ann.category || 'Penting')
   }
 
   const handleDeleteAnnouncement = async (id: string) => {
     if (!confirm('Hapus pengumuman ini?')) return
     const supabase = createClient()
     await supabase.from('announcements').delete().eq('id', id)
+    if (editingAnnId === id) resetAnnForm()
     fetchData()
   }
 
-  const handleCreateMaterial = async (e: React.FormEvent) => {
+  // --- 📚 CRUD MATERI (DENGAN EDIT & TOOLBAR) ---
+  const resetMatForm = () => {
+    setEditingMatId(null)
+    setMatTitle('')
+    setMatUrl('')
+    setMatDesc('')
+    setMatSubject('Umum')
+  }
+
+  const handleSaveMaterial = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
     const supabase = createClient()
-    const { error } = await supabase.from('study_materials').insert([{ title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject }])
-    if (error) alert(`Gagal menambah materi: ${error.message}`)
-    else {
-      setMatTitle('')
-      setMatUrl('')
-      setMatDesc('')
-      fetchData()
+
+    if (editingMatId) {
+      const { error } = await supabase
+        .from('study_materials')
+        .update({ title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject })
+        .eq('id', editingMatId)
+
+      if (error) alert(`Gagal memperbarui materi: ${error.message}`)
+      else {
+        alert('✅ Modul materi berhasil diperbarui!')
+        resetMatForm()
+        fetchData()
+      }
+    } else {
+      const { error } = await supabase.from('study_materials').insert([
+        { title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject },
+      ])
+      if (error) alert(`Gagal menambah materi: ${error.message}`)
+      else {
+        resetMatForm()
+        fetchData()
+      }
     }
+  }
+
+  const handleEditMatClick = (mat: any) => {
+    setEditingMatId(mat.id)
+    setMatTitle(mat.title || '')
+    setMatUrl(mat.file_url || '')
+    setMatDesc(mat.description || '')
+    setMatSubject(mat.subject || 'Umum')
   }
 
   const handleDeleteMaterial = async (id: string) => {
     if (!confirm('Hapus materi ini?')) return
     const supabase = createClient()
     await supabase.from('study_materials').delete().eq('id', id)
+    if (editingMatId === id) resetMatForm()
     fetchData()
   }
 
+  // Helper Sisip Teks untuk Toolbar
+  const insertAnnText = (str: string) => {
+    setAnnContent((prev) => prev + str)
+  }
+
+  const insertMatText = (str: string) => {
+    setMatDesc((prev) => prev + str)
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <Navbar />
 
       <main className="p-8 max-w-6xl mx-auto space-y-8">
@@ -372,7 +458,7 @@ function AdminDashboardContent() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   suppressHydrationWarning
                 />
               </div>
@@ -395,7 +481,7 @@ function AdminDashboardContent() {
                 <select
                   value={selectedSubtest}
                   onChange={(e) => setSelectedSubtest(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-indigo-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   suppressHydrationWarning
                 >
                   {subtests.map((st) => (
@@ -416,7 +502,7 @@ function AdminDashboardContent() {
                   min={1}
                   value={duration}
                   onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   suppressHydrationWarning
                 />
               </div>
@@ -449,7 +535,7 @@ function AdminDashboardContent() {
                     placeholder="Kosongkan jika bebas"
                     value={examToken}
                     onChange={(e) => setExamToken(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono font-bold uppercase text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono font-bold uppercase text-indigo-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     suppressHydrationWarning
                   />
                   <button
@@ -474,7 +560,7 @@ function AdminDashboardContent() {
                     type="datetime-local"
                     value={startTime}
                     onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     suppressHydrationWarning
                   />
                 </div>
@@ -486,7 +572,7 @@ function AdminDashboardContent() {
                     type="datetime-local"
                     value={endTime}
                     onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     suppressHydrationWarning
                   />
                 </div>
@@ -552,7 +638,7 @@ function AdminDashboardContent() {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Contoh: Latihan soal aljabar dan geometri dasar."
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   suppressHydrationWarning
                 />
               </div>
@@ -699,16 +785,22 @@ function AdminDashboardContent() {
         </div>
       </main>
 
-      {/* 📢 MODAL USER-FRIENDLY KELOLA PENGUMUMAN & MATERI */}
+      {/* 📢 MODAL HIGH-TECH CMS PENGUMUMAN & MATERI (DENGAN DUAL VIEW & RICH TOOLBAR) */}
       {isCMSModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col overflow-hidden">
+            {/* HEAD MODAL */}
             <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-extrabold text-slate-800">
-                📢 CMS Pengumuman & Modul Materi Siswa
+              <h3 className="text-sm font-extrabold text-slate-800 flex items-center space-x-2">
+                <span>📢</span>
+                <span>CMS Pengumuman & Modul Materi Siswa</span>
               </h3>
               <button
-                onClick={() => setIsCMSModalOpen(false)}
+                onClick={() => {
+                  setIsCMSModalOpen(false)
+                  resetAnnForm()
+                  resetMatForm()
+                }}
                 className="text-slate-400 hover:text-slate-600 font-bold text-base"
                 suppressHydrationWarning
               >
@@ -716,7 +808,7 @@ function AdminDashboardContent() {
               </button>
             </div>
 
-            {/* Tab Navigasi Modal */}
+            {/* TAB NAVIGASI MODAL */}
             <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl">
               <button
                 type="button"
@@ -740,61 +832,272 @@ function AdminDashboardContent() {
 
             {/* KONTEN TAB 1: PENGUMUMAN */}
             {cmsTab === 'announcement' && (
-              <div className="space-y-4">
-                <form onSubmit={handleCreateAnnouncement} className="p-4 bg-slate-50 border rounded-xl space-y-3">
-                  <h4 className="font-bold text-slate-800">➕ Tambah Pengumuman Baru</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
+              <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+                {/* FORM INPUT / EDIT PENGUMUMAN DENGAN DUAL VIEW */}
+                <form onSubmit={handleSaveAnnouncement} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold text-indigo-900 uppercase text-xs">
+                        {editingAnnId ? '✏️ Edit Pengumuman' : '➕ Tambah Pengumuman Baru'}
+                      </span>
+                      {editingAnnId && (
+                        <button
+                          type="button"
+                          onClick={resetAnnForm}
+                          className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold hover:bg-rose-200"
+                        >
+                          ✕ Batal Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {/* SWITCHER VIEW MODE */}
+                    <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border">
+                      <button
+                        type="button"
+                        onClick={() => setAnnViewMode('edit')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
+                          annViewMode === 'edit' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        ✏️ Editor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAnnViewMode('split')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
+                          annViewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        🌓 Dual View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAnnViewMode('preview')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
+                          annViewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        👁️ Live Preview
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1">JUDUL PENGUMUMAN</label>
                       <input
                         type="text"
                         required
-                        placeholder="Judul Pengumuman..."
+                        placeholder="Misal: Ujian Sekolah Dimulai Tanggal 28 Oktober..."
                         value={annTitle}
                         onChange={(e) => setAnnTitle(e.target.value)}
-                        className="w-full p-2 border rounded-lg font-semibold"
+                        className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                     <div>
+                      <label className="block font-bold text-slate-700 mb-1">KATEGORI</label>
                       <select
                         value={annCategory}
                         onChange={(e) => setAnnCategory(e.target.value)}
-                        className="w-full p-2 border rounded-lg font-bold"
+                        className="w-full p-2.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       >
                         <option value="Penting">Penting</option>
                         <option value="Informasi">Informasi</option>
                         <option value="Jadwal">Jadwal Ujian</option>
+                        <option value="Instruksi">Instruksi Guru</option>
                       </select>
                     </div>
                   </div>
-                  <textarea
-                    rows={2}
-                    required
-                    placeholder="Isi pesan pengumuman untuk siswa..."
-                    value={annContent}
-                    onChange={(e) => setAnnContent(e.target.value)}
-                    className="w-full p-2 border rounded-lg font-medium"
-                  />
-                  <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
-                    + Simpan Pengumuman
+
+                  {/* TOOLBAR FORMATTING TEKS / FORMAT / TABEL / RUMUS */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-700">KONTEN PENGUMUMAN & DESKRIPSI</label>
+
+                    <div className="flex flex-wrap gap-1 p-1.5 bg-slate-200/80 rounded-xl border border-slate-300">
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('**Teks Tebal**')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
+                        title="Teks Tebal"
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('*Teks Miring*')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded italic font-bold text-[10px] text-slate-800"
+                        title="Teks Miring"
+                      >
+                        I
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('<u>Teks Garis Bawah</u>')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded underline font-bold text-[10px] text-slate-800"
+                        title="Garis Bawah"
+                      >
+                        U
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('~~Teks Coret~~')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded line-through font-bold text-[10px] text-slate-800"
+                        title="Coret"
+                      >
+                        S
+                      </button>
+
+                      <div className="w-px h-4 bg-slate-300 mx-1 self-center" />
+
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('\n<div align="center">\nTeks Rata Tengah\n</div>\n')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
+                        title="Rata Tengah"
+                      >
+                        ↔ Tengah
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('\n<div align="right">\nTeks Rata Kanan\n</div>\n')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
+                        title="Rata Kanan"
+                      >
+                        ➡️ Kanan
+                      </button>
+
+                      <div className="w-px h-4 bg-slate-300 mx-1 self-center" />
+
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('\n| Judul 1 | Judul 2 |\n|---|---|\n| Baris 1 | Data 1 |\n')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-indigo-700"
+                        title="Sisipkan Tabel"
+                      >
+                        📊 Tabel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText(' $\\frac{a}{b}$ ')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-purple-700"
+                        title="Rumus Pecahan"
+                      >
+                        𝝅 Pecahan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText(' $\\sqrt{x}$ ')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-purple-700"
+                        title="Rumus Akar"
+                      >
+                        √ Akar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertAnnText('\n![Gambar](https://url-gambar.com/foto.jpg)\n')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-emerald-700"
+                        title="Sisipkan Gambar"
+                      >
+                        🖼️ Gambar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AREA PENULISAN & LIVE PREVIEW DUAL VIEW */}
+                  {annViewMode === 'edit' && (
+                    <textarea
+                      rows={6}
+                      required
+                      placeholder="Tuliskan isi pengumuman lengkap di sini..."
+                      value={annContent}
+                      onChange={(e) => setAnnContent(e.target.value)}
+                      className="w-full p-3 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
+                    />
+                  )}
+
+                  {annViewMode === 'preview' && (
+                    <div className="p-4 bg-white border border-slate-300 rounded-xl min-h-[140px] text-slate-900">
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-2">
+                        👁️ Live Preview Tampilan Siswa:
+                      </span>
+                      <MathRenderer content={annContent || '*Belum ada isi pengumuman...*'} />
+                    </div>
+                  )}
+
+                  {annViewMode === 'split' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <textarea
+                        rows={6}
+                        required
+                        placeholder="Tuliskan isi pengumuman lengkap di sini..."
+                        value={annContent}
+                        onChange={(e) => setAnnContent(e.target.value)}
+                        className="w-full p-3 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
+                      />
+                      <div className="p-3 bg-white border border-slate-300 rounded-xl min-h-[140px] max-h-[180px] overflow-y-auto text-slate-900">
+                        <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-2">
+                          👁️ Live Preview Tampilan Siswa:
+                        </span>
+                        <MathRenderer content={annContent || '*Belum ada isi pengumuman...*'} />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className={`w-full py-2.5 text-white font-bold rounded-xl transition-colors shadow-sm ${
+                      editingAnnId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                    }`}
+                  >
+                    {editingAnnId ? '💾 Perbarui Pengumuman' : '+ Simpan Pengumuman'}
                   </button>
                 </form>
 
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {/* DAFTAR PENGUMUMAN DENGAN TOMBOL EDIT & HAPUS */}
+                <div className="space-y-2 pt-2 border-t">
+                  <span className="font-bold text-slate-500 uppercase text-[10px] block">
+                    Daftar Pengumuman Sekolah ({announcements.length}):
+                  </span>
+
                   {announcements.map((ann) => (
-                    <div key={ann.id} className="p-3 bg-white border rounded-lg flex justify-between items-center">
-                      <div>
-                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded uppercase">
-                          {ann.category}
-                        </span>
-                        <h5 className="font-bold text-slate-800 mt-1">{ann.title}</h5>
-                        <p className="text-[11px] text-slate-500 line-clamp-1">{ann.content}</p>
+                    <div
+                      key={ann.id}
+                      className={`p-3 rounded-xl border flex justify-between items-start gap-3 transition-colors ${
+                        editingAnnId === ann.id ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <div className="space-y-1 flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[9px] font-bold rounded uppercase">
+                            📌 {ann.category || 'Penting'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {new Date(ann.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-800 text-xs">{ann.title}</h4>
+                        <div className="text-[11px] text-slate-600 line-clamp-2">
+                          <MathRenderer content={ann.content} />
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteAnnouncement(ann.id)}
-                        className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded hover:bg-rose-100"
-                      >
-                        Hapus
-                      </button>
+
+                      <div className="flex items-center space-x-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleEditAnnClick(ann)}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded transition-colors"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteAnnouncement(ann.id)}
+                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded transition-colors"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -803,69 +1106,209 @@ function AdminDashboardContent() {
 
             {/* KONTEN TAB 2: MATERI */}
             {cmsTab === 'material' && (
-              <div className="space-y-4">
-                <form onSubmit={handleCreateMaterial} className="p-4 bg-slate-50 border rounded-xl space-y-3">
-                  <h4 className="font-bold text-slate-800">➕ Tambah Link Materi Pembelajaran</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
+              <div className="space-y-4 overflow-y-auto pr-1 flex-1">
+                {/* FORM INPUT / EDIT MATERI DENGAN DUAL VIEW */}
+                <form onSubmit={handleSaveMaterial} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-bold text-indigo-900 uppercase text-xs">
+                        {editingMatId ? '✏️ Edit Link Materi' : '➕ Tambah Link Materi Baru'}
+                      </span>
+                      {editingMatId && (
+                        <button
+                          type="button"
+                          onClick={resetMatForm}
+                          className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold hover:bg-rose-200"
+                        >
+                          ✕ Batal Edit
+                        </button>
+                      )}
+                    </div>
+
+                    {/* SWITCHER VIEW MODE */}
+                    <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border">
+                      <button
+                        type="button"
+                        onClick={() => setMatViewMode('edit')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
+                          matViewMode === 'edit' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        ✏️ Editor
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMatViewMode('split')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
+                          matViewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        🌓 Dual View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMatViewMode('preview')}
+                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
+                          matViewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        👁️ Live Preview
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="sm:col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1">JUDUL MATERI / MODUL</label>
                       <input
                         type="text"
                         required
-                        placeholder="Judul Materi / Modul..."
+                        placeholder="Misal: Modul Belajar Matematika Sesi 1 (PDF)..."
                         value={matTitle}
                         onChange={(e) => setMatTitle(e.target.value)}
-                        className="w-full p-2 border rounded-lg font-semibold"
+                        className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                       />
                     </div>
                     <div>
-                      <select
+                      <label className="block font-bold text-slate-700 mb-1">SUBJEK / TOPIK</label>
+                      <input
+                        type="text"
+                        placeholder="Misal: Matematika"
                         value={matSubject}
                         onChange={(e) => setMatSubject(e.target.value)}
-                        className="w-full p-2 border rounded-lg font-bold"
-                      >
-                        <option value="Umum">Umum</option>
-                        <option value="Matematika">Matematika</option>
-                        <option value="Penalaran">Penalaran</option>
-                        <option value="Bahasa Inggris">Bahasa Inggris</option>
-                      </select>
+                        className="w-full p-2.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                      />
                     </div>
                   </div>
-                  <input
-                    type="text"
-                    required
-                    placeholder="URL Materi (Google Drive, PDF, Youtube...)"
-                    value={matUrl}
-                    onChange={(e) => setMatUrl(e.target.value)}
-                    className="w-full p-2 border rounded-lg font-mono text-xs"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Deskripsi singkat (opsional)..."
-                    value={matDesc}
-                    onChange={(e) => setMatDesc(e.target.value)}
-                    className="w-full p-2 border rounded-lg font-medium"
-                  />
-                  <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700">
-                    + Simpan Link Materi
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">URL / LINK MATERI (GOOGLE DRIVE / PDF / YOUTUBE)</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="https://drive.google.com/file/d/..."
+                      value={matUrl}
+                      onChange={(e) => setMatUrl(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-xl font-mono text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                  </div>
+
+                  {/* TOOLBAR FORMATTING DESKRIPSI MATERI */}
+                  <div className="space-y-1">
+                    <label className="block font-bold text-slate-700">DESKRIPSI RINGKAS MATERI</label>
+                    <div className="flex flex-wrap gap-1 p-1.5 bg-slate-200/80 rounded-xl border border-slate-300">
+                      <button
+                        type="button"
+                        onClick={() => insertMatText('**Teks Tebal**')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
+                      >
+                        B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMatText('*Teks Miring*')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded italic font-bold text-[10px] text-slate-800"
+                      >
+                        I
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMatText(' $\\frac{a}{b}$ ')}
+                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-purple-700"
+                      >
+                        𝝅 Pecahan
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AREA PENULISAN & LIVE PREVIEW DUAL VIEW */}
+                  {matViewMode === 'edit' && (
+                    <textarea
+                      rows={3}
+                      placeholder="Tuliskan deskripsi materi untuk siswa..."
+                      value={matDesc}
+                      onChange={(e) => setMatDesc(e.target.value)}
+                      className="w-full p-3 border border-slate-300 rounded-xl font-medium bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
+                    />
+                  )}
+
+                  {matViewMode === 'preview' && (
+                    <div className="p-3 bg-white border border-slate-300 rounded-xl min-h-[80px] text-slate-900">
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-1">
+                        👁️ Live Preview Deskripsi:
+                      </span>
+                      <MathRenderer content={matDesc || '*Belum ada deskripsi...*'} />
+                    </div>
+                  )}
+
+                  {matViewMode === 'split' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <textarea
+                        rows={3}
+                        placeholder="Tuliskan deskripsi materi untuk siswa..."
+                        value={matDesc}
+                        onChange={(e) => setMatDesc(e.target.value)}
+                        className="w-full p-3 border border-slate-300 rounded-xl font-medium bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
+                      />
+                      <div className="p-3 bg-white border border-slate-300 rounded-xl min-h-[80px] max-h-[120px] overflow-y-auto text-slate-900">
+                        <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-1">
+                          👁️ Live Preview Deskripsi:
+                        </span>
+                        <MathRenderer content={matDesc || '*Belum ada deskripsi...*'} />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className={`w-full py-2.5 text-white font-bold rounded-xl transition-colors shadow-sm ${
+                      editingMatId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                    }`}
+                  >
+                    {editingMatId ? '💾 Perbarui Modul Materi' : '+ Simpan Link Materi'}
                   </button>
                 </form>
 
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {/* DAFTAR MATERI DENGAN TOMBOL EDIT & HAPUS */}
+                <div className="space-y-2 pt-2 border-t">
+                  <span className="font-bold text-slate-500 uppercase text-[10px] block">
+                    Daftar Materi & Modul Belajar ({materials.length}):
+                  </span>
+
                   {materials.map((mat) => (
-                    <div key={mat.id} className="p-3 bg-white border rounded-lg flex justify-between items-center">
-                      <div>
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded uppercase">
-                          {mat.subject}
+                    <div
+                      key={mat.id}
+                      className={`p-3 rounded-xl border flex justify-between items-start gap-3 transition-colors ${
+                        editingMatId === mat.id ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200'
+                      }`}
+                    >
+                      <div className="space-y-1 flex-1">
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded uppercase inline-block">
+                          📖 {mat.subject || 'Umum'}
                         </span>
-                        <h5 className="font-bold text-slate-800 mt-1">{mat.title}</h5>
-                        <p className="text-[11px] text-slate-400 font-mono truncate max-w-xs">{mat.file_url}</p>
+                        <h4 className="font-bold text-slate-800 text-xs">{mat.title}</h4>
+                        <p className="text-[10px] text-slate-400 font-mono truncate max-w-xs">{mat.file_url}</p>
+                        <div className="text-[11px] text-slate-600 line-clamp-1">
+                          <MathRenderer content={mat.description || '-'} />
+                        </div>
                       </div>
-                      <button
-                        onClick={() => handleDeleteMaterial(mat.id)}
-                        className="px-2.5 py-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded hover:bg-rose-100"
-                      >
-                        Hapus
-                      </button>
+
+                      <div className="flex items-center space-x-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => handleEditMatClick(mat)}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded transition-colors"
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMaterial(mat.id)}
+                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded transition-colors"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -875,11 +1318,15 @@ function AdminDashboardContent() {
             <div className="pt-2 border-t text-right">
               <button
                 type="button"
-                onClick={() => setIsCMSModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                onClick={() => {
+                  setIsCMSModalOpen(false)
+                  resetAnnForm()
+                  resetMatForm()
+                }}
+                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors"
                 suppressHydrationWarning
               >
-                Tutup
+                Tutup Modal
               </button>
             </div>
           </div>
@@ -910,7 +1357,7 @@ function AdminDashboardContent() {
                 placeholder="Nama Subtes Baru (cth: BIOLOGI)"
                 value={newSubtestName}
                 onChange={(e) => setNewSubtestName(e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-lg text-xs uppercase font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs uppercase font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 suppressHydrationWarning
               />
               <button
@@ -934,7 +1381,7 @@ function AdminDashboardContent() {
                         type="text"
                         value={editingSubtestName}
                         onChange={(e) => setEditingSubtestName(e.target.value)}
-                        className="px-2 py-1 border rounded text-xs uppercase font-bold flex-1"
+                        className="px-2 py-1 border rounded text-xs uppercase font-bold flex-1 bg-white text-slate-900"
                         suppressHydrationWarning
                       />
                       <button
