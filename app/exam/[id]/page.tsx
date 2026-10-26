@@ -14,9 +14,17 @@ function ExamEngineContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
 
+  // State ID Sesi & Status Real-Time (Ongoing / Paused)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionStatus, setSessionStatus] = useState<string>('ongoing')
+
   // State Jawaban Siswa & Ragu-ragu
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [flaggedQuestions, setFlaggedQuestions] = useState<{ [key: string]: boolean }>({})
+
+  // 🎨 State Mode Tema (Light / Dark) & Ukuran Teks (Normal / Besar / Sangat Besar)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [fontSize, setFontSize] = useState<'normal' | 'large' | 'xlarge'>('normal')
 
   // State Modal Zoom Gambar (Lightbox)
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
@@ -25,13 +33,11 @@ function ExamEngineContent() {
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 🟢 SISIPKAN STATE INI: Merekam status sesi ('ongoing' / 'paused')
-  const [sessionStatus, setSessionStatus] = useState<string>('ongoing')
-
   // Ref untuk menghindari stale closure dan submit ganda
   const userAnswersRef = useRef<{ [key: string]: any }>({})
   const questionsRef = useRef<any[]>([])
   const isSubmittingRef = useRef<boolean>(false)
+  const sessionIdRef = useRef<string | null>(null)
 
   // Helper Acak Array (Fisher-Yates Shuffle)
   const shuffleArray = (array: any[]) => {
@@ -71,11 +77,22 @@ function ExamEngineContent() {
     }
   }
 
-  // 1. MEMUAT DATA UJIAN, RESTORE JAWABAN, & HITUNG TIMER AKURAT
+  // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
     if (!examId) return
     const supabase = createClient()
 
+    // A. Ambil User Aktif
+    const {
+      data: { user: activeUser },
+    } = await supabase.auth.getUser()
+
+    if (!activeUser) {
+      router.push('/login')
+      return
+    }
+
+    // B. Fetch Data Ujian
     const { data: examData } = await supabase
       .from('exams')
       .select('*')
@@ -88,6 +105,7 @@ function ExamEngineContent() {
       return
     }
 
+    // C. Fetch Data Soal
     const { data: questionData } = await supabase
       .from('questions')
       .select('*')
@@ -125,7 +143,7 @@ function ExamEngineContent() {
 
     setExam(examData)
 
-    // 🟢 RESTORE JAWABAN DARI LOCALSTORAGE
+    // D. RESTORE JAWABAN DARI LOCALSTORAGE
     const localAnswersKey = `cbt_answers_${examId}`
     const savedAns = localStorage.getItem(localAnswersKey)
     if (savedAns) {
@@ -140,24 +158,55 @@ function ExamEngineContent() {
       }
     }
 
-    // 🟢 PERHITUNGAN TIMER SISA WAKTU BERBASIS TIMESTAMP
-    const durationSeconds = (examData.duration_minutes || 15) * 60
-    const localStartKey = `cbt_start_time_${examId}`
-    let startTimeMs = Date.now()
+    // E. 🟢 PROSES SESI REAL-TIME DI SUPABASE (AGAR MUNCUL DI LIVE PROCTORING)
+    let currentSessId = null
+    let startTimeIso = new Date().toISOString()
 
-    const existingStart = localStorage.getItem(localStartKey)
-    if (existingStart) {
-      const parsedStart = parseInt(existingStart, 10)
-      if (!isNaN(parsedStart)) {
-        startTimeMs = parsedStart
-      } else {
-        localStorage.setItem(localStartKey, String(startTimeMs))
+    const { data: existingSession } = await supabase
+      .from('exam_sessions')
+      .select('*')
+      .eq('exam_id', examId)
+      .eq('user_id', activeUser.id)
+      .in('status', ['ongoing', 'paused'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (existingSession) {
+      currentSessId = existingSession.id
+      if (existingSession.start_time) {
+        startTimeIso = existingSession.start_time
       }
+      setSessionStatus(existingSession.status)
     } else {
-      localStorage.setItem(localStartKey, String(startTimeMs))
+      // Buat Sesi Baru berstatus 'ongoing' di Supabase
+      const { data: newSess } = await supabase
+        .from('exam_sessions')
+        .insert([
+          {
+            exam_id: examId,
+            user_id: activeUser.id,
+            status: 'ongoing',
+            start_time: startTimeIso,
+          },
+        ])
+        .select()
+        .single()
+
+      if (newSess) {
+        currentSessId = newSess.id
+      }
     }
 
-    const elapsedSeconds = Math.floor((Date.now() - startTimeMs) / 1000)
+    if (currentSessId) {
+      setSessionId(currentSessId)
+      sessionIdRef.current = currentSessId
+    }
+
+    // F. PERHITUNGAN TIMER SISA WAKTU BERBASIS TIMESTAMP START_TIME
+    const durationSeconds = (examData.duration_minutes || 15) * 60
+    const startMs = new Date(startTimeIso).getTime()
+    const elapsedSeconds = Math.floor((Date.now() - startMs) / 1000)
     const remainingSeconds = Math.max(0, durationSeconds - elapsedSeconds)
 
     setTimeLeft(remainingSeconds)
@@ -168,7 +217,7 @@ function ExamEngineContent() {
     loadExamData()
   }, [examId])
 
-  // 🟢 SISIPKAN HOOK INI: Memeriksa status sesi dari Supabase secara berkala
+  // 🟢 HOOK CEK STATUS SESI (PAUSE/RESUME) REAL-TIME
   useEffect(() => {
     if (!examId || loading) return
 
@@ -227,7 +276,7 @@ function ExamEngineContent() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft, sessionStatus]) // 👈 Tambahkan sessionStatus di dependency
+  }, [timeLeft, sessionStatus])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -286,7 +335,7 @@ function ExamEngineContent() {
     }))
   }
 
-  // 🟢 SELAYAKAN UJIAN, POPULASI NILAI PRESISI, & SIMPAN HASIL
+  // 🟢 SELAYAKAN UJIAN, POPULASI NILAI PRESISI, & SIMPAN HASIL KE DATABASE
   const handleFinishExam = async (autoFinish = false) => {
     if (isSubmittingRef.current) return
     if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
@@ -331,7 +380,6 @@ function ExamEngineContent() {
             totalPointsEarned += qMaxScore
           }
         } else if (qType === 'complex_multiple_choice') {
-          // 🟢 PARSING BENAR KUNCI PG KOMPLEKS (ARRAY / JSON STRING)
           const parsedCorrect = parseJsonIfNeeded(q.correct_answers)
           let correctKeys: string[] = []
 
@@ -354,7 +402,6 @@ function ExamEngineContent() {
             totalPointsEarned += ratio * qMaxScore
           }
         } else if (qType === 'true_false_matrix') {
-          // 🟢 PARSING BENAR KUNCI MATRIKS (OBJECT / JSON STRING)
           const parsedCorrect = parseJsonIfNeeded(q.correct_answers)
           const correctObj: { [key: string]: string } =
             typeof parsedCorrect === 'object' && parsedCorrect !== null ? parsedCorrect : {}
@@ -382,36 +429,49 @@ function ExamEngineContent() {
     const finalScore =
       totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100 : 0
 
-    // Ambil Timestamp waktu mulai asli
-    const localStartKey = `cbt_start_time_${examId}`
-    const storedStart = localStorage.getItem(localStartKey)
-    const startTimeIso = storedStart
-      ? new Date(parseInt(storedStart, 10)).toISOString()
-      : new Date().toISOString()
     const endTimeIso = new Date().toISOString()
+    let activeSessId = sessionIdRef.current || sessionId
 
-    const { data: session, error: sessionErr } = await supabase
-      .from('exam_sessions')
-      .insert([
-        {
-          exam_id: examId,
-          user_id: user?.id || null,
+    if (activeSessId) {
+      // Update Sesi Aktif Menjadi 'completed'
+      await supabase
+        .from('exam_sessions')
+        .update({
           status: 'completed',
           score: finalScore,
-          start_time: startTimeIso,
+          completed_at: endTimeIso,
+          submitted_at: endTimeIso,
           end_time: endTimeIso,
-        },
-      ])
-      .select()
-      .single()
+        })
+        .eq('id', activeSessId)
+    } else {
+      // Fallback: Buat Sesi Baru Jika ID Belum Terpasang
+      const { data: session, error: sessionErr } = await supabase
+        .from('exam_sessions')
+        .insert([
+          {
+            exam_id: examId,
+            user_id: user?.id || null,
+            status: 'completed',
+            score: finalScore,
+            completed_at: endTimeIso,
+            submitted_at: endTimeIso,
+            end_time: endTimeIso,
+          },
+        ])
+        .select()
+        .single()
 
-    if (sessionErr || !session) {
-      alert(`Gagal menyimpan hasil ujian: ${sessionErr?.message || 'Error'}`)
-      isSubmittingRef.current = false
-      setIsSubmitting(false)
-      return
+      if (sessionErr || !session) {
+        alert(`Gagal menyimpan hasil ujian: ${sessionErr?.message || 'Error'}`)
+        isSubmittingRef.current = false
+        setIsSubmitting(false)
+        return
+      }
+      activeSessId = session.id
     }
 
+    // Simpan Detail Lembar Jawaban
     const answerRecords = currentQuestions.map((q) => {
       const rawAns = currentAnswers[q.id]
       const formattedAns =
@@ -422,7 +482,7 @@ function ExamEngineContent() {
           : JSON.stringify(rawAns)
 
       return {
-        session_id: session.id,
+        session_id: activeSessId,
         question_id: q.id,
         user_answer: formattedAns,
       }
@@ -430,11 +490,11 @@ function ExamEngineContent() {
 
     await supabase.from('answers').insert(answerRecords)
 
-    // 🟢 BERSIHKAN LOCALSTORAGE AGAR BISA MENGULANG DENGAN BERSIH
+    // Bersihkan LocalStorage
     localStorage.removeItem(`cbt_answers_${examId}`)
     localStorage.removeItem(`cbt_start_time_${examId}`)
 
-    router.push(`/exam/${examId}/summary?session_id=${session.id}`)
+    router.push(`/exam/${examId}/summary?session_id=${activeSessId}`)
   }
 
   if (loading) {
@@ -457,10 +517,24 @@ function ExamEngineContent() {
       ? currentQuestion.matrix_statements
       : []
 
+  // 🎨 HELPER PEMETAAN TEMA & UKURAN TEKS DINAMIS
+  const isDark = theme === 'dark'
+
+  const textClass =
+    fontSize === 'xlarge'
+      ? 'text-lg leading-relaxed'
+      : fontSize === 'large'
+      ? 'text-base leading-relaxed'
+      : 'text-sm leading-relaxed'
+
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
+    <div
+      className={`min-h-screen flex flex-col font-sans select-none transition-colors duration-200 ${
+        isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
+      }`}
+    >
       {/* HEADER CBT SISWA */}
-      <header className="bg-slate-900 text-white px-6 py-3 flex justify-between items-center shadow-md">
+      <header className="bg-slate-900 text-white px-6 py-3 flex flex-wrap justify-between items-center shadow-md gap-3">
         <div>
           <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
             {exam?.subtest || 'TKA'}
@@ -468,7 +542,57 @@ function ExamEngineContent() {
           <h1 className="text-base font-bold mt-0.5">{exam?.title}</h1>
         </div>
 
-        <div className="flex items-center space-x-6">
+        <div className="flex flex-wrap items-center space-x-4 sm:space-x-6">
+          {/* 🔠 CONTROLS FONT SIZE (UKURAN TEKS) */}
+          <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
+            <span className="text-[10px] text-slate-400 font-bold px-1 uppercase hidden sm:inline">
+              Teks:
+            </span>
+            <button
+              onClick={() => setFontSize('normal')}
+              className={`px-2 py-0.5 rounded-lg font-bold text-[10px] transition-all ${
+                fontSize === 'normal'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700'
+              }`}
+              title="Ukuran Teks Normal"
+            >
+              A
+            </button>
+            <button
+              onClick={() => setFontSize('large')}
+              className={`px-2 py-0.5 rounded-lg font-bold text-xs transition-all ${
+                fontSize === 'large'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700'
+              }`}
+              title="Ukuran Teks Besar"
+            >
+              A+
+            </button>
+            <button
+              onClick={() => setFontSize('xlarge')}
+              className={`px-2 py-0.5 rounded-lg font-bold text-sm transition-all ${
+                fontSize === 'xlarge'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-300 hover:bg-slate-700'
+              }`}
+              title="Ukuran Teks Sangat Besar"
+            >
+              A++
+            </button>
+          </div>
+
+          {/* 🌗 CONTROLS TEMA (DARK / LIGHT MODE) */}
+          <button
+            onClick={() => setTheme(isDark ? 'light' : 'dark')}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors flex items-center space-x-1"
+            title="Ganti Tema Tampilan Ujian"
+          >
+            <span>{isDark ? '☀️ Mode Terang' : '🌙 Mode Gelap'}</span>
+          </button>
+
+          {/* TIMER */}
           <div className="text-right">
             <span className="text-[10px] text-slate-400 block font-bold uppercase">
               Sisa Waktu
@@ -492,15 +616,27 @@ function ExamEngineContent() {
       {/* BODY KONTEN SOAL & NAVIGASI */}
       <div className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* LEMBAR SOAL */}
-        <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-6">
+        <div
+          className={`lg:col-span-3 p-6 rounded-2xl border shadow-sm flex flex-col justify-between space-y-6 ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}
+        >
           {currentQuestion ? (
             <div className="space-y-4">
-              <div className="flex justify-between items-center border-b pb-3">
+              <div
+                className={`flex justify-between items-center border-b pb-3 ${
+                  isDark ? 'border-slate-800' : 'border-slate-200'
+                }`}
+              >
                 <div className="flex items-center space-x-2">
-                  <span className="font-bold text-slate-800 text-sm">
+                  <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'} text-sm`}>
                     Soal Nomor {currentIndex + 1} dari {questions.length}
                   </span>
-                  <span className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded uppercase">
+                  <span
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded uppercase ${
+                      isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
                     {qType === 'complex_multiple_choice'
                       ? 'PG Kompleks'
                       : qType === 'true_false_matrix'
@@ -516,6 +652,8 @@ function ExamEngineContent() {
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
                     flaggedQuestions[currentQuestion.id]
                       ? 'bg-amber-500 text-white'
+                      : isDark
+                      ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                   suppressHydrationWarning
@@ -524,8 +662,12 @@ function ExamEngineContent() {
                 </button>
               </div>
 
-              {/* TEKS SOAL & GAMBAR */}
-              <div className="text-slate-900 text-sm font-semibold leading-relaxed">
+              {/* TEKS SOAL & GAMBAR (DINAMIS SESUAI UKURAN FONT) */}
+              <div
+                className={`font-semibold ${textClass} ${
+                  isDark ? 'text-slate-100' : 'text-slate-900'
+                }`}
+              >
                 <MathRenderer content={currentQuestion.question_text || ''} />
               </div>
 
@@ -535,7 +677,7 @@ function ExamEngineContent() {
                     src={currentQuestion.image_url}
                     alt="Gambar Soal"
                     onClick={() => setZoomedImageUrl(currentQuestion.image_url)}
-                    className="max-h-60 rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity"
+                    className="max-h-60 rounded-xl border cursor-zoom-in hover:opacity-90 transition-opacity border-slate-700"
                   />
                 </div>
               )}
@@ -552,21 +694,27 @@ function ExamEngineContent() {
                       <button
                         key={optKey || oIdx}
                         onClick={() => handleSelectSingleOption(currentQuestion.id, optKey)}
-                        className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${
+                        className={`w-full text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 text-indigo-900 font-bold'
+                            ? 'border-indigo-500 bg-indigo-950/70 ring-2 ring-indigo-500 text-indigo-200 font-bold'
+                            : isDark
+                            ? 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-medium'
                             : 'border-slate-200 hover:bg-slate-50 text-slate-800 font-medium'
                         }`}
                         suppressHydrationWarning
                       >
                         <span
                           className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
-                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
+                            isSelected
+                              ? 'bg-indigo-600 text-white'
+                              : isDark
+                              ? 'bg-slate-700 text-slate-200'
+                              : 'bg-slate-100 text-slate-700'
                           }`}
                         >
                           {displayLabel}
                         </span>
-                        <div className="flex-1 text-slate-900 font-semibold">
+                        <div className={`flex-1 font-semibold ${textClass}`}>
                           <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
                           {opt.image_url && (
                             <img
@@ -576,7 +724,7 @@ function ExamEngineContent() {
                                 e.stopPropagation()
                                 setZoomedImageUrl(opt.image_url)
                               }}
-                              className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
+                              className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity border-slate-700"
                             />
                           )}
                         </div>
@@ -589,7 +737,13 @@ function ExamEngineContent() {
               {/* 2. PILIHAN GANDA KOMPLEKS (CHECKBOX) */}
               {qType === 'complex_multiple_choice' && Array.isArray(currentQuestion.options) && (
                 <div className="space-y-2 pt-2">
-                  <p className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                  <p
+                    className={`text-xs font-semibold p-2.5 rounded-xl border ${
+                      isDark
+                        ? 'bg-indigo-950/50 text-indigo-300 border-indigo-800'
+                        : 'bg-indigo-50 text-indigo-800 border-indigo-100'
+                    }`}
+                  >
                     ℹ️ Pilih satu atau beberapa jawaban yang Anda anggap benar.
                   </p>
                   {currentQuestion.options.map((opt: any, oIdx: number) => {
@@ -604,9 +758,11 @@ function ExamEngineContent() {
                       <button
                         key={optKey || oIdx}
                         onClick={() => handleToggleComplexOption(currentQuestion.id, optKey)}
-                        className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${
+                        className={`w-full text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
                           isSelected
-                            ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 text-indigo-900 font-bold'
+                            ? 'border-indigo-500 bg-indigo-950/70 ring-2 ring-indigo-500 text-indigo-200 font-bold'
+                            : isDark
+                            ? 'border-slate-800 bg-slate-800/80 hover:bg-slate-800 text-slate-200 font-medium'
                             : 'border-slate-200 hover:bg-slate-50 text-slate-800 font-medium'
                         }`}
                         suppressHydrationWarning
@@ -618,7 +774,7 @@ function ExamEngineContent() {
                           className="w-4 h-4 text-indigo-600 rounded"
                         />
                         <span className="font-bold text-xs shrink-0">{displayLabel}.</span>
-                        <div className="flex-1 text-slate-900 font-semibold">
+                        <div className={`flex-1 font-semibold ${textClass}`}>
                           <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
                           {opt.image_url && (
                             <img
@@ -628,7 +784,7 @@ function ExamEngineContent() {
                                 e.stopPropagation()
                                 setZoomedImageUrl(opt.image_url)
                               }}
-                              className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
+                              className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity border-slate-700"
                             />
                           )}
                         </div>
@@ -641,20 +797,36 @@ function ExamEngineContent() {
               {/* 3. MATRIKS BENAR - SALAH */}
               {qType === 'true_false_matrix' && (
                 <div className="space-y-3 pt-2">
-                  <p className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 p-2 rounded-lg border border-indigo-100">
+                  <p
+                    className={`text-xs font-semibold p-2.5 rounded-xl border ${
+                      isDark
+                        ? 'bg-indigo-950/50 text-indigo-300 border-indigo-800'
+                        : 'bg-indigo-50 text-indigo-800 border-indigo-100'
+                    }`}
+                  >
                     ℹ️ Tentukan pilihan Benar atau Salah untuk setiap baris pernyataan di bawah ini.
                   </p>
-                  <div className="border border-slate-300 rounded-xl overflow-hidden text-xs bg-white shadow-xs">
+                  <div
+                    className={`border rounded-xl overflow-hidden shadow-xs ${
+                      isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-300 bg-white'
+                    }`}
+                  >
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800">
+                      <thead
+                        className={`font-bold border-b ${
+                          isDark
+                            ? 'bg-slate-800/90 text-slate-100 border-slate-700'
+                            : 'bg-slate-100 text-slate-800 border-slate-300'
+                        }`}
+                      >
                         <tr>
-                          <th className="p-3 text-slate-900 font-extrabold">Pernyataan</th>
-                          <th className="p-3 w-36 text-center border-l border-slate-300 text-slate-900 font-extrabold">
+                          <th className="p-3 font-extrabold text-xs">Pernyataan</th>
+                          <th className="p-3 w-36 text-center border-l font-extrabold text-xs">
                             Pilihan Jawaban
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-200">
+                      <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-200'}`}>
                         {matrixStatements.map((st: any, sIdx: number) => {
                           const stId = String(st.id || sIdx + 1)
                           const currentMatrix =
@@ -675,26 +847,27 @@ function ExamEngineContent() {
                                 ''
 
                           return (
-                            <tr key={stId || sIdx} className="hover:bg-slate-50 transition-colors">
+                            <tr
+                              key={stId || sIdx}
+                              className={`transition-colors ${isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}`}
+                            >
                               <td className="p-3">
                                 <div className="flex items-start space-x-2">
-                                  <span className="font-bold text-slate-700 text-xs shrink-0">
-                                    {sIdx + 1}.
-                                  </span>
-                                  <div className="flex-1 text-slate-900 font-semibold text-xs leading-relaxed">
+                                  <span className="font-bold text-xs shrink-0">{sIdx + 1}.</span>
+                                  <div className={`flex-1 font-semibold ${textClass}`}>
                                     <MathRenderer content={statementText} />
                                     {st.image_url && (
                                       <img
                                         src={st.image_url}
                                         alt={`Gambar Pernyataan ${sIdx + 1}`}
                                         onClick={() => setZoomedImageUrl(st.image_url)}
-                                        className="max-h-24 mt-1.5 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
+                                        className="max-h-24 mt-1.5 rounded border cursor-zoom-in hover:opacity-90 transition-opacity border-slate-700"
                                       />
                                     )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="p-3 border-l border-slate-200">
+                              <td className={`p-3 border-l ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                                 <div className="flex justify-center space-x-1.5">
                                   <button
                                     type="button"
@@ -704,6 +877,8 @@ function ExamEngineContent() {
                                     className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Benar'
                                         ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400'
+                                        : isDark
+                                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                         : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                     }`}
                                     suppressHydrationWarning
@@ -718,6 +893,8 @@ function ExamEngineContent() {
                                     className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Salah'
                                         ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400'
+                                        : isDark
+                                        ? 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                                         : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                     }`}
                                     suppressHydrationWarning
@@ -738,15 +915,17 @@ function ExamEngineContent() {
               {/* 4. URAIAN / ESSAY */}
               {qType === 'essay' && (
                 <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-bold text-slate-800 uppercase">
-                    Lembar Jawaban Essay Anda:
-                  </label>
+                  <label className="block text-xs font-bold uppercase">Lembar Jawaban Essay Anda:</label>
                   <textarea
                     rows={6}
                     placeholder="Tuliskan jawaban lengkap Anda di sini..."
                     value={userAnswers[currentQuestion.id] || ''}
                     onChange={(e) => handleEssayChange(currentQuestion.id, e.target.value)}
-                    className="w-full p-3.5 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600 font-semibold text-slate-900 bg-white placeholder:text-slate-400 shadow-inner"
+                    className={`w-full p-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 font-semibold shadow-inner ${textClass} ${
+                      isDark
+                        ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500'
+                        : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
+                    }`}
                     suppressHydrationWarning
                   />
                 </div>
@@ -757,11 +936,17 @@ function ExamEngineContent() {
           )}
 
           {/* NAVIGASI SEBELUMNYA / SELANJUTNYA */}
-          <div className="flex justify-between items-center pt-4 border-t border-slate-200">
+          <div
+            className={`flex justify-between items-center pt-4 border-t ${
+              isDark ? 'border-slate-800' : 'border-slate-200'
+            }`}
+          >
             <button
               disabled={currentIndex === 0}
               onClick={() => setCurrentIndex((prev) => prev - 1)}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors disabled:opacity-40 ${
+                isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
               suppressHydrationWarning
             >
               ← Sebelumnya
@@ -779,8 +964,16 @@ function ExamEngineContent() {
         </div>
 
         {/* SIDEBAR NAVIGASI NOMOR SOAL */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-fit">
-          <h3 className="text-xs font-bold text-slate-700 uppercase border-b pb-2">
+        <div
+          className={`p-5 rounded-2xl border shadow-sm space-y-4 h-fit ${
+            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}
+        >
+          <h3
+            className={`text-xs font-bold uppercase border-b pb-2 ${
+              isDark ? 'border-slate-800 text-slate-300' : 'border-slate-200 text-slate-700'
+            }`}
+          >
             🧭 Navigasi Nomor Soal
           </h3>
 
@@ -798,7 +991,10 @@ function ExamEngineContent() {
               const isFlagged = !!flaggedQuestions[q.id]
               const isCurrent = idx === currentIndex
 
-              let btnClass = 'bg-slate-100 text-slate-600 border-slate-200'
+              let btnClass = isDark
+                ? 'bg-slate-800 text-slate-300 border-slate-700'
+                : 'bg-slate-100 text-slate-600 border-slate-200'
+
               if (isAnswered) btnClass = 'bg-emerald-600 text-white border-emerald-600 font-bold'
               if (isFlagged) btnClass = 'bg-amber-500 text-white border-amber-500 font-bold'
               if (isCurrent) btnClass += ' ring-2 ring-indigo-600 ring-offset-1 font-bold'
@@ -817,7 +1013,7 @@ function ExamEngineContent() {
           </div>
         </div>
       </div>
-      
+
       {/* 🔒 OVERLAY LAYAR DIPAUSE / DIHENTIKAN SEMENTARA OLEH PENGAWAS */}
       {sessionStatus === 'paused' && (
         <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center font-sans">
