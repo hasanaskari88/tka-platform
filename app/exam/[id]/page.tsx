@@ -25,6 +25,9 @@ function ExamEngineContent() {
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 🟢 SISIPKAN STATE INI: Merekam status sesi ('ongoing' / 'paused')
+  const [sessionStatus, setSessionStatus] = useState<string>('ongoing')
+
   // Ref untuk menghindari stale closure dan submit ganda
   const userAnswersRef = useRef<{ [key: string]: any }>({})
   const questionsRef = useRef<any[]>([])
@@ -165,6 +168,37 @@ function ExamEngineContent() {
     loadExamData()
   }, [examId])
 
+  // 🟢 SISIPKAN HOOK INI: Memeriksa status sesi dari Supabase secara berkala
+  useEffect(() => {
+    if (!examId || loading) return
+
+    const checkSessionStatus = async () => {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: activeSession } = await supabase
+        .from('exam_sessions')
+        .select('status')
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (activeSession && activeSession.status) {
+        setSessionStatus(activeSession.status)
+      }
+    }
+
+    checkSessionStatus()
+    const statusInterval = setInterval(checkSessionStatus, 3000)
+
+    return () => clearInterval(statusInterval)
+  }, [examId, loading])
+
   // 🟢 PROTEKSI RELOAD & BACK BROWSER
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -177,9 +211,9 @@ function ExamEngineContent() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
 
-  // 🟢 TIMER COUNTDOWN PRESISI
+  // 🟢 TIMER COUNTDOWN PRESISI (HENTIKAN TIMER JIKA DIPAUSE)
   useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0) return
+    if (timeLeft === null || timeLeft <= 0 || sessionStatus === 'paused') return
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -193,7 +227,7 @@ function ExamEngineContent() {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [timeLeft])
+  }, [timeLeft, sessionStatus]) // 👈 Tambahkan sessionStatus di dependency
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -783,6 +817,24 @@ function ExamEngineContent() {
           </div>
         </div>
       </div>
+      
+      {/* 🔒 OVERLAY LAYAR DIPAUSE / DIHENTIKAN SEMENTARA OLEH PENGAWAS */}
+      {sessionStatus === 'paused' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center font-sans">
+          <div className="w-20 h-20 bg-amber-500/20 border-2 border-amber-400 rounded-full flex items-center justify-center text-4xl animate-bounce mb-4">
+            ⏸️
+          </div>
+          <h2 className="text-2xl font-black">Ujian Dipause oleh Pengawas</h2>
+          <p className="text-slate-300 text-xs max-w-md mt-2 leading-relaxed">
+            Pengawas sedang menghentikan sementara aktivitas ujian Anda (misal untuk penanganan kendala teknis/jaringan).
+            <br />
+            <strong>Jawaban Anda telah tersimpan aman.</strong> Silakan tunggu hingga pengawas melanjutkan ujian.
+          </p>
+          <div className="mt-6 px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-amber-300 animate-pulse">
+            ⏳ Menunggu Pengawas Membuka Kuncian...
+          </div>
+        </div>
+      )}
 
       {/* MODAL ZOOM GAMBAR (LIGHTBOX INTERAKTIF FULLSCREEN) */}
       {zoomedImageUrl && (
