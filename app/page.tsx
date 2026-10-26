@@ -48,7 +48,11 @@ function HomePageContent() {
         if (examErr) {
           setError(examErr.message)
         } else {
-          setExams(examData || [])
+          // Filter: Tampilkan hanya ujian resmi CBT atau yang diset untuk BOTH (Latihan & CBT)
+          const filteredExams = (examData || []).filter(
+            (exam: any) => !exam.target_mode || exam.target_mode === 'CBT_ONLY' || exam.target_mode === 'BOTH'
+          )
+          setExams(filteredExams)
         }
 
         // 2. Fetch Pengumuman Sekolah (Fault-tolerant)

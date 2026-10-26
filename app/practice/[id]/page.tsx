@@ -152,6 +152,18 @@ function PracticeContent() {
     }
   }
 
+  // 🟢 HANDLER LEWATI SOAL (SKIP QUESTION)
+  const handleSkipQuestion = () => {
+    setIsAnswered(false)
+    setUserAnswer(null)
+    setIsCorrect(false)
+    setStreakCount(0) // Reset combo streak jika melewati
+
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex((prev) => prev + 1)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
@@ -289,13 +301,27 @@ function PracticeContent() {
             </div>
           )}
 
-          {/* TOMBOL LANJUT SOAL */}
-          <div className="flex justify-end border-t pt-4">
+          {/* 🟢 NAVIGASI BAWAH: TOMBOL LANJUT & TOMBOL LEWATI SOAL */}
+          <div className="flex items-center justify-between border-t pt-4">
+            {/* Tombol Lewati Soal (Hanya muncul jika belum dijawab & belum soal terakhir) */}
+            {!isAnswered && currentIndex < questions.length - 1 ? (
+              <button
+                onClick={handleSkipQuestion}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors border border-slate-300 flex items-center space-x-1"
+                suppressHydrationWarning
+              >
+                <span>⏭️ Lewati Soal</span>
+              </button>
+            ) : (
+              <div />
+            )}
+
             {isAnswered ? (
               currentIndex < questions.length - 1 ? (
                 <button
                   onClick={handleNextQuestion}
                   className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm"
+                  suppressHydrationWarning
                 >
                   Soal Selanjutnya →
                 </button>
@@ -308,8 +334,8 @@ function PracticeContent() {
                 </Link>
               )
             ) : (
-              <p className="text-slate-400 text-xs font-medium">
-                Klik salah satu pilihan jawaban di atas untuk memeriksa.
+              <p className="text-slate-400 text-xs font-medium hidden sm:block">
+                Pilih salah satu jawaban atau klik lewati soal.
               </p>
             )}
           </div>
