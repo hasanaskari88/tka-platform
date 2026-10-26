@@ -7,10 +7,12 @@ import Navbar from '@/components/Navbar'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 
-// 🟢 HELPER EVALUASI JAWABAN SISWA
+// =========================================================================
+// 🟢 HELPER 1: EVALUASI JAWABAN MULTI-TIPE (PG, PG KOMPLEKS, MATRIKS, ESSAY)
+// =========================================================================
 function evaluateAnswer(q: any, rawAns: any) {
   if (rawAns === null || rawAns === undefined || rawAns === '') {
-    return { isCorrect: false, isUnanswered: true, displayVal: 'Kosong' }
+    return { isCorrect: false, isUnanswered: true, ratio: 0, displayVal: 'Kosong', userObj: {} }
   }
 
   let parsed = rawAns
@@ -31,18 +33,22 @@ function evaluateAnswer(q: any, rawAns: any) {
 
   const qType = q.question_type || 'multiple_choice'
 
+  // 1. Soal Uraian / Essay
   if (qType === 'essay' || qType === 'uraian') {
     const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
-    const isAnswered = textAns.length > 0 && textAns !== 'null'
-    return { isCorrect: false, isUnanswered: !isAnswered, displayVal: isAnswered ? textAns : 'Kosong' }
+    const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
+    return { isCorrect: false, isUnanswered: !isAnswered, ratio: 0, displayVal: isAnswered ? textAns : 'Kosong', userObj: {} }
   }
 
+  // 2. Pilihan Ganda Biasa
   if (qType === 'multiple_choice') {
     const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? '').trim().toUpperCase()
     const userChoice = String(parsed || '').trim().toUpperCase()
-    return { isCorrect: userChoice !== '' && userChoice === correctOpt, isUnanswered: !userChoice, displayVal: userChoice || 'Kosong' }
+    const isCorrect = userChoice !== '' && userChoice === correctOpt
+    return { isCorrect, isUnanswered: !userChoice, ratio: isCorrect ? 1 : 0, displayVal: userChoice ? `Opsi ${userChoice}` : 'Kosong', userObj: {} }
   }
 
+  // 3. Pilihan Ganda Kompleks (Multi-Select)
   if (qType === 'complex_multiple_choice') {
     let correctKeys: string[] = []
     if (Array.isArray(q.correct_answers)) {
@@ -58,14 +64,211 @@ function evaluateAnswer(q: any, rawAns: any) {
       userKeys = parsed.split(',').map((k) => k.trim().toUpperCase()).filter(Boolean)
     }
 
-    if (userKeys.length === 0) return { isCorrect: false, isUnanswered: true, displayVal: 'Kosong' }
-    const isExact = correctKeys.length === userKeys.length && correctKeys.every((k) => userKeys.includes(k))
-    return { isCorrect: isExact, isUnanswered: false, displayVal: userKeys.join(', ') }
+    if (userKeys.length === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, displayVal: 'Kosong', userObj: {} }
+
+    const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
+    const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
+    const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
+    const ratio = correctKeys.length > 0 ? netCorrect / correctKeys.length : 0
+
+    return {
+      isCorrect: ratio === 1,
+      isUnanswered: false,
+      ratio,
+      displayVal: `Opsi: ${userKeys.join(', ')}`,
+      userObj: {}
+    }
   }
 
-  return { isCorrect: false, isUnanswered: true, displayVal: 'Kosong' }
+  // 4. Matriks Benar / Salah (True False Matrix)
+  if (qType === 'true_false_matrix') {
+    let correctObj: { [key: string]: string } = {}
+    if (typeof q.correct_answers === 'object' && q.correct_answers !== null) {
+      correctObj = q.correct_answers
+    } else if (typeof q.correct_answers === 'string') {
+      try { correctObj = JSON.parse(q.correct_answers) } catch (e) {}
+    }
+
+    const userObj = typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null ? parsed : {}
+    const statementIds = Object.keys(correctObj).length > 0 ? Object.keys(correctObj) : Object.keys(userObj)
+
+    if (statementIds.length === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, displayVal: 'Kosong', userObj: {} }
+
+    let correctRows = 0
+    let attemptedRows = 0
+    statementIds.forEach((sId) => {
+      if (userObj[sId] !== undefined && userObj[sId] !== null && userObj[sId] !== '') attemptedRows++
+      if (
+        userObj[sId] &&
+        correctObj[sId] &&
+        String(userObj[sId]).trim().toLowerCase() === String(correctObj[sId]).trim().toLowerCase()
+      ) {
+        correctRows++
+      }
+    })
+
+    if (attemptedRows === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, displayVal: 'Kosong', userObj }
+
+    const ratio = correctRows / statementIds.length
+    return {
+      isCorrect: ratio === 1,
+      isUnanswered: false,
+      ratio,
+      displayVal: `Benar ${correctRows}/${statementIds.length}`,
+      userObj
+    }
+  }
+
+  return { isCorrect: false, isUnanswered: true, ratio: 0, displayVal: 'Kosong', userObj: {} }
 }
 
+// =========================================================================
+// 🖼️ HELPER 2: KOMPONEN RENDER SOAL UTUH & RINCIAN KUNCI JAWABAN
+// =========================================================================
+function RenderFullQuestionDetail({ question }: { question: any }) {
+  const qType = question.question_type || 'multiple_choice'
+
+  // Parse Opsi atau Pernyataan Matriks
+  let rawOptions: any[] = []
+  if (Array.isArray(question.options)) rawOptions = question.options
+  else if (Array.isArray(question.statements)) rawOptions = question.statements
+  else if (typeof question.options === 'string') {
+    try { rawOptions = JSON.parse(question.options) } catch (e) {}
+  } else if (typeof question.statements === 'string') {
+    try { rawOptions = JSON.parse(question.statements) } catch (e) {}
+  }
+
+  // Parse Kunci Jawaban Matriks
+  let correctMatrixObj: { [key: string]: string } = {}
+  if (typeof question.correct_answers === 'object' && question.correct_answers !== null) {
+    correctMatrixObj = question.correct_answers
+  } else if (typeof question.correct_answers === 'string') {
+    try { correctMatrixObj = JSON.parse(question.correct_answers) } catch (e) {}
+  }
+
+  return (
+    <div className="space-y-4 font-sans text-xs">
+      {/* TEKS UTAMA SOAL */}
+      <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-slate-900 text-sm">
+        <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Teks Pertanyaan Soal:</span>
+        <MathRenderer content={question.question_text || 'Teks soal tidak tersedia.'} />
+      </div>
+
+      {/* RENDER OPIS PILIHAN GANDA / MATRIKS */}
+      {rawOptions.length > 0 && (
+        <div className="p-4 bg-white rounded-xl border border-slate-200 space-y-2">
+          <span className="text-[10px] font-bold text-slate-400 uppercase block">
+            {qType === 'true_false_matrix' ? '📋 Daftar Pernyataan Matriks:' : '🔘 Opsi Jawaban:'}
+          </span>
+
+          {qType === 'true_false_matrix' ? (
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 text-slate-700 font-bold border-b">
+                  <tr>
+                    <th className="p-2.5 w-12 text-center">No</th>
+                    <th className="p-2.5">Pernyataan</th>
+                    <th className="p-2.5 w-32 text-center">Kunci Jawaban</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {rawOptions.map((opt: any, idx: number) => {
+                    const statementId = opt.id ?? String(idx + 1)
+                    const keyVal = correctMatrixObj[statementId] || opt.correct_answer || opt.answer || '-'
+                    const isBenar = String(keyVal).toLowerCase() === 'benar' || String(keyVal).toLowerCase() === 'true'
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50">
+                        <td className="p-2.5 text-center font-bold text-slate-500">{idx + 1}</td>
+                        <td className="p-2.5 text-slate-800 font-medium">
+                          <MathRenderer content={opt.text || opt.statement || String(opt)} />
+                        </td>
+                        <td className="p-2.5 text-center">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            isBenar ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {String(keyVal).toUpperCase()}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+              {rawOptions.map((opt: any, idx: number) => {
+                const optKey = opt.key || String.fromCharCode(65 + idx)
+                const isCorrect = String(question.correct_option || question.correct_answer).includes(optKey)
+
+                return (
+                  <div
+                    key={idx}
+                    className={`p-2.5 rounded-lg border flex items-center space-x-2 ${
+                      isCorrect ? 'bg-emerald-50/70 border-emerald-300 text-emerald-900 font-bold' : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <span className={`w-6 h-6 rounded-md font-bold text-xs flex items-center justify-center shrink-0 ${
+                      isCorrect ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {optKey}
+                    </span>
+                    <div className="flex-1">
+                      <MathRenderer content={opt.text || String(opt)} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* KUNCI JAWABAN RESMI & PEMBAHASAN */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div className="md:col-span-4 p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl space-y-1 text-xs">
+          <span className="font-bold text-indigo-900 block uppercase text-[10px]">🔑 Kunci Jawaban Resmi:</span>
+          <div className="font-black text-indigo-700 text-xs">
+            {qType === 'true_false_matrix' ? (
+              <div className="space-y-0.5 mt-1">
+                {Object.keys(correctMatrixObj).length > 0 ? (
+                  Object.entries(correctMatrixObj).map(([k, v]) => (
+                    <div key={k} className="flex justify-between bg-white px-2 py-0.5 rounded border border-indigo-100 font-mono text-[11px]">
+                      <span>Pernyataan #{k}:</span>
+                      <strong className="text-indigo-900">{String(v).toUpperCase()}</strong>
+                    </div>
+                  ))
+                ) : (
+                  <span>Matriks (Lihat Tabel Pernyataan)</span>
+                )}
+              </div>
+            ) : qType === 'essay' || qType === 'uraian' ? (
+              <span>Penilaian Manual Guru (Essay)</span>
+            ) : (
+              <span className="text-sm">Opsi {question.correct_option || question.correct_answer || '-'}</span>
+            )}
+          </div>
+        </div>
+
+        <div className="md:col-span-8 p-3.5 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1 text-xs">
+          <span className="font-bold text-amber-900 block uppercase text-[10px]">💡 Pembahasan Soal:</span>
+          <div className="text-slate-800 leading-relaxed">
+            {question.explanation || question.discussion ? (
+              <MathRenderer content={question.explanation || question.discussion} />
+            ) : (
+              <span className="text-slate-400 italic">Belum ada pembahasan yang dimasukkan untuk soal ini.</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// =========================================================================
+// 🚀 HALAMAN UTAMA ANALISIS
+// =========================================================================
 function AnalysisContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -77,7 +280,6 @@ function AnalysisContent() {
   const [profiles, setProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Filter & Sort State
   const [filterClass, setFilterClass] = useState('ALL')
   const [sortBy, setSortBy] = useState<'lowest_accuracy' | 'highest_accuracy' | 'number'>('lowest_accuracy')
   const [activeQuestionTab, setActiveQuestionTab] = useState<{ [key: string]: 'correct' | 'wrong' }>({})
@@ -117,13 +319,11 @@ function AnalysisContent() {
     )
   }
 
-  // 1. Peta Profil & Kelas
   const profileMap = new Map()
   profiles.forEach((p) => profileMap.set(p.id, p))
 
   const uniqueClasses = Array.from(new Set(sessions.map((s) => profileMap.get(s.user_id)?.class_code || '-'))).filter(Boolean)
 
-  // 2. Filter Sesi Berdasarkan Kelas
   const filteredSessions = sessions.filter((s) => {
     const studentClass = profileMap.get(s.user_id)?.class_code || '-'
     return filterClass === 'ALL' || studentClass === filterClass
@@ -133,7 +333,6 @@ function AnalysisContent() {
   const filteredAnswers = answers.filter((a) => filteredSessionIds.includes(a.session_id))
   const totalFilteredStudents = filteredSessions.length
 
-  // 3. Olah Detail Per Soal
   const detailedAnalysis = questions.map((q, qIdx) => {
     const qAnswers = filteredAnswers.filter((a) => a.question_id === q.id)
 
@@ -164,7 +363,7 @@ function AnalysisContent() {
           wrongStudents.push(studentItem)
         }
       } else {
-        if (evalRes.isCorrect) {
+        if (evalRes.isCorrect || evalRes.ratio >= 0.5) {
           correctStudents.push(studentItem)
         } else {
           wrongStudents.push(studentItem)
@@ -187,11 +386,10 @@ function AnalysisContent() {
     }
   })
 
-  // 4. Urutkan Soal
   const sortedAnalysis = [...detailedAnalysis].sort((a, b) => {
-    if (sortBy === 'lowest_accuracy') return a.accuracyRate - b.accuracyRate // Paling Banyak Salah Dahulu
-    if (sortBy === 'highest_accuracy') return b.accuracyRate - a.accuracyRate // Paling Banyak Benar Dahulu
-    return a.question_no - b.question_no // Sesuai Nomor Soal
+    if (sortBy === 'lowest_accuracy') return a.accuracyRate - b.accuracyRate
+    if (sortBy === 'highest_accuracy') return b.accuracyRate - a.accuracyRate
+    return a.question_no - b.question_no
   })
 
   return (
@@ -212,7 +410,7 @@ function AnalysisContent() {
               🎯 Analisis Butir Soal & Diagnostik Siswa: {exam?.title}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Evaluasi mendalam per butir soal, pembahasan, serta identifikasi siswa yang menjawab benar & salah.
+              Evaluasi mendalam per butir soal, pembahasan, serta rincian siswa yang menjawab benar & salah.
             </p>
           </div>
 
@@ -296,36 +494,8 @@ function AnalysisContent() {
                 </div>
 
                 <div className="p-5 space-y-4">
-                  {/* TEKS PERTANYAAN */}
-                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-slate-900 text-sm">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Pertanyaan Soal:</span>
-                    <MathRenderer content={q.question_text || 'Teks soal tidak tersedia.'} />
-                  </div>
-
-                  {/* KUNCI JAWABAN & PEMBAHASAN */}
-                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-                    <div className="md:col-span-4 p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1 text-xs">
-                      <span className="font-bold text-indigo-900 block uppercase text-[10px]">🔑 Kunci Jawaban Resmi:</span>
-                      <div className="font-extrabold text-indigo-700 text-sm">
-                        {q.question_type === 'essay' || q.question_type === 'uraian' ? (
-                          <span>Soal Uraian / Essay</span>
-                        ) : (
-                          <span>Opsi {q.correct_option || q.correct_answer || '-'}</span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="md:col-span-8 p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1 text-xs">
-                      <span className="font-bold text-amber-900 block uppercase text-[10px]">💡 Pembahasan Soal:</span>
-                      <div className="text-slate-800 leading-relaxed">
-                        {q.explanation || q.discussion ? (
-                          <MathRenderer content={q.explanation || q.discussion} />
-                        ) : (
-                          <span className="text-slate-400 italic">Belum ada pembahasan yang dimasukkan untuk soal ini.</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  {/* RENDER RINCIAN SOAL UTUH */}
+                  <RenderFullQuestionDetail question={q} />
 
                   {/* TAB DIAGNOSTIK SISWA (BENAR vs SALAH) */}
                   <div className="pt-2 border-t border-slate-200 space-y-3">
@@ -348,8 +518,8 @@ function AnalysisContent() {
                       </button>
                     </div>
 
-                    {/* LIST SISWA TERKAIT */}
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 max-h-48 overflow-y-auto">
+                    {/* LIST DAFTAR SISWA */}
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 max-h-56 overflow-y-auto">
                       {activeTab === 'wrong' ? (
                         item.wrongStudents.length > 0 ? (
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
@@ -360,7 +530,7 @@ function AnalysisContent() {
                                   <span className="text-[10px] text-slate-400">Kelas {st.class_code}</span>
                                 </div>
                                 <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 font-bold rounded text-[10px]">
-                                  {st.isUnanswered ? 'Kosong' : `Pilih: ${st.userChoice}`}
+                                  {st.isUnanswered ? 'Kosong' : st.userChoice}
                                 </span>
                               </div>
                             ))}
