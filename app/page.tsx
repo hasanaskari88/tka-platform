@@ -199,7 +199,7 @@ function HomePageContent() {
           </div>
         )}
 
-        {/* 📢 3. SEKSI PAPAN PENGUMUMAN ADAPTIF */}
+        {/* 📢 3. SEKSI PAPAN PENGUMUMAN ADAPTIF & DINAMIS */}
         {announcements.length > 0 && (
           <div className="space-y-3">
             <h2 className={`text-base sm:text-lg flex items-center space-x-2 ${themeDetails.sectionTitle}`}>
@@ -207,7 +207,13 @@ function HomePageContent() {
               <span>Pengumuman & Informasi Sekolah</span>
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div
+              className={`grid gap-4 ${
+                announcements.length === 1
+                  ? 'grid-cols-1'
+                  : 'grid-cols-1 md:grid-cols-2'
+              }`}
+            >
               {announcements.map((ann) => (
                 <div
                   key={ann.id}
@@ -224,7 +230,7 @@ function HomePageContent() {
                       })}
                     </span>
                   </div>
-                  <h3 className="text-sm font-extrabold">{ann.title}</h3>
+                  <h3 className="text-sm sm:text-base font-extrabold">{ann.title}</h3>
                   <p className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>{ann.content}</p>
                 </div>
               ))}
@@ -232,7 +238,7 @@ function HomePageContent() {
           </div>
         )}
 
-        {/* 📚 4. SEKSI LINK MATERI & MODUL ADAPTIF */}
+        {/* 📚 4. SEKSI LINK MATERI & MODUL ADAPTIF & DINAMIS */}
         {materials.length > 0 && (
           <div className="space-y-3">
             <h2 className={`text-base sm:text-lg flex items-center space-x-2 ${themeDetails.sectionTitle}`}>
@@ -240,7 +246,15 @@ function HomePageContent() {
               <span>Materi & Modul Belajar</span>
             </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div
+              className={`grid gap-4 ${
+                materials.length === 1
+                  ? 'grid-cols-1'
+                  : materials.length === 2
+                  ? 'grid-cols-1 sm:grid-cols-2'
+                  : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+              }`}
+            >
               {materials.map((mat) => (
                 <div
                   key={mat.id}
@@ -351,7 +365,7 @@ function HomePageContent() {
         </div>
       </main>
 
-      {/* Modal Verifikasi Token Ujian (Disimpan & Dipertahankan) */}
+      {/* Modal Verifikasi Token Ujian */}
       <ExamTokenModal
         exam={selectedExam}
         isOpen={isModalOpen}
