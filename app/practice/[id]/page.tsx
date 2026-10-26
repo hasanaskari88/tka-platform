@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 
-export default function InteractivePracticePage() {
+function PracticeContent() {
   const params = useParams()
   const examId = params?.id as string
   const router = useRouter()
@@ -20,54 +20,56 @@ export default function InteractivePracticePage() {
   const [isAnswered, setIsAnswered] = useState<boolean>(false)
   const [isCorrect, setIsCorrect] = useState<boolean>(false)
 
-// 🟢 FUNGSI CEK & UNLOCK LENCANA OTOMATIS
-const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) => {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('badges')
-    .eq('id', user.id)
-    .single()
-
-  let userBadges: string[] = Array.isArray(profile?.badges) ? profile.badges : []
-  let newlyUnlocked: string[] = []
-
-  // 1. Lencana: Langkah Pertama (Selesaikan 1 Soal Benar)
-  if (!userBadges.includes('Langkah Pertama') && currentXp >= 10) {
-    newlyUnlocked.push('Langkah Pertama')
-  }
-
-  // 2. Lencana: Raja Combo (Streak 3x Berturut-turut)
-  if (!userBadges.includes('Raja Combo') && currentStreak >= 3) {
-    newlyUnlocked.push('Raja Combo')
-  }
-
-  // 3. Lencana: Bintang Getasan (Total XP >= 100)
-  if (!userBadges.includes('Bintang Getasan') && currentXp >= 100) {
-    newlyUnlocked.push('Bintang Getasan')
-  }
-
-  // Simpan ke Supabase jika ada Lencana Baru
-  if (newlyUnlocked.length > 0) {
-    const updatedBadges = [...userBadges, ...newlyUnlocked]
-    await supabase
-      .from('profiles')
-      .update({ badges: updatedBadges })
-      .eq('id', user.id)
-
-    alert(`🎉 Selamat! Kamu Membuka Lencana Baru: ${newlyUnlocked.join(', ')}!`)
-  }
-}
-
   // Stats Sesi Latihan Mandiri
   const [totalXpEarned, setTotalXpEarned] = useState<number>(0)
   const [streakCount, setStreakCount] = useState<number>(0)
   const [answeredCount, setAnsweredCount] = useState<number>(0)
   const [correctCount, setCorrectCount] = useState<number>(0)
   const [loading, setLoading] = useState(true)
+
+  // 🟢 FUNGSI CEK & UNLOCK LENCANA OTOMATIS
+  const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) => {
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('badges')
+      .eq('id', user.id)
+      .single()
+
+    let userBadges: string[] = Array.isArray(profile?.badges) ? profile.badges : []
+    let newlyUnlocked: string[] = []
+
+    // 1. Lencana: Langkah Pertama (Selesaikan 1 Soal Benar)
+    if (!userBadges.includes('Langkah Pertama') && currentXp >= 10) {
+      newlyUnlocked.push('Langkah Pertama')
+    }
+
+    // 2. Lencana: Raja Combo (Streak 3x Berturut-turut)
+    if (!userBadges.includes('Raja Combo') && currentStreak >= 3) {
+      newlyUnlocked.push('Raja Combo')
+    }
+
+    // 3. Lencana: Bintang Getasan (Total XP >= 100)
+    if (!userBadges.includes('Bintang Getasan') && currentXp >= 100) {
+      newlyUnlocked.push('Bintang Getasan')
+    }
+
+    // Simpan ke Supabase jika ada Lencana Baru
+    if (newlyUnlocked.length > 0) {
+      const updatedBadges = [...userBadges, ...newlyUnlocked]
+      await supabase
+        .from('profiles')
+        .update({ badges: updatedBadges })
+        .eq('id', user.id)
+
+      alert(`🎉 Selamat! Kamu Membuka Lencana Baru: ${newlyUnlocked.join(', ')}!`)
+    }
+  }
 
   useEffect(() => {
     async function loadQuestions() {
@@ -98,7 +100,7 @@ const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) =>
     }
 
     loadQuestions()
-  }, [examId])
+  }, [examId, router])
 
   const currentQuestion = questions[currentIndex]
 
@@ -119,15 +121,21 @@ const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) =>
 
     if (isUserRight) {
       setCorrectCount((prev) => prev + 1)
-      setStreakCount((prev) => prev + 1)
-      const earnedXp = 10
-      setTotalXpEarned((prev) => prev + earnedXp)
+      const newStreak = streakCount + 1
+      setStreakCount(newStreak)
 
-      // Simpan XP ke Supabase
+      const earnedXp = 10
+      const newTotalXp = totalXpEarned + earnedXp
+      setTotalXpEarned(newTotalXp)
+
+      // Simpan XP & Cek Lencana ke Supabase
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (user) {
         await supabase.rpc('add_user_xp', { user_id_input: user.id, xp_to_add: earnedXp })
+        await checkAndUnlockBadges(newTotalXp, newStreak)
       }
     } else {
       setStreakCount(0)
@@ -270,7 +278,9 @@ const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) =>
 
               {(currentQuestion?.explanation || currentQuestion?.pembahasan) && (
                 <div className="pt-2 border-t border-slate-300/60">
-                  <span className="font-extrabold block text-slate-800 mb-1">💡 Pembahasan Langkah demi Langkah:</span>
+                  <span className="font-extrabold block text-slate-800 mb-1">
+                    💡 Pembahasan Langkah demi Langkah:
+                  </span>
                   <div className="text-slate-700 leading-relaxed">
                     <MathRenderer content={currentQuestion.explanation || currentQuestion.pembahasan} />
                   </div>
@@ -298,11 +308,27 @@ const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) =>
                 </Link>
               )
             ) : (
-              <p className="text-slate-400 text-xs font-medium">Klik salah satu pilihan jawaban di atas untuk memeriksa.</p>
+              <p className="text-slate-400 text-xs font-medium">
+                Klik salah satu pilihan jawaban di atas untuk memeriksa.
+              </p>
             )}
           </div>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function InteractivePracticePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
+          <p className="font-semibold text-sm">Memuat Lembar Latihan Interaktif...</p>
+        </div>
+      }
+    >
+      <PracticeContent />
+    </Suspense>
   )
 }
