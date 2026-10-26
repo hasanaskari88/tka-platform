@@ -543,7 +543,7 @@ function ExamResultsContent() {
   useEffect(() => {
     loadData()
   }, [examId])
-  
+
   const calculateAutoScore = (
     answersMap: { [qId: string]: any },
     currentEssayScores: { [qId: string]: number },
@@ -929,11 +929,18 @@ function ExamResultsContent() {
               <span>📊 Export (.xlsx)</span>
             </button>
             <Link
+              href={`/admin/exam/${examId}/analysis`}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center space-x-1.5"
+            >
+              <span>🎯 Analisis Soal Detail</span>
+            </Link>
+            <Link
               href="/admin"
               className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-medium rounded-lg transition-colors"
             >
               ← Kembali
             </Link>
+            
           </div>
         </div>
 
