@@ -253,40 +253,59 @@ function ExamResultsContent() {
     '/logo-kemendikbud.png',
   ]
 
+  // =========================================================================
+  // 📌 FUNGSI UTAMA: LOAD DATA (MENGAMBIL & MENGOLAH DATA DARI SUPABASE)
+  // =========================================================================
   const loadData = async () => {
-    if (!examId) return
-    const supabase = createClient()
+    // -----------------------------------------------------------------------
+    // 🔹 SEKSI 1: VALIDASI KONEKSI & INISIALISASI SUPABASE
+    // -----------------------------------------------------------------------
+    if (!examId) return // Pembatalan jika ID Ujian tidak ditemukan di URL
+    const supabase = createClient() // Inisialisasi client Supabase
 
+    // -----------------------------------------------------------------------
+    // 🔹 SEKSI 2: QUERY DATA UTAMA DARI DATABASE (PARALEL/BERURUTAN)
+    // -----------------------------------------------------------------------
+    // 1. Ambil Informasi/Metadata Ujian (Judul, Subtes, dll)
     const { data: examData } = await supabase
       .from('exams')
       .select('*')
       .eq('id', examId)
       .single()
 
+    // 2. Ambil Daftar Soal Ujian (Diurutkan berdasarkan waktu pembuatan)
     const { data: questionData } = await supabase
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: true })
 
+    // 3. Ambil Sesi Pengerjaan Siswa (Diurutkan dari siswa yang terbaru selesai)
     const { data: sessionData } = await supabase
       .from('exam_sessions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: false })
 
+    // 4. Ambil Profil Seluruh Siswa (Untuk pencocokan Nama & Kelas)
     const { data: profileData } = await supabase.from('profiles').select('*')
 
+    // 5. Ambil Seluruh Jawaban Siswa dari Tabel `answers` berdasarkan Session IDs
     const sessionIds = (sessionData || []).map((s) => s.id)
     const { data: answerData } = sessionIds.length > 0
       ? await supabase.from('answers').select('*').in('session_id', sessionIds)
       : { data: [] }
 
+    // -----------------------------------------------------------------------
+    // 🔹 SEKSI 3: PEMBUATAN STRUKTUR PETA MEMORI (MAP LOOKUP O(1))
+    // -----------------------------------------------------------------------
+    // Memetakan Data Profil berdasarkan `user_id` agar pencarian data siswa cepat
     const profileMap = new Map()
     if (profileData) {
       profileData.forEach((p) => profileMap.set(p.id, p))
     }
 
+    // Memetakan Rincian Jawaban berdasarkan `session_id` pengerjaan
     const answerMap = new Map<string, any[]>()
     if (answerData) {
       answerData.forEach((ans) => {
@@ -297,20 +316,26 @@ function ExamResultsContent() {
       })
     }
 
+    // -----------------------------------------------------------------------
+    // 🔹 SEKSI 4: PEMROSESAN NILAI & PERHITUNGAN SESI SISWA (PROCESSED SESSIONS)
+    // -----------------------------------------------------------------------
     const processedSessions = (sessionData || []).map((session) => {
+      // a. Ambil profil siswa (Gunakan Fallback default jika siswa anonim/tamu)
       const student = profileMap.get(session.user_id) || {
         full_name: 'Siswa / Tamu',
         username: 'guest',
         class_code: '-',
       }
 
+      // b. Ambil rincian jawaban siswa untuk sesi ini
       const userAnswers = answerMap.get(session.id) || []
       const totalQ = questionData ? questionData.length : 0
 
-      let correctCount = 0
-      let totalPointsEarned = 0
-      let totalMaxPoints = 0
+      let correctCount = 0      // Penampung jumlah soal benar
+      let totalPointsEarned = 0 // Penampung total poin yang didapat
+      let totalMaxPoints = 0    // Penampung batas maksimal poin seluruh soal
 
+      // c. Evaluasi Per Soal secara Real-Time
       if (questionData && questionData.length > 0) {
         questionData.forEach((q) => {
           const qMaxScore = Number(q.max_score) || 1
@@ -320,25 +345,39 @@ function ExamResultsContent() {
           const rawChoice = ans ? (ans.user_answer ?? ans.selected_answers ?? ans.selected_option) : null
           const evalRes = evaluateAnswer(q, rawChoice)
 
-          if (evalRes.isCorrect) correctCount += 1
-
           const qType = q.question_type || 'multiple_choice'
-          if ((qType === 'essay' || qType === 'uraian') && ans && ans.score !== undefined && ans.score !== null) {
-            totalPointsEarned += Number(ans.score)
-          } else if (qType === 'essay' || qType === 'uraian') {
-            totalPointsEarned += 0
+
+          // Evaluasi Soal Uraian / Essay vs Pilihan Ganda (PG / PGK / Matriks)
+          if (qType === 'essay' || qType === 'uraian') {
+            const essayScore = (ans && ans.score !== undefined && ans.score !== null) ? Number(ans.score) : 0
+            totalPointsEarned += essayScore
+            // Jika essay diberi skor > 0 oleh guru, hitung sebagai poin benar
+            if (essayScore > 0) correctCount += 1
           } else {
+            // Untuk pilihan ganda: jika benar penuh atau parsial (ratio >= 0.5)
+            if (evalRes.isCorrect || evalRes.ratio >= 0.5) correctCount += 1
             totalPointsEarned += evalRes.ratio * qMaxScore
           }
         })
       }
 
-      const finalScore = session.score !== undefined && session.score !== null
-        ? Number(session.score)
-        : totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
+      // d. Hitung Kalkulasi Nilai Akhir (Skala 0 - 100)
+      const calculatedScore = totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
+      
+      // Utamakan skor tersimpan di Database `session.score` (jika pernah di-override / disimpan)
+      const finalScore = session.score !== undefined && session.score !== null 
+        ? Number(session.score) 
+        : calculatedScore
+
+      // e. 🟢 SINKRONISASI OTOMATIS (FALLBACK PERHITUNGAN JUMLAH BENAR)
+      // Jika rincian di DB tidak ada/kosong tetapi Nilai Akhir ada, estimasikan jumlah benar dari Nilai Akhir
+      if (correctCount === 0 && finalScore > 0 && totalQ > 0) {
+        correctCount = Math.round((finalScore / 100) * totalQ)
+      }
 
       const finishTime = session.end_time || session.submitted_at || session.completed_at || session.created_at
 
+      // f. Kembalikan objek data siswa yang rapi untuk tabel rekapitulasi
       return {
         id: session.id,
         user_id: session.user_id,
@@ -357,7 +396,11 @@ function ExamResultsContent() {
 
     const totalParticipants = processedSessions.length
 
+    // -----------------------------------------------------------------------
+    // 🔹 SEKSI 5: ANALISIS BUTIR SOAL, SEBARAN OPSI & DAYA BEDA (ITEM ANALYSIS)
+    // -----------------------------------------------------------------------
     const analysisList = (questionData || []).map((q, qIdx) => {
+      // 1. Urutkan siswa dari nilai tertinggi ke terendah untuk membagi Kelompok Atas & Bawah (27%)
       const sortedByScoreDesc = [...processedSessions].sort((a, b) => b.earned_score - a.earned_score)
       const N = sortedByScoreDesc.length
       const groupSize = Math.max(1, Math.floor(N * 0.27))
@@ -367,6 +410,7 @@ function ExamResultsContent() {
       let upperCorrect = 0
       let lowerCorrect = 0
 
+      // Hitung berapa banyak siswa kelompok atas & bawah yang menjawab soal ini dengan benar
       if (answerData) {
         answerData.forEach((ans) => {
           if (ans.question_id === q.id) {
@@ -381,9 +425,11 @@ function ExamResultsContent() {
         })
       }
 
+      // Rumus Indeks Daya Beda D = (UpperCorrect - LowerCorrect) / N_kelompok
       const discriminationIndexVal = groupSize > 0 ? (upperCorrect - lowerCorrect) / groupSize : 0
       const discriminationPercent = Math.round(discriminationIndexVal * 100)
 
+      // 2. Hitung Sebaran Opsi Jawaban (A, B, C, D, Kosong) & Pengecoh Utama (Distraktor)
       let correctAnswersCount = 0
       let answeredCount = 0
       const optionCounts: { [key: string]: number } = { A: 0, B: 0, C: 0, D: 0, Kosong: 0 }
@@ -427,6 +473,7 @@ function ExamResultsContent() {
       const wrongAnswersCount = totalParticipants - correctAnswersCount
       const accuracyRate = totalParticipants > 0 ? Math.round((correctAnswersCount / totalParticipants) * 100) : 0
 
+      // Cari opsi jawaban mana selain kunci yang paling banyak dipilih siswa (Distraktor Terkuat)
       let topDistractorKey = '-'
       let maxDistractorCount = 0
 
@@ -439,6 +486,7 @@ function ExamResultsContent() {
         }
       })
 
+      // 3. Klasifikasi Tingkat Kesulitan Soal Berdasarkan Persentase Akurasi Jawaban Benar
       let difficultyLabel = 'Sedang'
       let difficultyBadge = 'bg-amber-50 text-amber-700 border-amber-200'
 
@@ -479,17 +527,23 @@ function ExamResultsContent() {
       }
     })
 
+    // -----------------------------------------------------------------------
+    // 🔹 SEKSI 6: UPDATE STATE REACT HINGGA MEMATIKAN SPINNER LOADING
+    // -----------------------------------------------------------------------
     if (examData) setExam(examData)
     if (questionData) setQuestions(questionData)
     setSessions(processedSessions)
     setItemAnalysisList(analysisList)
-    setLoading(false)
+    setLoading(false) // Mematikan status loading pada antarmuka
   }
 
+  // -------------------------------------------------------------------------
+  // 🔹 SEKSI 7: TRIGGER AUTOMATIS SAAT HALAMAN DIBUKA / EXAM ID BERUBAH
+  // -------------------------------------------------------------------------
   useEffect(() => {
     loadData()
   }, [examId])
-
+  
   const calculateAutoScore = (
     answersMap: { [qId: string]: any },
     currentEssayScores: { [qId: string]: number },
