@@ -71,7 +71,6 @@ function evaluateAnswer(q: any, rawAns: any) {
 
   const qType = q.question_type || 'multiple_choice'
 
-  // Evaluasi Khusus Uraian / Essay
   if (qType === 'essay' || qType === 'uraian') {
     const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
     const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
@@ -358,7 +357,6 @@ function ExamResultsContent() {
 
     const totalParticipants = processedSessions.length
 
-    // Analisis Butir & Daya Beda
     const analysisList = (questionData || []).map((q, qIdx) => {
       const sortedByScoreDesc = [...processedSessions].sort((a, b) => b.earned_score - a.earned_score)
       const N = sortedByScoreDesc.length
@@ -492,7 +490,6 @@ function ExamResultsContent() {
     loadData()
   }, [examId])
 
-  // 🟢 HELPER KALKULASI OTOMATIS (PG + ESSAY + BONUS)
   const calculateAutoScore = (
     answersMap: { [qId: string]: any },
     currentEssayScores: { [qId: string]: number },
@@ -520,7 +517,6 @@ function ExamResultsContent() {
     return Math.min(100, Math.max(0, baseScore + bonus))
   }
 
-  // 🟢 BUKA MODAL DETAIL & PENILAIAN SISWA
   const handleOpenDetailModal = (session: any) => {
     const map: { [key: string]: any } = {}
     const answerScoreMap: { [key: string]: number } = {}
@@ -535,7 +531,6 @@ function ExamResultsContent() {
     }
     setSessionAnswersMap(map)
 
-    // Inisialisasi skor essay (Default = 3 atau sesuai tersimpan)
     const initialEssayScores: { [key: string]: number } = {}
     questions.forEach((q) => {
       const qType = q.question_type || 'multiple_choice'
@@ -554,7 +549,6 @@ function ExamResultsContent() {
     setSelectedSessionForDetail(session)
   }
 
-  // Handler Perubahan Input Essay Manual Real-Time
   const handleEssayScoreChange = (qId: string, value: number, maxScore: number) => {
     const val = Math.max(0, Math.min(value, maxScore))
     const updatedEssayScores = { ...essayScores, [qId]: val }
@@ -566,7 +560,6 @@ function ExamResultsContent() {
     }
   }
 
-  // Handler Perubahan Input Nilai Bonus
   const handleBonusChange = (bonusVal: number) => {
     const val = Number(bonusVal) || 0
     setBonusPoints(val)
@@ -576,7 +569,6 @@ function ExamResultsContent() {
     }
   }
 
-  // Handler Checkbox Override Nilai Manual
   const handleOverrideToggle = (checked: boolean) => {
     setIsOverrideScore(checked)
     if (!checked) {
@@ -585,7 +577,6 @@ function ExamResultsContent() {
     }
   }
 
-  // 🟢 SIMPAN PENILAIAN KE SUPABASE
   const handleSaveAssessment = async () => {
     if (!selectedSessionForDetail) return
     setIsSavingScore(true)
@@ -593,13 +584,11 @@ function ExamResultsContent() {
     const supabase = createClient()
     const newScore = Math.max(0, Math.min(100, Number(customFinalScore)))
 
-    // 1. Update Nilai Akhir pada exam_sessions
     const { error } = await supabase
       .from('exam_sessions')
       .update({ score: newScore })
       .eq('id', selectedSessionForDetail.id)
 
-    // 2. Simpan perolehan skor essay per baris jawaban
     try {
       for (const [qId, eScore] of Object.entries(essayScores)) {
         await supabase
@@ -633,15 +622,19 @@ function ExamResultsContent() {
     window.print()
   }
 
+  // 🗑️ METODE HAPUS SATUAN PER SISWA
   const handleDeleteSession = async (sessionId: string, studentName: string) => {
-    if (!confirm(`Apakah Anda yakin ingin mereset hasil ujian siswa "${studentName}"?`)) return
+    if (!confirm(`Apakah Anda yakin ingin mereset/menghapus hasil ujian siswa "${studentName}"?`)) return
+    setIsDeleting(true)
     const supabase = createClient()
     await supabase.from('answers').delete().eq('session_id', sessionId)
     await supabase.from('exam_sessions').delete().eq('id', sessionId)
     setSelectedSessionIds((prev) => prev.filter((id) => id !== sessionId))
+    setIsDeleting(false)
     loadData()
   }
 
+  // 🗑️ METODE HAPUS TERPILIH (BULK DELETE)
   const handleDeleteSelected = async () => {
     if (selectedSessionIds.length === 0) return
     if (!confirm(`Apakah Anda yakin ingin menghapus ${selectedSessionIds.length} hasil ujian terpilih?`)) return
@@ -654,9 +647,10 @@ function ExamResultsContent() {
     loadData()
   }
 
+  // 🗑️ METODE HAPUS SEMUA (RESET TOTAL)
   const handleDeleteAll = async () => {
     if (sessions.length === 0) return
-    if (!confirm(`⚠️ PERINGATAN:\nHapus SELURUH (${sessions.length}) hasil pengerjaan siswa?`)) return
+    if (!confirm(`⚠️ PERINGATAN BERSAMA:\nHapus SELURUH (${sessions.length}) hasil pengerjaan siswa?`)) return
     setIsDeleting(true)
     const supabase = createClient()
     const allSessionIds = sessions.map((s) => s.id)
@@ -805,7 +799,6 @@ function ExamResultsContent() {
     )
   }
 
-  // Dummy Siswa untuk Live Preview
   const dummyStudent = {
     full_name: 'Cristiano Ronaldo (Contoh Siswa)',
     username: 'cr7',
@@ -1037,7 +1030,7 @@ function ExamResultsContent() {
               </div>
             </div>
 
-            {/* TABEL DAFTAR PESERTA */}
+            {/* TABEL DAFTAR PESERTA & KONTROL HAPUS */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
               <div className="border-b pb-3 flex flex-col md:flex-row justify-between items-center gap-3">
                 <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
@@ -1046,6 +1039,26 @@ function ExamResultsContent() {
                 </h2>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  {/* Tombol Hapus Terpilih / Bulk Delete */}
+                  {selectedSessionIds.length > 0 && (
+                    <button
+                      onClick={handleDeleteSelected}
+                      disabled={isDeleting}
+                      className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+                    >
+                      {isDeleting ? 'Menghapus...' : `🗑️ Hapus Terpilih (${selectedSessionIds.length})`}
+                    </button>
+                  )}
+
+                  {/* Tombol Reset Semua */}
+                  <button
+                    onClick={handleDeleteAll}
+                    disabled={isDeleting || sessions.length === 0}
+                    className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-lg transition-colors"
+                  >
+                    🗑️ Reset Semua
+                  </button>
+
                   <input
                     type="text"
                     placeholder="🔍 Cari nama/kelas..."
@@ -1150,6 +1163,14 @@ function ExamResultsContent() {
                               >
                                 📜 Cetak
                               </button>
+                              {/* 🗑️ Tombol Hapus / Reset Hasil Ujian Siswa */}
+                              <button
+                                onClick={() => handleDeleteSession(session.id, session.full_name)}
+                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold rounded transition-colors"
+                                title="Reset / Hapus Hasil Ujian Siswa Ini"
+                              >
+                                🗑️ Hapus
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -1162,18 +1183,14 @@ function ExamResultsContent() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 2: PENGATURAN KOP, TANDA TANGAN & LIVE PREVIEW REAL-TIME               */}
-        {/* ========================================================================= */}
+        {/* TAB 2: PENGATURAN KOP, TANDA TANGAN & LIVE PREVIEW REAL-TIME */}
         {mainActiveTab === 'settings' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* FORM INPUT PENGATURAN (KIRI - 5 KOLOM) */}
             <div className="lg:col-span-5 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 font-sans">
               <h2 className="text-sm font-bold text-slate-800 uppercase border-b pb-2">
                 ⚙️ Form Pengaturan Penandatanganan & Kop Dokumen
               </h2>
 
-              {/* OPSI PENANDATANGANAN UTAMA */}
               <div className="p-3.5 bg-indigo-50/80 border border-indigo-200 rounded-xl space-y-2">
                 <label className="block text-xs font-bold text-indigo-900 uppercase">
                   ✍️ OPSI PENANDATANGAN DOKUMEN:
@@ -1227,7 +1244,6 @@ function ExamResultsContent() {
                 </div>
               </div>
 
-              {/* FORM IDENTITAS DOKUMEN */}
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-700">NAMA SEKOLAH / INSTANSI</label>
                 <input
@@ -1318,7 +1334,7 @@ function ExamResultsContent() {
               )}
             </div>
 
-            {/* LIVE PREVIEW REAL-TIME (KANAN - 7 KOLOM) */}
+            {/* LIVE PREVIEW REAL-TIME */}
             <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col">
               <div className="flex justify-between items-center border-b pb-3">
                 <span className="text-xs font-bold text-emerald-700 uppercase flex items-center space-x-1.5">
@@ -1346,10 +1362,8 @@ function ExamResultsContent() {
                 </div>
               </div>
 
-              {/* KERTAS PREVIEW DESAIN KEKINIAN */}
               <div className="flex-1 bg-slate-100 p-4 rounded-xl overflow-y-auto max-h-[650px] flex justify-center border">
                 {previewDocType === 'raport' ? (
-                  /* 🟢 PREVIEW RAPOR MODERN & KEKINIAN */
                   <div className="w-full bg-white p-6 shadow-md rounded-xl border border-slate-200 text-slate-900 font-sans text-xs space-y-4">
                     <div className="border-b-2 border-indigo-600 pb-3 flex items-center justify-between text-center">
                       <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-12 h-12 object-contain" />
@@ -1410,7 +1424,6 @@ function ExamResultsContent() {
                     <DynamicSignatureBlock studentClass={dummyStudent.class_code} />
                   </div>
                 ) : (
-                  /* 🟢 PREVIEW SERTIFIKAT MODERN & ELEGANT */
                   <div className="w-full bg-gradient-to-br from-amber-50/80 via-white to-slate-50 p-6 shadow-xl rounded-xl border-4 border-indigo-950 relative overflow-hidden font-serif text-center flex flex-col justify-between">
                     <img
                       src="/logo-sd-getasan.png"
@@ -1462,7 +1475,7 @@ function ExamResultsContent() {
         )}
       </main>
 
-      {/* 📝 MODAL REVIEW & PENILAIAN GURU (OPSI PENILAIAN ESSAY MANUAL + BONUS + OVERRIDE) */}
+      {/* 📝 MODAL REVIEW & PENILAIAN GURU (INPUT ESSAY MANUAL + BONUS + OVERRIDE) */}
       {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
