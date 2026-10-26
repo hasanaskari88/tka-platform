@@ -50,7 +50,7 @@ function SmartLogo({
 // 🟢 HELPER EVALUASI MULTI-TIPE SOAL
 function evaluateAnswer(q: any, rawAns: any) {
   if (rawAns === null || rawAns === undefined || rawAns === '') {
-    return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
+    return { isCorrect: false, isUnanswered: true, isEssay: q.question_type === 'essay' || q.question_type === 'uraian', ratio: 0, userChoices: [], displayVal: 'Kosong' }
   }
 
   let parsed = rawAns
@@ -71,6 +71,20 @@ function evaluateAnswer(q: any, rawAns: any) {
 
   const qType = q.question_type || 'multiple_choice'
 
+  // Evaluasi Khusus Uraian / Essay
+  if (qType === 'essay' || qType === 'uraian') {
+    const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
+    const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
+    return {
+      isCorrect: false,
+      isUnanswered: !isAnswered,
+      isEssay: true,
+      ratio: 0,
+      userChoices: isAnswered ? [textAns] : [],
+      displayVal: isAnswered ? textAns : 'Kosong'
+    }
+  }
+
   if (qType === 'multiple_choice') {
     const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? '').trim().toUpperCase()
     const userChoice = String(parsed || '').trim().toUpperCase()
@@ -78,6 +92,7 @@ function evaluateAnswer(q: any, rawAns: any) {
     return {
       isCorrect,
       isUnanswered: !userChoice,
+      isEssay: false,
       ratio: isCorrect ? 1 : 0,
       userChoices: userChoice ? [userChoice] : [],
       displayVal: userChoice || 'Kosong'
@@ -101,7 +116,7 @@ function evaluateAnswer(q: any, rawAns: any) {
     }
 
     if (userKeys.length === 0) {
-      return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
+      return { isCorrect: false, isUnanswered: true, isEssay: false, ratio: 0, userChoices: [], displayVal: 'Kosong' }
     }
 
     const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
@@ -112,6 +127,7 @@ function evaluateAnswer(q: any, rawAns: any) {
     return {
       isCorrect: ratio === 1,
       isUnanswered: false,
+      isEssay: false,
       ratio,
       userChoices: userKeys,
       displayVal: userKeys.join(', ')
@@ -123,7 +139,7 @@ function evaluateAnswer(q: any, rawAns: any) {
     const userObj = typeof parsed === 'object' && !Array.isArray(parsed) && parsed !== null ? parsed : {}
 
     const statementIds = Object.keys(correctObj)
-    if (statementIds.length === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
+    if (statementIds.length === 0) return { isCorrect: false, isUnanswered: true, isEssay: false, ratio: 0, userChoices: [], displayVal: 'Kosong' }
 
     let correctRows = 0
     let attemptedRows = 0
@@ -134,32 +150,20 @@ function evaluateAnswer(q: any, rawAns: any) {
       }
     })
 
-    if (attemptedRows === 0) return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
+    if (attemptedRows === 0) return { isCorrect: false, isUnanswered: true, isEssay: false, ratio: 0, userChoices: [], displayVal: 'Kosong' }
 
     const ratio = correctRows / statementIds.length
     return {
       isCorrect: ratio === 1,
       isUnanswered: false,
+      isEssay: false,
       ratio,
       userChoices: Object.values(userObj).map((v: any) => String(v).trim()),
       displayVal: `Benar ${correctRows}/${statementIds.length}`
     }
   }
 
-  if (qType === 'essay') {
-    const textAns = typeof parsed === 'string' ? parsed.trim() : String(parsed || '').trim()
-    const isAnswered = textAns.length > 0 && textAns !== 'null' && textAns !== 'undefined'
-    return {
-      isCorrect: isAnswered,
-      isUnanswered: !isAnswered,
-      isEssay: true,
-      ratio: isAnswered ? 1 : 0,
-      userChoices: isAnswered ? [textAns] : [],
-      displayVal: isAnswered ? textAns : 'Kosong'
-    }
-  }
-
-  return { isCorrect: false, isUnanswered: true, ratio: 0, userChoices: [], displayVal: 'Kosong' }
+  return { isCorrect: false, isUnanswered: true, isEssay: false, ratio: 0, userChoices: [], displayVal: 'Kosong' }
 }
 
 // 🟢 INTERFACE PENGATURAN DOKUMEN & TANDA TANGAN
@@ -206,10 +210,11 @@ function ExamResultsContent() {
   const [sortByItem, setSortByItem] = useState<'no' | 'accuracy'>('no')
   const [sortOrderItem, setSortOrderItem] = useState<'asc' | 'desc'>('asc')
 
-  // State Modal Review & Penilaian Guru
+  // State Modal Review & Penilaian Guru (Essay + Bonus + Override)
   const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<any | null>(null)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
+  const [bonusPoints, setBonusPoints] = useState<number>(0)
   const [isOverrideScore, setIsOverrideScore] = useState<boolean>(false)
   const [customFinalScore, setCustomFinalScore] = useState<number>(0)
   const [isSavingScore, setIsSavingScore] = useState<boolean>(false)
@@ -317,7 +322,15 @@ function ExamResultsContent() {
           const evalRes = evaluateAnswer(q, rawChoice)
 
           if (evalRes.isCorrect) correctCount += 1
-          totalPointsEarned += evalRes.ratio * qMaxScore
+
+          const qType = q.question_type || 'multiple_choice'
+          if ((qType === 'essay' || qType === 'uraian') && ans && ans.score !== undefined && ans.score !== null) {
+            totalPointsEarned += Number(ans.score)
+          } else if (qType === 'essay' || qType === 'uraian') {
+            totalPointsEarned += 0
+          } else {
+            totalPointsEarned += evalRes.ratio * qMaxScore
+          }
         })
       }
 
@@ -382,7 +395,7 @@ function ExamResultsContent() {
         correctOptDisplay = Array.isArray(q.correct_answers) ? q.correct_answers.join(',') : String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
       } else if (q.question_type === 'true_false_matrix') {
         correctOptDisplay = 'Matriks'
-      } else if (q.question_type === 'essay') {
+      } else if (q.question_type === 'essay' || q.question_type === 'uraian') {
         correctOptDisplay = 'ESSAY'
       } else {
         correctOptDisplay = String(q.correct_option ?? q.correct_answer ?? 'A').trim().toUpperCase()
@@ -431,7 +444,7 @@ function ExamResultsContent() {
       let difficultyLabel = 'Sedang'
       let difficultyBadge = 'bg-amber-50 text-amber-700 border-amber-200'
 
-      if (q.question_type === 'essay') {
+      if (q.question_type === 'essay' || q.question_type === 'uraian') {
         difficultyLabel = 'Soal Essay'
         difficultyBadge = 'bg-indigo-50 text-indigo-700 border-indigo-200'
       } else if (accuracyRate >= 80) {
@@ -479,9 +492,11 @@ function ExamResultsContent() {
     loadData()
   }, [examId])
 
+  // 🟢 HELPER KALKULASI OTOMATIS (PG + ESSAY + BONUS)
   const calculateAutoScore = (
     answersMap: { [qId: string]: any },
-    currentEssayScores: { [qId: string]: number }
+    currentEssayScores: { [qId: string]: number },
+    bonus: number = 0
   ) => {
     let totalPoints = 0
     let maxPoints = 0
@@ -489,9 +504,11 @@ function ExamResultsContent() {
     questions.forEach((q) => {
       const qMax = Number(q.max_score) || 1
       maxPoints += qMax
+      const qType = q.question_type || 'multiple_choice'
 
-      if (q.question_type === 'essay') {
-        totalPoints += currentEssayScores[q.id] ?? 0
+      if (qType === 'essay' || qType === 'uraian') {
+        const manualScore = currentEssayScores[q.id] !== undefined ? Number(currentEssayScores[q.id]) : 3
+        totalPoints += Math.min(qMax, Math.max(0, manualScore))
       } else {
         const rawAns = answersMap[q.id]
         const evalRes = evaluateAnswer(q, rawAns)
@@ -499,47 +516,76 @@ function ExamResultsContent() {
       }
     })
 
-    return maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
+    const baseScore = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0
+    return Math.min(100, Math.max(0, baseScore + bonus))
   }
 
+  // 🟢 BUKA MODAL DETAIL & PENILAIAN SISWA
   const handleOpenDetailModal = (session: any) => {
     const map: { [key: string]: any } = {}
+    const answerScoreMap: { [key: string]: number } = {}
+
     if (Array.isArray(session.rawAnswers)) {
       session.rawAnswers.forEach((ans: any) => {
         map[ans.question_id] = ans.user_answer ?? ans.selected_answers ?? ans.selected_option
+        if (ans.score !== undefined && ans.score !== null) {
+          answerScoreMap[ans.question_id] = Number(ans.score)
+        }
       })
     }
     setSessionAnswersMap(map)
 
+    // Inisialisasi skor essay (Default = 3 atau sesuai tersimpan)
     const initialEssayScores: { [key: string]: number } = {}
     questions.forEach((q) => {
-      const qMax = Number(q.max_score) || 1
-      if (q.question_type === 'essay') {
-        const rawAns = map[q.id]
-        const evalRes = evaluateAnswer(q, rawAns)
-        initialEssayScores[q.id] = evalRes.isUnanswered ? 0 : qMax
+      const qType = q.question_type || 'multiple_choice'
+      if (qType === 'essay' || qType === 'uraian') {
+        const savedScore = answerScoreMap[q.id]
+        initialEssayScores[q.id] = savedScore !== undefined ? savedScore : 3
       }
     })
 
     setEssayScores(initialEssayScores)
+    setBonusPoints(0)
     setIsOverrideScore(false)
 
-    const autoCalculated = calculateAutoScore(map, initialEssayScores)
+    const autoCalculated = calculateAutoScore(map, initialEssayScores, 0)
     setCustomFinalScore(autoCalculated)
     setSelectedSessionForDetail(session)
   }
 
+  // Handler Perubahan Input Essay Manual Real-Time
   const handleEssayScoreChange = (qId: string, value: number, maxScore: number) => {
     const val = Math.max(0, Math.min(value, maxScore))
     const updatedEssayScores = { ...essayScores, [qId]: val }
     setEssayScores(updatedEssayScores)
 
     if (!isOverrideScore) {
-      const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores)
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores, bonusPoints)
       setCustomFinalScore(autoCalculated)
     }
   }
 
+  // Handler Perubahan Input Nilai Bonus
+  const handleBonusChange = (bonusVal: number) => {
+    const val = Number(bonusVal) || 0
+    setBonusPoints(val)
+    if (!isOverrideScore) {
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, val)
+      setCustomFinalScore(autoCalculated)
+    }
+  }
+
+  // Handler Checkbox Override Nilai Manual
+  const handleOverrideToggle = (checked: boolean) => {
+    setIsOverrideScore(checked)
+    if (!checked) {
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, bonusPoints)
+      setCustomFinalScore(autoCalculated)
+    }
+  }
+
+  // 🟢 SIMPAN PENILAIAN KE SUPABASE
   const handleSaveAssessment = async () => {
     if (!selectedSessionForDetail) return
     setIsSavingScore(true)
@@ -547,10 +593,24 @@ function ExamResultsContent() {
     const supabase = createClient()
     const newScore = Math.max(0, Math.min(100, Number(customFinalScore)))
 
+    // 1. Update Nilai Akhir pada exam_sessions
     const { error } = await supabase
       .from('exam_sessions')
       .update({ score: newScore })
       .eq('id', selectedSessionForDetail.id)
+
+    // 2. Simpan perolehan skor essay per baris jawaban
+    try {
+      for (const [qId, eScore] of Object.entries(essayScores)) {
+        await supabase
+          .from('answers')
+          .update({ score: eScore })
+          .eq('session_id', selectedSessionForDetail.id)
+          .eq('question_id', qId)
+      }
+    } catch (e) {
+      // Abaikan jika tabel answers belum memiliki kolom score
+    }
 
     if (error) {
       alert(`Gagal menyimpan nilai: ${error.message}`)
@@ -1291,7 +1351,6 @@ function ExamResultsContent() {
                 {previewDocType === 'raport' ? (
                   /* 🟢 PREVIEW RAPOR MODERN & KEKINIAN */
                   <div className="w-full bg-white p-6 shadow-md rounded-xl border border-slate-200 text-slate-900 font-sans text-xs space-y-4">
-                    {/* Header Kop Minimalis Modern */}
                     <div className="border-b-2 border-indigo-600 pb-3 flex items-center justify-between text-center">
                       <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-12 h-12 object-contain" />
                       <div className="flex-1 px-3">
@@ -1304,7 +1363,6 @@ function ExamResultsContent() {
                       <SmartLogo candidates={TKA_LOGO_CANDIDATES} alt="Logo TKA" fallbackText="TKA" className="w-12 h-12 object-contain" />
                     </div>
 
-                    {/* Card Identitas Siswa */}
                     <div className="grid grid-cols-2 gap-3 text-xs border border-slate-200 rounded-xl p-3 bg-slate-50">
                       <div>
                         <span className="text-slate-400 block text-[10px] uppercase font-bold">Nama Peserta</span>
@@ -1324,7 +1382,6 @@ function ExamResultsContent() {
                       </div>
                     </div>
 
-                    {/* Tabel Hasil Modern */}
                     <div className="rounded-xl border border-slate-200 overflow-hidden">
                       <table className="w-full border-collapse text-xs text-center">
                         <thead className="bg-slate-900 text-white font-bold">
@@ -1350,13 +1407,11 @@ function ExamResultsContent() {
                       </table>
                     </div>
 
-                    {/* Dynamic Signature Block */}
                     <DynamicSignatureBlock studentClass={dummyStudent.class_code} />
                   </div>
                 ) : (
-                  /* 🟢 PREVIEW SERTIFIKAT MODERN & ELEGANT (KEKINIAN) */
+                  /* 🟢 PREVIEW SERTIFIKAT MODERN & ELEGANT */
                   <div className="w-full bg-gradient-to-br from-amber-50/80 via-white to-slate-50 p-6 shadow-xl rounded-xl border-4 border-indigo-950 relative overflow-hidden font-serif text-center flex flex-col justify-between">
-                    {/* Watermark Logo */}
                     <img
                       src="/logo-sd-getasan.png"
                       alt="Watermark"
@@ -1366,7 +1421,6 @@ function ExamResultsContent() {
                       className="absolute inset-0 m-auto w-56 h-56 opacity-[0.04] object-contain pointer-events-none"
                     />
 
-                    {/* Aksen Sudut Geometris Modern */}
                     <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-amber-500 m-2"></div>
                     <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-amber-500 m-2"></div>
                     <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-amber-500 m-2"></div>
@@ -1390,7 +1444,6 @@ function ExamResultsContent() {
                         Telah menyelesaikan Ujian <strong>{exam?.title}</strong> dengan Capaian Skor Akhir:
                       </p>
 
-                      {/* Gold Badge Ribbon Skor */}
                       <div className="my-2">
                         <div className="inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 text-white font-sans font-black text-lg px-6 py-1.5 rounded-full shadow-md border-2 border-amber-300">
                           {dummyStudent.earned_score} <span className="text-xs font-normal text-amber-100 ml-1">/ 100</span>
@@ -1398,7 +1451,6 @@ function ExamResultsContent() {
                       </div>
                     </div>
 
-                    {/* Dynamic Signature Block */}
                     <div className="relative z-10 mt-4">
                       <DynamicSignatureBlock studentClass={dummyStudent.class_code} />
                     </div>
@@ -1410,7 +1462,7 @@ function ExamResultsContent() {
         )}
       </main>
 
-      {/* 📝 MODAL REVIEW & PENILAIAN ESSAY */}
+      {/* 📝 MODAL REVIEW & PENILAIAN GURU (OPSI PENILAIAN ESSAY MANUAL + BONUS + OVERRIDE) */}
       {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
@@ -1427,37 +1479,141 @@ function ExamResultsContent() {
                 const rawAns = sessionAnswersMap[q.id]
                 const evalRes = evaluateAnswer(q, rawAns)
                 const qMax = Number(q.max_score) || 1
+                const isEssay = q.question_type === 'essay' || q.question_type === 'uraian'
 
                 return (
-                  <div key={q.id} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                    <div className="flex justify-between items-center border-b pb-1.5">
-                      <span className="font-bold">Soal #{idx + 1}</span>
-                      {evalRes.isCorrect ? (
-                        <span className="text-emerald-700 font-bold">✅ Benar (+{qMax})</span>
+                  <div key={q.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                    <div className="flex justify-between items-center border-b pb-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-bold text-slate-800">Soal #{idx + 1}</span>
+                        <span className="px-2 py-0.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded uppercase">
+                          {isEssay ? 'Uraian / Essay' : q.question_type === 'complex_multiple_choice' ? 'PG Kompleks' : q.question_type === 'true_false_matrix' ? 'Matriks' : 'Pilihan Ganda'}
+                        </span>
+                      </div>
+
+                      {isEssay ? (
+                        <span className="text-indigo-700 font-bold bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200 text-xs">
+                          📝 Perlu Penilaian Guru (Maks: {qMax} Poin)
+                        </span>
+                      ) : evalRes.isCorrect ? (
+                        <span className="text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs">
+                          ✅ Benar (+{qMax})
+                        </span>
                       ) : (
-                        <span className="text-rose-600 font-bold">❌ Salah</span>
+                        <span className="text-rose-600 font-bold bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 text-xs">
+                          ❌ Salah (0)
+                        </span>
                       )}
                     </div>
-                    <MathRenderer content={q.question_text} />
-                    <div className="p-2 bg-white rounded border font-bold text-slate-700">
-                      Jawaban Siswa: {evalRes.displayVal}
+
+                    <div className="text-slate-800 font-medium text-xs">
+                      <MathRenderer content={q.question_text} />
                     </div>
+
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 font-semibold text-slate-800">
+                      <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Jawaban Siswa:</span>
+                      {isEssay ? (
+                        <div className="whitespace-pre-wrap text-slate-900 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs font-mono">
+                          {evalRes.displayVal}
+                        </div>
+                      ) : (
+                        <span>{evalRes.displayVal}</span>
+                      )}
+                    </div>
+
+                    {/* Input Penilaian Manual Khusus Soal Essay (Default Skor = 3) */}
+                    {isEssay && (
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                        <div>
+                          <span className="font-bold text-indigo-950 text-xs block">✏️ Input Skor Uraian / Essay:</span>
+                          <span className="text-[10px] text-slate-500">Masukkan nilai perolehan siswa (0 s.d {qMax})</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="number"
+                            min={0}
+                            max={qMax}
+                            step={0.5}
+                            value={essayScores[q.id] ?? 3}
+                            onChange={(e) => handleEssayScoreChange(q.id, Number(e.target.value), qMax)}
+                            className="w-24 p-1.5 border-2 border-indigo-400 rounded-lg text-center font-black text-sm text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                          />
+                          <span className="font-bold text-indigo-900 text-xs">/ {qMax} Poin</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
 
-            <div className="p-4 border-t bg-slate-100 flex justify-between items-center text-xs">
-              <span className="font-bold text-slate-700">Nilai Akhir Terhitung: {customFinalScore} / 100</span>
-              <button onClick={handleSaveAssessment} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg">
-                💾 Simpan Nilai
-              </button>
+            {/* PANEL CONTROL NILAI BONUS & OVERRIDE */}
+            <div className="p-4 border-t bg-slate-100 space-y-3 font-sans text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+                <div className="flex items-center space-x-2">
+                  <label className="font-bold text-slate-700">🎁 Nilai Bonus / Tambahan:</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={bonusPoints}
+                    onChange={(e) => handleBonusChange(Number(e.target.value))}
+                    disabled={isOverrideScore}
+                    className="w-20 px-2 py-1 border rounded font-bold text-center text-indigo-700 disabled:bg-slate-100 disabled:text-slate-400"
+                  />
+                  <span className="text-[11px] text-slate-500">Poin</span>
+                </div>
+
+                <label className="flex items-center space-x-2 font-bold text-indigo-900 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isOverrideScore}
+                    onChange={(e) => handleOverrideToggle(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>⚙️ Override / Input Nilai Manual Total</span>
+                </label>
+              </div>
+
+              <div className="flex justify-between items-center pt-1">
+                <div className="flex items-center space-x-2">
+                  <span className="font-bold text-slate-700">Nilai Akhir Terhitung:</span>
+                  {isOverrideScore ? (
+                    <div className="flex items-center space-x-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={customFinalScore}
+                        onChange={(e) => setCustomFinalScore(Number(e.target.value))}
+                        className="w-24 px-3 py-1 border-2 border-amber-500 rounded-lg font-black text-sm text-amber-700 bg-amber-50 text-center focus:outline-none"
+                      />
+                      <span className="text-slate-500 font-bold">/ 100 (Manual)</span>
+                    </div>
+                  ) : (
+                    <span className="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg font-black text-sm">
+                      {customFinalScore} / 100{' '}
+                      <span className="text-[10px] font-normal text-slate-500">
+                        (Otomatis {bonusPoints > 0 ? `+ Bonus ${bonusPoints}` : ''})
+                      </span>
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  onClick={handleSaveAssessment}
+                  disabled={isSavingScore}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {isSavingScore ? 'Menyimpan...' : '💾 Simpan Nilai'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 📜 MODAL CETAK SERTIFIKAT SINGLE (KOKOH & ELEGANT) */}
+      {/* 📜 MODAL CETAK SERTIFIKAT SINGLE */}
       {showPrintCertModal && selectedSessionForDetail && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
@@ -1473,9 +1629,7 @@ function ExamResultsContent() {
               </div>
             </div>
 
-            {/* AREA CETAK SERTIFIKAT DESAIN KEKINIAN */}
             <div id="printable-area" className="p-10 font-serif text-slate-900 bg-gradient-to-br from-amber-50/80 via-white to-slate-50 border-[12px] border-double border-indigo-950 rounded-xl relative m-4 text-center">
-              {/* Watermark Logo */}
               <img
                 src="/logo-sd-getasan.png"
                 alt="Watermark"
@@ -1516,7 +1670,7 @@ function ExamResultsContent() {
         </div>
       )}
 
-      {/* 📑 MODAL CETAK RAPOR MASSAL KELAS (DESAIN KEKINIAN) */}
+      {/* 📑 MODAL CETAK RAPOR MASSAL KELAS */}
       {showBulkRaporModal && (
         <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
@@ -1532,11 +1686,9 @@ function ExamResultsContent() {
               </div>
             </div>
 
-            {/* AREA CETAK RAPOR KOLEKTIF MASSAL */}
             <div id="printable-area" className="p-8 overflow-y-auto font-sans text-slate-900 bg-white space-y-12">
               {sortedSessions.map((student, studentIndex) => (
                 <div key={student.id} className={studentIndex < sortedSessions.length - 1 ? 'page-break pb-12 border-b-2 border-dashed border-slate-300' : ''}>
-                  {/* Kop Resmi Sekolah Minimalis */}
                   <div className="border-b-2 border-indigo-600 pb-3 mb-4 flex items-center justify-between text-center">
                     <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-14 h-14 object-contain" />
                     <div className="flex-1 px-4">
@@ -1554,7 +1706,6 @@ function ExamResultsContent() {
                     <p className="text-xs font-semibold text-slate-500">Paket Ujian: {exam?.title} | Subtes: {exam?.subtest}</p>
                   </div>
 
-                  {/* Card Identitas Siswa */}
                   <div className="grid grid-cols-2 gap-4 text-xs font-medium border border-slate-200 rounded-xl p-3.5 mb-4 bg-slate-50">
                     <div>
                       <span className="text-slate-400 block text-[10px] uppercase font-bold">Nama Peserta</span>
@@ -1574,7 +1725,6 @@ function ExamResultsContent() {
                     </div>
                   </div>
 
-                  {/* Tabel Skor Modern */}
                   <div className="rounded-xl border border-slate-200 overflow-hidden mb-6">
                     <table className="w-full border-collapse text-xs text-center">
                       <thead className="bg-slate-900 text-white font-bold">
@@ -1604,7 +1754,6 @@ function ExamResultsContent() {
                     </table>
                   </div>
 
-                  {/* TANDA TANGAN DINAMIS BULK RAPOR */}
                   <DynamicSignatureBlock studentClass={student.class_code} />
                 </div>
               ))}
