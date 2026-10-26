@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
@@ -14,19 +14,23 @@ function ExamEngineContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
 
+  // State Session & User
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
+
   // State Jawaban Siswa & Ragu-ragu
   const [userAnswers, setUserAnswers] = useState<{ [key: string]: any }>({})
   const [flaggedQuestions, setFlaggedQuestions] = useState<{ [key: string]: boolean }>({})
 
-  // State Modal Zoom Gambar (Lightbox)
+  // State Modal Lightbox Gambar
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
 
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Catat timestamp persis saat siswa membuka ruang ujian
-  const [startTimeIso] = useState<string>(new Date().toISOString())
+  // Ref untuk menghindari submit ganda
+  const isSubmittingRef = useRef(false)
 
   // Helper Acak Array (Fisher-Yates Shuffle)
   const shuffleArray = (array: any[]) => {
@@ -38,10 +42,19 @@ function ExamEngineContent() {
     return arr
   }
 
-  const loadExamData = async () => {
+  // 1. MEMUAT UJIAN & SINKRONISASI SESI PENGERJAAN DARI DATABASE
+  const initExamEngine = async () => {
     if (!examId) return
     const supabase = createClient()
 
+    // Get current user
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    const activeUserId = user?.id || null
+    setUserId(activeUserId)
+
+    // Fetch Exam
     const { data: examData } = await supabase
       .from('exams')
       .select('*')
@@ -54,52 +67,140 @@ function ExamEngineContent() {
       return
     }
 
+    // Fetch Questions
     const { data: questionData } = await supabase
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: true })
 
-    if (questionData) {
-      let processedQuestions = [...questionData]
-
-      // Acak Urutan Soal jika Diaktifkan
-      if (examData.shuffle_questions) {
-        processedQuestions = shuffleArray(processedQuestions)
-      }
-
-      // Acak Opsi / Pernyataan jika Diaktifkan
-      if (examData.shuffle_options) {
-        processedQuestions = processedQuestions.map((q) => {
-          if (
-            (q.question_type === 'multiple_choice' ||
-              q.question_type === 'complex_multiple_choice' ||
-              q.question_type === 'true_false_matrix') &&
-            Array.isArray(q.options) &&
-            q.options.length > 0
-          ) {
-            return {
-              ...q,
-              options: shuffleArray(q.options),
-            }
-          }
-          return q
-        })
-      }
-
-      setQuestions(processedQuestions)
+    let processedQuestions = questionData || []
+    if (examData.shuffle_questions) {
+      processedQuestions = shuffleArray(processedQuestions)
     }
 
+    if (examData.shuffle_options) {
+      processedQuestions = processedQuestions.map((q) => {
+        if (
+          (q.question_type === 'multiple_choice' ||
+            q.question_type === 'complex_multiple_choice' ||
+            q.question_type === 'true_false_matrix') &&
+          Array.isArray(q.options) &&
+          q.options.length > 0
+        ) {
+          return {
+            ...q,
+            options: shuffleArray(q.options),
+          }
+        }
+        return q
+      })
+    }
+
+    setQuestions(processedQuestions)
     setExam(examData)
-    setTimeLeft((examData.duration_minutes || 15) * 60)
+
+    // 🟢 CEK SESI PENGERJAAN AKTIF DI DATABASE DENGAN KONDISI "in_progress"
+    let currentSession: any = null
+
+    if (activeUserId) {
+      const { data: existingSession } = await supabase
+        .from('exam_sessions')
+        .select('*')
+        .eq('exam_id', examId)
+        .eq('user_id', activeUserId)
+        .eq('status', 'in_progress')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      currentSession = existingSession
+    }
+
+    // Jika belum ada sesi aktif, buat sesi baru di DB
+    if (!currentSession) {
+      const startTimeIso = new Date().toISOString()
+      const { data: newSession, error: createErr } = await supabase
+        .from('exam_sessions')
+        .insert([
+          {
+            exam_id: examId,
+            user_id: activeUserId,
+            status: 'in_progress',
+            start_time: startTimeIso,
+          },
+        ])
+        .select()
+        .single()
+
+      if (createErr || !newSession) {
+        alert('Gagal memuat atau membuat sesi ujian. Silakan coba lagi.')
+        router.push('/')
+        return
+      }
+      currentSession = newSession
+    }
+
+    setSessionId(currentSession.id)
+
+    // 🟢 SINKRONISASI PEMULIHAN JAWABAN TERSIMPAN (RESTORE ANSWERS)
+    const { data: savedAnswers } = await supabase
+      .from('answers')
+      .select('*')
+      .eq('session_id', currentSession.id)
+
+    if (savedAnswers && savedAnswers.length > 0) {
+      const restoredMap: { [key: string]: any } = {}
+      savedAnswers.forEach((ans) => {
+        if (ans.user_answer !== null && ans.user_answer !== undefined) {
+          let parsedVal = ans.user_answer
+          if (typeof parsedVal === 'string') {
+            const trimmed = parsedVal.trim()
+            if (
+              (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+              (trimmed.startsWith('[') && trimmed.endsWith(']'))
+            ) {
+              try {
+                parsedVal = JSON.parse(trimmed)
+              } catch (e) {
+                parsedVal = trimmed
+              }
+            }
+          }
+          restoredMap[ans.question_id] = parsedVal
+        }
+      })
+      setUserAnswers(restoredMap)
+    }
+
+    // 🟢 HITUNG DURATION & SISA WAKTU BERDASARKAN TIMESTAMP START_TIME
+    const durationSec = (examData.duration_minutes || 15) * 60
+    const startMs = new Date(currentSession.start_time || currentSession.created_at).getTime()
+    const nowMs = Date.now()
+    const elapsedSec = Math.floor((nowMs - startMs) / 1000)
+    const remainingSec = Math.max(0, durationSec - elapsedSec)
+
+    setTimeLeft(remainingSec)
     setLoading(false)
   }
 
   useEffect(() => {
-    loadExamData()
+    initExamEngine()
   }, [examId])
 
-  // Timer Countdown Ujian
+  // 🟢 PROTEKSI RELOAD / BACK BROWSER (PREVENT ACCIDENTAL LEAVE)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isSubmittingRef.current) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  // 🟢 TIMER COUNTDOWN PRESISI
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0) return
 
@@ -123,12 +224,35 @@ function ExamEngineContent() {
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
+  // 🟢 REAL-TIME AUTO-SAVE KE SUPABASE UNTUK SETIAP PERUBAHAN JAWABAN
+  const autoSaveAnswerToSupabase = async (questionId: string, answerValue: any) => {
+    if (!sessionId) return
+    const supabase = createClient()
+
+    const formattedAns =
+      answerValue === undefined || answerValue === null
+        ? null
+        : typeof answerValue === 'string'
+        ? answerValue
+        : JSON.stringify(answerValue)
+
+    await supabase.from('answers').upsert(
+      {
+        session_id: sessionId,
+        question_id: questionId,
+        user_answer: formattedAns,
+      },
+      { onConflict: 'session_id,question_id' }
+    )
+  }
+
   // Handler Jawaban Pilihan Ganda Biasa
   const handleSelectSingleOption = (questionId: string, optKey: string) => {
-    setUserAnswers((prev) => ({
-      ...prev,
-      [questionId]: optKey,
-    }))
+    setUserAnswers((prev) => {
+      const next = { ...prev, [questionId]: optKey }
+      autoSaveAnswerToSupabase(questionId, optKey)
+      return next
+    })
   }
 
   // Handler Jawaban PG Kompleks (Multiple Checkbox)
@@ -140,10 +264,11 @@ function ExamEngineContent() {
     } else {
       updated = [...currentAns, optKey]
     }
-    setUserAnswers((prev) => ({
-      ...prev,
-      [questionId]: updated,
-    }))
+    setUserAnswers((prev) => {
+      const next = { ...prev, [questionId]: updated }
+      autoSaveAnswerToSupabase(questionId, updated)
+      return next
+    })
   }
 
   // Handler Jawaban Matriks Benar-Salah
@@ -156,21 +281,22 @@ function ExamEngineContent() {
       typeof userAnswers[questionId] === 'object' && !Array.isArray(userAnswers[questionId])
         ? userAnswers[questionId]
         : {}
-    setUserAnswers((prev) => ({
-      ...prev,
-      [questionId]: {
-        ...currentMatrix,
-        [statementId]: val,
-      },
-    }))
+    const updatedMatrix = { ...currentMatrix, [statementId]: val }
+
+    setUserAnswers((prev) => {
+      const next = { ...prev, [questionId]: updatedMatrix }
+      autoSaveAnswerToSupabase(questionId, updatedMatrix)
+      return next
+    })
   }
 
   // Handler Jawaban Essay
   const handleEssayChange = (questionId: string, text: string) => {
-    setUserAnswers((prev) => ({
-      ...prev,
-      [questionId]: text,
-    }))
+    setUserAnswers((prev) => {
+      const next = { ...prev, [questionId]: text }
+      autoSaveAnswerToSupabase(questionId, text)
+      return next
+    })
   }
 
   // Handler Ragu-Ragu
@@ -181,17 +307,15 @@ function ExamEngineContent() {
     }))
   }
 
-  // Selesaikan Ujian & Simpan Hasil
+  // 🟢 FINISH EXAM & CALCULATE FINAL SCORE
   const handleFinishExam = async (autoFinish = false) => {
-    if (isSubmitting) return
+    if (isSubmittingRef.current) return
     if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
 
+    isSubmittingRef.current = true
     setIsSubmitting(true)
-    const supabase = createClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const supabase = createClient()
 
     let totalPointsEarned = 0
     let totalMaxPoints = 0
@@ -222,9 +346,11 @@ function ExamEngineContent() {
           }
         } else if (qType === 'complex_multiple_choice') {
           const correctKeys: string[] = Array.isArray(q.correct_answers)
-            ? q.correct_answers
-            : [q.correct_option || q.correct_answer]
-          const userKeys: string[] = Array.isArray(userAns) ? userAns : []
+            ? q.correct_answers.map((k: any) => String(k).trim().toUpperCase())
+            : [String(q.correct_option || q.correct_answer).trim().toUpperCase()]
+          const userKeys: string[] = Array.isArray(userAns)
+            ? userAns.map((k: any) => String(k).trim().toUpperCase())
+            : []
 
           const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
           const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
@@ -242,7 +368,10 @@ function ExamEngineContent() {
           if (statementIds.length > 0) {
             let correctRows = 0
             statementIds.forEach((sId) => {
-              if (userObj[sId] === correctObj[sId]) {
+              if (
+                userObj[sId] &&
+                String(userObj[sId]).trim().toLowerCase() === String(correctObj[sId]).trim().toLowerCase()
+              ) {
                 correctRows++
               }
             })
@@ -254,49 +383,23 @@ function ExamEngineContent() {
     })
 
     const finalScore =
-      totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100 : 0
+      totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
 
     const endTimeIso = new Date().toISOString()
 
-    const { data: session, error: sessionErr } = await supabase
-      .from('exam_sessions')
-      .insert([
-        {
-          exam_id: examId,
-          user_id: user?.id || null,
+    // Update Status Session Menjadi Completed
+    if (sessionId) {
+      await supabase
+        .from('exam_sessions')
+        .update({
           status: 'completed',
           score: finalScore,
-          start_time: startTimeIso,
           end_time: endTimeIso,
-        },
-      ])
-      .select()
-      .single()
-
-    if (sessionErr || !session) {
-      alert(`Gagal menyimpan hasil ujian: ${sessionErr?.message || 'Error'}`)
-      setIsSubmitting(false)
-      return
+        })
+        .eq('id', sessionId)
     }
 
-    const answerRecords = questions.map((q) => {
-      const rawAns = userAnswers[q.id]
-      const formattedAns =
-        rawAns === undefined || rawAns === null
-          ? null
-          : typeof rawAns === 'string'
-          ? rawAns
-          : JSON.stringify(rawAns)
-
-      return {
-        session_id: session.id,
-        question_id: q.id,
-        user_answer: formattedAns,
-      }
-    })
-
-    await supabase.from('answers').insert(answerRecords)
-    router.push(`/exam/${examId}/summary?session_id=${session.id}`)
+    router.push(`/exam/${examId}/summary?session_id=${sessionId}`)
   }
 
   if (loading) {
@@ -310,14 +413,14 @@ function ExamEngineContent() {
   const currentQuestion = questions[currentIndex]
   const qType = currentQuestion?.question_type || 'multiple_choice'
 
-  // Helper fleksibel ekstraksi item opsi/pernyataan matriks
-  const matrixStatements = Array.isArray(currentQuestion?.options) && currentQuestion.options.length > 0
-    ? currentQuestion.options
-    : Array.isArray(currentQuestion?.statements)
-    ? currentQuestion.statements
-    : Array.isArray(currentQuestion?.matrix_statements)
-    ? currentQuestion.matrix_statements
-    : []
+  const matrixStatements =
+    Array.isArray(currentQuestion?.options) && currentQuestion.options.length > 0
+      ? currentQuestion.options
+      : Array.isArray(currentQuestion?.statements)
+      ? currentQuestion.statements
+      : Array.isArray(currentQuestion?.matrix_statements)
+      ? currentQuestion.matrix_statements
+      : []
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
@@ -500,7 +603,7 @@ function ExamEngineContent() {
                 </div>
               )}
 
-              {/* 3. MATRIKS BENAR - SALAH (DENGAN DUKUNGAN KUNCI SERBAGUNA & TULISAN PERNYATAAN KONTRAS JELAS) */}
+              {/* 3. MATRIKS BENAR - SALAH */}
               {qType === 'true_false_matrix' && (
                 <div className="space-y-3 pt-2">
                   <p className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 p-2 rounded-lg border border-indigo-100">
@@ -525,7 +628,6 @@ function ExamEngineContent() {
                               : {}
                           const selectedVal = currentMatrix?.[stId]
 
-                          // Ambil isi teks pernyataan dari berbagai kemungkinan kunci objek
                           const statementText =
                             typeof st === 'string'
                               ? st
@@ -598,7 +700,7 @@ function ExamEngineContent() {
                 </div>
               )}
 
-              {/* 4. URAIAN / ESSAY (TEKS KONTRAS TINGGI & JELAS) */}
+              {/* 4. URAIAN / ESSAY */}
               {qType === 'essay' && (
                 <div className="space-y-2 pt-2">
                   <label className="block text-xs font-bold text-slate-800 uppercase">
@@ -681,7 +783,7 @@ function ExamEngineContent() {
         </div>
       </div>
 
-      {/* MODAL ZOOM GAMBAR (LIGHTBOX INTERAKTIF FULLSCREEN) */}
+      {/* MODAL LIGHTBOX FULLSCREEN */}
       {zoomedImageUrl && (
         <div
           className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
