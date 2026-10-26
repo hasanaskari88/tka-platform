@@ -20,6 +20,48 @@ export default function InteractivePracticePage() {
   const [isAnswered, setIsAnswered] = useState<boolean>(false)
   const [isCorrect, setIsCorrect] = useState<boolean>(false)
 
+// 🟢 FUNGSI CEK & UNLOCK LENCANA OTOMATIS
+const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) => {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('badges')
+    .eq('id', user.id)
+    .single()
+
+  let userBadges: string[] = Array.isArray(profile?.badges) ? profile.badges : []
+  let newlyUnlocked: string[] = []
+
+  // 1. Lencana: Langkah Pertama (Selesaikan 1 Soal Benar)
+  if (!userBadges.includes('Langkah Pertama') && currentXp >= 10) {
+    newlyUnlocked.push('Langkah Pertama')
+  }
+
+  // 2. Lencana: Raja Combo (Streak 3x Berturut-turut)
+  if (!userBadges.includes('Raja Combo') && currentStreak >= 3) {
+    newlyUnlocked.push('Raja Combo')
+  }
+
+  // 3. Lencana: Bintang Getasan (Total XP >= 100)
+  if (!userBadges.includes('Bintang Getasan') && currentXp >= 100) {
+    newlyUnlocked.push('Bintang Getasan')
+  }
+
+  // Simpan ke Supabase jika ada Lencana Baru
+  if (newlyUnlocked.length > 0) {
+    const updatedBadges = [...userBadges, ...newlyUnlocked]
+    await supabase
+      .from('profiles')
+      .update({ badges: updatedBadges })
+      .eq('id', user.id)
+
+    alert(`🎉 Selamat! Kamu Membuka Lencana Baru: ${newlyUnlocked.join(', ')}!`)
+  }
+}
+
   // Stats Sesi Latihan Mandiri
   const [totalXpEarned, setTotalXpEarned] = useState<number>(0)
   const [streakCount, setStreakCount] = useState<number>(0)

@@ -143,7 +143,12 @@ export default function Navbar() {
                 <span className="hidden sm:inline">Riwayat</span>
               </Link>
             )}
-
+            <Link
+              href="/practice"
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl transition-colors border border-indigo-200/80 flex items-center space-x-1"
+            >
+              <span>🎮 Latihan Mandiri</span>
+            </Link>
             <Link
               href="/admin"
               className="px-2 py-1.5 sm:px-3 text-[11px] sm:text-xs font-bold text-slate-700 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all"

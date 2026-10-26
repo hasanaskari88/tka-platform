@@ -6,12 +6,14 @@ import Navbar from '@/components/Navbar'
 import ExamTokenModal from '@/components/ExamTokenModal'
 import { useTheme } from '@/context/ThemeContext'
 import MathRenderer from '@/components/MathRenderer'
+import Link from 'next/link'
 
 function HomePageContent() {
   const { theme } = useTheme()
   const [exams, setExams] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [materials, setMaterials] = useState<any[]>([])
+  const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -22,6 +24,19 @@ function HomePageContent() {
     async function fetchData() {
       try {
         const supabase = createClient()
+
+        // 0. Fetch User Profile Aktif (Untuk Widget Gamifikasi XP & Level)
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle()
+          if (profile) setUserProfile(profile)
+        }
 
         // 1. Fetch Ujian Dipublikasikan
         const { data: examData, error: examErr } = await supabase
@@ -173,7 +188,6 @@ function HomePageContent() {
       <Navbar />
 
       <main className="p-4 sm:p-8 max-w-5xl mx-auto space-y-8 flex-grow w-full relative z-10">
-        
         {/* 1. HERO BANNER INTERAKTIF SESUAI TEMA */}
         <div
           className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-xl shadow-2xl transition-all duration-500 relative overflow-hidden ${themeDetails.heroBg}`}
@@ -199,6 +213,74 @@ function HomePageContent() {
             ⚠️ {error}
           </div>
         )}
+
+        {/* 🎮 WIDGET MASKOT PETUALANGAN LATIHAN MANDIRI & STATISTIK XP SISWA */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* BANNER UTAMA PETUALANGAN LATIHAN */}
+          <div
+            className={`md:col-span-2 p-6 rounded-3xl border backdrop-blur-xl shadow-xl flex justify-between items-center relative overflow-hidden ${themeDetails.boxBg}`}
+          >
+            <div className="space-y-2 relative z-10 max-w-md">
+              <span
+                className={`inline-block px-3 py-1 rounded-full text-[10px] font-extrabold uppercase border tracking-wider ${themeDetails.badgeColor}`}
+              >
+                🎮 PUSAT PETUALANGAN BELAJAR
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black leading-tight">
+                Asah Kemampuan & Kumpulkan XP!
+              </h2>
+              <p className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>
+                Jawab soal latihan bebas tanpa batas waktu, dapatkan pembahasan instan, dan capai posisi puncak di Papan Peringkat!
+              </p>
+              <Link
+                href="/practice"
+                className={`inline-block mt-2 px-4 py-2 text-xs font-black rounded-xl shadow-md transition-all transform hover:scale-105 ${themeDetails.btnBg}`}
+              >
+                🚀 Masuk Ruang Latihan Mandiri →
+              </Link>
+            </div>
+
+            <div className="hidden sm:block text-5xl transform hover:scale-110 transition-transform duration-300 animate-bounce">
+              🏆✨
+            </div>
+          </div>
+
+          {/* KARTU GAMIFIKASI STATUS SISWA */}
+          <div
+            className={`p-5 rounded-3xl border backdrop-blur-xl shadow-md flex flex-col justify-between space-y-3 ${themeDetails.boxBg}`}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-2">
+              <span className={`text-xs font-bold uppercase tracking-wider ${themeDetails.sectionTitle}`}>
+                ⭐ Status Gamifikasi
+              </span>
+              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold rounded-full">
+                Aktif
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className={`p-3 rounded-2xl border ${themeDetails.badgeColor}`}>
+                <p className="text-[10px] font-bold uppercase opacity-80">Total XP</p>
+                <p className="text-base sm:text-lg font-black text-amber-300">
+                  ⭐ {userProfile?.xp || 0}
+                </p>
+              </div>
+              <div className={`p-3 rounded-2xl border ${themeDetails.badgeColor}`}>
+                <p className="text-[10px] font-bold uppercase opacity-80">Level Kamu</p>
+                <p className="text-base sm:text-lg font-black text-amber-300">
+                  🎖️ Lvl {userProfile?.level || 1}
+                </p>
+              </div>
+            </div>
+
+            <Link
+              href="/practice"
+              className={`w-full py-2 text-center text-xs font-bold rounded-xl transition-all block ${themeDetails.btnBg}`}
+            >
+              Lihat Leaderboard →
+            </Link>
+          </div>
+        </div>
 
         {/* 📢 3. SEKSI PAPAN PENGUMUMAN ADAPTIF & DINAMIS */}
         {announcements.length > 0 && (
@@ -233,8 +315,8 @@ function HomePageContent() {
                   </div>
                   <h3 className="text-sm sm:text-base font-extrabold">{ann.title}</h3>
                   <div className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>
-                      <MathRenderer content={ann.content || ''} />
-                    </div>
+                    <MathRenderer content={ann.content || ''} />
+                  </div>
                 </div>
               ))}
             </div>
