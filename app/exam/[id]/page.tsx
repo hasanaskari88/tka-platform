@@ -25,7 +25,7 @@ function ExamEngineContent() {
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 1. Catat timestamp persis saat siswa membuka ruang ujian
+  // Catat timestamp persis saat siswa membuka ruang ujian
   const [startTimeIso] = useState<string>(new Date().toISOString())
 
   // Helper Acak Array (Fisher-Yates Shuffle)
@@ -63,12 +63,12 @@ function ExamEngineContent() {
     if (questionData) {
       let processedQuestions = [...questionData]
 
-      // 🟢 1. Acak Urutan Soal jika Diaktifkan
+      // Acak Urutan Soal jika Diaktifkan
       if (examData.shuffle_questions) {
         processedQuestions = shuffleArray(processedQuestions)
       }
 
-      // 🟢 2. Acak Opsi / Pernyataan jika Diaktifkan (Termasuk PG, PG Kompleks, & Matriks)
+      // Acak Opsi / Pernyataan jika Diaktifkan
       if (examData.shuffle_options) {
         processedQuestions = processedQuestions.map((q) => {
           if (
@@ -107,7 +107,7 @@ function ExamEngineContent() {
       setTimeLeft((prev) => {
         if (prev !== null && prev <= 1) {
           clearInterval(timer)
-          handleFinishExam(true) // Auto finish saat waktu habis
+          handleFinishExam(true)
           return 0
         }
         return prev !== null ? prev - 1 : null
@@ -181,7 +181,7 @@ function ExamEngineContent() {
     }))
   }
 
-  // Selesaikan Ujian & Simpan Hasil (Kalkulasi Skala 100)
+  // Selesaikan Ujian & Simpan Hasil
   const handleFinishExam = async (autoFinish = false) => {
     if (isSubmitting) return
     if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
@@ -196,7 +196,6 @@ function ExamEngineContent() {
     let totalPointsEarned = 0
     let totalMaxPoints = 0
 
-    // Hitung Poin Maksimal & Poin Perolehan Siswa
     questions.forEach((q) => {
       const qMaxScore = Number(q.max_score) || 1
       totalMaxPoints += qMaxScore
@@ -204,7 +203,6 @@ function ExamEngineContent() {
       const qType = q.question_type || 'multiple_choice'
       const userAns = userAnswers[q.id]
 
-      // Cek apakah soal belum dijawab
       const isUnattempted =
         userAns === undefined ||
         userAns === null ||
@@ -215,7 +213,6 @@ function ExamEngineContent() {
           Object.keys(userAns).length === 0)
 
       if (!isUnattempted) {
-        // 1. Pilihan Ganda Biasa
         if (qType === 'multiple_choice') {
           const correctOpt = String(q.correct_option ?? q.correct_answer ?? '')
             .trim()
@@ -223,9 +220,7 @@ function ExamEngineContent() {
           if (String(userAns).trim().toUpperCase() === correctOpt) {
             totalPointsEarned += qMaxScore
           }
-        }
-        // 2. Pilihan Ganda Kompleks (Nilai Parsial / Proposional)
-        else if (qType === 'complex_multiple_choice') {
+        } else if (qType === 'complex_multiple_choice') {
           const correctKeys: string[] = Array.isArray(q.correct_answers)
             ? q.correct_answers
             : [q.correct_option || q.correct_answer]
@@ -239,9 +234,7 @@ function ExamEngineContent() {
             const ratio = netCorrect / correctKeys.length
             totalPointsEarned += ratio * qMaxScore
           }
-        }
-        // 3. Matriks Benar - Salah (Nilai Parsial per Baris)
-        else if (qType === 'true_false_matrix') {
+        } else if (qType === 'true_false_matrix') {
           const correctObj: { [key: string]: string } = q.correct_answers || {}
           const userObj = typeof userAns === 'object' && !Array.isArray(userAns) ? userAns : {}
 
@@ -260,13 +253,11 @@ function ExamEngineContent() {
       }
     })
 
-    // Konversi Nilai Akhir ke SKALA 100 (2 Desimal)
     const finalScore =
       totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100 : 0
 
     const endTimeIso = new Date().toISOString()
 
-    // 1. Simpan Sesi Ujian dengan Kolom Resmi (start_time dan end_time)
     const { data: session, error: sessionErr } = await supabase
       .from('exam_sessions')
       .insert([
@@ -288,7 +279,6 @@ function ExamEngineContent() {
       return
     }
 
-    // 2. Simpan Detail Jawaban Siswa
     const answerRecords = questions.map((q) => {
       const rawAns = userAnswers[q.id]
       const formattedAns =
@@ -306,8 +296,6 @@ function ExamEngineContent() {
     })
 
     await supabase.from('answers').insert(answerRecords)
-
-    // 3. Pindah ke Halaman Ringkasan Hasil
     router.push(`/exam/${examId}/summary?session_id=${session.id}`)
   }
 
@@ -321,6 +309,15 @@ function ExamEngineContent() {
 
   const currentQuestion = questions[currentIndex]
   const qType = currentQuestion?.question_type || 'multiple_choice'
+
+  // Helper fleksibel ekstraksi item opsi/pernyataan matriks
+  const matrixStatements = Array.isArray(currentQuestion?.options) && currentQuestion.options.length > 0
+    ? currentQuestion.options
+    : Array.isArray(currentQuestion?.statements)
+    ? currentQuestion.statements
+    : Array.isArray(currentQuestion?.matrix_statements)
+    ? currentQuestion.matrix_statements
+    : []
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
@@ -389,9 +386,9 @@ function ExamEngineContent() {
                 </button>
               </div>
 
-              {/* TEKS SOAL & GAMBAR (DILENGKAPI ZOOM GAMBAR) */}
-              <div className="text-slate-800 text-sm font-medium leading-relaxed">
-                <MathRenderer content={currentQuestion.question_text} />
+              {/* TEKS SOAL & GAMBAR */}
+              <div className="text-slate-900 text-sm font-semibold leading-relaxed">
+                <MathRenderer content={currentQuestion.question_text || ''} />
               </div>
 
               {currentQuestion.image_url && (
@@ -405,14 +402,11 @@ function ExamEngineContent() {
                 </div>
               )}
 
-              {/* RENDER LEMBAR JAWAB SESUAI TIPE SOAL */}
-
               {/* 1. PILIHAN GANDA BIASA */}
               {qType === 'multiple_choice' && Array.isArray(currentQuestion.options) && (
                 <div className="space-y-2 pt-2">
                   {currentQuestion.options.map((opt: any, oIdx: number) => {
                     const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                    // 🟢 Label Visual Selalu Urut A, B, C, D dari Atas ke Bawah
                     const displayLabel = String.fromCharCode(65 + oIdx)
                     const isSelected = userAnswers[currentQuestion.id] === optKey
 
@@ -423,25 +417,25 @@ function ExamEngineContent() {
                         className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${
                           isSelected
                             ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 text-indigo-900 font-bold'
-                            : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-medium'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-800 font-medium'
                         }`}
                         suppressHydrationWarning
                       >
                         <span
                           className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
-                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600'
+                            isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'
                           }`}
                         >
                           {displayLabel}
                         </span>
-                        <div className="flex-1">
-                          <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
+                        <div className="flex-1 text-slate-900 font-semibold">
+                          <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
                           {opt.image_url && (
                             <img
                               src={opt.image_url}
                               alt={`Opsi ${displayLabel}`}
                               onClick={(e) => {
-                                e.stopPropagation() // Mencegah kepilih saat mengklik zoom gambar
+                                e.stopPropagation()
                                 setZoomedImageUrl(opt.image_url)
                               }}
                               className="max-h-24 mt-2 rounded border cursor-zoom-in hover:opacity-90 transition-opacity"
@@ -462,7 +456,6 @@ function ExamEngineContent() {
                   </p>
                   {currentQuestion.options.map((opt: any, oIdx: number) => {
                     const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                    // 🟢 Label Visual Selalu Urut A, B, C, D dari Atas ke Bawah
                     const displayLabel = String.fromCharCode(65 + oIdx)
                     const currentAns = Array.isArray(userAnswers[currentQuestion.id])
                       ? userAnswers[currentQuestion.id]
@@ -476,7 +469,7 @@ function ExamEngineContent() {
                         className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${
                           isSelected
                             ? 'border-indigo-600 bg-indigo-50/80 ring-2 ring-indigo-500 text-indigo-900 font-bold'
-                            : 'border-slate-200 hover:bg-slate-50 text-slate-700 font-medium'
+                            : 'border-slate-200 hover:bg-slate-50 text-slate-800 font-medium'
                         }`}
                         suppressHydrationWarning
                       >
@@ -487,8 +480,8 @@ function ExamEngineContent() {
                           className="w-4 h-4 text-indigo-600 rounded"
                         />
                         <span className="font-bold text-xs shrink-0">{displayLabel}.</span>
-                        <div className="flex-1">
-                          <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
+                        <div className="flex-1 text-slate-900 font-semibold">
+                          <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
                           {opt.image_url && (
                             <img
                               src={opt.image_url}
@@ -507,22 +500,24 @@ function ExamEngineContent() {
                 </div>
               )}
 
-              {/* 3. MATRIKS BENAR - SALAH */}
-              {qType === 'true_false_matrix' && Array.isArray(currentQuestion.options) && (
+              {/* 3. MATRIKS BENAR - SALAH (DENGAN DUKUNGAN KUNCI SERBAGUNA & TULISAN PERNYATAAN KONTRAS JELAS) */}
+              {qType === 'true_false_matrix' && (
                 <div className="space-y-3 pt-2">
                   <p className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 p-2 rounded-lg border border-indigo-100">
                     ℹ️ Tentukan pilihan Benar atau Salah untuk setiap baris pernyataan di bawah ini.
                   </p>
-                  <div className="border rounded-xl overflow-hidden text-xs">
+                  <div className="border border-slate-300 rounded-xl overflow-hidden text-xs bg-white shadow-xs">
                     <table className="w-full text-left border-collapse">
-                      <thead className="bg-slate-100 border-b font-bold text-slate-700">
+                      <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-800">
                         <tr>
-                          <th className="p-3">Pernyataan</th>
-                          <th className="p-3 w-32 text-center border-l">Pilihan Jawaban</th>
+                          <th className="p-3 text-slate-900 font-extrabold">Pernyataan</th>
+                          <th className="p-3 w-36 text-center border-l border-slate-300 text-slate-900 font-extrabold">
+                            Pilihan Jawaban
+                          </th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y">
-                        {currentQuestion.options.map((st: any, sIdx: number) => {
+                      <tbody className="divide-y divide-slate-200">
+                        {matrixStatements.map((st: any, sIdx: number) => {
                           const stId = String(st.id || sIdx + 1)
                           const currentMatrix =
                             typeof userAnswers[currentQuestion.id] === 'object'
@@ -530,16 +525,27 @@ function ExamEngineContent() {
                               : {}
                           const selectedVal = currentMatrix?.[stId]
 
+                          // Ambil isi teks pernyataan dari berbagai kemungkinan kunci objek
+                          const statementText =
+                            typeof st === 'string'
+                              ? st
+                              : st?.text ||
+                                st?.statement ||
+                                st?.statement_text ||
+                                st?.title ||
+                                st?.content ||
+                                st?.label ||
+                                ''
+
                           return (
-                            <tr key={stId || sIdx} className="hover:bg-slate-50">
+                            <tr key={stId || sIdx} className="hover:bg-slate-50 transition-colors">
                               <td className="p-3">
                                 <div className="flex items-start space-x-2">
-                                  {/* Nomor Urut Baris Pernyataan (1, 2, 3...) */}
-                                  <span className="font-bold text-slate-500 text-xs shrink-0">
+                                  <span className="font-bold text-slate-700 text-xs shrink-0">
                                     {sIdx + 1}.
                                   </span>
-                                  <div className="flex-1">
-                                    <MathRenderer content={typeof st === 'string' ? st : st.text} />
+                                  <div className="flex-1 text-slate-900 font-semibold text-xs leading-relaxed">
+                                    <MathRenderer content={statementText} />
                                     {st.image_url && (
                                       <img
                                         src={st.image_url}
@@ -551,17 +557,17 @@ function ExamEngineContent() {
                                   </div>
                                 </div>
                               </td>
-                              <td className="p-3 border-l">
-                                <div className="flex justify-center space-x-1">
+                              <td className="p-3 border-l border-slate-200">
+                                <div className="flex justify-center space-x-1.5">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       handleSelectMatrixValue(currentQuestion.id, stId, 'Benar')
                                     }
-                                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors ${
+                                    className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Benar'
-                                        ? 'bg-emerald-600 text-white shadow-sm'
-                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400'
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                     }`}
                                     suppressHydrationWarning
                                   >
@@ -572,10 +578,10 @@ function ExamEngineContent() {
                                     onClick={() =>
                                       handleSelectMatrixValue(currentQuestion.id, stId, 'Salah')
                                     }
-                                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-colors ${
+                                    className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Salah'
-                                        ? 'bg-rose-600 text-white shadow-sm'
-                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                                        ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400'
+                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                     }`}
                                     suppressHydrationWarning
                                   >
@@ -592,10 +598,10 @@ function ExamEngineContent() {
                 </div>
               )}
 
-              {/* 4. URAIAN / ESSAY */}
+              {/* 4. URAIAN / ESSAY (TEKS KONTRAS TINGGI & JELAS) */}
               {qType === 'essay' && (
                 <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-bold text-slate-700 uppercase">
+                  <label className="block text-xs font-bold text-slate-800 uppercase">
                     Lembar Jawaban Essay Anda:
                   </label>
                   <textarea
@@ -603,7 +609,7 @@ function ExamEngineContent() {
                     placeholder="Tuliskan jawaban lengkap Anda di sini..."
                     value={userAnswers[currentQuestion.id] || ''}
                     onChange={(e) => handleEssayChange(currentQuestion.id, e.target.value)}
-                    className="w-full p-3.5 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600 font-medium"
+                    className="w-full p-3.5 border border-slate-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600 font-semibold text-slate-900 bg-white placeholder:text-slate-400 shadow-inner"
                     suppressHydrationWarning
                   />
                 </div>
@@ -614,7 +620,7 @@ function ExamEngineContent() {
           )}
 
           {/* NAVIGASI SEBELUMNYA / SELANJUTNYA */}
-          <div className="flex justify-between items-center pt-4 border-t">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-200">
             <button
               disabled={currentIndex === 0}
               onClick={() => setCurrentIndex((prev) => prev - 1)}
@@ -675,10 +681,10 @@ function ExamEngineContent() {
         </div>
       </div>
 
-      {/* 🖼️ MODAL ZOOM GAMBAR (LIGHTBOX INTERAKTIF FULLSCREEN) */}
+      {/* MODAL ZOOM GAMBAR (LIGHTBOX INTERAKTIF FULLSCREEN) */}
       {zoomedImageUrl && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setZoomedImageUrl(null)}
         >
           <div
