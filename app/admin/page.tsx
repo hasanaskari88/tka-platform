@@ -726,6 +726,12 @@ function AdminDashboardContent() {
                         📊 Rekap Nilai
                       </Link>
                       <Link
+                        href={`/admin/exam/${exam.id}/monitor`}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        👁️ Pengawasan Live
+                      </Link>
+                      <Link
                         href={`/admin/exam/${exam.id}`}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
                       >
