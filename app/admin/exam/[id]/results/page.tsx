@@ -199,6 +199,7 @@ function ExamResultsContent() {
   // Filter Kelas & Bulk Modal
   const [filterClass, setFilterClass] = useState('ALL')
   const [showBulkRaporModal, setShowBulkRaporModal] = useState<boolean>(false)
+  const [showBulkCertModal, setShowBulkCertModal] = useState<boolean>(false) // 👈 TAMBAHKAN BARIS INI
 
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
@@ -1142,11 +1143,19 @@ function ExamResultsContent() {
                   </select>
 
                   <button
-                    onClick={() => setShowBulkRaporModal(true)}
-                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm"
-                  >
-                    🖨️ Cetak Rapor Massal
-                  </button>
+                      onClick={() => setShowBulkRaporModal(true)}
+                      className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm"
+                    >
+                      🖨️ Cetak Rapor Massal
+                    </button>
+
+                    {/* 🟢 TOMBOL BARU DI SAMPING CETAK RAPOR MASSAL */}
+                    <button
+                      onClick={() => setShowBulkCertModal(true)}
+                      className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg shadow-sm"
+                    >
+                      📜 Cetak Sertifikat Massal
+                    </button>
                 </div>
               </div>
 
@@ -1829,6 +1838,68 @@ function ExamResultsContent() {
                   </div>
 
                   <DynamicSignatureBlock studentClass={student.class_code} />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 📜 MODAL CETAK SERTIFIKAT MASSAL KELAS */}
+      {showBulkCertModal && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-center no-print">
+              <span className="font-bold text-sm">📜 Cetak Kolektif Sertifikat ({sortedSessions.length} Siswa)</span>
+              <div className="flex items-center space-x-2">
+                <button onClick={handlePrint} className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg">
+                  🖨️ Cetak / Simpan PDF Satu Kelas
+                </button>
+                <button onClick={() => setShowBulkCertModal(false)} className="px-3 py-1.5 bg-slate-700 text-white font-bold text-xs rounded-lg">
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            <div id="printable-area" className="p-8 overflow-y-auto bg-white space-y-12">
+              {sortedSessions.map((student, studentIndex) => (
+                <div key={student.id} className={studentIndex < sortedSessions.length - 1 ? 'page-break border-b-2 border-dashed border-slate-300 pb-12' : ''}>
+                  <div className="p-10 font-serif text-slate-900 bg-gradient-to-br from-amber-50/80 via-white to-slate-50 border-[12px] border-double border-indigo-950 rounded-xl relative text-center min-h-[600px] flex flex-col justify-between">
+                    <img
+                      src="/logo-sd-getasan.png"
+                      alt="Watermark"
+                      onError={(e: any) => {
+                        e.target.src = 'https://upload.wikimedia.org/wikipedia/commons/9/9c/Logo_TUT_WURI_HANDAYANI.svg'
+                      }}
+                      className="absolute inset-0 m-auto w-72 h-72 opacity-[0.04] object-contain pointer-events-none"
+                    />
+
+                    <div className="relative z-10 space-y-3">
+                      <SmartLogo candidates={SD_LOGO_CANDIDATES} alt="Logo SD" fallbackText="SD" className="w-14 h-14 mx-auto object-contain" />
+                      <h2 className="text-xs font-sans font-black uppercase text-indigo-950 tracking-widest">{docSettings.schoolName}</h2>
+                      <h1 className="text-2xl font-black tracking-widest text-slate-900 uppercase border-b-2 border-amber-500 pb-1 inline-block px-8 my-2">
+                        {docSettings.certificateTitle}
+                      </h1>
+                      <p className="text-xs font-sans text-slate-500 uppercase tracking-widest">Diberikan secara resmi kepada:</p>
+                      
+                      <h2 className="text-2xl font-black text-indigo-900 underline decoration-amber-500 decoration-2 uppercase my-2">
+                        {student.full_name}
+                      </h2>
+                      
+                      <p className="text-xs font-sans text-slate-700 max-w-xl mx-auto leading-relaxed">
+                        Telah menyelesaikan Ujian <strong>"{exam?.title}"</strong> Subtes <strong className="uppercase">{exam?.subtest}</strong> dengan Raihan Capaian Skor Resmi:
+                      </p>
+
+                      <div className="my-3">
+                        <div className="inline-flex items-center justify-center bg-gradient-to-r from-amber-500 to-amber-600 text-white font-sans font-black text-2xl px-8 py-2 rounded-full shadow-lg border-2 border-amber-300">
+                          {student.earned_score} <span className="text-xs font-normal text-amber-100 ml-1">/ 100</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="relative z-10 pt-6">
+                      <DynamicSignatureBlock studentClass={student.class_code} />
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
