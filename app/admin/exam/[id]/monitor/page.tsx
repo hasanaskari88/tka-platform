@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
+import * as XLSX from 'xlsx'
 
 function MonitorContent() {
   const params = useParams()
@@ -12,10 +13,14 @@ function MonitorContent() {
   const router = useRouter()
 
   const [exam, setExam] = useState<any>(null)
+  const [questionsCount, setQuestionsCount] = useState<number>(0)
   const [sessions, setSessions] = useState<any[]>([])
   const [profiles, setProfiles] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
+
+  // Mode Tampilan: 'live' (Semua Sesi Realtime) vs 'best' (Ringkasan Siswa & Multi-Attempt)
+  const [viewMode, setViewMode] = useState<'live' | 'best'>('best')
 
   // Filter & Search States
   const [filterStatus, setFilterStatus] = useState<string>('ALL')
@@ -50,19 +55,25 @@ function MonitorContent() {
       router.push('/admin')
       return
     }
-    setExam(examData)
 
-    // 2. Fetch Data Sesi Ujian
+    // 2. Fetch Jumlah Soal
+    const { count: qCount } = await supabase
+      .from('questions')
+      .select('id', { count: 'exact', head: true })
+      .eq('exam_id', examId)
+
+    // 3. Fetch Data Sesi Ujian
     const { data: sessionData } = await supabase
       .from('exam_sessions')
       .select('*')
       .eq('exam_id', examId)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true }) // Ascending agar gampang mengurutkan first & last
 
-    // 3. Fetch Data Profil Siswa
+    // 4. Fetch Data Profil Siswa
     const { data: profileData } = await supabase.from('profiles').select('*')
 
     setExam(examData)
+    setQuestionsCount(qCount || 0)
     setSessions(sessionData || [])
     setProfiles(profileData || [])
     setLastUpdated(new Date())
@@ -93,6 +104,18 @@ function MonitorContent() {
   const uniqueClasses = Array.from(
     new Set(sessions.map((s) => profileMap.get(s.user_id)?.class_code || '-'))
   ).filter(Boolean)
+
+  // Helper Hitung Benar Eksak / Estimasi
+  const getDisplayCorrect = (s: any) => {
+    if (!s) return 0
+    if (s.total_correct !== null && s.total_correct !== undefined && Number(s.total_correct) > 0) {
+      return Number(s.total_correct)
+    }
+    if (s.score !== null && s.score !== undefined && questionsCount > 0) {
+      return Math.round((Number(s.score) / 100) * questionsCount)
+    }
+    return 0
+  }
 
   // Hitung Sisa Waktu Pengerjaan Siswa
   const calculateLiveTimer = (startTimeStr: string, durationMinutes: number) => {
@@ -141,7 +164,7 @@ function MonitorContent() {
     }
   }
 
-  // 🔄 AKSI 2: Reset Sesi Ujian (Hapus Sesi agar Siswa Buka Ujian Bersih)
+  // 🔄 AKSI 2: Reset Sesi Ujian
   const handleResetSession = async (session: any) => {
     const student = profileMap.get(session.user_id)
     const studentName = student?.full_name || 'Siswa'
@@ -164,7 +187,7 @@ function MonitorContent() {
     }
   }
 
-  // ⏱️ AKSI 3: Perpanjang Waktu (Tambah 10 Menit)
+  // ⏱️ AKSI 3: Perpanjang Waktu (+10 Menit)
   const handleExtendTime = async (session: any) => {
     const student = profileMap.get(session.user_id)
     const studentName = student?.full_name || 'Siswa'
@@ -175,7 +198,6 @@ function MonitorContent() {
 
     const supabase = createClient()
     const currentStart = new Date(session.start_time).getTime()
-    // Menambah 10 menit sama dengan menggeser start_time maju 10 menit
     const newStart = new Date(currentStart + 10 * 60 * 1000).toISOString()
 
     const { error } = await supabase
@@ -192,8 +214,8 @@ function MonitorContent() {
     }
   }
 
-  // FILTERING LOGIC
-  const filteredSessions = sessions.filter((s) => {
+  // FILTERING LOGIC SESI LIVE
+  const filteredSessions = [...sessions].reverse().filter((s) => {
     const student = profileMap.get(s.user_id) || {
       full_name: 'Tamu/Siswa',
       username: 'guest',
@@ -209,11 +231,125 @@ function MonitorContent() {
     return matchStatus && matchClass && matchSearch
   })
 
+  // 📊 PENGELOMPOKAN REKAP PER SISWA: FIRST ATTEMPT, LAST ATTEMPT, & BEST SCORE
+  const studentSessionsGroup = new Map<string, any[]>()
+
+  sessions.forEach((s) => {
+    if (!s.user_id) return
+    if (!studentSessionsGroup.has(s.user_id)) {
+      studentSessionsGroup.set(s.user_id, [])
+    }
+    studentSessionsGroup.get(s.user_id)!.push(s)
+  })
+
+  const studentSummaryList: any[] = []
+
+  studentSessionsGroup.forEach((userSessions, userId) => {
+    const student = profileMap.get(userId) || {
+      full_name: 'Tamu/Siswa',
+      username: 'guest',
+      class_code: '-',
+    }
+
+    // Urutkan berdasarkan waktu pengerjaan (Created At)
+    const sorted = [...userSessions].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+
+    const firstAttempt = sorted[0]
+    const lastAttempt = sorted[sorted.length - 1]
+
+    // Cari percobaan dengan nilai tertinggi (Best Attempt)
+    let bestAttempt = sorted[0]
+    sorted.forEach((s) => {
+      const sc = s.score !== null && s.score !== undefined ? Number(s.score) : -1
+      const bestSc =
+        bestAttempt.score !== null && bestAttempt.score !== undefined ? Number(bestAttempt.score) : -1
+      if (sc > bestSc) {
+        bestAttempt = s
+      }
+    })
+
+    studentSummaryList.push({
+      userId,
+      student,
+      attemptsCount: sorted.length,
+
+      // First Attempt
+      firstScore: firstAttempt?.score !== null && firstAttempt?.score !== undefined ? Number(firstAttempt.score) : null,
+      firstCorrect: getDisplayCorrect(firstAttempt),
+      firstStatus: firstAttempt?.status,
+
+      // Last Attempt
+      lastScore: lastAttempt?.score !== null && lastAttempt?.score !== undefined ? Number(lastAttempt.score) : null,
+      lastCorrect: getDisplayCorrect(lastAttempt),
+      lastStatus: lastAttempt?.status,
+
+      // Best Attempt
+      bestScore: bestAttempt?.score !== null && bestAttempt?.score !== undefined ? Number(bestAttempt.score) : null,
+      bestCorrect: getDisplayCorrect(bestAttempt),
+    })
+  })
+
+  // Filter Berdasarkan Kelas dan Pencarian
+  const bestFilteredList = studentSummaryList.filter((item) => {
+    const matchClass = filterClass === 'ALL' || (item.student.class_code || '-') === filterClass
+    const matchSearch =
+      item.student.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.student.username.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchClass && matchSearch
+  })
+
+  // Urutkan nilai terbaik tertinggi ke terendah
+  bestFilteredList.sort((a, b) => (b.bestScore || 0) - (a.bestScore || 0))
+
   // STATISTIK KARTU MONITORING
   const totalOngoing = sessions.filter((s) => s.status === 'ongoing').length
-  const totalCompleted = sessions.filter((s) => s.status === 'completed').length
-  const completedScores = sessions.filter((s) => s.status === 'completed' && s.score !== null).map((s) => Number(s.score))
-  const avgScore = completedScores.length > 0 ? completedScores.reduce((a, b) => a + b, 0) / completedScores.length : 0
+  const completedScores = bestFilteredList
+    .map((item) => item.bestScore)
+    .filter((sc) => sc !== null) as number[]
+
+  const avgBestScore =
+    completedScores.length > 0 ? completedScores.reduce((a, b) => a + b, 0) / completedScores.length : 0
+  const passCount = completedScores.filter((sc) => sc >= 75).length
+  const passRate = completedScores.length > 0 ? Math.round((passCount / completedScores.length) * 100) : 0
+
+  // 📥 FUNGSI EXPORT DATA KE EXCEL (.XLSX)
+  const handleExportExcel = () => {
+    if (bestFilteredList.length === 0) {
+      alert('Tidak ada data siswa untuk di-export.')
+      return
+    }
+
+    const exportRows = bestFilteredList.map((item, idx) => {
+      const isPassed = item.bestScore !== null && item.bestScore >= 75
+      return {
+        No: idx + 1,
+        'Nama Lengkap': item.student.full_name,
+        Username: item.student.username,
+        Kelas: item.student.class_code || '-',
+        'Jumlah Percobaan': `${item.attemptsCount}x`,
+        'Nilai Pertama (First)': item.firstScore !== null ? item.firstScore : '-',
+        'Benar Pertama': item.firstScore !== null ? `${item.firstCorrect}/${questionsCount}` : '-',
+        'Nilai Terakhir (Last)': item.lastScore !== null ? item.lastScore : '-',
+        'Benar Terakhir': item.lastScore !== null ? `${item.lastCorrect}/${questionsCount}` : '-',
+        'Nilai Terbaik (Best)': item.bestScore !== null ? item.bestScore : '-',
+        'Benar Terbaik': item.bestScore !== null ? `${item.bestCorrect}/${questionsCount}` : '-',
+        'Status KKM (≥75)': isPassed ? 'TUNTAS' : 'BELUM TUNTAS',
+      }
+    })
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows)
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Ringkasan Nilai Siswa')
+
+    // Format Nama File Berdasarkan Kelas
+    const classNameClean = filterClass === 'ALL' ? 'Semua_Kelas' : `Kelas_${filterClass}`
+    const examTitleClean = (exam?.title || 'Ujian').replace(/[^a-zA-Z0-9]/g, '_')
+    const fileName = `Rekap_Nilai_${examTitleClean}_${classNameClean}.xlsx`
+
+    XLSX.writeFile(workbook, fileName)
+  }
 
   if (loading) {
     return (
@@ -236,15 +372,13 @@ function MonitorContent() {
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse inline-block" />
                 <span>Live Proctoring Active</span>
               </span>
-              <span className="text-xs text-slate-400">
-                Update: {lastUpdated.toLocaleTimeString()}
-              </span>
+              <span className="text-xs text-slate-400">Update: {lastUpdated.toLocaleTimeString()}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black mt-1">
               👁️ Pengawasan Ujian: {exam?.title}
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">
-              Subtes: {exam?.subtest} • Durasi Standar: {exam?.duration_minutes} Menit
+              Subtes: {exam?.subtest} • Durasi: {exam?.duration_minutes} Menit • Total Soal: {questionsCount}
             </p>
           </div>
 
@@ -268,225 +402,366 @@ function MonitorContent() {
               🔄 Refresh
             </button>
 
+            <button
+              onClick={handleExportExcel}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl border border-emerald-500 transition-colors flex items-center space-x-1 shadow-sm"
+              title="Export Hasil Ringkasan Nilai ke Excel"
+            >
+              <span>📊</span>
+              <span>Export Excel (.xlsx)</span>
+            </button>
+
             <Link
               href={`/admin/exam/${examId}/results`}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
             >
-              📊 Rekap Nilai
+              📊 Rekap Sesi
             </Link>
           </div>
         </div>
 
-        {/* 🟢 KARTU STATISTIK LIVE */}
+        {/* 🟢 KARTU STATISTIK RINGKASAN */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <span className="text-[10px] font-bold text-slate-500 uppercase block">Total Peserta Terdaftar</span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase block">Peserta Terdaftar</span>
             <span className="text-2xl font-black text-slate-800 mt-1 block">
-              {sessions.length} <span className="text-xs font-normal text-slate-400">Siswa</span>
+              {bestFilteredList.length} <span className="text-xs font-normal text-slate-400">Siswa</span>
             </span>
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm bg-emerald-50/20">
             <span className="text-[10px] font-bold text-emerald-700 uppercase block">🟢 Sedang Mengerjakan</span>
             <span className="text-2xl font-black text-emerald-600 mt-1 block">
-              {totalOngoing} <span className="text-xs font-normal text-emerald-500">Siswa</span>
+              {totalOngoing} <span className="text-xs font-normal text-emerald-500">Sesi</span>
             </span>
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-indigo-200 shadow-sm bg-indigo-50/20">
-            <span className="text-[10px] font-bold text-indigo-700 uppercase block">✅ Sudah Selesai</span>
+            <span className="text-[10px] font-bold text-indigo-700 uppercase block">🏆 Rata-Rata Terbaik</span>
             <span className="text-2xl font-black text-indigo-600 mt-1 block">
-              {totalCompleted} <span className="text-xs font-normal text-indigo-500">Siswa</span>
+              {Math.round(avgBestScore * 10) / 10} <span className="text-xs font-normal text-indigo-400">/ 100</span>
             </span>
           </div>
 
-          <div className="bg-white p-4 rounded-xl border border-purple-200 shadow-sm bg-purple-50/20">
-            <span className="text-[10px] font-bold text-purple-700 uppercase block">Rata-Rata Nilai Live</span>
-            <span className="text-2xl font-black text-purple-600 mt-1 block">
-              {Math.round(avgScore * 10) / 10} <span className="text-xs font-normal text-purple-400">/ 100</span>
+          <div className="bg-white p-4 rounded-xl border border-teal-200 shadow-sm bg-teal-50/20">
+            <span className="text-[10px] font-bold text-teal-700 uppercase block">Ketuntasan KKM (≥75)</span>
+            <span className="text-2xl font-black text-teal-600 mt-1 block">
+              {passRate}% <span className="text-xs font-normal text-teal-500">({passCount})</span>
             </span>
           </div>
         </div>
 
-        {/* FILTER BAR & SEARCH */}
-        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* SEARCH */}
-            <div className="w-full sm:w-64">
-              <input
-                type="text"
-                placeholder="🔍 Cari nama / username..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-              />
-            </div>
-
-            {/* FILTER STATUS */}
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 focus:outline-none"
+        {/* TAB MODE & FILTER BAR */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs">
+          {/* SWITCHER MODE TAMPILAN */}
+          <div className="flex p-1 bg-slate-100 rounded-xl space-x-1 font-bold">
+            <button
+              onClick={() => setViewMode('best')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                viewMode === 'best'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
             >
-              <option value="ALL">Semua Status ({sessions.length})</option>
-              <option value="ongoing">🟢 Sedang Mengerjakan ({totalOngoing})</option>
-              <option value="completed">✅ Sudah Selesai ({totalCompleted})</option>
-            </select>
+              🏆 Ringkasan Siswa & Multi-Attempt ({bestFilteredList.length})
+            </button>
+            <button
+              onClick={() => setViewMode('live')}
+              className={`px-4 py-2 rounded-lg transition-all ${
+                viewMode === 'live'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              📺 Semua Sesi Real-Time ({sessions.length})
+            </button>
+          </div>
 
-            {/* FILTER KELAS */}
-            {uniqueClasses.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* SEARCH */}
+            <input
+              type="text"
+              placeholder="🔍 Cari nama / username..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="px-3 py-1.5 border border-slate-300 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600 w-full sm:w-48"
+            />
+
+            {/* FILTER STATUS (Hanya di mode live) */}
+            {viewMode === 'live' && (
               <select
-                value={filterClass}
-                onChange={(e) => setFilterClass(e.target.value)}
-                className="px-3 py-1.5 border border-slate-300 rounded-lg font-bold text-indigo-700 bg-indigo-50/50 focus:outline-none"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-1.5 border border-slate-300 rounded-lg font-bold text-slate-700 bg-slate-50 focus:outline-none"
               >
-                <option value="ALL">Semua Kelas</option>
-                {uniqueClasses.map((c) => (
-                  <option key={c} value={c}>
-                    Kelas {c}
-                  </option>
-                ))}
+                <option value="ALL">Semua Status</option>
+                <option value="ongoing">🟢 Sedang Mengerjakan</option>
+                <option value="completed">✅ Sudah Selesai</option>
               </select>
             )}
-          </div>
 
-          <div className="text-slate-500 font-medium">
-            Menampilkan <strong className="text-slate-800">{filteredSessions.length}</strong> Sesi Ujian
+            {/* FILTER KELAS */}
+            <select
+              value={filterClass}
+              onChange={(e) => setFilterClass(e.target.value)}
+              className="px-3 py-1.5 border border-slate-300 rounded-lg font-bold text-indigo-700 bg-indigo-50 focus:outline-none"
+            >
+              <option value="ALL">Semua Kelas</option>
+              {uniqueClasses.map((c) => (
+                <option key={c} value={c}>
+                  Kelas {c}
+                </option>
+              ))}
+            </select>
+
+            {/* TOMBOL EXPORT EXCEL KHUSUS FILTER */}
+            <button
+              onClick={handleExportExcel}
+              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs transition-colors flex items-center space-x-1"
+            >
+              <span>📥 Export Excel</span>
+            </button>
           </div>
         </div>
 
-        {/* TABEL PENGAWASAN LIVE */}
+        {/* TABEL DATA: MODE 1 (BEST & MULTI-ATTEMPT) vs MODE 2 (LIVE) */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-slate-100 border-b border-slate-200 font-bold text-slate-800">
-                <tr>
-                  <th className="p-3 text-center w-10">No</th>
-                  <th className="p-3">Identitas Siswa</th>
-                  <th className="p-3 text-center">Kelas</th>
-                  <th className="p-3 text-center">Waktu Mulai</th>
-                  <th className="p-3 text-center">Status Pengerjaan</th>
-                  <th className="p-3 text-center">Sisa Waktu Live</th>
-                  <th className="p-3 text-center">Skor / Benar</th>
-                  <th className="p-3 text-center w-48">Aksi Kendali Proktor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {filteredSessions.length > 0 ? (
-                  filteredSessions.map((s, idx) => {
-                    const student = profileMap.get(s.user_id) || {
-                      full_name: 'Tamu/Siswa',
-                      username: 'guest',
-                      class_code: '-',
-                    }
-
-                    const timerInfo = calculateLiveTimer(s.start_time, exam?.duration_minutes)
-                    const isOngoing = s.status === 'ongoing'
-
-                    return (
-                      <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
-                        {/* NO */}
-                        <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
-
-                        {/* SISWA */}
-                        <td className="p-3">
-                          <span className="font-bold text-slate-800 block">{student.full_name}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">@{student.username}</span>
-                        </td>
-
-                        {/* KELAS */}
-                        <td className="p-3 text-center font-bold text-slate-700">
-                          {student.class_code || '-'}
-                        </td>
-
-                        {/* WAKTU MULAI */}
-                        <td className="p-3 text-center font-mono text-slate-600">
-                          {s.start_time ? new Date(s.start_time).toLocaleTimeString() : '-'}
-                        </td>
-
-                        {/* STATUS BADGE */}
-                        <td className="p-3 text-center">
-                          {isOngoing ? (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">
-                              🟢 Sedang Mengerjakan
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
-                              ✅ Selesai
-                            </span>
-                          )}
-                        </td>
-
-                        {/* SISA WAKTU LIVE */}
-                        <td className="p-3 text-center font-mono font-bold">
-                          {isOngoing ? (
-                            <span
-                              className={`px-2 py-1 rounded text-xs ${
-                                timerInfo.isExpired
-                                  ? 'bg-rose-100 text-rose-800 font-black animate-bounce'
-                                  : 'bg-slate-100 text-indigo-700'
-                              }`}
-                            >
-                              ⏱️ {timerInfo.displayTime}
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 text-[10px] font-normal">Pengerjaan usai</span>
-                          )}
-                        </td>
-
-                        {/* SKOR */}
-                        <td className="p-3 text-center">
-                          {s.score !== null && s.score !== undefined ? (
-                            <span className="font-black text-indigo-600 text-sm">
-                              {s.score} <span className="text-[10px] font-normal text-slate-400">({s.total_correct || 0} Benar)</span>
-                            </span>
-                          ) : (
-                            <span className="text-slate-400 italic text-[10px]">Belum Submit</span>
-                          )}
-                        </td>
-
-                        {/* AKSI PROKTOR */}
-                        <td className="p-3 text-center space-x-1">
-                          {isOngoing ? (
-                            <>
-                              <button
-                                onClick={() => handleForceSubmit(s)}
-                                className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-[10px] transition-colors"
-                                title="Paksa Selesai & Simpan Nilai"
-                              >
-                                🛑 Force Submit
-                              </button>
-                              <button
-                                onClick={() => handleExtendTime(s)}
-                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded text-[10px] transition-colors"
-                                title="Tambah Waktu +10 Menit"
-                              >
-                                ⏱️ +10M
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              onClick={() => handleResetSession(s)}
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold rounded text-[10px] transition-colors"
-                              title="Reset Sesi agar Siswa Dapat Ulang"
-                            >
-                              🔄 Reset Sesi
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })
-                ) : (
+          {viewMode === 'best' ? (
+            /* TABEL MODE 1: RINGKASAN MULTI-ATTEMPT (FIRST, LAST, & BEST SCORE) */
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 border-b border-slate-200 font-bold text-slate-800">
                   <tr>
-                    <td colSpan={8} className="p-8 text-center text-slate-400 italic">
-                      Belum ada siswa yang sedang/telah mengerjakan ujian ini.
-                    </td>
+                    <th className="p-3 text-center w-12">No</th>
+                    <th className="p-3">Identitas Siswa</th>
+                    <th className="p-3 text-center">Kelas</th>
+                    <th className="p-3 text-center">Percobaan</th>
+                    <th className="p-3 text-center bg-amber-50/50">1st Attempt (Pertama)</th>
+                    <th className="p-3 text-center bg-sky-50/50">Last Attempt (Terakhir)</th>
+                    <th className="p-3 text-center bg-indigo-50/50">Best Score (Terbaik)</th>
+                    <th className="p-3 text-center">Status KKM (≥75)</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {bestFilteredList.length > 0 ? (
+                    bestFilteredList.map((item, idx) => {
+                      const isPassed = item.bestScore !== null && item.bestScore >= 75
+
+                      return (
+                        <tr key={item.userId} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3 text-center font-bold text-slate-700">{idx + 1}</td>
+
+                          {/* IDENTITAS */}
+                          <td className="p-3">
+                            <span className="font-bold text-slate-800 block">{item.student.full_name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">@{item.student.username}</span>
+                          </td>
+
+                          {/* KELAS */}
+                          <td className="p-3 text-center font-bold text-slate-700">
+                            {item.student.class_code || '-'}
+                          </td>
+
+                          {/* PERCOBAAN */}
+                          <td className="p-3 text-center font-bold">
+                            <span className="px-2.5 py-0.5 bg-slate-100 border border-slate-300 text-slate-700 rounded-full text-[10px]">
+                              {item.attemptsCount}x
+                            </span>
+                          </td>
+
+                          {/* FIRST ATTEMPT */}
+                          <td className="p-3 text-center font-mono bg-amber-50/30">
+                            {item.firstScore !== null ? (
+                              <span className="font-bold text-amber-900">
+                                {item.firstScore}{' '}
+                                <span className="text-[10px] font-normal text-amber-700">
+                                  ({item.firstCorrect} Benar)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-[10px]">-</span>
+                            )}
+                          </td>
+
+                          {/* LAST ATTEMPT */}
+                          <td className="p-3 text-center font-mono bg-sky-50/30">
+                            {item.lastScore !== null ? (
+                              <span className="font-bold text-sky-900">
+                                {item.lastScore}{' '}
+                                <span className="text-[10px] font-normal text-sky-700">
+                                  ({item.lastCorrect} Benar)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-[10px]">-</span>
+                            )}
+                          </td>
+
+                          {/* BEST SCORE */}
+                          <td className="p-3 text-center font-mono bg-indigo-50/30">
+                            {item.bestScore !== null ? (
+                              <span className="font-black text-indigo-700 text-sm">
+                                {item.bestScore}{' '}
+                                <span className="text-[11px] font-bold text-emerald-600">
+                                  ({item.bestCorrect} Benar)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-[10px]">Belum Ada</span>
+                            )}
+                          </td>
+
+                          {/* STATUS KKM */}
+                          <td className="p-3 text-center">
+                            {item.bestScore !== null ? (
+                              isPassed ? (
+                                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold border border-emerald-300 rounded-full text-[10px]">
+                                  ✓ Tuntas
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-0.5 bg-rose-100 text-rose-800 font-bold border border-rose-300 rounded-full text-[10px]">
+                                  ✗ Belum Tuntas
+                                </span>
+                              )
+                            ) : (
+                              <span className="text-slate-400">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400 italic">
+                        Belum ada data pengerjaan siswa.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* TABEL MODE 2: LIVE PROCTORING SESSIONS */
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 border-b border-slate-200 font-bold text-slate-800">
+                  <tr>
+                    <th className="p-3 text-center w-10">No</th>
+                    <th className="p-3">Identitas Siswa</th>
+                    <th className="p-3 text-center">Kelas</th>
+                    <th className="p-3 text-center">Waktu Mulai</th>
+                    <th className="p-3 text-center">Status Pengerjaan</th>
+                    <th className="p-3 text-center">Sisa Waktu Live</th>
+                    <th className="p-3 text-center">Skor / Benar</th>
+                    <th className="p-3 text-center w-48">Aksi Kendali Proktor</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {filteredSessions.length > 0 ? (
+                    filteredSessions.map((s, idx) => {
+                      const student = profileMap.get(s.user_id) || {
+                        full_name: 'Tamu/Siswa',
+                        username: 'guest',
+                        class_code: '-',
+                      }
+
+                      const timerInfo = calculateLiveTimer(s.start_time, exam?.duration_minutes)
+                      const isOngoing = s.status === 'ongoing'
+                      const correctCount = getDisplayCorrect(s)
+
+                      return (
+                        <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
+                          <td className="p-3">
+                            <span className="font-bold text-slate-800 block">{student.full_name}</span>
+                            <span className="text-[10px] text-slate-400 font-mono">@{student.username}</span>
+                          </td>
+                          <td className="p-3 text-center font-bold text-slate-700">
+                            {student.class_code || '-'}
+                          </td>
+                          <td className="p-3 text-center font-mono text-slate-600">
+                            {s.start_time ? new Date(s.start_time).toLocaleTimeString() : '-'}
+                          </td>
+                          <td className="p-3 text-center">
+                            {isOngoing ? (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse">
+                                🟢 Sedang Mengerjakan
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
+                                ✅ Selesai
+                              </span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center font-mono font-bold">
+                            {isOngoing ? (
+                              <span
+                                className={`px-2 py-1 rounded text-xs ${
+                                  timerInfo.isExpired
+                                    ? 'bg-rose-100 text-rose-800 font-black animate-bounce'
+                                    : 'bg-slate-100 text-indigo-700'
+                                }`}
+                              >
+                                ⏱️ {timerInfo.displayTime}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[10px] font-normal">Pengerjaan usai</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center font-mono">
+                            {s.score !== null && s.score !== undefined ? (
+                              <span className="font-black text-indigo-600 text-sm">
+                                {s.score}{' '}
+                                <span className="text-[11px] font-bold text-emerald-600">
+                                  ({correctCount} Benar)
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-[10px]">Belum Submit</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center space-x-1">
+                            {isOngoing ? (
+                              <>
+                                <button
+                                  onClick={() => handleForceSubmit(s)}
+                                  className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-[10px] transition-colors"
+                                  title="Paksa Selesai & Simpan Nilai"
+                                >
+                                  🛑 Force Submit
+                                </button>
+                                <button
+                                  onClick={() => handleExtendTime(s)}
+                                  className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded text-[10px] transition-colors"
+                                  title="Tambah Waktu +10 Menit"
+                                >
+                                  ⏱️ +10M
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => handleResetSession(s)}
+                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold rounded text-[10px] transition-colors"
+                                title="Reset Sesi agar Siswa Dapat Ulang"
+                              >
+                                🔄 Reset Sesi
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-slate-400 italic">
+                        Belum ada sesi ujian yang terdeteksi.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </main>
     </div>
