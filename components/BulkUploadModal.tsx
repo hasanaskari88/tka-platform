@@ -24,12 +24,15 @@ export default function BulkUploadModal({
 
   if (!isOpen) return null
 
-  // 1. Unduh Template Excel (.xlsx)
+  // 1. Unduh Template Excel (.xlsx) dengan Gambar, Indikator KD, dan Level HOTS/MOTS/LOTS
   const handleDownloadExcelTemplate = () => {
     const sampleData = [
       {
         question_type: 'multiple_choice',
         question_text: 'Berapakah hasil dari $2^3 \\times 2^2$?',
+        image_url: 'https://via.placeholder.com/300x150.png?text=Soal+Eksponen',
+        indicator: '3.1 Menganalisis sifat-sifat eksponen',
+        cognitive_level: 'MOTS',
         max_score: 1,
         option_A: '16',
         option_B: '32',
@@ -45,6 +48,9 @@ export default function BulkUploadModal({
       {
         question_type: 'complex_multiple_choice',
         question_text: 'Manakah di antara bilangan berikut yang merupakan bilangan prima?',
+        image_url: '',
+        indicator: '3.2 Mengidentifikasi jenis bilangan bulat',
+        cognitive_level: 'HOTS',
         max_score: 2,
         option_A: '2',
         option_B: '4',
@@ -60,6 +66,9 @@ export default function BulkUploadModal({
       {
         question_type: 'true_false_matrix',
         question_text: 'Tentukan kebenaran dari pernyataan trigonometri berikut:',
+        image_url: '',
+        indicator: '3.3 Memahami fungsi trigonometri sudut istimewa',
+        cognitive_level: 'MOTS',
         max_score: 2,
         option_A: '',
         option_B: '',
@@ -75,6 +84,9 @@ export default function BulkUploadModal({
       {
         question_type: 'essay',
         question_text: 'Jelaskan mengapa fotosintesis sangat penting bagi keberlangsungan ekosistem di bumi!',
+        image_url: '',
+        indicator: '3.4 Menganalisis interaksi makhluk hidup dan lingkungan',
+        cognitive_level: 'HOTS',
         max_score: 5,
         option_A: '',
         option_B: '',
@@ -94,19 +106,22 @@ export default function BulkUploadModal({
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Soal TKA')
 
     worksheet['!cols'] = [
-      { wch: 22 },
-      { wch: 45 },
-      { wch: 10 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 12 },
-      { wch: 14 },
-      { wch: 35 },
-      { wch: 15 },
-      { wch: 35 },
-      { wch: 15 },
-      { wch: 45 },
+      { wch: 22 }, // question_type
+      { wch: 45 }, // question_text
+      { wch: 30 }, // image_url
+      { wch: 35 }, // indicator (KD)
+      { wch: 15 }, // cognitive_level
+      { wch: 10 }, // max_score
+      { wch: 12 }, // option_A
+      { wch: 12 }, // option_B
+      { wch: 12 }, // option_C
+      { wch: 12 }, // option_D
+      { wch: 14 }, // correct_option
+      { wch: 35 }, // statement_1
+      { wch: 15 }, // statement_1_key
+      { wch: 35 }, // statement_2
+      { wch: 15 }, // statement_2_key
+      { wch: 45 }, // explanation
     ]
 
     XLSX.writeFile(workbook, 'Template_Import_Soal_Lengkap_TKA.xlsx')
@@ -188,52 +203,64 @@ ANSWER: A
       {
         question_type: 'multiple_choice',
         question_text: 'Berapakah hasil dari $2^3 \\times 2^2$?',
+        image_url: 'https://via.placeholder.com/300x150.png',
+        indicator: '3.1 Menganalisis sifat eksponen',
+        cognitive_level: 'MOTS',
         max_score: 1,
         explanation: 'Sifat eksponen: $a^m \\times a^n = a^{m+n}$, maka $2^{3+2} = 2^5 = 32$.',
         options: [
           { key: 'A', text: '16', image_url: '' },
           { key: 'B', text: '32', image_url: '' },
           { key: 'C', text: '64', image_url: '' },
-          { key: 'D', text: '128', image_url: '' }
+          { key: 'D', text: '128', image_url: '' },
         ],
         correct_option: 'B',
-        correct_answers: ['B']
+        correct_answers: ['B'],
       },
       {
         question_type: 'complex_multiple_choice',
         question_text: 'Manakah di antara bilangan berikut yang merupakan bilangan prima?',
+        image_url: '',
+        indicator: '3.2 Mengidentifikasi jenis bilangan prima',
+        cognitive_level: 'HOTS',
         max_score: 2,
         explanation: '2 dan 7 adalah bilangan prima karena hanya bisa dibagi 1 dan dirinya sendiri.',
         options: [
           { key: 'A', text: '2', image_url: '' },
           { key: 'B', text: '4', image_url: '' },
           { key: 'C', text: '7', image_url: '' },
-          { key: 'D', text: '9', image_url: '' }
+          { key: 'D', text: '9', image_url: '' },
         ],
         correct_option: 'A,C',
-        correct_answers: ['A', 'C']
+        correct_answers: ['A', 'C'],
       },
       {
         question_type: 'true_false_matrix',
         question_text: 'Tentukan kebenaran dari pernyataan trigonometri berikut:',
+        image_url: '',
+        indicator: '3.3 Nilai sudut trigonometri',
+        cognitive_level: 'MOTS',
         max_score: 2,
         explanation: '$\\sin 90^\\circ = 1$ (Benar) dan $\\cos 0^\\circ = 1$ (Pernyataan senilai 0 adalah Salah).',
         options: [
           { id: '1', text: 'Nilai dari $\\sin 90^\\circ$ adalah 1', image_url: '', correct_val: 'Benar' },
-          { id: '2', text: 'Nilai dari $\\cos 0^\\circ$ adalah 0', image_url: '', correct_val: 'Salah' }
+          { id: '2', text: 'Nilai dari $\\cos 0^\\circ$ adalah 0', image_url: '', correct_val: 'Salah' },
         ],
         correct_option: 'MATRIX',
-        correct_answers: { '1': 'Benar', '2': 'Salah' }
+        correct_answers: { '1': 'Benar', '2': 'Salah' },
       },
       {
         question_type: 'essay',
         question_text: 'Jelaskan mengapa fotosintesis sangat penting bagi keberlangsungan ekosistem di bumi!',
+        image_url: '',
+        indicator: '3.4 Memahami dampak fotosintesis',
+        cognitive_level: 'HOTS',
         max_score: 5,
         explanation: 'Rubrik: Penghasil O2 (2 Poin), Penyerap CO2 (2 Poin), Produsen Rantai Makanan (1 Poin)',
         options: [],
         correct_option: 'ESSAY',
-        correct_answers: null
-      }
+        correct_answers: null,
+      },
     ]
     const blob = new Blob([JSON.stringify(sampleJSON, null, 2)], { type: 'application/json;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -268,6 +295,9 @@ ANSWER: A
           questions.push({
             question_type: 'multiple_choice',
             question_text: currentQText.join(' '),
+            image_url: null,
+            indicator: null,
+            cognitive_level: 'MOTS',
             max_score: 1,
             explanation: null,
             options: currentOptions,
@@ -315,6 +345,9 @@ ANSWER: A
           questions.push({
             question_type: 'essay',
             question_text: qText,
+            image_url: null,
+            indicator: null,
+            cognitive_level: 'HOTS',
             max_score: maxScore,
             explanation: explanation,
             options: [],
@@ -346,6 +379,9 @@ ANSWER: A
         questions.push({
           question_type: isComplex ? 'complex_multiple_choice' : 'multiple_choice',
           question_text: qText,
+          image_url: null,
+          indicator: null,
+          cognitive_level: 'MOTS',
           max_score: maxScore,
           explanation: explanation,
           options: options,
@@ -359,7 +395,7 @@ ANSWER: A
   }
 
   // -------------------------------------------------------------
-  // PEMBACAAN FILE UTAMA
+  // PEMBACAAN FILE UTAMA (EXCEL, TXT, XML, JSON)
   // -------------------------------------------------------------
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setErrorMsg(null)
@@ -430,6 +466,12 @@ ANSWER: A
               throw new Error(`Baris ke-${idx + 2} tidak memiliki teks soal (question_text).`)
             }
 
+            const imageUrl = row.image_url ? String(row.image_url).trim() : null
+            const indicatorVal = row.indicator ? String(row.indicator).trim() : null
+            const cogLevelVal = row.cognitive_level
+              ? String(row.cognitive_level).trim().toUpperCase()
+              : 'MOTS'
+
             const isEssay = rawType.includes('essay') || rawType.includes('uraian') || rawType.includes('esai')
             const isMatrix = rawType.includes('matrix') || rawType.includes('matriks') || rawType.includes('true_false')
 
@@ -437,6 +479,9 @@ ANSWER: A
               return {
                 question_type: 'essay',
                 question_text: String(row.question_text),
+                image_url: imageUrl,
+                indicator: indicatorVal,
+                cognitive_level: cogLevelVal,
                 max_score: Number(row.max_score) || 5,
                 explanation: row.explanation ? String(row.explanation) : null,
                 options: [],
@@ -455,7 +500,8 @@ ANSWER: A
                   statements.push({ id: stId, text: String(stText), image_url: '' })
 
                   const sKey = String(rawKey).trim().toLowerCase()
-                  const normKey = (sKey === 'salah' || sKey === 'false' || sKey === '0' || sKey === 's') ? 'Salah' : 'Benar'
+                  const normKey =
+                    sKey === 'salah' || sKey === 'false' || sKey === '0' || sKey === 's' ? 'Salah' : 'Benar'
                   answerObj[stId] = normKey
                 }
               }
@@ -475,6 +521,9 @@ ANSWER: A
               return {
                 question_type: 'true_false_matrix',
                 question_text: String(row.question_text),
+                image_url: imageUrl,
+                indicator: indicatorVal,
+                cognitive_level: cogLevelVal,
                 max_score: Number(row.max_score) || 1,
                 explanation: row.explanation ? String(row.explanation) : null,
                 options: statements,
@@ -518,6 +567,9 @@ ANSWER: A
               return {
                 question_type: isComplex ? 'complex_multiple_choice' : 'multiple_choice',
                 question_text: String(row.question_text),
+                image_url: imageUrl,
+                indicator: indicatorVal,
+                cognitive_level: cogLevelVal,
                 max_score: Number(row.max_score) || 1,
                 explanation: row.explanation ? String(row.explanation) : null,
                 options: options,
@@ -582,6 +634,8 @@ ANSWER: A
         question_type: qType,
         question_text: q.question_text || '',
         image_url: q.image_url || null,
+        indicator: q.indicator || null,
+        cognitive_level: q.cognitive_level || 'MOTS',
         max_score: Number(q.max_score) || 1,
         explanation: q.explanation || null,
         options: q.options || [],
