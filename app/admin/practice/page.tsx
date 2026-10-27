@@ -41,18 +41,74 @@ function AdminPracticeContent() {
     fetchExams()
   }, [])
 
-  // 🟢 2. HANDLER AUTO GENERATOR SOAL OTOMATIS
+  // 🟢 2. HANDLER AUTO GENERATOR SOAL OTOMATIS (DENGAN RESET SOAL LAMA)
   const handleAutoGenerateQuestions = async (exam: any) => {
+    const actType = exam.activity_type || 'QUIZ'
     const confirmGen = confirm(
-      `Apakah Anda ingin membuat 5 soal/konten otomatis untuk "${exam.title}" (${exam.activity_type || 'QUIZ'})?`
+      `Generate ulang konten untuk "${exam.title}" (${actType})?\n\n⚠️ Catatan: Soal lama pada modul ini akan dihapus & diganti dengan template baru!`
     )
     if (!confirmGen) return
 
     const supabase = createClient()
+
+    // A. HAPUS SOAL LAMA PADA EXAM INI TERLEBIH DAHULU (RESET)
+    const { error: deleteErr } = await supabase
+      .from('questions')
+      .delete()
+      .eq('exam_id', exam.id)
+
+    if (deleteErr) {
+      console.log('Catatan hapus soal lama:', deleteErr.message)
+    }
+
+    // B. BUAT TEMPLATE KONTEN SESUAI activity_type YANG AKTIF
     let generatedQuestions: any[] = []
 
-    if (exam.activity_type === 'QUIZ' || !exam.activity_type) {
-      // Template Soal Matematika / TKA Pilihan Ganda
+    if (actType === 'MAZE_GAME') {
+      // Template Game Labirin Coding Logika
+      generatedQuestions = [
+        {
+          exam_id: exam.id,
+          question_text: 'Tantangan Labirin Coding: Instruksikan robot ke koordinat Bintang (3, 3)!',
+          options: [],
+          correct_option: 'FORWARD',
+          explanation: 'Gunakan kombinasi perintah Maju, Belok Kiri, dan Belok Kanan untuk mencapai Bintang.',
+        },
+      ]
+    } else if (actType === 'FLASHCARD') {
+      // Template Kartu Memori Rumus
+      generatedQuestions = [
+        {
+          exam_id: exam.id,
+          question_text: 'Berapakah Rumus Luas Lingkaran?',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Luas Lingkaran: $L = \\pi \\times r^2$ (dengan $\\pi = \\frac{22}{7}$ atau $3.14$).',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Berapakah Rumus Keliling Persegi Panjang?',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Keliling Persegi Panjang: $K = 2 \\times (p + l)$.',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Sebutkan Rumus Teorema Pythagoras!',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Pythagoras: $c^2 = a^2 + b^2$ (dengan $c$ sebagai sisi miring/hipotenusa).',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Berapakah Rumus Volume Kubus?',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Volume Kubus: $V = s^3 = s \\times s \\times s$.',
+        },
+      ]
+    } else {
+      // Template Kuis Soal Pilihan Ganda (QUIZ)
       generatedQuestions = [
         {
           exam_id: exam.id,
@@ -115,51 +171,16 @@ function AdminPracticeContent() {
           explanation: 'Disamakan penyebutnya: $\\frac{3}{4} + \\frac{2}{4} = \\frac{5}{4} = 1\\frac{1}{4}$.',
         },
       ]
-    } else if (exam.activity_type === 'FLASHCARD') {
-      // Template Kartu Memori Rumus KaTeX
-      generatedQuestions = [
-        {
-          exam_id: exam.id,
-          question_text: 'Apa rumus Luas Lingkaran?',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Luas Lingkaran: $L = \\pi \\times r^2$ (dengan $\\pi = \\frac{22}{7}$ atau $3.14$).',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Apa rumus Keliling Persegi Panjang?',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Keliling Persegi Panjang: $K = 2 \\times (p + l)$.',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Bagaimana rumus Teorema Pythagoras untuk segitiga siku-siku?',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Pythagoras: $c^2 = a^2 + b^2$, di mana $c$ adalah sisi miring (hipotenusa).',
-        },
-      ]
-    } else if (exam.activity_type === 'MAZE_GAME') {
-      // Template Misi Game Labirin Coding
-      generatedQuestions = [
-        {
-          exam_id: exam.id,
-          question_text: 'Bantu Robot Maskot mencapai Bintang di titik (3, 3) pada Papan Grid!',
-          options: [],
-          correct_option: 'FORWARD',
-          explanation: 'Susunan langkah: Maju 3x, Belok Kanan, Maju 3x.',
-        },
-      ]
     }
 
-    const { error } = await supabase.from('questions').insert(generatedQuestions)
+    // C. INSERT KONTEN BARU KE DATABASE
+    const { error: insertErr } = await supabase.from('questions').insert(generatedQuestions)
 
-    if (error) {
-      alert(`Gagal generate soal: ${error.message}`)
+    if (insertErr) {
+      alert(`Gagal generate soal: ${insertErr.message}`)
     } else {
       alert(
-        `🎉 Berhasil membuat ${generatedQuestions.length} soal/konten otomatis! Silakan buka kembali halaman latihan.`
+        `🎉 Berhasil membuat ${generatedQuestions.length} konten otomatis untuk mode ${actType}! Silakan uji coba kembali.`
       )
       fetchExams()
     }
@@ -391,7 +412,7 @@ function AdminPracticeContent() {
                       <button
                         onClick={() => handleAutoGenerateQuestions(exam)}
                         className="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center space-x-1"
-                        title="Buat 5 soal otomatis ke database"
+                        title="Reset & Buat soal otomatis ke database"
                       >
                         <span>⚡ Auto Generate</span>
                       </button>
