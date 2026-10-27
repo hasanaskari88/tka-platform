@@ -6,6 +6,10 @@ import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 
+// 🟢 Import Engine Game Edukatif (Opsional untuk Mode Kegiatan Lain)
+import MazeGameEngine from '@/components/games/MazeGameEngine'
+import FlashcardEngine from '@/components/games/FlashcardEngine'
+
 function PracticeContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -172,6 +176,16 @@ function PracticeContent() {
     )
   }
 
+  // 🟢 PENGALIH GAME EDUKATIF BERDASARKAN activity_type
+  if (exam?.activity_type === 'MAZE_GAME') {
+    return <MazeGameEngine exam={exam} questions={questions} />
+  }
+
+  if (exam?.activity_type === 'FLASHCARD') {
+    return <FlashcardEngine exam={exam} questions={questions} />
+  }
+
+  // 🟢 TAMPILAN QUIZ STANDAR (KODE UTAMA ANDA)
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
       {/* HEADER LATIHAN MANDIRI */}

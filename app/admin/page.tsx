@@ -731,6 +731,13 @@ function AdminDashboardContent() {
                       >
                         👁️ Pengawasan Live
                       </Link>
+                      {/* TOMBOL NAVIGASI PENGATURAN MODE LATIHAN & GAME */}
+                      <Link
+                        href="/admin/practice"
+                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2"
+                      >
+                        <span>🎮 Kelola Mode Latihan & Game Edukatif →</span>
+                      </Link>
                       <Link
                         href={`/admin/exam/${exam.id}`}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
