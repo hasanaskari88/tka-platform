@@ -22,7 +22,12 @@ function AdminPracticeContent() {
     is_published: true,
   })
 
-  // 🟢 1. FETCH SEMUA PAKET UJIAN / LATIHAN
+  // State Modal Import Bulk
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
+  const [activeExamForBulk, setActiveExamForBulk] = useState<any>(null)
+  const [bulkInputText, setBulkInputText] = useState('')
+
+  // 🟢 1. FETCH SEMUA PAKET LATIHAN / GAME
   const fetchExams = async () => {
     setLoading(true)
     const supabase = createClient()
@@ -41,152 +46,362 @@ function AdminPracticeContent() {
     fetchExams()
   }, [])
 
-  // 🟢 2. HANDLER AUTO GENERATOR SOAL OTOMATIS (DENGAN RESET SOAL LAMA)
+  // 🟢 2. HANDLER AUTO GENERATOR DINAMIS (MEMBANGKITKAN SOAL VARIASI SD SESUAI SUBTES - APPEND)
   const handleAutoGenerateQuestions = async (exam: any) => {
     const actType = exam.activity_type || 'QUIZ'
+    const subtestName = exam.subtest || 'Matematika'
+
     const confirmGen = confirm(
-      `Generate ulang konten untuk "${exam.title}" (${actType})?\n\n⚠️ Catatan: Soal lama pada modul ini akan dihapus & diganti dengan template baru!`
+      `Tambahkan soal otomatis dinamis ke "${exam.title}"?\n\n` +
+      `Subtes Baku: ${subtestName}\n` +
+      `Bentuk Kegiatan: ${actType}\n` +
+      `Tingkat: Sekolah Dasar (SD)\n\n` +
+      `➕ Catatan: Soal variasi baru akan DITAMBAHKAN di bagian bawah (tanpa menghapus soal lama).`
     )
     if (!confirmGen) return
 
     const supabase = createClient()
-
-    // A. HAPUS SOAL LAMA PADA EXAM INI TERLEBIH DAHULU (RESET)
-    const { error: deleteErr } = await supabase
-      .from('questions')
-      .delete()
-      .eq('exam_id', exam.id)
-
-    if (deleteErr) {
-      console.log('Catatan hapus soal lama:', deleteErr.message)
-    }
-
-    // B. BUAT TEMPLATE KONTEN SESUAI activity_type YANG AKTIF
     let generatedQuestions: any[] = []
 
-    if (actType === 'MAZE_GAME') {
-      // Template Game Labirin Coding Logika
+    if (actType === 'QUIZ') {
+      const lowerSub = subtestName.toLowerCase()
+
+      // A. MATEMATIKA / NUMERASI
+      if (lowerSub.includes('matematika') || lowerSub.includes('hitung') || lowerSub.includes('numerasi')) {
+        const n1 = Math.floor(Math.random() * 20) + 10
+        const n2 = Math.floor(Math.random() * 8) + 2
+        const n3 = Math.floor(Math.random() * 40) + 10
+        const ans = n1 * n2 + n3
+        const side = Math.floor(Math.random() * 10) + 4
+        const keliling = 4 * side
+
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: `Berapakah hasil dari $${n1} \\times ${n2} + ${n3}$?`,
+            options: [
+              { key: 'A', text: `${ans - 10}` },
+              { key: 'B', text: `${ans}` },
+              { key: 'C', text: `${ans + 10}` },
+              { key: 'D', text: `${ans + 15}` },
+            ],
+            correct_option: 'B',
+            question_type: 'multiple_choice',
+            explanation: `Perkalian didahulukan: $${n1} \\times ${n2} = ${n1 * n2}$, lalu ditambahkan $${n3} = ${ans}$.`,
+          },
+          {
+            exam_id: exam.id,
+            question_text: `Sebuah persegi memiliki panjang sisi $${side}\\text{ cm}$. Berapakah kelilingnya?`,
+            options: [
+              { key: 'A', text: `$${side * 2}\\text{ cm}$` },
+              { key: 'B', text: `$${side * 3}\\text{ cm}$` },
+              { key: 'C', text: `$${keliling}\\text{ cm}$` },
+              { key: 'D', text: `$${side * side}\\text{ cm}$` },
+            ],
+            correct_option: 'C',
+            question_type: 'multiple_choice',
+            explanation: `Keliling persegi = $4 \\times \\text{sisi} = 4 \\times ${side} = ${keliling}\\text{ cm}$.`,
+          },
+        ]
+      }
+      // B. IPAS / IPA / IPS
+      else if (lowerSub.includes('ipas') || lowerSub.includes('ipa') || lowerSub.includes('sains')) {
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: 'Organ pernapasan utama pada manusia yang berfungsi menyerap oksigen adalah...',
+            options: [
+              { key: 'A', text: 'Jantung' },
+              { key: 'B', text: 'Paru-paru' },
+              { key: 'C', text: 'Lambung' },
+              { key: 'D', text: 'Hati' },
+            ],
+            correct_option: 'B',
+            question_type: 'multiple_choice',
+            explanation: 'Paru-paru adalah organ utama pernapasan manusia.',
+          },
+          {
+            exam_id: exam.id,
+            question_text: 'Tumbuhan hijau memasak makanannya sendiri dengan sinar matahari melalui proses...',
+            options: [
+              { key: 'A', text: 'Fotosintesis' },
+              { key: 'B', text: 'Respirasi' },
+              { key: 'C', text: 'Adaptasi' },
+              { key: 'D', text: 'Metamorfosis' },
+            ],
+            correct_option: 'A',
+            question_type: 'multiple_choice',
+            explanation: 'Fotosintesis adalah proses pembuatan makanan oleh tumbuhan hijau.',
+          },
+        ]
+      }
+      // C. BAHASA INDONESIA / LITERASI
+      else if (lowerSub.includes('bahasa') || lowerSub.includes('indo') || lowerSub.includes('literasi')) {
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: 'Gagasan utama yang menjadi inti pembahasan dalam sebuah paragraf disebut...',
+            options: [
+              { key: 'A', text: 'Ide pokok' },
+              { key: 'B', text: 'Kalimat penjelas' },
+              { key: 'C', text: 'Kesimpulan' },
+              { key: 'D', text: 'Judul' },
+            ],
+            correct_option: 'A',
+            question_type: 'multiple_choice',
+            explanation: 'Ide pokok adalah pikiran utama dalam sebuah paragraf.',
+          },
+        ]
+      }
+      // D. PANCASILA / PKN
+      else if (lowerSub.includes('pancasila') || lowerSub.includes('pkn')) {
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: 'Lambang Sila Pertama Pancasila "Ketuhanan Yang Maha Esa" adalah...',
+            options: [
+              { key: 'A', text: 'Rantai Emas' },
+              { key: 'B', text: 'Bintang Emas' },
+              { key: 'C', text: 'Pohon Beringin' },
+              { key: 'D', text: 'Kepala Banteng' },
+            ],
+            correct_option: 'B',
+            question_type: 'multiple_choice',
+            explanation: 'Sila ke-1 dilambangkan dengan Bintang Emas.',
+          },
+        ]
+      }
+      // E. PENALARAN LOGIS / CODING
+      else if (lowerSub.includes('logis') || lowerSub.includes('logika') || lowerSub.includes('coding')) {
+        const step = Math.floor(Math.random() * 3) + 2
+        const start = 3
+        const ans = start + step * 3
+
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: `Perhatikan deret pola berikut: $${start}, ${start + step}, ${start + step * 2}, ...$ Berapakah angka berikutnya?`,
+            options: [
+              { key: 'A', text: `${ans - 1}` },
+              { key: 'B', text: `${ans}` },
+              { key: 'C', text: `${ans + 2}` },
+              { key: 'D', text: `${ans + 5}` },
+            ],
+            correct_option: 'B',
+            question_type: 'multiple_choice',
+            explanation: `Pola bertambah $+${step}$ secara konsisten.`,
+          },
+        ]
+      }
+      // F. SENI & OLAHRAGA
+      else {
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: 'Tiga warna dasar/primer dalam seni rupa adalah...',
+            options: [
+              { key: 'A', text: 'Hijau, Oranye, Ungu' },
+              { key: 'B', text: 'Merah, Kuning, Biru' },
+              { key: 'C', text: 'Hitam, Putih, Cokelat' },
+              { key: 'D', text: 'Merah, Hijau, Kuning' },
+            ],
+            correct_option: 'B',
+            question_type: 'multiple_choice',
+            explanation: 'Warna primer terdiri dari Merah, Kuning, dan Biru.',
+          },
+        ]
+      }
+    } else if (actType === 'FLASHCARD') {
       generatedQuestions = [
         {
           exam_id: exam.id,
-          question_text: 'Tantangan Labirin Coding: Instruksikan robot ke koordinat Bintang (3, 3)!',
+          question_text: `Kartu Memori Subtes ${subtestName}`,
+          options: [],
+          correct_option: 'A',
+          explanation: `Ringkasan konsep/rumus penting untuk ${subtestName}.`,
+        },
+      ]
+    } else if (actType === 'MAZE_GAME') {
+      const tx = Math.floor(Math.random() * 4)
+      const ty = Math.floor(Math.random() * 4)
+      generatedQuestions = [
+        {
+          exam_id: exam.id,
+          question_text: `Misi Coding Maze SD: Bantu Robot mencapai Bintang di titik (${tx}, ${ty})!`,
           options: [],
           correct_option: 'FORWARD',
-          explanation: 'Gunakan kombinasi perintah Maju, Belok Kiri, dan Belok Kanan untuk mencapai Bintang.',
-        },
-      ]
-    } else if (actType === 'FLASHCARD') {
-      // Template Kartu Memori Rumus
-      generatedQuestions = [
-        {
-          exam_id: exam.id,
-          question_text: 'Berapakah Rumus Luas Lingkaran?',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Luas Lingkaran: $L = \\pi \\times r^2$ (dengan $\\pi = \\frac{22}{7}$ atau $3.14$).',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Berapakah Rumus Keliling Persegi Panjang?',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Keliling Persegi Panjang: $K = 2 \\times (p + l)$.',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Sebutkan Rumus Teorema Pythagoras!',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Pythagoras: $c^2 = a^2 + b^2$ (dengan $c$ sebagai sisi miring/hipotenusa).',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Berapakah Rumus Volume Kubus?',
-          options: [],
-          correct_option: 'A',
-          explanation: 'Rumus Volume Kubus: $V = s^3 = s \\times s \\times s$.',
-        },
-      ]
-    } else {
-      // Template Kuis Soal Pilihan Ganda (QUIZ)
-      generatedQuestions = [
-        {
-          exam_id: exam.id,
-          question_text: 'Berapakah hasil perpangkatan dari $2^3 \\times 2^2$?',
-          options: [
-            { key: 'A', text: '16' },
-            { key: 'B', text: '32' },
-            { key: 'C', text: '64' },
-            { key: 'D', text: '128' },
-          ],
-          correct_option: 'B',
-          explanation: 'Sifat eksponen: $a^m \\times a^n = a^{m+n}$, maka $2^{3+2} = 2^5 = 32$.',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Jika $x + 5 = 12$, berapakah nilai dari $2x - 3$?',
-          options: [
-            { key: 'A', text: '11' },
-            { key: 'B', text: '14' },
-            { key: 'C', text: '17' },
-            { key: 'D', text: '21' },
-          ],
-          correct_option: 'A',
-          explanation: '$x = 12 - 5 = 7$. Maka $2(7) - 3 = 14 - 3 = 11$.',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Sebuah persegi memiliki panjang sisi $8\\text{ cm}$. Berapakah luas persegi tersebut?',
-          options: [
-            { key: 'A', text: '$32\\text{ cm}^2$' },
-            { key: 'B', text: '$48\\text{ cm}^2$' },
-            { key: 'C', text: '$64\\text{ cm}^2$' },
-            { key: 'D', text: '$81\\text{ cm}^2$' },
-          ],
-          correct_option: 'C',
-          explanation: 'Luas persegi = $\\text{sisi} \\times \\text{sisi} = 8 \\times 8 = 64\\text{ cm}^2$.',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Berapakah kelipatan persekutuan terkecil (KPK) dari bilangan 6 dan 8?',
-          options: [
-            { key: 'A', text: '12' },
-            { key: 'B', text: '18' },
-            { key: 'C', text: '24' },
-            { key: 'D', text: '48' },
-          ],
-          correct_option: 'C',
-          explanation: 'Kelipatan 6: 6, 12, 18, 24... Kelipatan 8: 8, 16, 24... KPK = 24.',
-        },
-        {
-          exam_id: exam.id,
-          question_text: 'Hasil dari penjumlahan pecahan $\\frac{3}{4} + \\frac{1}{2}$ adalah...',
-          options: [
-            { key: 'A', text: '$\\frac{4}{6}$' },
-            { key: 'B', text: '$\\frac{5}{4}$' },
-            { key: 'C', text: '$\\frac{3}{8}$' },
-            { key: 'D', text: '$\\frac{7}{4}$' },
-          ],
-          correct_option: 'B',
-          explanation: 'Disamakan penyebutnya: $\\frac{3}{4} + \\frac{2}{4} = \\frac{5}{4} = 1\\frac{1}{4}$.',
+          target_x: tx,
+          target_y: ty,
+          explanation: 'Gunakan perintah Maju dan Belok.',
         },
       ]
     }
 
-    // C. INSERT KONTEN BARU KE DATABASE
     const { error: insertErr } = await supabase.from('questions').insert(generatedQuestions)
 
     if (insertErr) {
-      alert(`Gagal generate soal: ${insertErr.message}`)
+      alert(`Gagal generate: ${insertErr.message}`)
     } else {
-      alert(
-        `🎉 Berhasil membuat ${generatedQuestions.length} konten otomatis untuk mode ${actType}! Silakan uji coba kembali.`
-      )
+      alert(`🎉 Berhasil menambahkan ${generatedQuestions.length} soal variasi baru (${subtestName})!`)
       fetchExams()
     }
   }
 
-  // 🟢 3. HANDLER BUKA MODAL (EDIT ATAU TAMBAH BARU)
+  // 🟢 3. HANDLER IMPORT PG STANDAR DARI BANK SOAL LAIN
+  const handleImportFromBankSoal = async (exam: any) => {
+    const subtestName = exam.subtest || 'Matematika'
+    const confirmImport = confirm(
+      `Impor soal PG Standar (A-D) yang sesuai dengan subtes "${subtestName}" dari Bank Soal lain?\n\n` +
+      `➕ Catatan: Soal impor akan DITAMBAHKAN di bagian bawah (tanpa menghapus soal lama).`
+    )
+    if (!confirmImport) return
+
+    const supabase = createClient()
+    const { data: allQuestions, error } = await supabase
+      .from('questions')
+      .select('*, exams(subtest, title)')
+      .neq('exam_id', exam.id)
+      .limit(150)
+
+    if (error || !allQuestions || allQuestions.length === 0) {
+      alert('Belum ada soal PG dari modul lain di Bank Soal Supabase.')
+      return
+    }
+
+    const currentSubtest = subtestName.trim().toLowerCase()
+
+    let candidateQuestions = allQuestions.filter((q) => {
+      const hasOptions = Array.isArray(q.options) && q.options.length === 4
+      const correctOpt = String(q.correct_option || q.correct_answer || '').trim().toUpperCase()
+      // Filter khusus soal yang bisa dinilai otomatis (PG Standar A-D)
+      const isAutoScorable = q.question_type ? q.question_type !== 'essay' : true
+      return hasOptions && ['A', 'B', 'C', 'D'].includes(correctOpt) && isAutoScorable
+    })
+
+    if (candidateQuestions.length === 0) {
+      alert('Tidak ditemukan soal PG Standar A-D yang dinilai otomatis dari modul lain.')
+      return
+    }
+
+    const matchedBySubtest = candidateQuestions.filter((q) => {
+      const parentSubtest = (q.exams?.subtest || '').trim().toLowerCase()
+      return parentSubtest && (parentSubtest.includes(currentSubtest) || currentSubtest.includes(parentSubtest))
+    })
+
+    const pool = matchedBySubtest.length > 0 ? matchedBySubtest : candidateQuestions
+    const shuffled = [...pool].sort(() => 0.5 - Math.random())
+    const selected = shuffled.slice(0, 5)
+
+    const questionsToInsert = selected.map((q) => ({
+      exam_id: exam.id,
+      question_text: q.question_text,
+      options: q.options,
+      correct_option: String(q.correct_option || q.correct_answer || 'A').trim().toUpperCase(),
+      question_type: q.question_type || 'multiple_choice',
+      explanation: q.explanation || q.pembahasan || '',
+      image_url: q.image_url || null,
+    }))
+
+    const { error: insertErr } = await supabase.from('questions').insert(questionsToInsert)
+
+    if (insertErr) {
+      alert(`Gagal impor: ${insertErr.message}`)
+    } else {
+      alert(`✅ Berhasil mengimpor ${questionsToInsert.length} soal PG Standar (${subtestName})!`)
+      fetchExams()
+    }
+  }
+
+  // 🟢 4. HANDLER BUKA MODAL BULK IMPORT KARTU
+  const handleOpenBulkModalCard = (exam: any) => {
+    setActiveExamForBulk(exam)
+    const actType = exam.activity_type || 'QUIZ'
+
+    let sample = []
+    if (actType === 'QUIZ') {
+      sample = [
+        {
+          question_text: 'Berapakah hasil dari $12 \\times 4 + 10$?',
+          options: [{ key: 'A', text: '48' }, { key: 'B', text: '58' }, { key: 'C', text: '68' }, { key: 'D', text: '78' }],
+          correct_option: 'B',
+          question_type: 'multiple_choice',
+          explanation: 'Perkalian didahulukan: $12 \\times 4 = 48 + 10 = 58$.',
+        },
+      ]
+    } else if (actType === 'FLASHCARD') {
+      sample = [
+        {
+          question_text: 'Rumus Luas Persegi Panjang',
+          explanation: '$L = p \\times l$.',
+        },
+      ]
+    } else {
+      sample = [
+        {
+          question_text: 'Bantu Robot ke Bintang di titik (3, 3)',
+          target_x: 3,
+          target_y: 3,
+          explanation: 'Gunakan perintah Maju 3x.',
+        },
+      ]
+    }
+
+    setBulkInputText(JSON.stringify(sample, null, 2))
+    setIsBulkModalOpen(true)
+  }
+
+  const handleProcessBulkImportCard = async () => {
+    if (!bulkInputText.trim() || !activeExamForBulk) return
+
+    try {
+      const parsedData = JSON.parse(bulkInputText)
+      if (!Array.isArray(parsedData) || parsedData.length === 0) {
+        alert('Format JSON harus berupa Array daftar [...]!')
+        return
+      }
+
+      const actType = activeExamForBulk.activity_type || 'QUIZ'
+      const questionsToInsert = parsedData.map((item: any, idx: number) => {
+        let payload: any = {
+          exam_id: activeExamForBulk.id,
+          question_text: item.question_text || `Item #${idx + 1}`,
+          explanation: item.explanation || item.pembahasan || '',
+          image_url: item.image_url || null,
+        }
+
+        if (actType === 'QUIZ') {
+          payload.options = Array.isArray(item.options) ? item.options : []
+          payload.correct_option = String(item.correct_option || item.correct_answer || 'A').toUpperCase()
+          payload.question_type = item.question_type || 'multiple_choice'
+        } else if (actType === 'MAZE_GAME') {
+          payload.options = []
+          payload.correct_option = 'FORWARD'
+          payload.target_x = Number(item.target_x ?? 3)
+          payload.target_y = Number(item.target_y ?? 3)
+        } else if (actType === 'FLASHCARD') {
+          payload.options = []
+          payload.correct_option = 'A'
+        }
+
+        return payload
+      })
+
+      const supabase = createClient()
+      const { error } = await supabase.from('questions').insert(questionsToInsert)
+
+      if (error) {
+        alert(`Gagal Impor Bulk: ${error.message}`)
+      } else {
+        alert(`🎉 Berhasil mengimpor ${questionsToInsert.length} item baru sekaligus ke "${activeExamForBulk.title}"!`)
+        setIsBulkModalOpen(false)
+        fetchExams()
+      }
+    } catch (err: any) {
+      alert(`⚠️ Format JSON tidak valid! Error: ${err.message}`)
+    }
+  }
+
+  // 🟢 5. HANDLER EDIT / TAMBAH KEGIATAN
   const handleOpenModal = (exam?: any) => {
     if (exam) {
       setSelectedExam(exam)
@@ -212,7 +427,6 @@ function AdminPracticeContent() {
     setIsModalOpen(true)
   }
 
-  // 🟢 4. HANDLER SIMPAN PAKET LATIHAN / GAME
   const handleSaveExam = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title.trim()) {
@@ -265,7 +479,26 @@ function AdminPracticeContent() {
     }
   }
 
-  // 🟢 5. HANDLER TOGGLE PUBLISH
+  // 🟢 6. HANDLER HAPUS AKTIVITAS / EXAM PERMANEN
+  const handleDeleteExam = async (exam: any) => {
+    const confirmDelete = confirm(
+      `Apakah Anda yakin ingin menghapus modul "${exam.title}"?\n\n` +
+      `⚠️ PERINGATAN: Seluruh soal dan data pengerjaan yang terkait dengan modul kegiatan ini akan dihapus secara permanen!`
+    )
+    if (!confirmDelete) return
+
+    const supabase = createClient()
+    const { error } = await supabase.from('exams').delete().eq('id', exam.id)
+
+    if (error) {
+      alert(`Gagal menghapus kegiatan: ${error.message}`)
+    } else {
+      alert(`🗑️ Modul "${exam.title}" berhasil dihapus!`)
+      setExams((prev) => prev.filter((item) => item.id !== exam.id))
+    }
+  }
+
+  // 🟢 7. HANDLER TOGGLE PUBLISH
   const handleTogglePublish = async (exam: any) => {
     const supabase = createClient()
     const newStatus = !exam.is_published
@@ -282,7 +515,7 @@ function AdminPracticeContent() {
     }
   }
 
-  // 🟢 6. FILTER DATA SEMENTARA
+  // 🟢 8. FILTER DATA SEMENTARA
   const filteredExams = exams.filter((exam) => {
     const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === 'ALL' || (exam.activity_type || 'QUIZ') === filterType
@@ -398,6 +631,9 @@ function AdminPracticeContent() {
                       <span className={`px-2 py-0.5 rounded-md border ${targetBadge.bg}`}>
                         {targetBadge.label}
                       </span>
+                      <span className="px-2 py-0.5 rounded-md border bg-slate-800 text-amber-300 border-slate-700">
+                        {exam.subtest || 'Matematika'}
+                      </span>
                     </div>
 
                     <h3 className="text-base font-bold text-white leading-snug">{exam.title}</h3>
@@ -406,43 +642,72 @@ function AdminPracticeContent() {
                     </p>
                   </div>
 
-                  {/* TOMBOL AKSI MANAJEMEN SOAL & AUTO GENERATOR */}
+                  {/* TOMBOL AKSI LENGKAP PADA KARTU */}
                   <div className="space-y-2 pt-3 border-t border-slate-800">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-4 gap-1">
                       <button
                         onClick={() => handleAutoGenerateQuestions(exam)}
-                        className="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center space-x-1"
-                        title="Reset & Buat soal otomatis ke database"
+                        className="py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
+                        title="Tambah soal otomatis SD dinamis"
                       >
-                        <span>⚡ Auto Generate</span>
+                        ⚡ Auto
+                      </button>
+
+                      <button
+                        onClick={() => handleImportFromBankSoal(exam)}
+                        className="py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
+                        title="Import PG Standar dari modul lain"
+                      >
+                        📥 Import
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenBulkModalCard(exam)}
+                        className="py-1.5 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
+                        title="Import Bulk JSON"
+                      >
+                        📦 Bulk
                       </button>
 
                       <Link
                         href={`/admin/exams/${exam.id}/questions`}
-                        className="w-full py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center space-x-1"
+                        className="py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
+                        title="Buka Bank Soal / Edit Soal"
                       >
-                        <span>✏️ Bank Soal</span>
+                        ✏️ Soal
                       </Link>
                     </div>
 
-                    <div className="flex items-center justify-between pt-1">
+                    {/* BARIS STATUS, PENGATURAN, & HAPUS */}
+                    <div className="flex items-center justify-between gap-1 pt-1">
                       <button
                         onClick={() => handleTogglePublish(exam)}
-                        className={`px-3 py-1 rounded-xl text-xs font-bold border transition-colors ${
+                        className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-colors ${
                           exam.is_published
                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
                             : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
                         }`}
                       >
-                        {exam.is_published ? '🟢 Dipublikasi' : '🔴 Diberhentikan'}
+                        {exam.is_published ? '🟢 Publik' : '🔴 Draft'}
                       </button>
 
-                      <button
-                        onClick={() => handleOpenModal(exam)}
-                        className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
-                      >
-                        ⚙️ Pengaturan
-                      </button>
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => handleOpenModal(exam)}
+                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-bold rounded-xl border border-slate-700 transition-colors"
+                          title="Edit Pengaturan Modul"
+                        >
+                          ⚙️ Edit
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteExam(exam)}
+                          className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-[11px] font-bold rounded-xl border border-rose-500/40 transition-colors"
+                          title="Hapus Modul Kegiatan Ini"
+                        >
+                          🗑️ Hapus
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -465,10 +730,7 @@ function AdminPracticeContent() {
                 <span>⚙️</span>
                 <span>{selectedExam ? 'Edit Pengaturan Kegiatan' : 'Tambah Kegiatan / Game Baru'}</span>
               </h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white font-bold text-sm"
-              >
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white font-bold text-sm">
                 ✕
               </button>
             </div>
@@ -500,6 +762,24 @@ function AdminPracticeContent() {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Kategori / Subtes Baku (Sekolah Dasar)
+                </label>
+                <select
+                  value={formData.subtest}
+                  onChange={(e) => setFormData({ ...formData, subtest: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500 font-semibold"
+                >
+                  <option value="Matematika">📐 Matematika (Numerasi & Hitung SD)</option>
+                  <option value="IPAS">🌿 IPAS (IPA & IPS Terpadu SD)</option>
+                  <option value="Bahasa Indonesia">📖 Bahasa Indonesia (Literasi & Membaca SD)</option>
+                  <option value="Pancasila">🇮🇩 Pancasila (Pendidikan Pancasila / PKn SD)</option>
+                  <option value="Penalaran Logis">🧩 Penalaran Logis (Logika & Coding SD)</option>
+                  <option value="Seni & Olahraga">🎨 Seni & Olahraga (Seni Budaya & PJOK SD)</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Target Halaman Tampil (Visibilitas)</label>
                 <select
                   value={formData.target_mode}
@@ -510,17 +790,6 @@ function AdminPracticeContent() {
                   <option value="CBT_ONLY">📝 Khusus Halaman Ujian CBT Resmi (/)</option>
                   <option value="BOTH">🌐 Tampil di Kedua Halaman (Beranda & Latihan)</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Kategori / Subtes</label>
-                <input
-                  type="text"
-                  value={formData.subtest}
-                  onChange={(e) => setFormData({ ...formData, subtest: e.target.value })}
-                  placeholder="Matematika, Penalaran Logis, dll."
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
-                />
               </div>
 
               <div>
@@ -563,6 +832,50 @@ function AdminPracticeContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL BULK IMPORT KARTU */}
+      {isBulkModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-950 border border-slate-800 max-w-2xl w-full rounded-3xl p-6 space-y-4 text-white shadow-2xl animate-fadeIn max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-3">
+              <h2 className="text-sm font-bold flex items-center space-x-2">
+                <span>📦</span>
+                <span>Import Bulk ke Modul: {activeExamForBulk?.title}</span>
+              </h2>
+              <button onClick={() => setIsBulkModalOpen(false)} className="text-slate-400 hover:text-white font-bold text-sm">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <textarea
+                rows={10}
+                value={bulkInputText}
+                onChange={(e) => setBulkInputText(e.target.value)}
+                className="w-full p-3 bg-slate-900 border border-slate-700 rounded-2xl text-xs font-mono text-emerald-300 focus:outline-none focus:border-purple-500 leading-relaxed"
+                placeholder="Paste kode JSON array di sini..."
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsBulkModalOpen(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleProcessBulkImportCard}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-xl shadow-md transition-all"
+              >
+                🚀 Proses Import Bulk
+              </button>
+            </div>
           </div>
         </div>
       )}
