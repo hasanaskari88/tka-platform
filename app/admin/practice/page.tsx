@@ -41,7 +41,131 @@ function AdminPracticeContent() {
     fetchExams()
   }, [])
 
-  // 🟢 2. HANDLER BUKA MODAL (EDIT ATAU TAMBAH BARU)
+  // 🟢 2. HANDLER AUTO GENERATOR SOAL OTOMATIS
+  const handleAutoGenerateQuestions = async (exam: any) => {
+    const confirmGen = confirm(
+      `Apakah Anda ingin membuat 5 soal/konten otomatis untuk "${exam.title}" (${exam.activity_type || 'QUIZ'})?`
+    )
+    if (!confirmGen) return
+
+    const supabase = createClient()
+    let generatedQuestions: any[] = []
+
+    if (exam.activity_type === 'QUIZ' || !exam.activity_type) {
+      // Template Soal Matematika / TKA Pilihan Ganda
+      generatedQuestions = [
+        {
+          exam_id: exam.id,
+          question_text: 'Berapakah hasil perpangkatan dari $2^3 \\times 2^2$?',
+          options: [
+            { key: 'A', text: '16' },
+            { key: 'B', text: '32' },
+            { key: 'C', text: '64' },
+            { key: 'D', text: '128' },
+          ],
+          correct_option: 'B',
+          explanation: 'Sifat eksponen: $a^m \\times a^n = a^{m+n}$, maka $2^{3+2} = 2^5 = 32$.',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Jika $x + 5 = 12$, berapakah nilai dari $2x - 3$?',
+          options: [
+            { key: 'A', text: '11' },
+            { key: 'B', text: '14' },
+            { key: 'C', text: '17' },
+            { key: 'D', text: '21' },
+          ],
+          correct_option: 'A',
+          explanation: '$x = 12 - 5 = 7$. Maka $2(7) - 3 = 14 - 3 = 11$.',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Sebuah persegi memiliki panjang sisi $8\\text{ cm}$. Berapakah luas persegi tersebut?',
+          options: [
+            { key: 'A', text: '$32\\text{ cm}^2$' },
+            { key: 'B', text: '$48\\text{ cm}^2$' },
+            { key: 'C', text: '$64\\text{ cm}^2$' },
+            { key: 'D', text: '$81\\text{ cm}^2$' },
+          ],
+          correct_option: 'C',
+          explanation: 'Luas persegi = $\\text{sisi} \\times \\text{sisi} = 8 \\times 8 = 64\\text{ cm}^2$.',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Berapakah kelipatan persekutuan terkecil (KPK) dari bilangan 6 dan 8?',
+          options: [
+            { key: 'A', text: '12' },
+            { key: 'B', text: '18' },
+            { key: 'C', text: '24' },
+            { key: 'D', text: '48' },
+          ],
+          correct_option: 'C',
+          explanation: 'Kelipatan 6: 6, 12, 18, 24... Kelipatan 8: 8, 16, 24... KPK = 24.',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Hasil dari penjumlahan pecahan $\\frac{3}{4} + \\frac{1}{2}$ adalah...',
+          options: [
+            { key: 'A', text: '$\\frac{4}{6}$' },
+            { key: 'B', text: '$\\frac{5}{4}$' },
+            { key: 'C', text: '$\\frac{3}{8}$' },
+            { key: 'D', text: '$\\frac{7}{4}$' },
+          ],
+          correct_option: 'B',
+          explanation: 'Disamakan penyebutnya: $\\frac{3}{4} + \\frac{2}{4} = \\frac{5}{4} = 1\\frac{1}{4}$.',
+        },
+      ]
+    } else if (exam.activity_type === 'FLASHCARD') {
+      // Template Kartu Memori Rumus KaTeX
+      generatedQuestions = [
+        {
+          exam_id: exam.id,
+          question_text: 'Apa rumus Luas Lingkaran?',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Luas Lingkaran: $L = \\pi \\times r^2$ (dengan $\\pi = \\frac{22}{7}$ atau $3.14$).',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Apa rumus Keliling Persegi Panjang?',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Keliling Persegi Panjang: $K = 2 \\times (p + l)$.',
+        },
+        {
+          exam_id: exam.id,
+          question_text: 'Bagaimana rumus Teorema Pythagoras untuk segitiga siku-siku?',
+          options: [],
+          correct_option: 'A',
+          explanation: 'Rumus Pythagoras: $c^2 = a^2 + b^2$, di mana $c$ adalah sisi miring (hipotenusa).',
+        },
+      ]
+    } else if (exam.activity_type === 'MAZE_GAME') {
+      // Template Misi Game Labirin Coding
+      generatedQuestions = [
+        {
+          exam_id: exam.id,
+          question_text: 'Bantu Robot Maskot mencapai Bintang di titik (3, 3) pada Papan Grid!',
+          options: [],
+          correct_option: 'FORWARD',
+          explanation: 'Susunan langkah: Maju 3x, Belok Kanan, Maju 3x.',
+        },
+      ]
+    }
+
+    const { error } = await supabase.from('questions').insert(generatedQuestions)
+
+    if (error) {
+      alert(`Gagal generate soal: ${error.message}`)
+    } else {
+      alert(
+        `🎉 Berhasil membuat ${generatedQuestions.length} soal/konten otomatis! Silakan buka kembali halaman latihan.`
+      )
+      fetchExams()
+    }
+  }
+
+  // 🟢 3. HANDLER BUKA MODAL (EDIT ATAU TAMBAH BARU)
   const handleOpenModal = (exam?: any) => {
     if (exam) {
       setSelectedExam(exam)
@@ -67,7 +191,7 @@ function AdminPracticeContent() {
     setIsModalOpen(true)
   }
 
-  // 🟢 3. HANDLER SIMPAN PAKET LATIHAN / GAME
+  // 🟢 4. HANDLER SIMPAN PAKET LATIHAN / GAME
   const handleSaveExam = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.title.trim()) {
@@ -78,7 +202,6 @@ function AdminPracticeContent() {
     const supabase = createClient()
 
     if (selectedExam) {
-      // Update data yang ada
       const { error } = await supabase
         .from('exams')
         .update({
@@ -99,7 +222,6 @@ function AdminPracticeContent() {
         fetchExams()
       }
     } else {
-      // Tambah kegiatan latihan baru
       const { error } = await supabase.from('exams').insert([
         {
           title: formData.title,
@@ -108,7 +230,7 @@ function AdminPracticeContent() {
           target_mode: formData.target_mode,
           activity_type: formData.activity_type,
           is_published: formData.is_published,
-          duration_minutes: 30, // Default duration untuk latihan
+          duration_minutes: 30,
         },
       ])
 
@@ -122,7 +244,7 @@ function AdminPracticeContent() {
     }
   }
 
-  // 🟢 4. HANDLER TOGGLE PUBLISH SEKETIKA
+  // 🟢 5. HANDLER TOGGLE PUBLISH
   const handleTogglePublish = async (exam: any) => {
     const supabase = createClient()
     const newStatus = !exam.is_published
@@ -139,7 +261,7 @@ function AdminPracticeContent() {
     }
   }
 
-  // 🟢 5. FILTER DATA SEMENTARA
+  // 🟢 6. FILTER DATA SEMENTARA
   const filteredExams = exams.filter((exam) => {
     const matchesSearch = exam.title.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesType = filterType === 'ALL' || (exam.activity_type || 'QUIZ') === filterType
@@ -147,7 +269,7 @@ function AdminPracticeContent() {
   })
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white font-sans">
+    <div className="min-h-screen bg-slate-900 text-white font-sans select-none">
       {/* HEADER PANEL ADMIN */}
       <header className="bg-slate-950 border-b border-slate-800 px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
         <div className="flex items-center space-x-3">
@@ -155,7 +277,7 @@ function AdminPracticeContent() {
             href="/admin"
             className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
           >
-            ← Kemball ke Admin Dashboard
+            ← Kembali ke Admin Dashboard
           </Link>
           <div>
             <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded font-extrabold border border-indigo-500/30 uppercase">
@@ -176,7 +298,6 @@ function AdminPracticeContent() {
       <main className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {/* BARIS KONTROL: SEARCH & TAB FILTER GAME TYPE */}
         <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-          {/* SEARCH INPUT */}
           <input
             type="text"
             placeholder="🔍 Cari nama kegiatan atau modul..."
@@ -185,7 +306,6 @@ function AdminPracticeContent() {
             className="w-full sm:w-72 px-3.5 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
           />
 
-          {/* TAB FILTER TIPE KEGIATAN */}
           <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs font-bold w-full sm:w-auto overflow-x-auto">
             <button
               onClick={() => setFilterType('ALL')}
@@ -230,7 +350,6 @@ function AdminPracticeContent() {
         ) : filteredExams.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredExams.map((exam) => {
-              // Badge Activity Type
               let actBadge = { label: '📝 Quiz Pilihan Ganda', bg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' }
               if (exam.activity_type === 'MAZE_GAME') {
                 actBadge = { label: '🌀 Coding Maze Logika', bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' }
@@ -238,7 +357,6 @@ function AdminPracticeContent() {
                 actBadge = { label: '🃏 Flashcard Rumus', bg: 'bg-amber-500/20 text-amber-300 border-amber-500/40' }
               }
 
-              // Badge Target Mode
               let targetBadge = { label: '🎯 Khusus Latihan', bg: 'bg-purple-500/20 text-purple-300 border-purple-500/40' }
               if (exam.target_mode === 'CBT_ONLY') {
                 targetBadge = { label: '📝 Khusus Ujian CBT', bg: 'bg-rose-500/20 text-rose-300 border-rose-500/40' }
@@ -252,7 +370,6 @@ function AdminPracticeContent() {
                   className="bg-slate-950 p-5 rounded-2xl border border-slate-800 flex flex-col justify-between space-y-4 shadow-md hover:border-slate-700 transition-all"
                 >
                   <div className="space-y-3">
-                    {/* BADGES METADATA */}
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
                       <span className={`px-2 py-0.5 rounded-md border ${actBadge.bg}`}>
                         {actBadge.label}
@@ -268,20 +385,37 @@ function AdminPracticeContent() {
                     </p>
                   </div>
 
-                  {/* TOMBOL KONTROL EDIT & PUBLISH */}
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
-                    <button
-                      onClick={() => handleTogglePublish(exam)}
-                      className={`px-3 py-1 rounded-xl text-xs font-bold border transition-colors ${
-                        exam.is_published
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
-                          : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
-                      }`}
-                    >
-                      {exam.is_published ? '🟢 Dipublikasi' : '🔴 Diberhentikan'}
-                    </button>
+                  {/* TOMBOL AKSI MANAJEMEN SOAL & AUTO GENERATOR */}
+                  <div className="space-y-2 pt-3 border-t border-slate-800">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleAutoGenerateQuestions(exam)}
+                        className="w-full py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center space-x-1"
+                        title="Buat 5 soal otomatis ke database"
+                      >
+                        <span>⚡ Auto Generate</span>
+                      </button>
 
-                    <div className="flex items-center space-x-2">
+                      <Link
+                        href={`/admin/exams/${exam.id}/questions`}
+                        className="w-full py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center space-x-1"
+                      >
+                        <span>✏️ Bank Soal</span>
+                      </Link>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <button
+                        onClick={() => handleTogglePublish(exam)}
+                        className={`px-3 py-1 rounded-xl text-xs font-bold border transition-colors ${
+                          exam.is_published
+                            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border-rose-500/30 hover:bg-rose-500/20'
+                        }`}
+                      >
+                        {exam.is_published ? '🟢 Dipublikasi' : '🔴 Diberhentikan'}
+                      </button>
+
                       <button
                         onClick={() => handleOpenModal(exam)}
                         className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
@@ -301,7 +435,7 @@ function AdminPracticeContent() {
         )}
       </main>
 
-      {/* 🟢 MODUL PENGATURAN KEGIATAN & VISIBILITAS */}
+      {/* MODAL EDIT & TAMBAH KEGIATAN */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-950 border border-slate-800 max-w-lg w-full rounded-3xl p-6 space-y-5 text-white shadow-2xl animate-fadeIn">
@@ -319,7 +453,6 @@ function AdminPracticeContent() {
             </div>
 
             <form onSubmit={handleSaveExam} className="space-y-4">
-              {/* JUDUL */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Judul Kegiatan / Game</label>
                 <input
@@ -332,7 +465,6 @@ function AdminPracticeContent() {
                 />
               </div>
 
-              {/* TIPE KEGIATAN / GAME TYPE */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Bentuk Kegiatan / Game Edukatif</label>
                 <select
@@ -346,7 +478,6 @@ function AdminPracticeContent() {
                 </select>
               </div>
 
-              {/* VISIBILITAS SELEKSI HALAMAN */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Target Halaman Tampil (Visibilitas)</label>
                 <select
@@ -360,7 +491,6 @@ function AdminPracticeContent() {
                 </select>
               </div>
 
-              {/* SUBTEST */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Kategori / Subtes</label>
                 <input
@@ -372,7 +502,6 @@ function AdminPracticeContent() {
                 />
               </div>
 
-              {/* DESKRIPSI */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">Deskripsi Singkat</label>
                 <textarea
@@ -384,7 +513,6 @@ function AdminPracticeContent() {
                 />
               </div>
 
-              {/* TOGGLE PUBLISH */}
               <div className="flex items-center space-x-2 pt-1">
                 <input
                   type="checkbox"
@@ -398,7 +526,6 @@ function AdminPracticeContent() {
                 </label>
               </div>
 
-              {/* FOOTER ACTION */}
               <div className="flex justify-end space-x-3 pt-3 border-t border-slate-800">
                 <button
                   type="button"
