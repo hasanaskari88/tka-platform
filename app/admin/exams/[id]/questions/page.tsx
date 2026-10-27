@@ -68,24 +68,21 @@ function BankSoalContent() {
     fetchExamAndQuestions()
   }, [examId])
 
-  // 🟢 2. HANDLER AUTO GENERATOR SOAL SD SESUAI MATERI & SUBTES
+  // 🟢 2. HANDLER AUTO GENERATOR (MENAMBAHKAN SOAL BARU DI BAWAH TANPA MENGHAPUS SOAL LAMA)
   const handleAutoGenerateQuestions = async () => {
     const actType = exam?.activity_type || 'QUIZ'
     const subtestName = exam?.subtest || 'Matematika'
 
     const confirmGen = confirm(
-      `Generate konten otomatis untuk "${exam.title}"?\n\n` +
-      `Materi/Subtes: ${subtestName}\n` +
+      `Tambahkan soal otomatis ke "${exam.title}"?\n\n` +
+      `Subtes/Materi: ${subtestName}\n` +
       `Bentuk Kegiatan: ${actType}\n` +
       `Tingkat: Sekolah Dasar (SD)\n\n` +
-      `⚠️ Catatan: Soal lama pada modul ini akan dihapus & diganti soal Pilihan Ganda Standar baru!`
+      `➕ Catatan: Soal baru akan DITAMBAHKAN di bawah soal yang sudah ada (tidak menghapus soal lama).`
     )
     if (!confirmGen) return
 
     const supabase = createClient()
-
-    // A. Reset / Hapus Soal Lama
-    await supabase.from('questions').delete().eq('exam_id', examId)
 
     let generatedQuestions: any[] = []
 
@@ -93,7 +90,6 @@ function BankSoalContent() {
       const lowerSub = subtestName.toLowerCase()
 
       if (lowerSub.includes('ipas') || lowerSub.includes('ipa') || lowerSub.includes('sains')) {
-        // Template Soal IPAS SD
         generatedQuestions = [
           {
             exam_id: examId,
@@ -133,7 +129,6 @@ function BankSoalContent() {
           },
         ]
       } else if (lowerSub.includes('bahasa') || lowerSub.includes('indo')) {
-        // Template Soal Bahasa Indonesia SD
         generatedQuestions = [
           {
             exam_id: examId,
@@ -161,7 +156,7 @@ function BankSoalContent() {
           },
         ]
       } else {
-        // Template Soal Matematika SD (Default)
+        // Default Matematika SD
         generatedQuestions = [
           {
             exam_id: examId,
@@ -251,32 +246,35 @@ function BankSoalContent() {
       ]
     }
 
+    // Insert tanpa menghapus (ditambahkan di bawah)
     const { error: insertErr } = await supabase.from('questions').insert(generatedQuestions)
 
     if (insertErr) {
       alert(`Gagal generate: ${insertErr.message}`)
     } else {
-      alert(`🎉 Berhasil memuat ${generatedQuestions.length} soal/konten Pilihan Ganda Standar tingkat SD!`)
+      alert(`🎉 Berhasil menambahkan ${generatedQuestions.length} soal baru di bagian bawah!`)
       fetchExamAndQuestions()
     }
   }
 
-  // 🟢 3. HANDLER IMPORT KHUSUS SOAL PILIHAN GANDA STANDAR DARI BANK SOAL
+  // 🟢 3. HANDLER IMPORT KHUSUS SOAL PG STANDAR SESUAI SUBTES (APPEND TANPA HAPUS)
   const handleImportFromBankSoal = async () => {
+    const subtestName = exam?.subtest || 'Umum'
     const confirmImport = confirm(
-      'Impor soal pilihan ganda standar (A-D tunggal) dari Bank Soal lain ke modul ini?'
+      `Impor soal Pilihan Ganda Standar (A-D tunggal) yang sesuai dengan Subtes "${subtestName}"?\n\n` +
+      `➕ Catatan: Soal hasil impor akan DITAMBAHKAN di bawah soal yang sudah ada.`
     )
     if (!confirmImport) return
 
     setLoading(true)
     const supabase = createClient()
 
-    // Ambil semua soal yang ada di tabel questions kecuali modul ini
+    // Ambil soal beserta data subtes dari tabel exams terkait
     const { data: allQuestions, error } = await supabase
       .from('questions')
-      .select('*')
+      .select('*, exams(subtest, title)')
       .neq('exam_id', examId)
-      .limit(30)
+      .limit(100)
 
     if (error || !allQuestions || allQuestions.length === 0) {
       alert('Tidak ditemukan soal lain di Bank Soal.')
@@ -284,22 +282,32 @@ function BankSoalContent() {
       return
     }
 
-    // Filter KETAT: Hanya ambil soal yang berformat Pilihan Ganda Standar (4 opsi A-D, bukan kompleks)
-    const validSingleChoiceQuestions = allQuestions.filter((q) => {
+    const currentSubtest = (subtestName || '').trim().toLowerCase()
+
+    // Filter 1: Format PG Standar (4 opsi A-D & Kunci Tunggal)
+    let candidateQuestions = allQuestions.filter((q) => {
       const hasOptions = Array.isArray(q.options) && q.options.length === 4
       const correctOpt = String(q.correct_option || q.correct_answer || '').trim().toUpperCase()
       const isSingleCorrect = ['A', 'B', 'C', 'D'].includes(correctOpt)
       return hasOptions && isSingleCorrect
     })
 
-    if (validSingleChoiceQuestions.length === 0) {
-      alert('Tidak ada soal berformat Pilihan Ganda Standar (Tunggal A-D) yang ditemukan.')
+    if (candidateQuestions.length === 0) {
+      alert('Tidak ada soal PG Standar yang ditemukan di Bank Soal lain.')
       setLoading(false)
       return
     }
 
-    // Ambil maksimal 5 soal pilihan ganda yang cocok
-    const questionsToInsert = validSingleChoiceQuestions.slice(0, 5).map((q) => ({
+    // Filter 2: Prioritaskan soal yang cocok dengan Subtes modul ini
+    const matchedBySubtest = candidateQuestions.filter((q) => {
+      const parentSubtest = (q.exams?.subtest || '').trim().toLowerCase()
+      return parentSubtest && (parentSubtest.includes(currentSubtest) || currentSubtest.includes(parentSubtest))
+    })
+
+    // Jika ada yang persis cocok subtesnya gunakan itu, jika tidak ada gunakan kandidat PG standar yang ada
+    const finalSelected = (matchedBySubtest.length > 0 ? matchedBySubtest : candidateQuestions).slice(0, 5)
+
+    const questionsToInsert = finalSelected.map((q) => ({
       exam_id: examId,
       question_text: q.question_text,
       options: q.options,
@@ -308,12 +316,13 @@ function BankSoalContent() {
       image_url: q.image_url || null,
     }))
 
+    // Insert tanpa menghapus (ditambahkan di bawah)
     const { error: insertErr } = await supabase.from('questions').insert(questionsToInsert)
 
     if (insertErr) {
       alert(`Gagal impor: ${insertErr.message}`)
     } else {
-      alert(`✅ Berhasil mengimpor ${questionsToInsert.length} soal Pilihan Ganda Standar dari Bank Soal!`)
+      alert(`✅ Berhasil menambahkan ${questionsToInsert.length} soal PG Standar (Subtes: ${subtestName}) di bagian bawah!`)
       fetchExamAndQuestions()
     }
     setLoading(false)
@@ -483,7 +492,7 @@ function BankSoalContent() {
           <button
             onClick={handleAutoGenerateQuestions}
             className="px-3.5 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold rounded-xl shadow-md transition-all flex items-center space-x-1"
-            title="Generate Soal SD Sesuai Subtes"
+            title="Tambah Soal SD Sesuai Subtes di Bagian Bawah"
           >
             <span>⚡ Auto Generate SD</span>
           </button>
@@ -492,7 +501,7 @@ function BankSoalContent() {
             <button
               onClick={handleImportFromBankSoal}
               className="px-3.5 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold rounded-xl shadow-md transition-all flex items-center space-x-1"
-              title="Import Soal PG Standar A-D saja"
+              title="Import Soal PG Standar Sesuai Subtes ke Bagian Bawah"
             >
               <span>📥 Import PG Standar</span>
             </button>
