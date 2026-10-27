@@ -418,7 +418,7 @@ function AdminPracticeContent() {
                       </button>
 
                       <Link
-                        href={`/admin/exam/${exam.id}/questions`}
+                        href={`/admin/exams/${exam.id}/questions`}
                         className="w-full py-1.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 text-[11px] font-bold rounded-xl transition-all flex items-center justify-center space-x-1"
                       >
                         <span>✏️ Bank Soal</span>
