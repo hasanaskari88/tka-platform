@@ -44,6 +44,9 @@ function AdminPracticeContent() {
     'Bantu robot mencapai bintang tanpa menabrak rintangan!'
   )
   const [mazeSaving, setMazeSaving] = useState(false)
+  const [mazeMissions, setMazeMissions] = useState<any[]>([])
+  const [mazeMissionsLoading, setMazeMissionsLoading] = useState(false)
+  const [mazeQuestionId, setMazeQuestionId] = useState<string | number | null>(null)
 
   // Mengambil semua kegiatan
   const fetchExams = async () => {
@@ -529,9 +532,10 @@ function AdminPracticeContent() {
     }
   }
 
-  // Membuka editor Maze dengan konfigurasi awal
-  const handleOpenMazeEditor = (exam: any) => {
+  // Memuat misi Maze yang sudah tersimpan dan membuka editor dalam mode misi baru.
+  const handleOpenMazeEditor = async (exam: any) => {
     setActiveMazeExam(exam)
+    setMazeQuestionId(null)
     setMazeWidth(6)
     setMazeHeight(6)
     setMazeStart({ x: 0, y: 0 })
@@ -542,7 +546,92 @@ function AdminPracticeContent() {
     setMazeQuestionText(
       `Bantu robot mencapai bintang pada kegiatan "${exam.title}" tanpa menabrak rintangan!`
     )
+    setMazeMissions([])
+    setMazeMissionsLoading(true)
     setIsMazeEditorOpen(true)
+
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('questions')
+        .select(
+          'id, exam_id, question_text, start_x, start_y, target_x, target_y, maze_width, maze_height, obstacles, difficulty, question_type'
+        )
+        .eq('exam_id', exam.id)
+        .eq('question_type', 'maze_game')
+
+      if (error) {
+        console.error('Gagal memuat misi Maze:', error.message)
+        alert(`Misi lama tidak dapat dimuat: ${error.message}`)
+        return
+      }
+
+      setMazeMissions(data || [])
+    } catch (error: any) {
+      console.error('Gagal memuat misi Maze:', error)
+      alert(`Misi lama tidak dapat dimuat: ${error.message || 'Kesalahan tidak diketahui'}`)
+    } finally {
+      setMazeMissionsLoading(false)
+    }
+  }
+
+  // Memilih misi tersimpan untuk diedit, atau kembali ke mode misi baru.
+  const handleSelectMazeMission = (selectedId: string) => {
+    if (!selectedId) {
+      setMazeQuestionId(null)
+      setMazeWidth(6)
+      setMazeHeight(6)
+      setMazeStart({ x: 0, y: 0 })
+      setMazeTarget({ x: 5, y: 5 })
+      setMazeObstacles([])
+      setMazeEditMode('obstacle')
+      setMazeDifficulty('medium')
+      setMazeQuestionText(
+        `Bantu robot mencapai bintang pada kegiatan "${activeMazeExam?.title || ''}" tanpa menabrak rintangan!`
+      )
+      return
+    }
+
+    const mission = mazeMissions.find((item) => String(item.id) === selectedId)
+    if (!mission) return
+
+    const width = Math.max(2, Math.min(12, Number(mission.maze_width) || 6))
+    const height = Math.max(2, Math.min(12, Number(mission.maze_height) || 6))
+    const start = {
+      x: Math.max(0, Math.min(width - 1, Number(mission.start_x) || 0)),
+      y: Math.max(0, Math.min(height - 1, Number(mission.start_y) || 0)),
+    }
+    const target = {
+      x: Math.max(0, Math.min(width - 1, Number(mission.target_x) || 0)),
+      y: Math.max(0, Math.min(height - 1, Number(mission.target_y) || 0)),
+    }
+    const obstacles = Array.isArray(mission.obstacles)
+      ? mission.obstacles
+          .map((point: any) => ({ x: Number(point.x), y: Number(point.y) }))
+          .filter(
+            (point: MazePoint) =>
+              Number.isInteger(point.x) &&
+              Number.isInteger(point.y) &&
+              point.x >= 0 &&
+              point.x < width &&
+              point.y >= 0 &&
+              point.y < height &&
+              !(point.x === start.x && point.y === start.y) &&
+              !(point.x === target.x && point.y === target.y)
+          )
+      : []
+
+    setMazeQuestionId(mission.id)
+    setMazeWidth(width)
+    setMazeHeight(height)
+    setMazeStart(start)
+    setMazeTarget(target)
+    setMazeObstacles(obstacles)
+    setMazeEditMode('obstacle')
+    setMazeDifficulty(['easy', 'medium', 'hard'].includes(mission.difficulty)
+      ? mission.difficulty
+      : 'medium')
+    setMazeQuestionText(mission.question_text || 'Bantu robot mencapai bintang!')
   }
 
   // Mengatur posisi robot, bintang, atau rintangan
@@ -582,7 +671,7 @@ function AdminPracticeContent() {
     )
   }
 
-  // Menyimpan misi baru ke Supabase
+  // Menyimpan misi baru atau memperbarui misi Maze yang sedang diedit.
   const handleSaveMazeMission = async () => {
     if (!activeMazeExam || mazeSaving) return
 
@@ -652,7 +741,7 @@ function AdminPracticeContent() {
     setMazeSaving(true)
     try {
       const supabase = createClient()
-      const { error } = await supabase.from('questions').insert({
+      const missionPayload = {
         exam_id: activeMazeExam.id,
         question_text:
           mazeQuestionText.trim() || 'Bantu robot mencapai bintang!',
@@ -669,15 +758,29 @@ function AdminPracticeContent() {
         difficulty: mazeDifficulty,
         explanation:
           'Gunakan perintah Maju, Belok Kiri, dan Belok Kanan untuk mencapai bintang tanpa menabrak rintangan.',
-      })
+      }
 
-      if (error) {
-        alert(`Gagal menyimpan misi: ${error.message}`)
+      const result = mazeQuestionId !== null
+        ? await supabase
+            .from('questions')
+            .update(missionPayload)
+            .eq('id', mazeQuestionId)
+            .eq('exam_id', activeMazeExam.id)
+            .eq('question_type', 'maze_game')
+        : await supabase.from('questions').insert(missionPayload)
+
+      if (result.error) {
+        alert(`Gagal menyimpan misi: ${result.error.message}`)
         return
       }
 
-      alert('Misi Maze Game berhasil disimpan sebagai misi baru!')
+      alert(
+        mazeQuestionId !== null
+          ? 'Misi Maze Game berhasil diperbarui!'
+          : 'Misi Maze Game berhasil disimpan sebagai misi baru!'
+      )
       setIsMazeEditorOpen(false)
+      setMazeQuestionId(null)
       fetchExams()
     } catch (error: any) {
       alert(`Terjadi kesalahan: ${error.message || 'Tidak diketahui'}`)
@@ -1239,6 +1342,34 @@ function AdminPracticeContent() {
               </button>
             </div>
 
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-3 space-y-2">
+              <label className="block text-xs font-semibold text-slate-200 space-y-1">
+                Pilih misi Maze
+                <select
+                  value={mazeQuestionId === null ? '' : String(mazeQuestionId)}
+                  onChange={(e) => handleSelectMazeMission(e.target.value)}
+                  disabled={mazeMissionsLoading || mazeSaving}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white disabled:opacity-60"
+                >
+                  <option value="">＋ Buat misi baru</option>
+                  {mazeMissions.map((mission) => (
+                    <option key={String(mission.id)} value={String(mission.id)}>
+                      {String(mission.question_text || 'Misi Maze tanpa judul').slice(0, 100)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-slate-400">
+                {mazeMissionsLoading
+                  ? 'Memuat misi yang sudah tersimpan…'
+                  : mazeQuestionId !== null
+                    ? 'Mode edit: perubahan akan memperbarui misi yang dipilih.'
+                    : mazeMissions.length > 0
+                      ? `${mazeMissions.length} misi ditemukan. Pilih misi lama untuk mengeditnya, atau buat misi baru.`
+                      : 'Belum ada misi Maze pada kegiatan ini. Anda dapat membuat misi baru.'}
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <label className="text-xs text-slate-300 space-y-1">
                 Lebar papan (2–12)
@@ -1384,8 +1515,10 @@ function AdminPracticeContent() {
             </div>
 
             <p className="text-xs text-slate-500">
-              Koordinat dimulai dari (0, 0) di pojok kiri atas. Setiap misi yang
-              disimpan menjadi soal baru; misi lama tidak dihapus.
+              Koordinat dimulai dari (0, 0) di pojok kiri atas.{' '}
+              {mazeQuestionId !== null
+                ? 'Saat disimpan, misi yang dipilih akan diperbarui.'
+                : 'Saat disimpan, misi baru akan ditambahkan tanpa menghapus misi lama.'}
             </p>
 
             <div className="flex justify-end gap-2 border-t border-slate-800 pt-4">
@@ -1400,7 +1533,11 @@ function AdminPracticeContent() {
                 disabled={mazeSaving}
                 className="rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 px-5 py-2 text-xs font-bold text-white"
               >
-                {mazeSaving ? 'Menyimpan...' : '💾 Simpan Misi'}
+                {mazeSaving
+                  ? 'Menyimpan...'
+                  : mazeQuestionId !== null
+                    ? '💾 Simpan Perubahan'
+                    : '💾 Simpan Misi Baru'}
               </button>
             </div>
           </div>
