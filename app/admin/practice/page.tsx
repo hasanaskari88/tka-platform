@@ -221,21 +221,55 @@ function AdminPracticeContent() {
           explanation: `Ringkasan konsep/rumus penting untuk ${subtestName}.`,
         },
       ]
-    } else if (actType === 'MAZE_GAME') {
-      const tx = Math.floor(Math.random() * 4)
-      const ty = Math.floor(Math.random() * 4)
-      generatedQuestions = [
-        {
-          exam_id: exam.id,
-          question_text: `Misi Coding Maze SD: Bantu Robot mencapai Bintang di titik (${tx}, ${ty})!`,
-          options: [],
-          correct_option: 'FORWARD',
-          target_x: tx,
-          target_y: ty,
-          explanation: 'Gunakan perintah Maju dan Belok.',
-        },
-      ]
-    }
+    
+      } else if (actType === 'MAZE_GAME') {
+        // Papan 6 × 6. Robot mulai di (0, 0).
+        // Posisi target dan rintangan dipastikan valid.
+        const width = 6
+        const height = 6
+        const start = { x: 0, y: 0 }
+
+        const possibleTargets = [
+          { x: 5, y: 5 },
+          { x: 5, y: 4 },
+          { x: 4, y: 5 },
+          { x: 4, y: 4 },
+          { x: 3, y: 5 },
+        ]
+
+        const target =
+          possibleTargets[Math.floor(Math.random() * possibleTargets.length)]
+
+        // Rintangan contoh. Jalur di sisi atas dan kanan tetap terbuka.
+        const obstacles = [
+          { x: 1, y: 1 },
+          { x: 2, y: 1 },
+          { x: 3, y: 1 },
+          { x: 1, y: 3 },
+          { x: 2, y: 3 },
+          { x: 3, y: 3 },
+        ]
+
+        generatedQuestions = [
+          {
+            exam_id: exam.id,
+            question_text: `Misi Coding Maze SD: Bantu robot dari titik awal menuju bintang di titik (${target.x}, ${target.y})!`,
+            options: [],
+            correct_option: 'FORWARD',
+            question_type: 'maze_game',
+            start_x: start.x,
+            start_y: start.y,
+            target_x: target.x,
+            target_y: target.y,
+            maze_width: width,
+            maze_height: height,
+            obstacles,
+            difficulty: 'medium',
+            explanation: 'Gunakan perintah Maju, Belok Kiri, dan Belok Kanan untuk mencapai bintang tanpa menabrak penghalang.',
+          },
+        ]
+      }
+
 
     const { error: insertErr } = await supabase.from('questions').insert(generatedQuestions)
 
