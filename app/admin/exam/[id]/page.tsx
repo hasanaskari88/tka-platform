@@ -68,11 +68,16 @@ function QuestionManagerContent() {
   // Mode Navigasi Tab: 'form' (Input/Edit) atau 'list' (Daftar Soal)
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form')
 
-  // 🟢 STATE BARU: Mode Tampilan Dual-View Editor ('split' | 'preview' | 'code')
+  // Mode Tampilan Dual-View Editor ('split' | 'preview' | 'code')
   const [editorViewMode, setEditorViewMode] = useState<'split' | 'preview' | 'code'>('split')
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
+
+  // 🟢 STATE BARU: Checklist Seleksi Massal & Sorting/Filter
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [sortBy, setSortBy] = useState<string>('created_asc')
+  const [filterType, setFilterType] = useState<string>('ALL')
 
   // State Form Soal
   const [questionType, setQuestionType] = useState<
@@ -129,7 +134,89 @@ function QuestionManagerContent() {
     loadData()
   }, [examId])
 
-  // 🟢 HELPER PERBAIKAN: Sisip Teks Toolbar LaTeX / HTML (Multi-Target & Safe Selection)
+  // 🟢 HANDLER CHECKLIST & BATCH SELECTION
+  const handleToggleSelectAll = (targetQuestions: any[]) => {
+    if (selectedIds.length === targetQuestions.length && targetQuestions.length > 0) {
+      setSelectedIds([])
+    } else {
+      setSelectedIds(targetQuestions.map((q) => q.id))
+    }
+  }
+
+  const handleToggleSelectOne = (qId: string) => {
+    if (selectedIds.includes(qId)) {
+      setSelectedIds(selectedIds.filter((id) => id !== qId))
+    } else {
+      setSelectedIds([...selectedIds, qId])
+    }
+  }
+
+  // 🟢 HANDLER HAPUS TERPILIH & HAPUS SEMUA
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return
+    const confirmDelete = confirm(
+      `Apakah Anda yakin ingin menghapus ${selectedIds.length} soal yang dipilih?\n\n⚠️ Soal yang dihapus tidak dapat dikembalikan!`
+    )
+    if (!confirmDelete) return
+
+    const supabase = createClient()
+    const { error } = await supabase.from('questions').delete().in('id', selectedIds)
+
+    if (error) {
+      alert(`Gagal menghapus soal terpilih: ${error.message}`)
+    } else {
+      alert(`✅ Berhasil menghapus ${selectedIds.length} soal terpilih!`)
+      setSelectedIds([])
+      loadData()
+    }
+  }
+
+  const handleDeleteAllQuestions = async () => {
+    if (questions.length === 0) return
+    const confirmDelete = confirm(
+      `⚠️ PERINGATAN BATCH DELETE!\n\nApakah Anda yakin ingin MENGHAPUS SEMUA (${questions.length}) soal pada ujian ini?\n\nTindakan ini bersifat permanen!`
+    )
+    if (!confirmDelete) return
+
+    const supabase = createClient()
+    const { error } = await supabase.from('questions').delete().eq('exam_id', examId)
+
+    if (error) {
+      alert(`Gagal menghapus seluruh soal: ${error.message}`)
+    } else {
+      alert(`🗑️ Seluruh soal pada ujian ini berhasil dihapus!`)
+      setSelectedIds([])
+      loadData()
+    }
+  }
+
+  // 🟢 LOGIKA FILTERING & SORTING DAFTAR SOAL
+  const filteredAndSortedQuestions = [...questions]
+    .filter((q) => {
+      if (filterType === 'ALL') return true
+      const qType = q.question_type || 'multiple_choice'
+      return qType === filterType
+    })
+    .sort((a, b) => {
+      if (sortBy === 'created_asc') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      if (sortBy === 'created_desc') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
+      if (sortBy === 'score_desc') {
+        return (Number(b.max_score) || 1) - (Number(a.max_score) || 1)
+      }
+      if (sortBy === 'score_asc') {
+        return (Number(a.max_score) || 1) - (Number(b.max_score) || 1)
+      }
+      if (sortBy === 'type') {
+        return (a.question_type || '').localeCompare(b.question_type || '')
+      }
+      return 0
+    })
+
+  // Helper Sisip Teks Toolbar LaTeX / HTML
   const insertFormatText = (
     before: string,
     after: string = '',
@@ -239,7 +326,6 @@ function QuestionManagerContent() {
     ])
   }
 
-  // KLIK EDIT SOAL -> SELALU NORMALISASI OPSI A, B, C, D
   const handleEditClick = (q: any) => {
     setEditingQuestionId(q.id)
     const type = q.question_type || 'multiple_choice'
@@ -249,7 +335,6 @@ function QuestionManagerContent() {
     setMaxScore(Number(q.max_score) || 1.0)
     setExplanation(q.explanation || '')
 
-    // Normalisasi opsi & matriks
     setOptions(getNormalizedOptions(q.options))
     setStatements(getNormalizedStatements(q.options, q.correct_answers))
 
@@ -350,6 +435,7 @@ function QuestionManagerContent() {
     if (!confirm('Hapus butir soal ini?')) return
     const supabase = createClient()
     await supabase.from('questions').delete().eq('id', qId)
+    setSelectedIds((prev) => prev.filter((id) => id !== qId))
     loadData()
   }
 
@@ -501,7 +587,7 @@ function QuestionManagerContent() {
                 </div>
               </div>
 
-              {/* 🟢 DUAL-VIEW EDITOR MODERN (LIVE VISUAL UI PREVIEW + CODE INSPECTOR TEXTAREA) */}
+              {/* DUAL-VIEW EDITOR MODERN */}
               <div className="space-y-2">
                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                   <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -547,9 +633,8 @@ function QuestionManagerContent() {
                 </div>
 
                 <div className="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
-                  {/* 🛠️ BILAH ALAT FORMAT (TOOLBAR LENGKAP MODERN) */}
+                  {/* BILAH ALAT FORMAT (TOOLBAR LENGKAP MODERN) */}
                   <div className="p-2 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center gap-1.5 text-xs select-none">
-                    {/* Format Teks dasar */}
                     <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
                       <button
                         type="button"
@@ -585,7 +670,6 @@ function QuestionManagerContent() {
                       </button>
                     </div>
 
-                    {/* Perataan Teks */}
                     <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
                       <button
                         type="button"
@@ -613,7 +697,6 @@ function QuestionManagerContent() {
                       </button>
                     </div>
 
-                    {/* Elemen Struktur */}
                     <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
                       <button
                         type="button"
@@ -637,7 +720,6 @@ function QuestionManagerContent() {
                       </button>
                     </div>
 
-                    {/* Rumus Math KaTeX */}
                     <div className="flex items-center space-x-1 bg-indigo-50 border border-indigo-200 rounded-lg p-0.5 shadow-sm">
                       <button
                         type="button"
@@ -686,7 +768,7 @@ function QuestionManagerContent() {
                     </div>
                   </div>
 
-                  {/* 👁️ KOTAK ATAS: TAMPILAN VISUAL UI (LIVE PREVIEW REAL-TIME) */}
+                  {/* KOTAK ATAS: LIVE VISUAL PREVIEW */}
                   {(editorViewMode === 'split' || editorViewMode === 'preview') && (
                     <div className="p-4 bg-slate-50 border-b border-slate-200 min-h-[120px] max-h-[260px] overflow-y-auto">
                       <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-2">
@@ -711,7 +793,7 @@ function QuestionManagerContent() {
                     </div>
                   )}
 
-                  {/* 💻 KOTAK BAWAH: EDITOR BARIS KODE (CODE INSPECTOR TEXTAREA) */}
+                  {/* KOTAK BAWAH: EDITOR CODE TEXTAREA */}
                   {(editorViewMode === 'split' || editorViewMode === 'code') && (
                     <div className="relative">
                       <div className="bg-slate-900 px-3 py-1 flex justify-between items-center text-[10px] font-mono text-slate-400 border-b border-slate-800">
@@ -748,7 +830,7 @@ function QuestionManagerContent() {
                 />
               </div>
 
-              {/* 🟢 PILIHAN GANDA BIASA */}
+              {/* PILIHAN GANDA BIASA */}
               {questionType === 'multiple_choice' && (
                 <div className="space-y-3 pt-3 border-t">
                   <label className="block text-xs font-semibold text-slate-700 uppercase">
@@ -790,7 +872,7 @@ function QuestionManagerContent() {
                 </div>
               )}
 
-              {/* 🟢 PILIHAN GANDA KOMPLEKS */}
+              {/* PILIHAN GANDA KOMPLEKS */}
               {questionType === 'complex_multiple_choice' && (
                 <div className="space-y-3 pt-3 border-t">
                   <label className="block text-xs font-semibold text-slate-700 uppercase">
@@ -831,7 +913,7 @@ function QuestionManagerContent() {
                 </div>
               )}
 
-              {/* 🟢 MATRIKS BENAR - SALAH */}
+              {/* MATRIKS BENAR - SALAH */}
               {questionType === 'true_false_matrix' && (
                 <div className="space-y-3 pt-3 border-t">
                   <div className="flex justify-between items-center">
@@ -894,7 +976,7 @@ function QuestionManagerContent() {
                 </div>
               )}
 
-              {/* 🟢 URAIAN / ESSAY */}
+              {/* URAIAN / ESSAY */}
               {questionType === 'essay' && (
                 <div className="p-4 bg-amber-50/80 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1">
                   <p className="font-bold">📝 Catatan Soal Uraian / Essay:</p>
@@ -933,32 +1015,109 @@ function QuestionManagerContent() {
           </div>
         )}
 
-        {/* TAB 2: DAFTAR SOAL AKTIF */}
+        {/* TAB 2: DAFTAR SOAL AKTIF (DENGAN CHECKLIST, SORTING, & HAPUS BATCH) */}
         {activeTab === 'list' && (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-lg font-bold text-slate-800">
-                📚 Daftar Soal Aktif ({questions.length})
-              </h2>
-              <button
-                onClick={() => {
-                  resetForm()
-                  setActiveTab('form')
-                }}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl"
-              >
-                + Tambah Soal Baru
-              </button>
+            {/* BILAH KONTROL ATAS: CHECKLIST, BATCH DELETE, SORTING & FILTER */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+              {/* SELEKSI CHECKLIST MASSAL & HAPUS */}
+              <div className="flex items-center flex-wrap gap-2.5 w-full md:w-auto">
+                <label className="flex items-center space-x-2 cursor-pointer bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold hover:bg-slate-200 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredAndSortedQuestions.length > 0 &&
+                      selectedIds.length === filteredAndSortedQuestions.length
+                    }
+                    onChange={() => handleToggleSelectAll(filteredAndSortedQuestions)}
+                    className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                  />
+                  <span>Pilih Semua ({filteredAndSortedQuestions.length})</span>
+                </label>
+
+                {selectedIds.length > 0 && (
+                  <button
+                    onClick={handleDeleteSelected}
+                    className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center space-x-1"
+                  >
+                    <span>🗑️ Hapus Terpilih ({selectedIds.length})</span>
+                  </button>
+                )}
+
+                <button
+                  onClick={handleDeleteAllQuestions}
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition-colors"
+                  title="Hapus seluruh soal pada ujian ini"
+                >
+                  ⚠️ Hapus Semua Soal
+                </button>
+              </div>
+
+              {/* FITUR SORTING & FILTER TIPE SOAL */}
+              <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+                <div className="flex items-center space-x-1">
+                  <span className="text-xs font-bold text-slate-500">🔀 Urutkan:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  >
+                    <option value="created_asc">🔢 Nomor (Lama → Baru)</option>
+                    <option value="created_desc">🔢 Nomor (Baru → Lama)</option>
+                    <option value="type">🏷️ Tipe Soal</option>
+                    <option value="score_desc">⭐ Bobot (Terbesar)</option>
+                    <option value="score_asc">⭐ Bobot (Terkecil)</option>
+                  </select>
+                </div>
+
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                >
+                  <option value="ALL">🌐 Semua Tipe</option>
+                  <option value="multiple_choice">🔘 Pilihan Ganda</option>
+                  <option value="complex_multiple_choice">☑️ PG Kompleks</option>
+                  <option value="true_false_matrix">📊 Matriks</option>
+                  <option value="essay">📝 Essay</option>
+                </select>
+
+                <button
+                  onClick={() => {
+                    resetForm()
+                    setActiveTab('form')
+                  }}
+                  className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shrink-0"
+                >
+                  + Tambah Soal
+                </button>
+              </div>
             </div>
 
-            {questions.length > 0 ? (
-              questions.map((q, idx) => {
+            {/* DAFTAR KARTU SOAL AKTIF DENGAN CHECKLIST */}
+            {filteredAndSortedQuestions.length > 0 ? (
+              filteredAndSortedQuestions.map((q, idx) => {
                 const qType = q.question_type || 'multiple_choice'
+                const isChecked = selectedIds.includes(q.id)
 
                 return (
-                  <div key={q.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                  <div
+                    key={q.id}
+                    className={`bg-white p-6 rounded-2xl border shadow-sm space-y-3 transition-all ${
+                      isChecked
+                        ? 'border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/10'
+                        : 'border-slate-200'
+                    }`}
+                  >
+                    {/* BARIS HEADER KARTU SOAL DENGAN CHECKBOX */}
                     <div className="flex justify-between items-center border-b pb-2">
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleSelectOne(q.id)}
+                          className="w-4 h-4 text-indigo-600 rounded border-slate-300 cursor-pointer"
+                        />
                         <span className="font-bold text-indigo-600 text-sm">No. {idx + 1}</span>
                         <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold rounded-full uppercase">
                           {qType === 'complex_multiple_choice'
