@@ -94,11 +94,9 @@ export default function Navbar() {
 
   
   const navLink =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent px-3 py-2.5 text-xs font-bold text-slate-700 transition-colors duration-200 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2'
-
+    'inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-transparent px-2 py-1.5 text-[11px] font-bold text-slate-700 transition-colors duration-200 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:gap-1.5 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-xs'
   const activeGameLink =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-xs font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md'
-
+    'inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-2 py-1.5 text-[11px] font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:gap-1.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs'
   // Sembunyikan Navbar ketika Mode Fokus aktif.
   // Semua hooks tetap dipanggil sebelum kondisi ini.
   if (!chromeVisible) {
@@ -134,18 +132,17 @@ export default function Navbar() {
 
       {/* NAVBAR UTAMA */}
       <nav className="border-b border-indigo-100 bg-white/95 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1500px] flex-col gap-3 px-3 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:py-4">
-
+      <div className="mx-auto flex max-w-[1500px] flex-col gap-2 px-3 py-2 sm:gap-3 sm:px-6 sm:py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:py-4">
           {/* IDENTITAS SEKOLAH */}
           <Link
             href="/"
-            className="group flex min-w-0 items-center gap-3"
+            className="group flex min-w-0 items-center gap-2 sm:gap-3"
           >
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-100 via-white to-indigo-100 shadow-sm ring-1 ring-indigo-100 transition group-hover:rotate-3 group-hover:scale-105 sm:h-14 sm:w-14">
+            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-100 via-white to-indigo-100 shadow-sm ring-1 ring-indigo-100 transition group-hover:rotate-3 group-hover:scale-105 sm:h-14 sm:w-14">
               <img
                 src="/logo-sd-getasan.png"
                 alt="Logo SD Negeri Getasan"
-                className="h-9 w-9 object-contain sm:h-12 sm:w-12"
+                className="h-7 w-7 object-contain sm:h-12 sm:w-12"
                 onError={(e) => {
                   e.currentTarget.style.display = 'none'
                 }}
@@ -179,8 +176,7 @@ export default function Navbar() {
                 aria-expanded={showThemeMenu}
                 aria-haspopup="menu"
                 onClick={() => setShowThemeMenu((previous) => !previous)}
-                className={`inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r px-3 py-2 text-[11px] font-black shadow-md ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:text-xs ${currentThemeConfig.style}`}
-              >
+                  className={`inline-flex items-center gap-1 rounded-lg bg-gradient-to-r px-2 py-1.5 text-[10px] font-black shadow-md ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:gap-1.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs ${currentThemeConfig.style}`}              >
                 <span>{currentThemeConfig.icon}</span>
                 <span>{currentThemeConfig.name}</span>
                 <span className="text-[9px]">▾</span>
