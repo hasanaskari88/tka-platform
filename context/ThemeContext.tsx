@@ -15,6 +15,7 @@ export type ThemeMode =
   | 'ocean'
   | 'disney'
   | 'cartoon3d'
+  | 'gaming'
 
 interface ThemeContextType {
   theme: ThemeMode
@@ -48,6 +49,7 @@ export function ThemeProvider({
       'ocean',
       'disney',
       'cartoon3d',
+      'gaming',
     ]
 
     if (savedTheme && validThemes.includes(savedTheme as ThemeMode)) {

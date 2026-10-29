@@ -43,6 +43,15 @@ export default function Footer() {
       badge: 'bg-yellow-200 text-slate-950 border-2 border-slate-900 font-black',
       icon: '🎨',
     },
+    gaming: {
+      container:
+        'bg-[#080b1d]/95 border-cyan-400/40 text-white shadow-cyan-950/50',
+      title: 'text-cyan-300 font-extrabold',
+      textMuted: 'text-slate-300 font-medium',
+      badge:
+        'bg-fuchsia-950/70 text-cyan-300 border-cyan-400/40',
+      icon: '🎮',
+    },
     school: {
       container: 'bg-white/95 border-slate-200 text-slate-800 shadow-slate-200/50',
       title: 'text-indigo-600 font-extrabold',

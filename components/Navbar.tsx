@@ -82,6 +82,11 @@ export default function Navbar() {
       icon: '🎨',
       style: 'from-amber-300 to-yellow-400 text-slate-950',
     },
+    gaming: {
+      name: 'Gaming',
+      icon: '🎮',
+      style: 'from-cyan-500 via-blue-600 to-fuchsia-600 text-white',
+    },
   }
 
   const currentThemeConfig =
@@ -165,8 +170,8 @@ export default function Navbar() {
           </Link>
 
           {/* DAFTAR NAVIGASI */}
-          <div className="-mx-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-1 lg:mx-0 lg:justify-end lg:overflow-visible lg:pb-0">
-
+          <div className="-mx-1 flex flex-wrap items-center gap-1.5 px-1 pb-1 lg:mx-0 lg:justify-end lg:pb-0">
+  
             {/* PEMILIH TEMA */}
             <div className="relative shrink-0">
               <button
@@ -194,7 +199,7 @@ export default function Navbar() {
                   {/* Daftar pilihan tema */}
                   <div
                     role="menu"
-                    className="absolute right-0 z-50 mt-3 w-52 rounded-2xl border border-indigo-100 bg-white p-2 shadow-[0_20px_60px_-15px_rgba(30,41,59,0.35)]"
+                      className="absolute left-0 z-50 mt-3 w-52 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-[0_20px_60px_-15px_rgba(30,41,59,0.35)] sm:left-auto sm:right-0"
                   >
                     <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       🎨 Pilih Dunia Belajarmu
