@@ -3,6 +3,7 @@ import './globals.css'
 import { ThemeProvider } from '@/context/ThemeContext'
 import ThemeBackground from '@/components/ThemeBackground'
 import Footer from '@/components/Footer'
+import FocusModeButton from '@/components/FocusModeButton'
 
 export const metadata: Metadata = {
   title: 'CBT SD NEGERI GETASAN',
@@ -21,6 +22,7 @@ export default function RootLayout({
           <ThemeBackground />
           <div className="relative z-10 flex-grow">{children}</div>
           <Footer />
+          <FocusModeButton />
         </ThemeProvider>
       </body>
     </html>
