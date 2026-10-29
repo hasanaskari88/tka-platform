@@ -9,96 +9,215 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 
 // 🛠️ HELPER EVALUASI PRESISI UNTUK 4 TIPE SOAL (PG, PG KOMPLEKS, MATRIKS, ESSAY)
+
 const evaluateQuestion = (q: any, userAns: any) => {
   const qType = q.question_type || 'multiple_choice'
   const qMaxScore = Number(q.max_score) || 1
+
+  const normalize = (value: any) =>
+    String(value ?? '').trim().toLowerCase()
 
   const isUnanswered =
     userAns === undefined ||
     userAns === null ||
     userAns === '' ||
     (Array.isArray(userAns) && userAns.length === 0) ||
-    (typeof userAns === 'object' && !Array.isArray(userAns) && Object.keys(userAns).length === 0)
+    (
+      typeof userAns === 'object' &&
+      !Array.isArray(userAns) &&
+      Object.keys(userAns).length === 0
+    )
 
   if (isUnanswered) {
-    return { isCorrect: false, isUnanswered: true, ratio: 0, points: 0 }
+    return {
+      isCorrect: false,
+      isUnanswered: true,
+      ratio: 0,
+      points: 0,
+    }
   }
 
   // 1. Pilihan Ganda Biasa
   if (qType === 'multiple_choice') {
-    const correctOpt = String(q.correct_option ?? q.correct_answer ?? q.correct_key ?? '').trim().toUpperCase()
-    const userOpt = String(userAns).trim().toUpperCase()
-    const isCorrect = userOpt === correctOpt
-    return { isCorrect, isUnanswered: false, ratio: isCorrect ? 1 : 0, points: isCorrect ? qMaxScore : 0 }
+    const correctOpt = normalize(
+      q.correct_option ?? q.correct_answer ?? q.correct_key
+    )
+    const userOpt = normalize(userAns)
+    const isCorrect = userOpt !== '' && userOpt === correctOpt
+
+    return {
+      isCorrect,
+      isUnanswered: false,
+      ratio: isCorrect ? 1 : 0,
+      points: isCorrect ? qMaxScore : 0,
+    }
   }
 
   // 2. PG Kompleks (Multiple Checkbox)
   if (qType === 'complex_multiple_choice') {
-    const correctKeys: string[] = Array.isArray(q.correct_answers)
-      ? q.correct_answers.map((k: any) => String(k).trim().toUpperCase())
-      : [String(q.correct_option || q.correct_answer || '').trim().toUpperCase()]
+    const parseArray = (value: any): string[] => {
+      if (Array.isArray(value)) {
+        return value.map(normalize).filter(Boolean)
+      }
 
-    let userKeys: string[] = []
-    if (Array.isArray(userAns)) {
-      userKeys = userAns.map((k: any) => String(k).trim().toUpperCase())
-    } else if (typeof userAns === 'string') {
-      try {
-        const parsed = JSON.parse(userAns)
-        if (Array.isArray(parsed)) userKeys = parsed.map((k: any) => String(k).trim().toUpperCase())
-        else userKeys = [userAns.trim().toUpperCase()]
-      } catch {
-        userKeys = [userAns.trim().toUpperCase()]
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value)
+          if (Array.isArray(parsed)) {
+            return parsed.map(normalize).filter(Boolean)
+          }
+        } catch {
+          // Nilai bukan JSON; lanjutkan sebagai satu pilihan.
+        }
+
+        return value.trim() ? [normalize(value)] : []
+      }
+
+      return []
+    }
+
+    const correctKeys = [
+      ...new Set(
+        parseArray(
+          q.correct_answers ??
+          q.correct_option ??
+          q.correct_answer
+        )
+      ),
+    ]
+
+    const userKeys = [
+      ...new Set(parseArray(userAns)),
+    ]
+
+    if (correctKeys.length === 0) {
+      return {
+        isCorrect: false,
+        isUnanswered: false,
+        ratio: 0,
+        points: 0,
       }
     }
 
-    const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
-    const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
-    const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
-    const ratio = correctKeys.length > 0 ? netCorrect / correctKeys.length : 0
-    const isCorrect = ratio === 1
+    // Jawaban dinilai benar penuh hanya jika seluruh pilihan
+    // sama persis dengan kunci, tanpa pilihan tambahan.
+    const isCorrect =
+      correctKeys.length === userKeys.length &&
+      correctKeys.every((key) => userKeys.includes(key))
 
-    return { isCorrect, isUnanswered: false, ratio, points: ratio * qMaxScore }
+    // Skor parsial: pilihan benar dikurangi pilihan salah.
+    const correctCount = userKeys.filter(
+      (key) => correctKeys.includes(key)
+    ).length
+
+    const wrongCount = userKeys.filter(
+      (key) => !correctKeys.includes(key)
+    ).length
+
+    const netCorrect = Math.max(0, correctCount - wrongCount)
+    const ratio = Math.min(1, netCorrect / correctKeys.length)
+
+    return {
+      isCorrect,
+      isUnanswered: false,
+      ratio,
+      points: ratio * qMaxScore,
+    }
   }
 
   // 3. Matriks Benar - Salah
   if (qType === 'true_false_matrix') {
-    const correctObj: { [key: string]: string } = q.correct_answers || {}
-    let userObj: { [key: string]: string } = {}
+    const correctObj =
+      q.correct_answers &&
+      typeof q.correct_answers === 'object' &&
+      !Array.isArray(q.correct_answers)
+        ? q.correct_answers
+        : {}
 
-    if (typeof userAns === 'object' && !Array.isArray(userAns)) {
+    let userObj: Record<string, any> = {}
+
+    if (
+      typeof userAns === 'object' &&
+      userAns !== null &&
+      !Array.isArray(userAns)
+    ) {
       userObj = userAns
     } else if (typeof userAns === 'string') {
       try {
-        userObj = JSON.parse(userAns)
+        const parsed = JSON.parse(userAns)
+
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          !Array.isArray(parsed)
+        ) {
+          userObj = parsed
+        }
       } catch {
         userObj = {}
       }
     }
 
     const statementIds = Object.keys(correctObj)
+
     if (statementIds.length === 0) {
-      return { isCorrect: false, isUnanswered: false, ratio: 0, points: 0 }
+      return {
+        isCorrect: false,
+        isUnanswered: false,
+        ratio: 0,
+        points: 0,
+      }
     }
 
     let correctRows = 0
-    statementIds.forEach((sId) => {
-      if (String(userObj[sId] || '').trim().toLowerCase() === String(correctObj[sId] || '').trim().toLowerCase()) {
+
+    for (const statementId of statementIds) {
+      const correctValue = normalize(correctObj[statementId])
+      const userValue = normalize(userObj[statementId])
+
+      if (
+        userValue !== '' &&
+        userValue === correctValue
+      ) {
         correctRows++
       }
-    })
+    }
 
     const ratio = correctRows / statementIds.length
-    const isCorrect = ratio === 1
+    const isCorrect = correctRows === statementIds.length
 
-    return { isCorrect, isUnanswered: false, ratio, points: ratio * qMaxScore }
+    return {
+      isCorrect,
+      isUnanswered: false,
+      ratio,
+      points: ratio * qMaxScore,
+    }
   }
 
   // 4. Essay / Uraian
+  // 4. Essay / Uraian
   if (qType === 'essay') {
-    return { isCorrect: false, isUnanswered: false, ratio: 0, points: 0 }
+    const essayText =
+      typeof userAns === 'string'
+        ? userAns.trim()
+        : String(userAns ?? '').trim()
+
+    const isFilled = essayText.length > 0
+
+    return {
+      isCorrect: false,
+      isUnanswered: !isFilled,
+      ratio: isFilled ? Math.min(1, 1 / qMaxScore) : 0,
+      points: isFilled ? Math.min(1, qMaxScore) : 0,
+    }
   }
 
-  return { isCorrect: false, isUnanswered: false, ratio: 0, points: 0 }
+  return {
+    isCorrect: false,
+    isUnanswered: false,
+    ratio: 0,
+    points: 0,
+  }
 }
 
 function ExamSummaryContent() {
