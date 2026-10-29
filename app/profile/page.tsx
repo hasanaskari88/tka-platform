@@ -6,6 +6,26 @@ import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
+// 🎨 Daftar Template Avatar & Ikon Karakter Ringan
+const AVATAR_TEMPLATES = [
+  { id: '👨‍🚀', name: 'Astronaut' },
+  { id: '🤖', name: 'Robot' },
+  { id: '🐱', name: 'Kucing Pintar' },
+  { id: '🦊', name: 'Rubah Cerdik' },
+  { id: '🦁', name: 'Singa Pemberani' },
+  { id: '🦄', name: 'Unicorn' },
+  { id: '🦉', name: 'Burung Hantu Bijak' },
+  { id: '🐉', name: 'Naga Api' },
+  { id: '🧙‍♂️', name: 'Penyihir' },
+  { id: '🦸‍♂️', name: 'Pahlawan' },
+  { id: '🎮', name: 'Gamer' },
+  { id: '🌟', name: 'Bintang' },
+  { id: '🏆', name: 'Juara' },
+  { id: '👑', name: 'Raja/Ratu' },
+  { id: '🐼', name: 'Panda' },
+  { id: '🚀', name: 'Roket' },
+]
+
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -16,6 +36,7 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState('')
   const [username, setUsername] = useState('')
   const [classCode, setClassCode] = useState('')
+  const [selectedAvatar, setSelectedAvatar] = useState('👨‍🚀')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
@@ -36,7 +57,6 @@ export default function ProfilePage() {
         } = await supabase.auth.getUser()
 
         if (!user) {
-          // Jika belum login, arahkan ke halaman login
           router.push('/login')
           return
         }
@@ -44,7 +64,7 @@ export default function ProfilePage() {
         setUser(user)
 
         // Ambil data profil dari tabel 'profiles'
-        const { data: profile, error } = await supabase
+        const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
@@ -54,6 +74,7 @@ export default function ProfilePage() {
           setFullName(profile.full_name || '')
           setUsername(profile.username || user.email?.split('@')[0] || '')
           setClassCode(profile.class_code || '')
+          setSelectedAvatar(profile.avatar_url || '👨‍🚀')
           setXp(profile.xp || 0)
           setLevel(profile.level || 1)
         } else {
@@ -98,7 +119,7 @@ export default function ProfilePage() {
     try {
       const supabase = createClient()
 
-      // A. Update Tabel Profiles di Database
+      // A. Update Tabel Profiles di Database (Termasuk avatar_url)
       const cleanUsername = username.trim().toLowerCase().replace(/\s+/g, '')
       const { error: profileErr } = await supabase
         .from('profiles')
@@ -106,6 +127,7 @@ export default function ProfilePage() {
           full_name: fullName.trim(),
           username: cleanUsername,
           class_code: classCode.trim().toUpperCase(),
+          avatar_url: selectedAvatar,
         })
         .eq('id', user.id)
 
@@ -126,12 +148,11 @@ export default function ProfilePage() {
 
       setMessage({
         type: 'success',
-        text: '🎉 Profil berhasil diperbarui! Perubahan sudah tersimpan.',
+        text: '🎉 Profil & Karakter Avatar berhasil disimpan!',
       })
       setNewPassword('')
       setConfirmPassword('')
 
-      // Refresh halaman / state
       setTimeout(() => {
         router.refresh()
       }, 1000)
@@ -177,11 +198,11 @@ export default function ProfilePage() {
           </Link>
         </div>
 
-        {/* KARTU PREVIEW AKUN & STATUS GAMIFIKASI */}
+        {/* KARTU PREVIEW AKUN & AVATAR HARIAN */}
         <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 rounded-3xl border border-indigo-500/30 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center space-x-4">
-            <div className="w-14 h-14 rounded-2xl bg-indigo-600 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-              {fullName?.charAt(0).toUpperCase() || 'S'}
+            <div className="w-16 h-16 rounded-2xl bg-indigo-600/80 text-white font-black text-3xl flex items-center justify-center shadow-lg shadow-indigo-600/30 border border-indigo-400/30">
+              {selectedAvatar}
             </div>
             <div>
               <h2 className="text-lg font-bold text-white">{fullName || 'Nama Siswa'}</h2>
@@ -219,8 +240,38 @@ export default function ProfilePage() {
         )}
 
         {/* FORM EDIT PROFIL */}
-        <form onSubmit={handleSaveProfile} className="bg-slate-900/90 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-5">
-          <h3 className="text-sm font-extrabold text-white uppercase tracking-wider border-b border-slate-800 pb-2">
+        <form onSubmit={handleSaveProfile} className="bg-slate-900/90 p-6 rounded-3xl border border-slate-800 shadow-xl space-y-6">
+          
+          {/* 🎭 SEKSI PILIH TEMPLATE AVATAR / IKON KARAKTER */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-extrabold text-white uppercase tracking-wider border-b border-slate-800 pb-2 flex items-center justify-between">
+              <span>🎭 Pilih Karakter Avatar Kamu</span>
+              <span className="text-[10px] text-indigo-400 normal-case">Pilih 1 ikon favorit</span>
+            </h3>
+
+            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 pt-1">
+              {AVATAR_TEMPLATES.map((avatar) => {
+                const isSelected = selectedAvatar === avatar.id
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    onClick={() => setSelectedAvatar(avatar.id)}
+                    title={avatar.name}
+                    className={`p-3 rounded-2xl text-2xl flex items-center justify-center transition-all transform hover:scale-110 ${
+                      isSelected
+                        ? 'bg-indigo-600 text-white border-2 border-indigo-400 shadow-lg shadow-indigo-600/40 scale-105'
+                        : 'bg-slate-950/80 hover:bg-slate-800 border border-slate-800 text-slate-300'
+                    }`}
+                  >
+                    {avatar.id}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <h3 className="text-sm font-extrabold text-white uppercase tracking-wider border-b border-slate-800 pb-2 pt-2">
             ✏️ Informasi Identitas
           </h3>
 
@@ -275,7 +326,6 @@ export default function ProfilePage() {
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* PASSWORD BARU */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300 uppercase">
                 Password Baru
@@ -289,7 +339,6 @@ export default function ProfilePage() {
               />
             </div>
 
-            {/* KONFIRMASI PASSWORD */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300 uppercase">
                 Konfirmasi Password Baru
