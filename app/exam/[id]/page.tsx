@@ -429,12 +429,89 @@ function ExamEngineContent() {
     const finalScore =
       totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100 : 0
 
+    
     const endTimeIso = new Date().toISOString()
     let activeSessId = sessionIdRef.current || sessionId
 
-    if (activeSessId) {
-      // Update Sesi Aktif Menjadi 'completed'
-      await supabase
+    try {
+      // 1. Pastikan pengguna masih login
+      if (!user) {
+        throw new Error('Sesi login tidak ditemukan. Silakan login kembali.')
+      }
+
+      // 2. Pastikan sesi ujian tersedia
+      if (!activeSessId) {
+        const { data: newSession, error: createSessionError } = await supabase
+          .from('exam_sessions')
+          .insert({
+            exam_id: examId,
+            user_id: user.id,
+            status: 'ongoing',
+            start_time: endTimeIso,
+          })
+          .select('id')
+          .single()
+
+        if (createSessionError || !newSession) {
+          throw new Error(
+            `Gagal membuat sesi ujian: ${createSessionError?.message || 'Sesi tidak ditemukan'}`
+          )
+        }
+
+        activeSessId = newSession.id
+        sessionIdRef.current = newSession.id
+        setSessionId(newSession.id)
+      }
+
+      // 3. Siapkan semua jawaban, termasuk soal yang tidak dijawab
+      const answerRecords = currentQuestions.map((q) => {
+        const rawAns = currentAnswers[q.id]
+
+        const formattedAns =
+          rawAns === undefined || rawAns === null
+            ? null
+            : typeof rawAns === 'string'
+              ? rawAns
+              : JSON.stringify(rawAns)
+
+        return {
+          session_id: activeSessId,
+          question_id: q.id,
+          user_answer: formattedAns,
+          selected_option:
+            q.question_type === 'multiple_choice' &&
+            typeof rawAns === 'string'
+              ? rawAns
+              : null,
+          selected_answers:
+            (q.question_type === 'complex_multiple_choice' ||
+              q.question_type === 'true_false_matrix') &&
+            rawAns !== undefined &&
+            rawAns !== null
+              ? rawAns
+              : null,
+          is_flagged: !!flaggedQuestions[q.id],
+          updated_at: endTimeIso,
+        }
+      })
+
+      // 4. Simpan atau perbarui jawaban sebelum menyelesaikan sesi
+      if (answerRecords.length > 0) {
+        const { error: answersError } = await supabase
+          .from('answers')
+          .upsert(answerRecords, {
+            onConflict: 'session_id,question_id',
+          })
+
+        if (answersError) {
+          throw new Error(
+            `Gagal menyimpan jawaban: ${answersError.message}`
+          )
+        }
+      }
+
+      // 5. Tandai sesi selesai hanya setelah penyimpanan jawaban berhasil
+      const { data: completedSession, error: finishError } = await supabase
         .from('exam_sessions')
         .update({
           status: 'completed',
@@ -444,55 +521,41 @@ function ExamEngineContent() {
           end_time: endTimeIso,
         })
         .eq('id', activeSessId)
-    } else {
-      // Fallback: Buat Sesi Baru Jika ID Belum Terpasang
-      const { data: session, error: sessionErr } = await supabase
-        .from('exam_sessions')
-        .insert([
-          {
-            exam_id: examId,
-            user_id: user?.id || null,
-            status: 'completed',
-            score: finalScore,
-            completed_at: endTimeIso,
-            submitted_at: endTimeIso,
-            end_time: endTimeIso,
-          },
-        ])
-        .select()
-        .single()
+        .eq('user_id', user.id)
+        .select('id')
+        .maybeSingle()
 
-      if (sessionErr || !session) {
-        alert(`Gagal menyimpan hasil ujian: ${sessionErr?.message || 'Error'}`)
-        isSubmittingRef.current = false
-        setIsSubmitting(false)
-        return
+      if (finishError || !completedSession) {
+        throw new Error(
+          `Jawaban sudah dikirim, tetapi status selesai gagal diperbarui: ${
+            finishError?.message || 'Sesi tidak ditemukan atau akses ditolak'
+          }`
+        )
       }
-      activeSessId = session.id
+
+      // 6. Hapus cadangan lokal hanya setelah penyimpanan berhasil
+      localStorage.removeItem(`cbt_answers_${examId}`)
+      localStorage.removeItem(`cbt_start_time_${examId}`)
+
+      router.push(
+        `/exam/${examId}/summary?session_id=${activeSessId}`
+      )
+    } catch (error) {
+      console.error('Gagal menyelesaikan ujian:', error)
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan yang tidak diketahui.'
+
+      alert(
+        `${message}\n\nJawaban lokal tidak dihapus. Silakan coba selesaikan ujian kembali atau hubungi proktor.`
+      )
+
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
     }
 
-    // Simpan Detail Lembar Jawaban
-    const answerRecords = currentQuestions.map((q) => {
-      const rawAns = currentAnswers[q.id]
-      const formattedAns =
-        rawAns === undefined || rawAns === null
-          ? null
-          : typeof rawAns === 'string'
-          ? rawAns
-          : JSON.stringify(rawAns)
-
-      return {
-        session_id: activeSessId,
-        question_id: q.id,
-        user_answer: formattedAns,
-      }
-    })
-
-    await supabase.from('answers').insert(answerRecords)
-
-    // Bersihkan LocalStorage
-    localStorage.removeItem(`cbt_answers_${examId}`)
-    localStorage.removeItem(`cbt_start_time_${examId}`)
 
     router.push(`/exam/${examId}/summary?session_id=${activeSessId}`)
   }
