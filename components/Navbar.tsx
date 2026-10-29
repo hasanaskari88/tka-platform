@@ -87,8 +87,9 @@ export default function Navbar() {
   const currentThemeConfig =
     themeConfig[theme] || themeConfig.school
 
+  
   const navLink =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold text-slate-700 transition-all hover:-translate-y-0.5 hover:bg-indigo-50 hover:text-indigo-700'
+    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent px-3 py-2.5 text-xs font-bold text-slate-700 transition-colors duration-200 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2'
 
   const activeGameLink =
     'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-xs font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md'
