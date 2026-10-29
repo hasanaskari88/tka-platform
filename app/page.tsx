@@ -249,7 +249,7 @@ function HomePageContent() {
             </div>
           </div>
 
-          {/* KARTU GAMIFIKASI STATUS SISWA */}
+          {/* KARTU GAMIFIKASI STATUS SISWA (MENDETEKSI PROFIL USER / SOLUSI LOGIN) */}
           <div
             className={`p-5 rounded-3xl border backdrop-blur-xl shadow-md flex flex-col justify-between space-y-3 ${themeDetails.boxBg}`}
           >
@@ -257,11 +257,48 @@ function HomePageContent() {
               <span className={`text-xs font-bold uppercase tracking-wider ${themeDetails.sectionTitle}`}>
                 ⭐ Status Gamifikasi
               </span>
-              <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold rounded-full">
-                Aktif
-              </span>
+              {userProfile ? (
+                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold rounded-full">
+                  Aktif
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold rounded-full">
+                  Tamu
+                </span>
+              )}
             </div>
 
+            {/* AREA INFORMASI USER LOGIN ATAU PETUNJUK LOGIN */}
+            {userProfile ? (
+              <div className={`p-2.5 rounded-2xl border ${themeDetails.badgeColor} space-y-1`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold opacity-70 uppercase">👤 Mengerjakan Sebagai:</span>
+                  <Link href="/profile" className="text-[10px] font-extrabold underline opacity-90 hover:opacity-100">
+                    ✏️ Edit Profil
+                  </Link>
+                </div>
+                <p className="text-xs font-extrabold truncate">
+                  {userProfile.full_name || 'Siswa SD Negeri Getasan'}
+                </p>
+                <p className="text-[10px] opacity-80">
+                  {userProfile.class_code ? `Kelas ${userProfile.class_code}` : `@${userProfile.username || 'siswa'}`}
+                </p>
+              </div>
+            ) : (
+              <div className={`p-2.5 rounded-2xl border ${themeDetails.badgeColor} space-y-2`}>
+                <p className="text-[10px] font-medium leading-tight opacity-90">
+                  ⚠️ Belum masuk akun. XP & Level tidak tersimpan di profil kamu.
+                </p>
+                <Link
+                  href="/login"
+                  className={`w-full py-1.5 text-center text-[11px] font-extrabold rounded-xl transition-all block ${themeDetails.btnBg}`}
+                >
+                  🔑 Masuk (Login) Sekarang
+                </Link>
+              </div>
+            )}
+
+            {/* TOTAL XP & LEVEL KAMU */}
             <div className="grid grid-cols-2 gap-2 text-center">
               <div className={`p-3 rounded-2xl border ${themeDetails.badgeColor}`}>
                 <p className="text-[10px] font-bold uppercase opacity-80">Total XP</p>
