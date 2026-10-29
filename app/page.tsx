@@ -92,6 +92,14 @@ function HomePageContent() {
     setIsModalOpen(true)
   }
 
+  // 🚪 Fungsi Keluar / Logout
+  const handleLogout = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setUserProfile(null)
+    window.location.reload()
+  }
+
   // 🎨 Konfigurasi Visual Berdasarkan Tema (Termasuk Disney, Cartoon 3D, Space, Jungle, Ocean, School)
   const themeMap: Record<string, any> = {
     space: {
@@ -249,7 +257,7 @@ function HomePageContent() {
             </div>
           </div>
 
-          {/* KARTU GAMIFIKASI STATUS SISWA (MENDETEKSI PROFIL USER / SOLUSI LOGIN) */}
+          {/* KARTU GAMIFIKASI STATUS SISWA (MENDETEKSI PROFIL USER, AVATAR, EDIT PROFIL & KELUAR) */}
           <div
             className={`p-5 rounded-3xl border backdrop-blur-xl shadow-md flex flex-col justify-between space-y-3 ${themeDetails.boxBg}`}
           >
@@ -268,21 +276,45 @@ function HomePageContent() {
               )}
             </div>
 
-            {/* AREA INFORMASI USER LOGIN ATAU PETUNJUK LOGIN */}
+            {/* AREA INFORMASI USER LOGIN DENGAN AVATAR & TOMBOL KELUAR */}
             {userProfile ? (
-              <div className={`p-2.5 rounded-2xl border ${themeDetails.badgeColor} space-y-1`}>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold opacity-70 uppercase">👤 Mengerjakan Sebagai:</span>
-                  <Link href="/profile" className="text-[10px] font-extrabold underline opacity-90 hover:opacity-100">
-                    ✏️ Edit Profil
-                  </Link>
+              <div className={`p-2.5 rounded-2xl border ${themeDetails.badgeColor} space-y-2`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                    {/* AVATAR SISWA */}
+                    <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-400/40 flex items-center justify-center text-xl shrink-0 shadow-sm">
+                      {userProfile.avatar_url || '👨‍🚀'}
+                    </div>
+
+                    {/* IDENTITAS SISWA */}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-extrabold truncate">
+                        {userProfile.full_name || 'Siswa SD Negeri Getasan'}
+                      </p>
+                      <p className="text-[10px] opacity-80 truncate">
+                        {userProfile.class_code ? `Kelas ${userProfile.class_code}` : `@${userProfile.username || 'siswa'}`}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* AKSI EDIT PROFIL & KELUAR */}
+                  <div className="flex flex-col items-end space-y-1 shrink-0">
+                    <Link
+                      href="/profile"
+                      className="text-[10px] font-extrabold underline opacity-90 hover:opacity-100 transition-opacity"
+                    >
+                      ✏️ Edit Profil
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="text-[10px] font-extrabold text-rose-400 hover:text-rose-300 underline transition-colors"
+                      suppressHydrationWarning
+                    >
+                      🚪 Keluar
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs font-extrabold truncate">
-                  {userProfile.full_name || 'Siswa SD Negeri Getasan'}
-                </p>
-                <p className="text-[10px] opacity-80">
-                  {userProfile.class_code ? `Kelas ${userProfile.class_code}` : `@${userProfile.username || 'siswa'}`}
-                </p>
               </div>
             ) : (
               <div className={`p-2.5 rounded-2xl border ${themeDetails.badgeColor} space-y-2`}>
