@@ -2,302 +2,421 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { useTheme, ThemeMode } from '@/context/ThemeContext'
 import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import type {
+  User,
+  AuthChangeEvent,
+  Session,
+} from '@supabase/supabase-js'
+
+import { useTheme, type ThemeMode } from '@/context/ThemeContext'
+import { createClient } from '@/lib/supabase/client'
+
+const themes: { value: ThemeMode; label: string; icon: string }[] = [
+  { value: 'school', label: 'Sekolah', icon: '🏫' },
+  { value: 'space', label: 'Luar Angkasa', icon: '🚀' },
+  { value: 'jungle', label: 'Hutan', icon: '🌿' },
+  { value: 'ocean', label: 'Laut', icon: '🌊' },
+  { value: 'disney', label: 'Disney', icon: '✨' },
+  { value: 'cartoon3d', label: 'Kartun 3D', icon: '🎨' },
+  { value: 'gaming', label: 'Gaming', icon: '🎮' },
+]
+
+const navItems = [
+  { href: '/', label: 'Beranda', icon: '🏠' },
+  { href: '/ujian', label: 'Ujian', icon: '📝' },
+  { href: '/hasil', label: 'Hasil', icon: '📊' },
+  { href: '/materi', label: 'Materi', icon: '📚' },
+]
 
 export default function Navbar() {
   const router = useRouter()
+  const pathname = usePathname()
+  const [supabase] = useState(() => createClient())
 
-  const {
-    theme,
-    setTheme,
-    chromeVisible,
-    setChromeVisible,
-  } = useTheme()
+  const { theme, setTheme } = useTheme()
 
-  const [user, setUser] = useState<any>(null)
-  const [showThemeMenu, setShowThemeMenu] = useState(false)
+  const [user, setUser] = useState<User | null>(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false)
+  const [chromeVisible, setChromeVisible] = useState(true)
+  const [loggingOut, setLoggingOut] = useState(false)
 
-  // Memantau status login Supabase
   useEffect(() => {
-    const supabase = createClient()
+    let mounted = true
 
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user || null)
-    })
+    const loadUser = async () => {
+      try {
+        const { data, error } = await supabase.auth.getUser()
 
-    const { data: authListener } =
-      supabase.auth.onAuthStateChange((_event, session) => {
-        setUser(session?.user || null)
-      })
+        if (!mounted) return
+
+        if (error) {
+          console.error('Gagal memuat pengguna:', error.message)
+          setUser(null)
+        } else {
+          setUser(data.user)
+        }
+      } catch (error) {
+        if (!mounted) return
+
+        console.error('Terjadi kesalahan saat memuat pengguna:', error)
+        setUser(null)
+      } finally {
+        if (mounted) {
+          setAuthLoading(false)
+        }
+      }
+    }
+
+    void loadUser()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      (_event: AuthChangeEvent, session: Session | null) => {
+        if (mounted) {
+          setUser(session?.user ?? null)
+          setAuthLoading(false)
+        }
+      }
+    )
 
     return () => {
-      authListener.subscription.unsubscribe()
+      mounted = false
+      subscription.unsubscribe()
     }
   }, [])
 
-  // Logout pengguna
+  useEffect(() => {
+    setMobileMenuOpen(false)
+    setThemeMenuOpen(false)
+  }, [pathname])
+
   const handleLogout = async () => {
-    const supabase = createClient()
+    if (loggingOut) return
 
-    await supabase.auth.signOut()
-    setUser(null)
-    router.push('/login')
+    setLoggingOut(true)
+
+    try {
+      const { error } = await supabase.auth.signOut()
+
+      if (error) {
+        console.error('Gagal keluar:', error.message)
+        window.alert('Gagal keluar dari akun. Silakan coba lagi.')
+        return
+      }
+
+      setUser(null)
+      setMobileMenuOpen(false)
+      setThemeMenuOpen(false)
+
+      router.push('/login')
+      router.refresh()
+    } catch (error) {
+      console.error('Terjadi kesalahan saat keluar:', error)
+      window.alert('Terjadi kesalahan saat keluar dari akun.')
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
-  // Konfigurasi tema
-  const themeConfig: Record<
-    ThemeMode,
-    { name: string; icon: string; style: string }
-  > = {
-    school: {
-      name: 'Resmi SD',
-      icon: '🏫',
-      style: 'from-blue-600 to-indigo-600 text-white',
-    },
-    space: {
-      name: 'Luar Angkasa',
-      icon: '🚀',
-      style: 'from-violet-600 to-fuchsia-600 text-white',
-    },
-    jungle: {
-      name: 'Hutan Rimba',
-      icon: '🌿',
-      style: 'from-emerald-500 to-green-700 text-white',
-    },
-    ocean: {
-      name: 'Jelajah Laut',
-      icon: '🌊',
-      style: 'from-sky-500 to-blue-700 text-white',
-    },
-    disney: {
-      name: 'Disney Magis',
-      icon: '🏰',
-      style: 'from-pink-600 to-purple-600 text-white',
-    },
-    cartoon3d: {
-      name: 'Cartoon 3D',
-      icon: '🎨',
-      style: 'from-amber-300 to-yellow-400 text-slate-950',
-    },
-    gaming: {
-      name: 'Gaming',
-      icon: '🎮',
-      style: 'from-cyan-500 via-blue-600 to-fuchsia-600 text-white',
-    },
+  const handleThemeChange = (nextTheme: ThemeMode) => {
+    setTheme(nextTheme)
+    setThemeMenuOpen(false)
+    setMobileMenuOpen(false)
   }
 
-  const currentThemeConfig =
-    themeConfig[theme] || themeConfig.school
-
-  
-  const navLink =
-    'inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-transparent px-2 py-1.5 text-[11px] font-bold text-slate-700 transition-colors duration-200 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:gap-1.5 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-xs'
-  const activeGameLink =
-    'inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-2 py-1.5 text-[11px] font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:gap-1.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs'
-  // Sembunyikan Navbar ketika Mode Fokus aktif.
-  // Semua hooks tetap dipanggil sebelum kondisi ini.
+  // Mode Fokus menyembunyikan navbar.
+  // Tombol mengambang digunakan untuk menampilkan navbar kembali.
   if (!chromeVisible) {
-    return null
+    return (
+      <button
+        type="button"
+        onClick={() => setChromeVisible(true)}
+        className="fixed right-3 top-3 z-[100] rounded-full border border-white/30 bg-slate-900/85 px-3 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur"
+        aria-label="Tampilkan kembali navbar"
+      >
+        ☰ Tampilkan menu
+      </button>
+    )
   }
 
   return (
-    <header className="sticky top-0 z-40 w-full font-sans shadow-[0_8px_30px_-18px_rgba(15,23,42,0.45)]">
-
-      {/* STRIP INFORMASI SEKOLAH */}
-      <div className="border-b border-blue-400/20 bg-gradient-to-r from-[#071638] via-[#102a66] to-[#071638] px-3 py-2 text-[10px] text-blue-50 sm:px-6 sm:text-xs">
-        <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-x-4 gap-y-1">
-
-          <span className="min-w-0 truncate font-semibold">
-            📍 Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774)
+    <header className="relative z-50 w-full">
+      {/* Identitas sekolah */}
+      <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-5 sm:py-3">
+        <Link
+          href="/"
+          className="flex min-w-0 items-center gap-2"
+          aria-label="Kembali ke beranda"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/20 text-xl sm:h-11 sm:w-11 sm:text-2xl">
+            🏫
           </span>
 
-          <a
-            href="mailto:sdnegerigetasan@gmail.com"
-            className="shrink-0 font-semibold text-cyan-200 transition hover:text-white"
-          >
-            ✉️{' '}
-            <span className="hidden sm:inline">
-              sdnegerigetasan@gmail.com
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-extrabold leading-tight sm:text-base">
+              SD Negeri Getasan
             </span>
-            <span className="sm:hidden">
-              Email Sekolah
+            <span className="hidden text-xs opacity-80 sm:block">
+              Platform CBT Sekolah
             </span>
-          </a>
+          </span>
+        </Link>
 
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* Pemilih tema */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => {
+                setThemeMenuOpen((open) => !open)
+                setMobileMenuOpen(false)
+              }}
+              className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-current/20 px-2 text-sm font-semibold transition hover:bg-white/15 sm:min-h-10 sm:px-3"
+              aria-expanded={themeMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Pilih tema"
+            >
+              🎨
+              <span className="hidden sm:inline">Tema</span>
+              <span className="text-xs">▾</span>
+            </button>
+
+            {themeMenuOpen && (
+              <div
+                className="absolute right-0 top-full mt-2 max-h-[65vh] w-48 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1.5 text-slate-800 shadow-xl"
+                role="menu"
+                aria-label="Pilih tema"
+              >
+                {themes.map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleThemeChange(item.value)}
+                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition hover:bg-slate-100 ${
+                      theme === item.value
+                        ? 'bg-slate-100 font-bold'
+                        : ''
+                    }`}
+                  >
+                    <span>{item.icon}</span>
+                    <span className="flex-1">{item.label}</span>
+                    {theme === item.value && <span>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Mode Fokus */}
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen(false)
+              setThemeMenuOpen(false)
+              setChromeVisible(false)
+            }}
+            className="inline-flex min-h-9 items-center justify-center rounded-xl border border-current/20 px-2 text-sm transition hover:bg-white/15 sm:min-h-10 sm:px-3"
+            title="Sembunyikan navbar untuk fokus belajar"
+            aria-label="Aktifkan Mode Fokus"
+          >
+            🎯
+            <span className="ml-1 hidden sm:inline">Fokus</span>
+          </button>
+
+          {/* Tombol menu mobile */}
+          <button
+            type="button"
+            onClick={() => {
+              setMobileMenuOpen((open) => !open)
+              setThemeMenuOpen(false)
+            }}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-current/20 text-lg sm:hidden"
+            aria-label={mobileMenuOpen ? 'Tutup menu' : 'Buka menu'}
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? '✕' : '☰'}
+          </button>
         </div>
       </div>
 
-      {/* NAVBAR UTAMA */}
-      <nav className="border-b border-indigo-100 bg-white/95 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-2 px-3 py-2 sm:gap-3 sm:px-6 sm:py-3 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:py-4">
-          {/* IDENTITAS SEKOLAH */}
-          <Link
-            href="/"
-            className="group flex min-w-0 items-center gap-2 sm:gap-3"
-          >
-            <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-100 via-white to-indigo-100 shadow-sm ring-1 ring-indigo-100 transition group-hover:rotate-3 group-hover:scale-105 sm:h-14 sm:w-14">
-              <img
-                src="/logo-sd-getasan.png"
-                alt="Logo SD Negeri Getasan"
-                className="h-7 w-7 object-contain sm:h-12 sm:w-12"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none'
-                }}
-              />
-            </div>
+      {/* Navigasi utama */}
+      <nav
+        className="border-y border-current/10"
+        aria-label="Navigasi utama"
+      >
+        <div className="flex items-center gap-1 overflow-x-auto px-2 py-1.5 sm:justify-center sm:gap-2 sm:px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {navItems.map((item) => {
+            const active =
+              item.href === '/'
+                ? pathname === '/'
+                : pathname === item.href ||
+                  pathname.startsWith(`${item.href}/`)
 
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="bg-gradient-to-r from-blue-800 via-indigo-700 to-violet-600 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-xl">
-                  SD NEGERI GETASAN
-                </span>
-
-                <span className="hidden rounded-full border border-cyan-200 bg-cyan-50 px-2 py-0.5 text-[9px] font-black text-cyan-800 xl:inline-flex">
-                  EST. 1951
-                </span>
-              </div>
-
-              <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-500 sm:text-[10px]">
-                CBT Adventure • Asesmen Ujian Online
-              </p>
-            </div>
-          </Link>
-
-          {/* DAFTAR NAVIGASI */}
-          <div className="-mx-1 flex flex-wrap items-center gap-1.5 px-1 pb-1 lg:mx-0 lg:justify-end lg:pb-0">
-  
-            {/* PEMILIH TEMA */}
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                aria-expanded={showThemeMenu}
-                aria-haspopup="menu"
-                onClick={() => setShowThemeMenu((previous) => !previous)}
-                  className={`inline-flex items-center gap-1 rounded-lg bg-gradient-to-r px-2 py-1.5 text-[10px] font-black shadow-md ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:gap-1.5 sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs ${currentThemeConfig.style}`}              >
-                <span>{currentThemeConfig.icon}</span>
-                <span>{currentThemeConfig.name}</span>
-                <span className="text-[9px]">▾</span>
-              </button>
-
-              {showThemeMenu && (
-                <>
-                  {/* Lapisan untuk menutup menu saat area luar diklik */}
-                  <button
-                    type="button"
-                    aria-label="Tutup menu tema"
-                    className="fixed inset-0 z-40 cursor-default"
-                    onClick={() => setShowThemeMenu(false)}
-                  />
-
-                  {/* Daftar pilihan tema */}
-                  <div
-                    role="menu"
-                      className="absolute left-0 z-50 mt-3 w-52 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-[0_20px_60px_-15px_rgba(30,41,59,0.35)] sm:left-auto sm:right-0"
-                  >
-                    <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      🎨 Pilih Dunia Belajarmu
-                    </p>
-
-                    {(Object.keys(themeConfig) as ThemeMode[]).map(
-                      (key) => (
-                        <button
-                          key={key}
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setTheme(key)
-                            setShowThemeMenu(false)
-                          }}
-                          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-extrabold transition ${
-                            theme === key
-                              ? 'bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-800 ring-1 ring-indigo-200'
-                              : 'text-slate-700 hover:bg-slate-50'
-                          }`}
-                        >
-                          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-lg">
-                            {themeConfig[key].icon}
-                          </span>
-
-                          <span className="flex-1">
-                            {themeConfig[key].name}
-                          </span>
-
-                          {theme === key && (
-                            <span className="text-indigo-600">
-                              ✓
-                            </span>
-                          )}
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* BERANDA */}
-            <Link href="/" className={navLink}>
-              <span>🏠</span>
-              <span>Beranda</span>
-            </Link>
-
-            {/* RIWAYAT */}
-            {user && (
-              <Link href="/history" className={navLink}>
-                <span>📊</span>
-                <span>Riwayat</span>
-              </Link>
-            )}
-
-            {/* LATIHAN MANDIRI */}
-            <Link href="/practice" className={activeGameLink}>
-              <span className="text-base">🎮</span>
-              <span>Latihan Mandiri</span>
-            </Link>
-
-            {/* ADMIN */}
-            <Link href="/admin" className={navLink}>
-              <span>⚙️</span>
-              <span>Admin</span>
-            </Link>
-
-            {/* MODE FOKUS */}
-            <button
-              type="button"
-              onClick={() => setChromeVisible(false)}
-              title="Sembunyikan Navbar dan Footer"
-              aria-label="Aktifkan Mode Fokus"
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-700"
-            >
-              <span>⛶</span>
-              <span>Mode Fokus</span>
-            </button>
-
-            {/* LOGIN / LOGOUT */}
-            {user ? (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-3 py-2 text-xs font-black text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md"
-              >
-                <span>↪</span>
-                <span>Logout</span>
-              </button>
-            ) : (
+            return (
               <Link
-                href="/login"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-600 hover:shadow-lg"
+                key={item.href}
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={`inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition sm:min-h-10 sm:px-4 ${
+                  active
+                    ? 'bg-white/25 shadow-sm'
+                    : 'hover:bg-white/15'
+                }`}
               >
-                🔑 Masuk
+                <span aria-hidden="true">{item.icon}</span>
+                <span className="hidden sm:inline">{item.label}</span>
               </Link>
-            )}
+            )
+          })}
 
-          </div>
+          {/* Tautan profil */}
+          {user && (
+            <Link
+              href="/profil"
+              aria-current={pathname === '/profil' ? 'page' : undefined}
+              className={`inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold transition sm:min-h-10 sm:px-4 ${
+                pathname === '/profil'
+                  ? 'bg-white/25 shadow-sm'
+                  : 'hover:bg-white/15'
+              }`}
+            >
+              <span aria-hidden="true">👤</span>
+              <span className="hidden sm:inline">Profil</span>
+            </Link>
+          )}
         </div>
       </nav>
+
+      {/* Panel menu mobile */}
+      {mobileMenuOpen && (
+        <div className="absolute left-0 right-0 top-full border-b border-slate-200 bg-white p-3 text-slate-800 shadow-xl sm:hidden">
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            {navItems.map((item) => {
+              const active =
+                item.href === '/'
+                  ? pathname === '/'
+                  : pathname === item.href ||
+                    pathname.startsWith(`${item.href}/`)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`rounded-xl border p-3 text-sm font-semibold ${
+                    active
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-slate-200'
+                  }`}
+                >
+                  {item.icon} {item.label}
+                </Link>
+              )
+            })}
+
+            {user && (
+              <Link
+                href="/profil"
+                aria-current={pathname === '/profil' ? 'page' : undefined}
+                className={`rounded-xl border p-3 text-sm font-semibold ${
+                  pathname === '/profil'
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-slate-200'
+                }`}
+              >
+                👤 Profil
+              </Link>
+            )}
+          </div>
+
+          <div className="mb-3 rounded-xl bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+              Pilih tema
+            </p>
+
+            <div className="grid grid-cols-2 gap-1.5">
+              {themes.map((item) => (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => handleThemeChange(item.value)}
+                  className={`rounded-lg border px-2 py-2 text-left text-sm ${
+                    theme === item.value
+                      ? 'border-blue-400 bg-blue-50 font-bold'
+                      : 'border-slate-200 bg-white'
+                  }`}
+                >
+                  {item.icon} {item.label}
+                  {theme === item.value ? ' ✓' : ''}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {authLoading ? (
+            <p className="px-2 py-2 text-sm text-slate-500">
+              Memeriksa akun...
+            </p>
+          ) : user ? (
+            <div className="space-y-2">
+              <p className="break-all px-2 text-xs text-slate-500">
+                Masuk sebagai {user.email ?? 'pengguna'}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => void handleLogout()}
+                disabled={loggingOut}
+                className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-bold text-white disabled:opacity-60"
+              >
+                {loggingOut ? 'Sedang keluar...' : 'Keluar dari akun'}
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="block rounded-xl bg-blue-600 px-4 py-3 text-center text-sm font-bold text-white"
+            >
+              Masuk
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Informasi akun untuk desktop */}
+      <div className="hidden items-center justify-end gap-3 px-5 py-2 text-sm sm:flex">
+        {authLoading ? (
+          <span className="opacity-70">Memeriksa akun...</span>
+        ) : user ? (
+          <>
+            <span className="max-w-64 truncate opacity-80">
+              👤 {user.email ?? 'Pengguna'}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              disabled={loggingOut}
+              className="rounded-lg border border-current/20 px-3 py-1.5 font-semibold transition hover:bg-white/15 disabled:opacity-60"
+            >
+              {loggingOut ? 'Keluar...' : 'Keluar'}
+            </button>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            className="rounded-lg border border-current/20 px-3 py-1.5 font-semibold transition hover:bg-white/15"
+          >
+            Masuk
+          </Link>
+        )}
+      </div>
     </header>
   )
 }
