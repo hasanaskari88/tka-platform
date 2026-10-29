@@ -1,12 +1,145 @@
+
 @import "katex/dist/katex.min.css";
 @import "tailwindcss";
 
+/* =========================================
+   1. WARNA DASAR WEBSITE
+   ========================================= */
+
 :root {
-  --foreground: #000204;
+  color-scheme: light;
+
+  --foreground: #172033;
+  --background: #f8fafc;
+
+  --text-primary: #172033;
+  --text-secondary: #475569;
+
+  --surface: #ffffff;
+  --surface-border: #dbe3ee;
+
+  --primary: #1d4ed8;
+  --primary-hover: #1e40af;
+}
+
+html {
+  min-height: 100%;
 }
 
 body {
+  min-height: 100vh;
+  margin: 0;
   background-color: transparent;
-  color: var(--foreground);
+  color: var(--text-primary);
   font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.6;
+}
+
+/* =========================================
+   2. WARNA TEKS YANG KONSISTEN
+   ========================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+p,
+li,
+label {
+  color: inherit;
+}
+
+small {
+  color: var(--text-secondary);
+}
+
+/* Link tetap terlihat jelas */
+a {
+  color: var(--primary);
+}
+
+a:hover {
+  color: var(--primary-hover);
+}
+
+/* =========================================
+   3. INPUT DAN FORM
+   ========================================= */
+
+input,
+textarea,
+select {
+  color: #172033;
+  background-color: #ffffff;
+  border-color: #cbd5e1;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline-color: #2563eb;
+}
+
+/* =========================================
+   4. TABEL
+   ========================================= */
+
+table {
+  color: #172033;
+}
+
+th {
+  color: #172033;
+  background-color: #eaf0f8;
+}
+
+td {
+  color: #334155;
+}
+
+/* =========================================
+   5. TEKS DAN LATAR KONTEN
+   ========================================= */
+
+::selection {
+  color: #ffffff;
+  background-color: #1d4ed8;
+}
+
+/* Jangan biarkan gambar merusak tata letak */
+img,
+video {
+  max-width: 100%;
+}
+
+/* =========================================
+   6. AKSESIBILITAS
+   ========================================= */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
 }
