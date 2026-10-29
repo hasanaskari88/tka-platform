@@ -367,32 +367,7 @@ function ExamSummaryContent() {
     : 0
 
   // Auto Update database jika nilai / end_time null
-  useEffect(() => {
-    if (sessionData && !loading && questions.length > 0) {
-      const dbScore = Number(sessionData.score)
-      const needFixScore = dbScore !== calculatedScore
-      const needFixEndTime = !sessionData.end_time
-
-      if (needFixScore || needFixEndTime) {
-        const supabase = createClient()
-        const nowIso = new Date().toISOString()
-        const updatedEndTime = sessionData.end_time || nowIso
-
-        supabase
-          .from('exam_sessions')
-          .update({
-            score: calculatedScore,
-            end_time: updatedEndTime,
-          })
-          .eq('id', sessionData.id)
-          .then(() => {
-            setSessionData((prev: any) =>
-              prev ? { ...prev, score: calculatedScore, end_time: updatedEndTime } : prev
-            )
-          })
-      }
-    }
-  }, [sessionData, calculatedScore, loading, questions.length])
+  
 
   // Filter Soal
   const filteredQuestions = questions.filter((q) => {
@@ -473,7 +448,11 @@ function ExamSummaryContent() {
             <div className="text-4xl animate-bounce">⭐</div>
             <div className="text-right">
               <span className="text-[10px] font-extrabold uppercase opacity-75 block">Skor Akhir</span>
-              <span className="text-3xl font-black text-amber-400">{calculatedScore} / 100</span>
+              <span className="text-3xl font-black text-amber-400">
+                  {sessionData?.score !== null && sessionData?.score !== undefined
+                    ? Number(sessionData.score)
+                    : calculatedScore} / 100
+                </span>
             </div>
           </div>
         </div>

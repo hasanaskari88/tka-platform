@@ -179,14 +179,17 @@ function ExamEngineContent() {
     let startTimeIso = new Date().toISOString()
     let currentSession: any = null
 
-    const { data: existingSession, error: sessionError } = await supabase
-      .from('exam_sessions')
-      .select('*')
-      .eq('exam_id', examId)
-      .eq('user_id', activeUser.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    
+const { data: existingSession, error: sessionError } = await supabase
+  .from('exam_sessions')
+  .select('*')
+  .eq('exam_id', examId)
+  .eq('user_id', user.id)
+  .in('status', ['ongoing', 'paused'])
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle()
+
 
     if (sessionError) {
       console.error('Gagal memuat sesi:', sessionError)
@@ -195,12 +198,6 @@ function ExamEngineContent() {
       return
     }
 
-    if (existingSession?.status === 'completed') {
-      router.replace(
-        `/exam/${examId}/summary?session_id=${existingSession.id}`
-      )
-      return
-    }
 
     if (existingSession) {
       currentSession = existingSession
@@ -224,7 +221,13 @@ function ExamEngineContent() {
 
       if (createError || !newSess) {
         console.error('Gagal membuat sesi:', createError)
-        alert('Gagal membuat sesi ujian. Silakan muat ulang halaman.')
+
+        alert(
+          `Gagal membuat sesi ujian baru: ${
+            createError?.message || 'Data sesi tidak dikembalikan oleh database.'
+          }`
+        )
+
         setLoading(false)
         return
       }

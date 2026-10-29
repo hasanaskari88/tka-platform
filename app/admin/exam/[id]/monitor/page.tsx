@@ -699,6 +699,7 @@ function MonitorContent() {
                                 </button>
                               </>
                             )}
+
                             {isPaused && (
                               <>
                                 <button
@@ -711,20 +712,22 @@ function MonitorContent() {
                                 <button
                                   onClick={() => handleForceSubmit(s)}
                                   className="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-[10px] transition-colors"
+                                  title="Paksa Selesai & Simpan Nilai"
                                 >
                                   🛑 Submit
                                 </button>
                               </>
                             )}
-                            {s.status === 'completed' && (
-                              <button
-                                onClick={() => handleResetSession(s.id)}
-                                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold rounded text-[10px] transition-colors"
-                              >
-                                🔄 Reset Sesi
-                              </button>
-                            )}
+
+                            <button
+                              onClick={() => handleResetSession(s.id)}
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold rounded text-[10px] transition-colors"
+                              title="Hapus sesi dan jawaban agar siswa mulai dari awal"
+                            >
+                              🔄 Reset Sesi
+                            </button>
                           </td>
+
                         </tr>
                       )
                     })
