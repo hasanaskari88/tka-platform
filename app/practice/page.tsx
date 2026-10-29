@@ -15,14 +15,15 @@ export default function PracticeHubPage() {
   // 🟢 STATE FILTER LEADERBOARD ('ALL' | 'MY_CLASS' | KODE KELAS SPESIFIK)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
 
-  // 🟢 FUNGSI MENGAMBIL DATA LEADERBOARD DENGAN FILTER FLEKSIBEL
+  // 🟢 FUNGSI MENGAMBIL DATA LEADERBOARD DENGAN FILTER FLEKSIBEL (MENGEQUALIKAN KELAS 'GURU')
   const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
     const supabase = createClient()
     const activeProfile = currentProfile || userProfile
 
     let query = supabase
       .from('profiles')
-      .select('id, full_name, username, class_code, xp, level')
+      .select('id, full_name, username, class_code, xp, level, role')
+      .not('class_code', 'ilike', 'guru') // 🛑 Mengecualikan akun dengan class_code 'Guru'
       .order('xp', { ascending: false })
       .limit(15)
 
@@ -36,7 +37,13 @@ export default function PracticeHubPage() {
     }
 
     const { data: topUsers } = await query
-    if (topUsers) setLeaderboard(topUsers)
+    if (topUsers) {
+      // Filter tambahan di Sisi Client untuk memastikan kelas 'Guru' tidak pernah muncul
+      const cleanUsers = topUsers.filter(
+        (u: any) => String(u.class_code || '').trim().toLowerCase() !== 'guru'
+      )
+      setLeaderboard(cleanUsers)
+    }
   }
 
   useEffect(() => {
@@ -62,7 +69,7 @@ export default function PracticeHubPage() {
         }
       }
 
-      // 2. Ambil Daftar Seluruh Kelas Unik dari Database
+      // 2. Ambil Daftar Seluruh Kelas Unik Siswa dari Database (Mengecualikan 'Guru')
       const { data: classData } = await supabase
         .from('profiles')
         .select('class_code')
@@ -72,8 +79,10 @@ export default function PracticeHubPage() {
         const uniqueClasses = Array.from(
           new Set(
             classData
-              .map((p: any) => p.class_code)
-              .filter((c: any) => c && String(c).trim() !== '')
+              .map((p: any) => String(p.class_code || '').trim())
+              .filter(
+                (c: string) => c !== '' && c.toLowerCase() !== 'guru'
+              )
           )
         ).sort()
         setAvailableClasses(uniqueClasses as string[])
@@ -203,7 +212,7 @@ export default function PracticeHubPage() {
             )}
           </div>
 
-          {/* KOLOM KANAN (1/3): PAPAN PERINGKAT / LEADERBOARD (DENGAN FILTER KELAS MULTI-KONTROL) */}
+          {/* KOLOM KANAN (1/3): PAPAN PERINGKAT / LEADERBOARD (SELEKSI KELAS SISWA) */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-fit">
             <div className="flex flex-col space-y-2 border-b pb-3">
               <div className="flex justify-between items-center">
@@ -218,26 +227,28 @@ export default function PracticeHubPage() {
                 )}
               </div>
 
-              {/* DROPDOWN KONTROL SELEKSI KELAS (DUKUNGAN SEMUA KELAS / ADMIN) */}
+              {/* DROPDOWN KONTROL SELEKSI KELAS (TANPA KELAS GURU) */}
               <div className="pt-1">
                 <select
                   value={leaderboardFilter}
                   onChange={(e) => setLeaderboardFilter(e.target.value)}
                   className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  <option value="ALL">🌐 Semua Kelas (Global Sekolah)</option>
-                  {userProfile?.class_code && (
+                  <option value="ALL">🌐 Semua Kelas Siswa (Global)</option>
+                  {userProfile?.class_code && userProfile.class_code.toLowerCase() !== 'guru' && (
                     <option value="MY_CLASS">
                       🏫 Kelas Saya ({userProfile.class_code})
                     </option>
                   )}
                   {availableClasses.length > 0 && (
-                    <optgroup label="📚 Lihat Peringkat Kelas Lain">
-                      {availableClasses.map((cls) => (
-                        <option key={cls} value={cls}>
-                          Kelas {cls}
-                        </option>
-                      ))}
+                    <optgroup label="📚 Lihat Peringkat Kelas Siswa">
+                      {availableClasses
+                        .filter((cls) => cls.toLowerCase() !== 'guru')
+                        .map((cls) => (
+                          <option key={cls} value={cls}>
+                            Kelas {cls}
+                          </option>
+                        ))}
                     </optgroup>
                   )}
                 </select>
