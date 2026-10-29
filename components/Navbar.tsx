@@ -287,13 +287,13 @@ export default function Navbar() {
 
                   <div
                     role="menu"
-                    className="absolute left-1/2 top-full z-[70] mt-3 w-[min(19rem,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border border-indigo-100 bg-white p-3 shadow-[0_20px_60px_-15px_rgba(30,41,59,0.35)]"
+                    className="absolute left-0 top-full z-[70] mt-2 w-52 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-xl"
                   >
                     <p className="px-2 pb-3 pt-1 text-[11px] font-black uppercase tracking-wider text-slate-400">
                       🎨 Pilih Dunia Belajarmu
                     </p>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-1">
                       {(Object.keys(themeConfig) as ThemeMode[]).map(
                         (key) => (
                           <button
@@ -304,8 +304,7 @@ export default function Navbar() {
                               setTheme(key)
                               setShowThemeMenu(false)
                             }}
-                            className={`flex min-h-12 items-center gap-2 rounded-xl border px-2 py-2 text-left text-xs font-bold transition ${
-                              theme === key
+                            className={`flex min-h-10 w-full items-center gap-2 rounded-xl border px-2 py-2 text-left text-xs font-bold transition ${                              theme === key
                                 ? 'border-indigo-200 bg-indigo-50 text-indigo-800'
                                 : 'border-slate-100 text-slate-700 hover:bg-slate-50'
                             }`}
