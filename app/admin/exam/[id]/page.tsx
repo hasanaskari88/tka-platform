@@ -74,7 +74,7 @@ function QuestionManagerContent() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
 
-  // 🟢 STATE BARU: Checklist Seleksi Massal & Sorting/Filter
+  // Checklist Seleksi Massal & Sorting/Filter
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<string>('created_asc')
   const [filterType, setFilterType] = useState<string>('ALL')
@@ -134,7 +134,64 @@ function QuestionManagerContent() {
     loadData()
   }, [examId])
 
-  // 🟢 HANDLER CHECKLIST & BATCH SELECTION
+  // 1. 📊 FUNGSI EXPORT KE EXCEL (.XLSX)
+  const handleExportExcel = async () => {
+    if (questions.length === 0) {
+      alert('Belum ada soal untuk diekspor!')
+      return
+    }
+
+    try {
+      const XLSX = await import('xlsx')
+      const excelRows = questions.map((q, idx) => {
+        let optionsText = ''
+        if (Array.isArray(q.options)) {
+          optionsText = q.options
+            .map((o: any) => (o.key ? `${o.key}. ${o.text}` : `${o.id || ''}. ${o.text}`))
+            .join(' | ')
+        }
+
+        let keyText = ''
+        if (Array.isArray(q.correct_answers)) {
+          keyText = q.correct_answers.join(', ')
+        } else if (typeof q.correct_option === 'object' && q.correct_option !== null) {
+          keyText = JSON.stringify(q.correct_option)
+        } else {
+          keyText = String(q.correct_option || '')
+        }
+
+        return {
+          No: idx + 1,
+          'Tipe Soal': q.question_type || 'multiple_choice',
+          Pertanyaan: q.question_text || '',
+          'Pilihan / Pernyataan': optionsText,
+          'Kunci Jawaban': keyText,
+          Pembahasan: q.explanation || '-',
+          'Bobot Poin': q.max_score || 1,
+        }
+      })
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows)
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Daftar Soal')
+
+      const fileName = `Soal_${(exam?.title || 'Ujian').replace(/\s+/g, '_')}.xlsx`
+      XLSX.writeFile(workbook, fileName)
+    } catch (err) {
+      alert('Gagal mengekspor ke Excel. Pastikan modul xlsx tersedia.')
+    }
+  }
+
+  // 2. 🖨️ FUNGSI EXPORT / CETAK PDF (A4 2 KOLOM)
+  const handleExportPDF = () => {
+    if (questions.length === 0) {
+      alert('Belum ada soal untuk dicetak!')
+      return
+    }
+    window.print()
+  }
+
+  // HANDLER CHECKLIST & BATCH SELECTION
   const handleToggleSelectAll = (targetQuestions: any[]) => {
     if (selectedIds.length === targetQuestions.length && targetQuestions.length > 0) {
       setSelectedIds([])
@@ -151,7 +208,7 @@ function QuestionManagerContent() {
     }
   }
 
-  // 🟢 HANDLER HAPUS TERPILIH & HAPUS SEMUA
+  // HANDLER HAPUS TERPILIH & HAPUS SEMUA
   const handleDeleteSelected = async () => {
     if (selectedIds.length === 0) return
     const confirmDelete = confirm(
@@ -190,7 +247,7 @@ function QuestionManagerContent() {
     }
   }
 
-  // 🟢 LOGIKA FILTERING & SORTING DAFTAR SOAL
+  // LOGIKA FILTERING & SORTING DAFTAR SOAL
   const filteredAndSortedQuestions = [...questions]
     .filter((q) => {
       if (filterType === 'ALL') return true
@@ -452,10 +509,223 @@ function QuestionManagerContent() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
-      <Navbar />
+      {/* ATURAN STYLESHEET KHUSUS TAMPILAN CETAK PDF (A4 2 KOLOM + HALAMAN TERPISAH KUNCI & PEMBAHASAN) */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 12mm 10mm 15mm 10mm;
+          }
+          body {
+            background-color: white !important;
+            color: black !important;
+            font-family: 'Times New Roman', Times, serif, sans-serif;
+          }
+          nav,
+          header,
+          .no-print {
+            display: none !important;
+          }
+          .print-only {
+            display: block !important;
+          }
+          /* FORMAT 2 KOLOM NASKAH SOAL */
+          .soal-two-columns {
+            column-count: 2;
+            column-gap: 20px;
+            column-rule: 1px solid #cbd5e1;
+          }
+          .soal-item-print {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 16px;
+          }
+          /* HALAMAN TERPISAH KUNCI & PEMBAHASAN */
+          .page-break-before {
+            break-before: page;
+            page-break-before: always;
+            column-count: 1 !important;
+          }
+        }
+        @media screen {
+          .print-only {
+            display: none !important;
+          }
+        }
+      `}</style>
 
-      <main className="p-8 max-w-6xl mx-auto space-y-6">
-        {/* HEADER */}
+      {/* BILAH UTAMA (NAVBAR SCREEN BIASA) */}
+      <div className="no-print">
+        <Navbar />
+      </div>
+
+      {/* 🖨️ DOKUMEN CETAK/PDF (HANYA MUNCUL SAAT CETAK / WINDOW.PRINT) */}
+      <div className="print-only text-black p-2 font-serif leading-snug">
+        {/* KOP RAPORT RESMI SEKOLAH */}
+        <div className="border-b-4 border-double border-black pb-3 mb-4 text-center relative">
+          <div className="flex items-center justify-center space-x-4">
+            <div className="text-left space-y-0.5">
+              <h3 className="text-xs font-bold uppercase tracking-wider">
+                PEMERINTAH KABUPATEN SEMARANG
+              </h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider">
+                DINAS PENDIDIKAN, KEBUDAYAAN, KEPEMUDAAN DAN OLAHRAGA
+              </h3>
+              <h1 className="text-lg font-black uppercase tracking-wide">
+                SD NEGERI GETASAN
+              </h1>
+              <p className="text-[10px] italic">
+                Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email:
+                sdnegerigetasan@gmail.com
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* INFORMASI UJIAN */}
+        <div className="border border-black p-3 mb-4 text-xs grid grid-cols-2 gap-2 bg-slate-50">
+          <div>
+            <p>
+              <b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}
+            </p>
+            <p>
+              <b>NAMA UJIAN:</b> {exam?.title}
+            </p>
+          </div>
+          <div>
+            <p>
+              <b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit
+            </p>
+            <p>
+              <b>KELAS / FASE:</b> SD Negeri Getasan
+            </p>
+          </div>
+        </div>
+
+        {/* PETUNJUK PENGERJAAN */}
+        <p className="text-[11px] italic border-b border-black pb-2 mb-3">
+          <b>PETUNJUK:</b> Pilihlah satu atau beberapa jawaban yang paling tepat pada lembar jawaban yang telah disediakan!
+        </p>
+
+        {/* NASKAH SOAL 2 KOLOM */}
+        <div className="soal-two-columns text-xs">
+          {questions.map((q, idx) => (
+            <div key={q.id} className="soal-item-print">
+              <div className="flex items-start space-x-1">
+                <span className="font-bold shrink-0">{idx + 1}.</span>
+                <div className="space-y-1 w-full">
+                  <div className="font-medium text-justify">
+                    <MathRenderer content={q.question_text} />
+                  </div>
+
+                  {/* GAMBAR SOAL JIKA ADA */}
+                  {q.image_url && (
+                    <img
+                      src={q.image_url}
+                      alt="Gambar Soal"
+                      className="max-h-36 object-contain rounded my-1 border border-slate-300"
+                    />
+                  )}
+
+                  {/* OPTION PILIHAN GANDA */}
+                  {Array.isArray(q.options) && q.question_type !== 'true_false_matrix' && (
+                    <div className="space-y-1 pt-1 pl-1">
+                      {q.options.map((opt: any) => (
+                        <div key={opt.key} className="flex items-start space-x-1.5">
+                          <span className="font-bold">{opt.key}.</span>
+                          <span>
+                            <MathRenderer content={opt.text} />
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* PERNYATAAN BENAR/SALAH MATRIKS */}
+                  {q.question_type === 'true_false_matrix' && Array.isArray(q.options) && (
+                    <table className="w-full text-[10px] border-collapse border border-black mt-1">
+                      <thead>
+                        <tr className="bg-slate-100">
+                          <th className="border border-black p-1 text-left">Pernyataan</th>
+                          <th className="border border-black p-1 text-center w-12">Benar</th>
+                          <th className="border border-black p-1 text-center w-12">Salah</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {q.options.map((st: any) => (
+                          <tr key={st.id}>
+                            <td className="border border-black p-1">{st.text}</td>
+                            <td className="border border-black p-1 text-center">◯</td>
+                            <td className="border border-black p-1 text-center">◯</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 📄 LEMBAR TERPISAH: KUNCI JAWABAN & PEMBAHASAN */}
+        <div className="page-break-before pt-4">
+          <div className="text-center border-b-2 border-black pb-2 mb-4">
+            <h2 className="text-base font-bold uppercase">
+              🔑 KUNCI JAWABAN & PEMBAHASAN SOAL
+            </h2>
+            <p className="text-xs">
+              <b>PAKET UJIAN:</b> {exam?.title} ({exam?.subtest || 'UMUM'})
+            </p>
+          </div>
+
+          <table className="w-full text-xs border-collapse border border-black">
+            <thead>
+              <tr className="bg-slate-200">
+                <th className="border border-black p-2 w-12 text-center">No</th>
+                <th className="border border-black p-2 w-28 text-center">Kunci Jawaban</th>
+                <th className="border border-black p-2 text-left">Pembahasan & Solusi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {questions.map((q, idx) => {
+                let kunciStr = ''
+                if (Array.isArray(q.correct_answers)) {
+                  kunciStr = q.correct_answers.join(', ')
+                } else if (typeof q.correct_option === 'object' && q.correct_option !== null) {
+                  kunciStr = Object.entries(q.correct_option)
+                    .map(([k, v]) => `#${k}: ${v}`)
+                    .join(' | ')
+                } else {
+                  kunciStr = String(q.correct_option || '-')
+                }
+
+                return (
+                  <tr key={q.id}>
+                    <td className="border border-black p-2 text-center font-bold">
+                      {idx + 1}
+                    </td>
+                    <td className="border border-black p-2 text-center font-bold text-indigo-900">
+                      {kunciStr}
+                    </td>
+                    <td className="border border-black p-2 leading-relaxed">
+                      {q.explanation ? (
+                        <MathRenderer content={q.explanation} />
+                      ) : (
+                        <span className="italic text-slate-500">Tidak ada pembahasan.</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Halaman Interaktif Web Admin */}
+      <main className="no-print p-8 max-w-6xl mx-auto space-y-6">
+        {/* HEADER ACTION BAR */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
             <div className="flex items-center space-x-2">
@@ -471,10 +741,31 @@ function QuestionManagerContent() {
             </h1>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* TOMBOL EXPORT EXCEL */}
+            <button
+              onClick={handleExportExcel}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
+              suppressHydrationWarning
+            >
+              <span>📊</span>
+              <span>Export Excel</span>
+            </button>
+
+            {/* TOMBOL EXPORT / CETAK PDF */}
+            <button
+              onClick={handleExportPDF}
+              className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
+              suppressHydrationWarning
+            >
+              <span>🖨️</span>
+              <span>Export PDF (Cetak A4)</span>
+            </button>
+
+            {/* IMPORT BULK */}
             <button
               onClick={() => setIsBulkModalOpen(true)}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
+              className="px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
               suppressHydrationWarning
             >
               <span>📥</span>
