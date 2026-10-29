@@ -204,6 +204,26 @@ function HomePageContent() {
         'bg-amber-50 border-4 border-slate-900 text-slate-900 shadow-[5px_5px_0px_0px_rgba(15,23,42,1)]',
     },
 
+    gaming: {
+      heroBg:
+        'bg-gradient-to-br from-[#10102d]/95 via-[#111735]/95 to-[#080b1d]/95 border-2 border-cyan-400/50 text-white shadow-[0_0_35px_rgba(34,211,238,0.18)]',
+      badge: '🎮 SPACE ADVENTURE • GAMING MODE',
+      title: 'Siap Menaklukkan Misi Pengetahuan?',
+      subtitle:
+        'Jelajahi galaksi ilmu, selesaikan tantangan, kumpulkan XP, dan naikkan levelmu!',
+      cardBg:
+        'bg-[#0c1229]/95 border-2 border-cyan-400/30 text-white hover:border-fuchsia-400/70 hover:shadow-xl hover:shadow-cyan-950/40',
+      cardTitle: 'text-cyan-300 font-black',
+      btnBg:
+        'bg-gradient-to-r from-cyan-500 via-blue-600 to-fuchsia-600 hover:from-cyan-400 hover:via-blue-500 hover:to-fuchsia-500 text-white font-black shadow-lg shadow-cyan-500/20',
+      badgeColor:
+        'bg-fuchsia-950/80 text-cyan-300 border border-cyan-400/40',
+      textMuted: 'text-slate-300 font-medium',
+      sectionTitle: 'text-white font-black',
+      boxBg:
+        'bg-[#0b1025]/95 border-2 border-indigo-400/30 text-white shadow-lg shadow-indigo-950/30',
+    },
+
     school: {
       heroBg:
         'bg-white/95 border border-slate-200 text-slate-800 shadow-slate-200/60',
@@ -234,9 +254,46 @@ function HomePageContent() {
     )
   }
 
-  return (
-    <div className="min-h-screen flex flex-col font-sans relative">
-      <Navbar />
+  
+    return (
+      <div
+        className={`min-h-screen flex flex-col font-sans relative isolate ${
+          theme === 'gaming'
+            ? 'bg-[#070b1b] text-white'
+            : ''
+        }`}
+      >
+        {theme === 'gaming' && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none fixed inset-0 z-[-1] overflow-hidden"
+          >
+            {/* Latar galaksi */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(91,33,182,0.45),_transparent_55%),radial-gradient(ellipse_at_bottom,_rgba(14,165,233,0.2),_transparent_50%),linear-gradient(135deg,#070b1b_0%,#100b32_50%,#080d20_100%)]" />
+
+            {/* Grid futuristik */}
+            <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(34,211,238,0.25)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.25)_1px,transparent_1px)] [background-size:40px_40px]" />
+
+            {/* Cahaya neon */}
+            <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-fuchsia-600/20 blur-[100px]" />
+            <div className="absolute top-1/3 -right-24 h-96 w-96 rounded-full bg-cyan-500/20 blur-[110px]" />
+            <div className="absolute -bottom-32 left-1/4 h-80 w-80 rounded-full bg-violet-600/20 blur-[110px]" />
+
+            {/* Dekorasi game */}
+            <div className="absolute right-6 top-28 text-5xl opacity-20 sm:right-12 sm:text-7xl">
+              🎮
+            </div>
+            <div className="absolute bottom-24 left-5 text-4xl opacity-20 sm:left-10 sm:text-6xl">
+              👾
+            </div>
+            <div className="absolute left-1/4 top-1/2 text-3xl opacity-20 sm:text-5xl">
+              ⚡
+            </div>
+          </div>
+        )}
+
+        <Navbar />
+
 
       <main className="p-4 sm:p-8 max-w-5xl mx-auto space-y-8 flex-grow w-full relative z-10">
         {/* Banner utama */}
