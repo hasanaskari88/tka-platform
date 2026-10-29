@@ -80,8 +80,35 @@ function ExamEngineContent() {
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
     if (!examId) return
+    
     const supabase = createClient()
 
+    let user = null
+
+    try {
+      const { data, error } = await supabase.auth.getUser()
+
+      if (error) throw error
+
+      user = data.user
+    } catch (error) {
+      console.error('Gagal memeriksa login:', error)
+
+      alert('Gagal memeriksa sesi login. Silakan coba kembali.')
+
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+      return
+    }
+
+    if (!user) {
+      alert('Sesi login tidak ditemukan. Silakan login kembali.')
+
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+      router.push('/login')
+      return
+    }
     // A. Ambil User Aktif
     const {
       data: { user: activeUser },
@@ -345,9 +372,23 @@ function ExamEngineContent() {
 
     const supabase = createClient()
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    let user: any = null
+
+    try {
+      const { data, error } = await supabase.auth.getUser()
+
+      if (error) throw error
+
+      user = data.user
+    } catch (error) {
+      console.error('Gagal memeriksa login:', error)
+
+      alert('Gagal memeriksa sesi login. Silakan coba kembali.')
+
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+      return
+    }
 
     let totalPointsEarned = 0
     let totalMaxPoints = 0
@@ -556,8 +597,6 @@ function ExamEngineContent() {
       setIsSubmitting(false)
     }
 
-
-    router.push(`/exam/${examId}/summary?session_id=${activeSessId}`)
   }
 
   if (loading) {
