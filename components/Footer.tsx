@@ -3,7 +3,9 @@
 import { useTheme } from '@/context/ThemeContext'
 
 export default function Footer() {
-  const { theme } = useTheme()
+  const { theme, chromeVisible } = useTheme()
+
+  if (!chromeVisible) return null
 
   const themeFooterMap = {
     space: {
