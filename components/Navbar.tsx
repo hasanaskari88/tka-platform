@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -44,6 +45,7 @@ export default function Navbar() {
 
     await supabase.auth.signOut()
     setUser(null)
+    setShowMobileMenu(false)
     router.push('/login')
   }
 
@@ -98,6 +100,9 @@ export default function Navbar() {
   const activeGameLink =
     'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-2 py-2 text-xs font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-3'
 
+  const mobileNavLink =
+    'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-bold text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-700'
+
   // Sembunyikan Navbar ketika Mode Fokus aktif.
   if (!chromeVisible) {
     return null
@@ -121,9 +126,7 @@ export default function Navbar() {
             <span className="hidden sm:inline">
               sdnegerigetasan@gmail.com
             </span>
-            <span className="sm:hidden">
-              Email Sekolah
-            </span>
+            <span className="sm:hidden">Email Sekolah</span>
           </a>
         </div>
       </div>
@@ -165,8 +168,129 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* NAVIGASI: SATU BARIS DI HP */}
-          <div className="-mx-1 flex w-[calc(100%+0.5rem)] flex-nowrap items-center gap-1 overflow-x-auto px-1 pb-1 sm:gap-1.5 lg:mx-0 lg:w-auto lg:justify-end lg:overflow-visible lg:pb-0">
+          {/* BARIS KONTROL: HAMBURGER, TEMA, DAN NAVIGASI DESKTOP */}
+          <div className="flex w-full min-w-0 items-center justify-end gap-2 lg:w-auto lg:gap-1.5">
+
+            {/* MENU HAMBURGER KHUSUS HP */}
+            <div className="relative shrink-0 lg:hidden">
+              <button
+                type="button"
+                aria-label={showMobileMenu ? 'Tutup menu navigasi' : 'Buka menu navigasi'}
+                aria-expanded={showMobileMenu}
+                aria-haspopup="menu"
+                onClick={() => {
+                  setShowMobileMenu((previous) => !previous)
+                  setShowThemeMenu(false)
+                }}
+                className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-indigo-50"
+              >
+                <span className="text-xl leading-none">
+                  {showMobileMenu ? '✕' : '☰'}
+                </span>
+                <span className="text-xs">Menu</span>
+              </button>
+
+              {showMobileMenu && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Tutup menu navigasi"
+                    className="fixed inset-0 z-[60] cursor-default bg-black/10"
+                    onClick={() => setShowMobileMenu(false)}
+                  />
+
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-[70] mt-2 max-h-[75vh] w-64 max-w-[calc(100vw-1.5rem)] overflow-y-auto rounded-2xl border border-indigo-100 bg-white p-2 shadow-2xl"
+                  >
+                    <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      Navigasi
+                    </p>
+
+                    <Link
+                      href="/"
+                      role="menuitem"
+                      onClick={() => setShowMobileMenu(false)}
+                      className={mobileNavLink}
+                    >
+                      <span>🏠</span>
+                      <span>Beranda</span>
+                    </Link>
+
+                    {user && (
+                      <Link
+                        href="/history"
+                        role="menuitem"
+                        onClick={() => setShowMobileMenu(false)}
+                        className={mobileNavLink}
+                      >
+                        <span>📊</span>
+                        <span>Riwayat</span>
+                      </Link>
+                    )}
+
+                    <Link
+                      href="/practice"
+                      role="menuitem"
+                      onClick={() => setShowMobileMenu(false)}
+                      className={mobileNavLink}
+                    >
+                      <span>🎮</span>
+                      <span>Latihan Mandiri</span>
+                    </Link>
+
+                    <Link
+                      href="/admin"
+                      role="menuitem"
+                      onClick={() => setShowMobileMenu(false)}
+                      className={mobileNavLink}
+                    >
+                      <span>⚙️</span>
+                      <span>Admin</span>
+                    </Link>
+
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setChromeVisible(false)
+                        setShowMobileMenu(false)
+                      }}
+                      className={mobileNavLink}
+                    >
+                      <span>⛶</span>
+                      <span>Mode Fokus</span>
+                    </button>
+
+                    <div className="my-2 border-t border-slate-100" />
+
+                    {user ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          void handleLogout()
+                        }}
+                        className={`${mobileNavLink} text-rose-600 hover:bg-rose-50 hover:text-rose-700`}
+                      >
+                        <span>↪</span>
+                        <span>Logout</span>
+                      </button>
+                    ) : (
+                      <Link
+                        href="/login"
+                        role="menuitem"
+                        onClick={() => setShowMobileMenu(false)}
+                        className={`${mobileNavLink} text-indigo-700`}
+                      >
+                        <span>🔑</span>
+                        <span>Masuk</span>
+                      </Link>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* PEMILIH TEMA */}
             <div className="relative shrink-0">
@@ -176,10 +300,15 @@ export default function Navbar() {
                 aria-expanded={showThemeMenu}
                 aria-haspopup="menu"
                 title={currentThemeConfig.name}
-                onClick={() => setShowThemeMenu((previous) => !previous)}
+                onClick={() => {
+                  setShowThemeMenu((previous) => !previous)
+                  setShowMobileMenu(false)
+                }}
                 className={`inline-flex h-10 shrink-0 items-center justify-center gap-1 rounded-xl bg-gradient-to-r px-2 text-xs font-black shadow-md ring-1 ring-black/5 transition hover:shadow-lg active:scale-95 sm:gap-1.5 sm:px-3 ${currentThemeConfig.style}`}
               >
-                <span className="text-base">{currentThemeConfig.icon}</span>
+                <span className="text-base">
+                  {currentThemeConfig.icon}
+                </span>
                 <span className="hidden md:inline">
                   {currentThemeConfig.name}
                 </span>
@@ -191,7 +320,7 @@ export default function Navbar() {
                   <button
                     type="button"
                     aria-label="Tutup menu tema"
-                    className="fixed inset-0 z-[60] cursor-default bg-black/10"
+                    className="fixed inset-0 z-[60] cursor-default"
                     onClick={() => setShowThemeMenu(false)}
                   />
 
@@ -232,90 +361,84 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* BERANDA */}
-            <Link
-              href="/"
-              className={navLink}
-              title="Beranda"
-              aria-label="Beranda"
-            >
-              <span>🏠</span>
-              <span className="hidden sm:inline">Beranda</span>
-            </Link>
-
-            {/* RIWAYAT */}
-            {user && (
+            {/* NAVIGASI DESKTOP */}
+            <div className="hidden items-center gap-1.5 lg:flex">
               <Link
-                href="/history"
+                href="/"
                 className={navLink}
-                title="Riwayat"
-                aria-label="Riwayat"
+                title="Beranda"
+                aria-label="Beranda"
               >
-                <span>📊</span>
-                <span className="hidden sm:inline">Riwayat</span>
+                <span>🏠</span>
+                <span>Beranda</span>
               </Link>
-            )}
 
-            {/* LATIHAN MANDIRI */}
-            <Link
-              href="/practice"
-              className={activeGameLink}
-              title="Latihan Mandiri"
-              aria-label="Latihan Mandiri"
-            >
-              <span className="text-base">🎮</span>
-              <span className="hidden sm:inline">
-                Latihan Mandiri
-              </span>
-            </Link>
+              {user && (
+                <Link
+                  href="/history"
+                  className={navLink}
+                  title="Riwayat"
+                  aria-label="Riwayat"
+                >
+                  <span>📊</span>
+                  <span>Riwayat</span>
+                </Link>
+              )}
 
-            {/* ADMIN */}
-            <Link
-              href="/admin"
-              className={navLink}
-              title="Admin"
-              aria-label="Admin"
-            >
-              <span>⚙️</span>
-              <span className="hidden sm:inline">Admin</span>
-            </Link>
+              <Link
+                href="/practice"
+                className={activeGameLink}
+                title="Latihan Mandiri"
+                aria-label="Latihan Mandiri"
+              >
+                <span className="text-base">🎮</span>
+                <span>Latihan Mandiri</span>
+              </Link>
 
-            {/* MODE FOKUS */}
-            <button
-              type="button"
-              onClick={() => setChromeVisible(false)}
-              title="Mode Fokus"
-              aria-label="Aktifkan Mode Fokus"
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-700 sm:px-3"
-            >
-              <span>⛶</span>
-              <span className="hidden sm:inline">Mode Fokus</span>
-            </button>
+              <Link
+                href="/admin"
+                className={navLink}
+                title="Admin"
+                aria-label="Admin"
+              >
+                <span>⚙️</span>
+                <span>Admin</span>
+              </Link>
 
-            {/* LOGIN / LOGOUT */}
-            {user ? (
               <button
                 type="button"
-                onClick={handleLogout}
-                title="Logout"
-                aria-label="Logout"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-2 py-2.5 text-xs font-black text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md sm:px-3"
+                onClick={() => setChromeVisible(false)}
+                title="Mode Fokus"
+                aria-label="Aktifkan Mode Fokus"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-700 sm:px-3"
               >
-                <span>↪</span>
-                <span className="hidden sm:inline">Logout</span>
+                <span>⛶</span>
+                <span>Mode Fokus</span>
               </button>
-            ) : (
-              <Link
-                href="/login"
-                title="Masuk"
-                aria-label="Masuk"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-2 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-600 hover:shadow-lg sm:px-3"
-              >
-                <span>🔑</span>
-                <span className="hidden sm:inline">Masuk</span>
-              </Link>
-            )}
 
+              {user ? (
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  title="Logout"
+                  aria-label="Logout"
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-2 py-2.5 text-xs font-black text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md sm:px-3"
+                >
+                  <span>↪</span>
+                  <span>Logout</span>
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  title="Masuk"
+                  aria-label="Masuk"
+                  className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-2 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-600 hover:shadow-lg sm:px-3"
+                >
+                  <span>🔑</span>
+                  <span>Masuk</span>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </nav>
