@@ -38,6 +38,9 @@ function ExamEngineContent() {
   const questionsRef = useRef<any[]>([])
   const isSubmittingRef = useRef<boolean>(false)
   const sessionIdRef = useRef<string | null>(null)
+  const flaggedQuestionsRef = useRef<{ [key: string]: boolean }>({})
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
 
   // Helper Acak Array (Fisher-Yates Shuffle)
   const shuffleArray = (array: any[]) => {
@@ -68,13 +71,64 @@ function ExamEngineContent() {
     return val
   }
 
-  // 🟢 Update State & Sync ke Ref + LocalStorage (Real-Time Auto Save)
+  // Simpan seluruh jawaban dan status ragu-ragu ke Supabase secara berurutan.
+  const persistAnswersToSupabase = async () => {
+    const activeSessId = sessionIdRef.current
+    const currentQuestions = questionsRef.current
+    if (!activeSessId || currentQuestions.length === 0) return
+
+    const answers = userAnswersRef.current
+    const flags = flaggedQuestionsRef.current
+    const updatedAt = new Date().toISOString()
+    const records = currentQuestions.map((q) => {
+      const raw = answers[q.id]
+      const isObjectiveMultiple = q.question_type === 'complex_multiple_choice' || q.question_type === 'true_false_matrix'
+      return {
+        session_id: activeSessId,
+        question_id: q.id,
+        user_answer: raw === undefined || raw === null ? null : (typeof raw === 'string' ? raw : JSON.stringify(raw)),
+        selected_option: q.question_type === 'multiple_choice' && typeof raw === 'string' ? raw : null,
+        selected_answers: isObjectiveMultiple && raw !== undefined && raw !== null ? raw : null,
+        is_flagged: Boolean(flags[q.id]),
+        updated_at: updatedAt,
+      }
+    })
+
+    // Jangan menulis ke sesi yang sudah berganti/dihapus.
+    if (sessionIdRef.current !== activeSessId) return
+    const { error } = await createClient().from('answers').upsert(records, {
+      onConflict: 'session_id,question_id',
+    })
+    if (error) throw error
+  }
+
+  const queueAutosave = () => {
+    saveQueueRef.current = saveQueueRef.current.then(() => persistAnswersToSupabase())
+    return saveQueueRef.current
+  }
+
+  const scheduleAutosave = () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null
+      queueAutosave().catch((error) => console.error('Autosave gagal:', error))
+    }, 800)
+  }
+
+  const flushAutosave = async () => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+    await queueAutosave()
+  }
+
+  // Update state, ref, cadangan lokal, lalu jadwalkan autosave 800 ms.
   const updateAnswersState = (newAnswersMap: { [key: string]: any }) => {
     setUserAnswers(newAnswersMap)
     userAnswersRef.current = newAnswersMap
-    if (examId) {
-      localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(newAnswersMap))
-    }
+    if (examId) localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(newAnswersMap))
+    scheduleAutosave()
   }
 
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
@@ -242,39 +296,81 @@ const { data: existingSession, error: sessionError } = await supabase
       sessionIdRef.current = currentSessId
     }
 
-    // C.1 Pulihkan jawaban hanya jika melanjutkan sesi yang sudah ada.
-    // Jika sesi baru dibuat, hapus jawaban lokal dari sesi sebelumnya.
+    // Buat placeholder untuk semua soal; ignoreDuplicates menjaga jawaban saat resume.
+    if (currentSessId && questionsRef.current.length > 0) {
+      const placeholders = questionsRef.current.map((q) => ({
+        session_id: currentSessId,
+        question_id: q.id,
+        user_answer: null,
+        selected_option: null,
+        selected_answers: null,
+        is_flagged: false,
+        updated_at: new Date().toISOString(),
+      }))
+      const { error: placeholderError } = await supabase.from('answers').upsert(placeholders, {
+        onConflict: 'session_id,question_id',
+        ignoreDuplicates: true,
+      })
+      if (placeholderError) throw new Error(`Gagal membuat baris jawaban awal: ${placeholderError.message}`)
+    }
+
     const localAnswersKey = `cbt_answers_${examId}`
+    const localFlagsKey = `cbt_flags_${examId}`
 
-    if (existingSession) {
-      const savedAns = localStorage.getItem(localAnswersKey)
+    if (existingSession && currentSessId) {
+      const { data: savedRows, error: savedRowsError } = await supabase
+        .from('answers')
+        .select('question_id, user_answer, selected_option, selected_answers, is_flagged')
+        .eq('session_id', currentSessId)
 
-      if (savedAns) {
-        try {
-          const parsedMap = JSON.parse(savedAns)
+      if (savedRowsError) console.error('Gagal memulihkan jawaban dari Supabase:', savedRowsError)
 
-          if (parsedMap && typeof parsedMap === 'object') {
-            setUserAnswers(parsedMap)
-            userAnswersRef.current = parsedMap
-          }
-        } catch (e) {
-          console.error('Gagal memulihkan jawaban tersimpan:', e)
-          localStorage.removeItem(localAnswersKey)
-          setUserAnswers({})
-          userAnswersRef.current = {}
+      const remoteAnswers: { [key: string]: any } = {}
+      const remoteFlags: { [key: string]: boolean } = {}
+      ;(savedRows || []).forEach((row: any) => {
+        const q = questionsRef.current.find((item) => item.id === row.question_id)
+        if (!q) return
+        const type = q.question_type || 'multiple_choice'
+        let value: any = row.user_answer
+        if (type === 'multiple_choice') value = row.selected_option ?? row.user_answer
+        else if (type === 'complex_multiple_choice' || type === 'true_false_matrix') {
+          value = row.selected_answers ?? parseJsonIfNeeded(row.user_answer)
         }
-      } else {
-        setUserAnswers({})
-        userAnswersRef.current = {}
-      }
-    } else {
-      // Tidak ada sesi lama: mulai benar-benar dari awal.
-      localStorage.removeItem(localAnswersKey)
-      localStorage.removeItem(`cbt_start_time_${examId}`)
+        if (value !== null && value !== undefined) remoteAnswers[row.question_id] = parseJsonIfNeeded(value)
+        remoteFlags[row.question_id] = Boolean(row.is_flagged)
+      })
 
+      let localAnswers: { [key: string]: any } = {}
+      let localFlags: { [key: string]: boolean } = {}
+      try {
+        const savedAns = localStorage.getItem(localAnswersKey)
+        if (savedAns) localAnswers = JSON.parse(savedAns) || {}
+      } catch (e) {
+        console.error('Gagal memulihkan jawaban lokal:', e)
+        localStorage.removeItem(localAnswersKey)
+      }
+      try {
+        const savedFlags = localStorage.getItem(localFlagsKey)
+        if (savedFlags) localFlags = JSON.parse(savedFlags) || {}
+      } catch (e) {
+        console.error('Gagal memulihkan status ragu lokal:', e)
+        localStorage.removeItem(localFlagsKey)
+      }
+
+      const mergedAnswers = { ...remoteAnswers, ...localAnswers }
+      const mergedFlags = { ...remoteFlags, ...localFlags }
+      setUserAnswers(mergedAnswers)
+      userAnswersRef.current = mergedAnswers
+      setFlaggedQuestions(mergedFlags)
+      flaggedQuestionsRef.current = mergedFlags
+    } else {
+      localStorage.removeItem(localAnswersKey)
+      localStorage.removeItem(localFlagsKey)
+      localStorage.removeItem(`cbt_start_time_${examId}`)
       setUserAnswers({})
       userAnswersRef.current = {}
       setFlaggedQuestions({})
+      flaggedQuestionsRef.current = {}
       setCurrentIndex(0)
     }
 
@@ -355,7 +451,11 @@ const { data: existingSession, error: sessionError } = await supabase
 
   // Hapus seluruh cadangan jawaban sesi sebelumnya.
   localStorage.removeItem(`cbt_answers_${examId}`)
+  localStorage.removeItem(`cbt_flags_${examId}`)
   localStorage.removeItem(`cbt_start_time_${examId}`)
+  if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+  autosaveTimerRef.current = null
+  flaggedQuestionsRef.current = {}
 
   // Reset state jawaban dan navigasi.
   setUserAnswers({})
@@ -478,10 +578,14 @@ const { data: existingSession, error: sessionError } = await supabase
 
   // Handler Ragu-Ragu
   const handleToggleFlag = (questionId: string) => {
-    setFlaggedQuestions((prev) => ({
-      ...prev,
-      [questionId]: !prev[questionId],
-    }))
+    const updated = {
+      ...flaggedQuestionsRef.current,
+      [questionId]: !flaggedQuestionsRef.current[questionId],
+    }
+    flaggedQuestionsRef.current = updated
+    setFlaggedQuestions(updated)
+    if (examId) localStorage.setItem(`cbt_flags_${examId}`, JSON.stringify(updated))
+    scheduleAutosave()
   }
 
   // 🟢 SELAYAKAN UJIAN, POPULASI NILAI PRESISI, & SIMPAN HASIL KE DATABASE
@@ -522,8 +626,20 @@ const { data: existingSession, error: sessionError } = await supabase
     let totalPointsEarned = 0
     let totalMaxPoints = 0
 
+    try {
+      // Verifikasi sesi aktif sebelum flush; validasi penuh tetap dilakukan di bawah.
+      await flushAutosave()
+    } catch (error) {
+      console.error('Autosave terakhir gagal:', error)
+      alert('Jawaban terakhir gagal disimpan. Ujian belum dikirim. Silakan coba lagi.')
+      isSubmittingRef.current = false
+      setIsSubmitting(false)
+      return
+    }
+
     const currentQuestions = questionsRef.current
     const currentAnswers = userAnswersRef.current
+    const currentFlags = flaggedQuestionsRef.current
 
     currentQuestions.forEach((q) => {
       const qMaxScore = Number(q.max_score) || 1
@@ -670,7 +786,7 @@ const { data: existingSession, error: sessionError } = await supabase
             rawAns !== null
               ? rawAns
               : null,
-          is_flagged: !!flaggedQuestions[q.id],
+          is_flagged: !!currentFlags[q.id],
           updated_at: endTimeIso,
         }
       })
@@ -716,6 +832,7 @@ const { data: existingSession, error: sessionError } = await supabase
 
       // 6. Hapus cadangan lokal hanya setelah penyimpanan berhasil
       localStorage.removeItem(`cbt_answers_${examId}`)
+      localStorage.removeItem(`cbt_flags_${examId}`)
       localStorage.removeItem(`cbt_start_time_${examId}`)
 
       router.push(
@@ -846,7 +963,7 @@ const { data: existingSession, error: sessionError } = await supabase
 
           <button
             onClick={() => handleFinishExam(false)}
-            disabled={isSubmitting}
+            disabled={isSubmitting || sessionStatus !== 'ongoing'}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
             suppressHydrationWarning
           >
@@ -891,6 +1008,7 @@ const { data: existingSession, error: sessionError } = await supabase
 
                 <button
                   onClick={() => handleToggleFlag(currentQuestion.id)}
+                  disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                   className={`px-3 py-1 rounded-lg text-xs font-bold transition-colors ${
                     flaggedQuestions[currentQuestion.id]
                       ? 'bg-amber-500 text-white'
@@ -936,6 +1054,7 @@ const { data: existingSession, error: sessionError } = await supabase
                       <button
                         key={optKey || oIdx}
                         onClick={() => handleSelectSingleOption(currentQuestion.id, optKey)}
+                        disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                         className={`w-full text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-950/70 ring-2 ring-indigo-500 text-indigo-200 font-bold'
@@ -1000,6 +1119,7 @@ const { data: existingSession, error: sessionError } = await supabase
                       <button
                         key={optKey || oIdx}
                         onClick={() => handleToggleComplexOption(currentQuestion.id, optKey)}
+                        disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                         className={`w-full text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-950/70 ring-2 ring-indigo-500 text-indigo-200 font-bold'
@@ -1116,6 +1236,7 @@ const { data: existingSession, error: sessionError } = await supabase
                                     onClick={() =>
                                       handleSelectMatrixValue(currentQuestion.id, stId, 'Benar')
                                     }
+                                    disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                                     className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Benar'
                                         ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400'
@@ -1132,6 +1253,7 @@ const { data: existingSession, error: sessionError } = await supabase
                                     onClick={() =>
                                       handleSelectMatrixValue(currentQuestion.id, stId, 'Salah')
                                     }
+                                    disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                                     className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Salah'
                                         ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400'
@@ -1162,6 +1284,7 @@ const { data: existingSession, error: sessionError } = await supabase
                     rows={6}
                     placeholder="Tuliskan jawaban lengkap Anda di sini..."
                     value={userAnswers[currentQuestion.id] || ''}
+                    disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                     onChange={(e) => handleEssayChange(currentQuestion.id, e.target.value)}
                     className={`w-full p-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 font-semibold shadow-inner ${textClass} ${
                       isDark
@@ -1184,7 +1307,7 @@ const { data: existingSession, error: sessionError } = await supabase
             }`}
           >
             <button
-              disabled={currentIndex === 0}
+              disabled={currentIndex === 0 || isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
               onClick={() => setCurrentIndex((prev) => prev - 1)}
               className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors disabled:opacity-40 ${
                 isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
@@ -1195,7 +1318,7 @@ const { data: existingSession, error: sessionError } = await supabase
             </button>
 
             <button
-              disabled={currentIndex === questions.length - 1}
+              disabled={currentIndex === questions.length - 1 || isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
               onClick={() => setCurrentIndex((prev) => prev + 1)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
               suppressHydrationWarning
@@ -1245,6 +1368,7 @@ const { data: existingSession, error: sessionError } = await supabase
                 <button
                   key={q.id}
                   onClick={() => setCurrentIndex(idx)}
+                  disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                   className={`h-9 rounded-lg text-xs font-mono transition-all border flex items-center justify-center ${btnClass}`}
                   suppressHydrationWarning
                 >
