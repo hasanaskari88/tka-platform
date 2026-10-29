@@ -13,8 +13,8 @@ function AdminDashboardContent() {
   const [materials, setMaterials] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  // 🟢 STATE FILTER & SORTING DAFTAR UJIAN
-  const [activeTabMode, setActiveTabMode] = useState<'ALL' | 'EXAM' | 'PRACTICE'>('ALL')
+  // 🟢 STATE FILTER & SORTING DAFTAR UJIAN (DEFAULT TAB UTAMA: 'EXAM' / Ujian Resmi CBT)
+  const [activeTabMode, setActiveTabMode] = useState<'ALL' | 'EXAM' | 'PRACTICE'>('EXAM')
   const [selectedSubtestFilter, setSelectedSubtestFilter] = useState<string>('ALL')
   const [sortBy, setSortBy] = useState<string>('newest')
 
@@ -728,26 +728,15 @@ function AdminDashboardContent() {
             </form>
           </div>
 
-          {/* Daftar Ujian Aktif (Dengan Tab Kategori & Filter Subtes / Sorting) */}
+          {/* Daftar Ujian Aktif (Dengan Tab Kategori: Ujian Resmi -> Aktivitas Latihan -> Semua) */}
           <div className="lg:col-span-2 space-y-4">
             
             {/* BILAH TAB NAVIGASI KATEGORI & FILTER SUBTES */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 
-                {/* TAB SWITCHER */}
+                {/* TAB SWITCHER (URUTAN BARU: UJIAN RESMI (CBT) -> AKTIVITAS LATIHAN -> SEMUA) */}
                 <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('ALL')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'ALL'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    📋 Semua ({exams.length})
-                  </button>
                   <button
                     type="button"
                     onClick={() => setActiveTabMode('EXAM')}
@@ -769,6 +758,17 @@ function AdminDashboardContent() {
                     }`}
                   >
                     🎮 Aktivitas Latihan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabMode('ALL')}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      activeTabMode === 'ALL'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    📋 Semua ({exams.length})
                   </button>
                 </div>
 
