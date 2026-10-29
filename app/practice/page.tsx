@@ -88,6 +88,19 @@ export default function PracticeHubPage() {
       filter: 'border-orange-200 bg-white/90 text-slate-800 focus:border-orange-400 focus:ring-orange-100',
       miniSurface: 'border-orange-200 bg-white/90',
     },
+    gaming: {
+      page: 'bg-slate-950 text-slate-100',
+      hero: 'bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900',
+      heroPanel: 'border border-cyan-400/30 bg-slate-900/80',
+      accent: 'text-cyan-300',
+      badge: 'border border-fuchsia-400/30 bg-fuchsia-950/60 text-fuchsia-200',
+      surface: 'bg-slate-900/90',
+      surfaceBorder: 'border-cyan-400/20',
+      heading: 'text-white',
+      muted: 'text-slate-300',
+      filter: 'border border-cyan-400/20 bg-slate-900 text-slate-100',
+      miniSurface: 'border border-indigo-400/20 bg-indigo-950/50',
+    },
   }
   const visual = themeVisuals[theme] || themeVisuals.school
   const darkTheme = ['space', 'jungle', 'ocean', 'disney'].includes(theme)
