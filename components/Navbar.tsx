@@ -169,78 +169,68 @@ export default function Navbar() {
           <div className="-mx-1 flex w-[calc(100%+0.5rem)] flex-nowrap items-center gap-1 overflow-x-auto px-1 pb-1 sm:gap-1.5 lg:mx-0 lg:w-auto lg:justify-end lg:overflow-visible lg:pb-0">
 
             {/* PEMILIH TEMA */}
-          <div className="relative shrink-0">
-            <button
-              type="button"
-              aria-label={`Tema saat ini: ${currentThemeConfig.name}`}
-              aria-expanded={showThemeMenu}
-              aria-haspopup="menu"
-              title={currentThemeConfig.name}
-              onClick={() => setShowThemeMenu((previous) => !previous)}
-              className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r px-3 py-2.5 text-xs font-black shadow-md ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg active:scale-95 ${currentThemeConfig.style}`}
-            >
-              <span className="text-base">
-                {currentThemeConfig.icon}
-              </span>
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                aria-label={`Pilih tema: ${currentThemeConfig.name}`}
+                aria-expanded={showThemeMenu}
+                aria-haspopup="menu"
+                title={currentThemeConfig.name}
+                onClick={() => setShowThemeMenu((previous) => !previous)}
+                className={`inline-flex h-10 shrink-0 items-center justify-center gap-1 rounded-xl bg-gradient-to-r px-2 text-xs font-black shadow-md ring-1 ring-black/5 transition hover:shadow-lg active:scale-95 sm:gap-1.5 sm:px-3 ${currentThemeConfig.style}`}
+              >
+                <span className="text-base">{currentThemeConfig.icon}</span>
+                <span className="hidden md:inline">
+                  {currentThemeConfig.name}
+                </span>
+                <span aria-hidden="true">▾</span>
+              </button>
 
-              <span className="whitespace-nowrap">
-                {currentThemeConfig.name}
-              </span>
+              {showThemeMenu && (
+                <>
+                  <button
+                    type="button"
+                    aria-label="Tutup menu tema"
+                    className="fixed inset-0 z-[60] cursor-default bg-black/10"
+                    onClick={() => setShowThemeMenu(false)}
+                  />
 
-              <span className="text-[10px]">
-                {showThemeMenu ? '▴' : '▾'}
-              </span>
-            </button>
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-full z-[70] mt-2 w-56 max-w-[calc(100vw-1rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-2xl"
+                  >
+                    <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      🎨 Pilih Dunia Belajarmu
+                    </p>
 
-            {showThemeMenu && (
-              <>
-                <button
-                  type="button"
-                  aria-label="Tutup menu tema"
-                  className="fixed inset-0 z-40 cursor-default"
-                  onClick={() => setShowThemeMenu(false)}
-                />
-
-                <div
-                  role="menu"
-                  className="absolute left-0 z-50 mt-2 w-56 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-xl sm:left-auto sm:right-0"
-                >
-                  <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    🎨 Pilih Dunia Belajarmu
-                  </p>
-
-                  {(Object.keys(themeConfig) as ThemeMode[]).map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setTheme(key)
-                        setShowThemeMenu(false)
-                      }}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-extrabold transition ${
-                        theme === key
-                          ? 'bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-800 ring-1 ring-indigo-200'
-                          : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg">
-                        {themeConfig[key].icon}
-                      </span>
-
-                      <span className="flex-1">
-                        {themeConfig[key].name}
-                      </span>
-
-                      {theme === key && (
-                        <span className="text-indigo-600">✓</span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+                    {(Object.keys(themeConfig) as ThemeMode[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setTheme(key)
+                          setShowThemeMenu(false)
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-xs font-bold ${
+                          theme === key
+                            ? 'bg-indigo-50 text-indigo-800 ring-1 ring-indigo-200'
+                            : 'text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <span className="text-lg">
+                          {themeConfig[key].icon}
+                        </span>
+                        <span className="flex-1">
+                          {themeConfig[key].name}
+                        </span>
+                        {theme === key && <span>✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
 
             {/* BERANDA */}
             <Link
