@@ -1,9 +1,17 @@
+
 import type { Metadata } from 'next'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/context/ThemeContext'
 import ThemeBackground from '@/components/ThemeBackground'
 import Footer from '@/components/Footer'
 import FocusModeButton from '@/components/FocusModeButton'
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-plus-jakarta-sans',
+})
 
 export const metadata: Metadata = {
   title: 'CBT SD NEGERI GETASAN',
@@ -17,7 +25,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <body className="antialiased min-h-screen flex flex-col justify-between relative">
+      <body
+        className={`${plusJakartaSans.className} antialiased min-h-screen flex flex-col justify-between relative`}
+      >
         <ThemeProvider>
           <ThemeBackground />
           <div className="relative z-10 flex-grow">{children}</div>
