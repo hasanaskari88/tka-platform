@@ -2,22 +2,12 @@
 @import "katex/dist/katex.min.css";
 @import "tailwindcss";
 
-/* =========================================
-   1. FONT MODERN DAN WARNA DASAR
-   ========================================= */
-
+/* Fondasi tampilan */
 :root {
-  --foreground: #172033;
+  --foreground: #1e293b;
   --background: #f8fafc;
-
-  --text-primary: #172033;
+  --text-primary: #1e293b;
   --text-secondary: #475569;
-
-  --surface: #ffffff;
-  --surface-border: #dbe3ee;
-
-  --primary: #1d4ed8;
-  --primary-hover: #1e40af;
 }
 
 html {
@@ -31,94 +21,20 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background: transparent;
-  color: var(--text-primary);
+  background-color: transparent;
+  color: var(--foreground);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.6;
 }
 
-/* =========================================
-   2. TEMA RESMI SEKOLAH: LATAR TERANG
-   ========================================= */
-
-.theme-school,
-.theme-cartoon3d {
-  --text-primary: #172033;
-  --text-secondary: #475569;
-  --surface: #ffffff;
-  --surface-border: #dbe3ee;
-  --primary: #1d4ed8;
-
-  color-scheme: light;
-  color: var(--text-primary);
-}
-
-/* =========================================
-   3. TEMA GELAP: TEKS TERANG
-   ========================================= */
-
-.theme-space,
-.theme-jungle,
-.theme-ocean,
-.theme-disney {
-  --text-primary: #f8fafc;
-  --text-secondary: #d1dced;
-  --surface: #172033;
-  --surface-border: #475569;
-  --primary: #93c5fd;
-
-  color-scheme: dark;
-  color: var(--text-primary);
-}
-
-/* =========================================
-   4. JUDUL DAN TEKS
-   ========================================= */
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  color: var(--text-primary);
-  font-weight: 700;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
-}
-
-p,
-li,
-label {
-  color: inherit;
-}
-
-small {
-  color: var(--text-secondary);
-}
-
-a {
-  color: var(--primary);
-  text-underline-offset: 3px;
-}
-
-a:hover {
-  filter: brightness(1.15);
-}
-
-/* =========================================
-   5. FORM DAN INPUT
-   Form dibuat terang agar jawaban mudah dibaca
-   ========================================= */
+/* Jangan memaksa warna semua judul, link, dan tombol.
+   Warna dari komponen Tailwind tetap digunakan. */
 
 input,
 textarea,
 select {
-  color: #172033;
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.5rem;
+  font: inherit;
 }
 
 input::placeholder,
@@ -127,44 +43,9 @@ textarea::placeholder {
   opacity: 1;
 }
 
-input:focus,
-textarea:focus,
-select:focus {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
-
-/* =========================================
-   6. TABEL
-   ========================================= */
-
-table {
-  color: var(--text-primary);
-}
-
-th {
-  color: #172033;
-  background-color: #eaf0f8;
-}
-
-td {
-  color: inherit;
-}
-
-/* =========================================
-   7. AKSESIBILITAS
-   ========================================= */
-
 ::selection {
   color: #ffffff;
   background-color: #1d4ed8;
-}
-
-button,
-input,
-textarea,
-select {
-  font-family: inherit;
 }
 
 button:focus-visible,
@@ -185,7 +66,6 @@ video {
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
