@@ -3,12 +3,10 @@
 @import "tailwindcss";
 
 /* =========================================
-   1. WARNA DASAR WEBSITE
+   1. FONT MODERN DAN WARNA DASAR
    ========================================= */
 
 :root {
-  color-scheme: light;
-
   --foreground: #172033;
   --background: #f8fafc;
 
@@ -24,19 +22,58 @@
 
 html {
   min-height: 100%;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background-color: transparent;
+  background: transparent;
   color: var(--text-primary);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.6;
 }
 
 /* =========================================
-   2. WARNA TEKS YANG KONSISTEN
+   2. TEMA RESMI SEKOLAH: LATAR TERANG
+   ========================================= */
+
+.theme-school,
+.theme-cartoon3d {
+  --text-primary: #172033;
+  --text-secondary: #475569;
+  --surface: #ffffff;
+  --surface-border: #dbe3ee;
+  --primary: #1d4ed8;
+
+  color-scheme: light;
+  color: var(--text-primary);
+}
+
+/* =========================================
+   3. TEMA GELAP: TEKS TERANG
+   ========================================= */
+
+.theme-space,
+.theme-jungle,
+.theme-ocean,
+.theme-disney {
+  --text-primary: #f8fafc;
+  --text-secondary: #d1dced;
+  --surface: #172033;
+  --surface-border: #475569;
+  --primary: #93c5fd;
+
+  color-scheme: dark;
+  color: var(--text-primary);
+}
+
+/* =========================================
+   4. JUDUL DAN TEKS
    ========================================= */
 
 h1,
@@ -46,7 +83,9 @@ h4,
 h5,
 h6 {
   color: var(--text-primary);
+  font-weight: 700;
   line-height: 1.3;
+  letter-spacing: -0.02em;
 }
 
 p,
@@ -59,17 +98,18 @@ small {
   color: var(--text-secondary);
 }
 
-/* Link tetap terlihat jelas */
 a {
   color: var(--primary);
+  text-underline-offset: 3px;
 }
 
 a:hover {
-  color: var(--primary-hover);
+  filter: brightness(1.15);
 }
 
 /* =========================================
-   3. INPUT DAN FORM
+   5. FORM DAN INPUT
+   Form dibuat terang agar jawaban mudah dibaca
    ========================================= */
 
 input,
@@ -77,7 +117,8 @@ textarea,
 select {
   color: #172033;
   background-color: #ffffff;
-  border-color: #cbd5e1;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
 }
 
 input::placeholder,
@@ -89,15 +130,16 @@ textarea::placeholder {
 input:focus,
 textarea:focus,
 select:focus {
-  outline-color: #2563eb;
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 /* =========================================
-   4. TABEL
+   6. TABEL
    ========================================= */
 
 table {
-  color: #172033;
+  color: var(--text-primary);
 }
 
 th {
@@ -106,11 +148,11 @@ th {
 }
 
 td {
-  color: #334155;
+  color: inherit;
 }
 
 /* =========================================
-   5. TEKS DAN LATAR KONTEN
+   7. AKSESIBILITAS
    ========================================= */
 
 ::selection {
@@ -118,21 +160,11 @@ td {
   background-color: #1d4ed8;
 }
 
-/* Jangan biarkan gambar merusak tata letak */
-img,
-video {
-  max-width: 100%;
-}
-
-/* =========================================
-   6. AKSESIBILITAS
-   ========================================= */
-
 button,
 input,
 textarea,
 select {
-  font: inherit;
+  font-family: inherit;
 }
 
 button:focus-visible,
@@ -140,6 +172,22 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid #2563eb;
+  outline: 3px solid #60a5fa;
   outline-offset: 3px;
+}
+
+img,
+video {
+  max-width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
