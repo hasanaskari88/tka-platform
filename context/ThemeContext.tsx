@@ -1,29 +1,57 @@
+
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from 'react'
 
-export type ThemeMode = 'school' | 'space' | 'jungle' | 'ocean' | 'disney' | 'cartoon3d'
+export type ThemeMode =
+  | 'school'
+  | 'space'
+  | 'jungle'
+  | 'ocean'
+  | 'disney'
+  | 'cartoon3d'
 
 interface ThemeContextType {
   theme: ThemeMode
   setTheme: (theme: ThemeMode) => void
+  chromeVisible: boolean
+  setChromeVisible: (visible: boolean) => void
 }
 
 const ThemeContext = createContext<ThemeContextType>({
   theme: 'school',
   setTheme: () => {},
+  chromeVisible: true,
+  setChromeVisible: () => {},
 })
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   const [theme, setThemeState] = useState<ThemeMode>('school')
+  const [chromeVisible, setChromeVisible] = useState(true)
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('cbt_theme') as ThemeMode
-    if (
-      savedTheme &&
-      ['school', 'space', 'jungle', 'ocean', 'disney', 'cartoon3d'].includes(savedTheme)
-    ) {
-      setThemeState(savedTheme)
+    const savedTheme = localStorage.getItem('cbt_theme')
+
+    const validThemes: ThemeMode[] = [
+      'school',
+      'space',
+      'jungle',
+      'ocean',
+      'disney',
+      'cartoon3d',
+    ]
+
+    if (savedTheme && validThemes.includes(savedTheme as ThemeMode)) {
+      setThemeState(savedTheme as ThemeMode)
     }
   }, [])
 
@@ -33,8 +61,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
-      <div className={`theme-${theme} transition-colors duration-500 min-h-screen flex flex-col justify-between`}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        setTheme,
+        chromeVisible,
+        setChromeVisible,
+      }}
+    >
+      <div
+        className={`theme-${theme} flex min-h-screen flex-col transition-colors duration-500`}
+      >
         {children}
       </div>
     </ThemeContext.Provider>
