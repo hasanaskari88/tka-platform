@@ -8,14 +8,15 @@ import Navbar from '@/components/Navbar'
 export default function PracticeHubPage() {
   const [exams, setExams] = useState<any[]>([])
   const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [availableClasses, setAvailableClasses] = useState<string[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  // 🟢 STATE FILTER LEADERBOARD (GLOBAL ATAU PER KELAS)
-  const [leaderboardFilter, setLeaderboardFilter] = useState<'ALL' | 'CLASS'>('ALL')
+  // 🟢 STATE FILTER LEADERBOARD ('ALL' | 'MY_CLASS' | KODE KELAS SPESIFIK)
+  const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
 
-  // 🟢 FUNGSI MENGAMBIL DATA LEADERBOARD DENGAN FILTER
-  const fetchLeaderboard = async (filterType: 'ALL' | 'CLASS', currentProfile?: any) => {
+  // 🟢 FUNGSI MENGAMBIL DATA LEADERBOARD DENGAN FILTER FLEKSIBEL
+  const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
     const supabase = createClient()
     const activeProfile = currentProfile || userProfile
 
@@ -23,11 +24,15 @@ export default function PracticeHubPage() {
       .from('profiles')
       .select('id, full_name, username, class_code, xp, level')
       .order('xp', { ascending: false })
-      .limit(10)
+      .limit(15)
 
-    // Filter khusus kelas siswa jika memilih tab 'CLASS'
-    if (filterType === 'CLASS' && activeProfile?.class_code) {
+    // Filter Khusus Kelas Saya
+    if ((filterVal === 'MY_CLASS' || filterVal === 'CLASS') && activeProfile?.class_code) {
       query = query.eq('class_code', activeProfile.class_code)
+    } 
+    // Filter Khusus Kode Kelas Spesifik (misal: '1', '2', '6A', '6B', dll)
+    else if (filterVal !== 'ALL' && filterVal !== 'MY_CLASS' && filterVal !== 'CLASS') {
+      query = query.eq('class_code', filterVal)
     }
 
     const { data: topUsers } = await query
@@ -57,7 +62,24 @@ export default function PracticeHubPage() {
         }
       }
 
-      // 2. Ambil Paket Ujian Terpublikasi untuk Latihan Mandiri
+      // 2. Ambil Daftar Seluruh Kelas Unik dari Database
+      const { data: classData } = await supabase
+        .from('profiles')
+        .select('class_code')
+        .not('class_code', 'is', null)
+
+      if (classData) {
+        const uniqueClasses = Array.from(
+          new Set(
+            classData
+              .map((p: any) => p.class_code)
+              .filter((c: any) => c && String(c).trim() !== '')
+          )
+        ).sort()
+        setAvailableClasses(uniqueClasses as string[])
+      }
+
+      // 3. Ambil Paket Ujian Terpublikasi untuk Latihan Mandiri
       const { data: examData } = await supabase
         .from('exams')
         .select('*')
@@ -75,7 +97,7 @@ export default function PracticeHubPage() {
         setExams(filteredExams)
       }
 
-      // 3. Ambil Leaderboard Awal
+      // 4. Ambil Leaderboard Awal
       await fetchLeaderboard(leaderboardFilter, profile)
 
       setLoading(false)
@@ -84,7 +106,7 @@ export default function PracticeHubPage() {
     loadPracticeData()
   }, [])
 
-  // 🟢 EFEK SAMPING SAAT TAB LEADERBOARD BERUBAH
+  // 🟢 EFEK SAMPING SAAT FILTER LEADERBOARD BERUBAH
   useEffect(() => {
     if (!loading) {
       fetchLeaderboard(leaderboardFilter)
@@ -181,36 +203,44 @@ export default function PracticeHubPage() {
             )}
           </div>
 
-          {/* KOLOM KANAN (1/3): PAPAN PERINGKAT / LEADERBOARD (DENGAN TAB FILTER) */}
+          {/* KOLOM KANAN (1/3): PAPAN PERINGKAT / LEADERBOARD (DENGAN FILTER KELAS MULTI-KONTROL) */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 h-fit">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3">
-              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1">
-                <span>🏆</span>
-                <span>Papan Peringkat</span>
-              </h2>
+            <div className="flex flex-col space-y-2 border-b pb-3">
+              <div className="flex justify-between items-center">
+                <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1">
+                  <span>🏆</span>
+                  <span>Papan Peringkat</span>
+                </h2>
+                {userProfile?.role === 'admin' && (
+                  <span className="text-[9px] bg-purple-100 text-purple-700 font-extrabold px-2 py-0.5 rounded-full border border-purple-200">
+                    Akses Admin
+                  </span>
+                )}
+              </div>
 
-              {/* TAB FILTER PER KELAS / GLOBAL */}
-              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-[10px] font-bold">
-                <button
-                  onClick={() => setLeaderboardFilter('ALL')}
-                  className={`px-2.5 py-1 rounded-lg transition-all ${
-                    leaderboardFilter === 'ALL'
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+              {/* DROPDOWN KONTROL SELEKSI KELAS (DUKUNGAN SEMUA KELAS / ADMIN) */}
+              <div className="pt-1">
+                <select
+                  value={leaderboardFilter}
+                  onChange={(e) => setLeaderboardFilter(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  🌐 Semua
-                </button>
-                <button
-                  onClick={() => setLeaderboardFilter('CLASS')}
-                  className={`px-2.5 py-1 rounded-lg transition-all ${
-                    leaderboardFilter === 'CLASS'
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  🏫 Kelas {userProfile?.class_code || 'Saya'}
-                </button>
+                  <option value="ALL">🌐 Semua Kelas (Global Sekolah)</option>
+                  {userProfile?.class_code && (
+                    <option value="MY_CLASS">
+                      🏫 Kelas Saya ({userProfile.class_code})
+                    </option>
+                  )}
+                  {availableClasses.length > 0 && (
+                    <optgroup label="📚 Lihat Peringkat Kelas Lain">
+                      {availableClasses.map((cls) => (
+                        <option key={cls} value={cls}>
+                          Kelas {cls}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
               </div>
             </div>
 
