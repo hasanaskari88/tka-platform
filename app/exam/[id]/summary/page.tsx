@@ -126,76 +126,84 @@ const evaluateQuestion = (q: any, userAns: any) => {
   }
 
   // 3. Matriks Benar - Salah
-  if (qType === 'true_false_matrix') {
-    const correctObj =
-      q.correct_answers &&
-      typeof q.correct_answers === 'object' &&
-      !Array.isArray(q.correct_answers)
-        ? q.correct_answers
-        : {}
+  
+if (qType === 'true_false_matrix') {
+  const correctObj =
+    q.correct_answers &&
+    typeof q.correct_answers === 'object' &&
+    !Array.isArray(q.correct_answers)
+      ? q.correct_answers
+      : {}
 
-    let userObj: Record<string, any> = {}
+  let userObj: Record<string, any> = {}
 
-    if (
-      typeof userAns === 'object' &&
-      userAns !== null &&
-      !Array.isArray(userAns)
-    ) {
-      userObj = userAns
-    } else if (typeof userAns === 'string') {
-      try {
-        const parsed = JSON.parse(userAns)
-
-        if (
-          parsed &&
-          typeof parsed === 'object' &&
-          !Array.isArray(parsed)
-        ) {
-          userObj = parsed
-        }
-      } catch {
-        userObj = {}
-      }
-    }
-
-    const statementIds = Object.keys(correctObj)
-
-    if (statementIds.length === 0) {
-      return {
-        isCorrect: false,
-        isUnanswered: false,
-        ratio: 0,
-        points: 0,
-      }
-    }
-
-    let correctRows = 0
-
-    for (const statementId of statementIds) {
-      const correctValue = normalize(correctObj[statementId])
-      const userValue = normalize(userObj[statementId])
+  if (
+    typeof userAns === 'object' &&
+    userAns !== null &&
+    !Array.isArray(userAns)
+  ) {
+    userObj = userAns
+  } else if (typeof userAns === 'string') {
+    try {
+      const parsed = JSON.parse(userAns)
 
       if (
-        userValue !== '' &&
-        userValue === correctValue
+        parsed &&
+        typeof parsed === 'object' &&
+        !Array.isArray(parsed)
       ) {
-        correctRows++
+        userObj = parsed
       }
-    }
-
-    const ratio = correctRows / statementIds.length
-    const isCorrect = correctRows === statementIds.length
-
-    return {
-      isCorrect,
-      isUnanswered: false,
-      ratio,
-      points: ratio * qMaxScore,
+    } catch {
+      userObj = {}
     }
   }
 
+  const statementIds = Object.keys(correctObj)
+
+  if (statementIds.length === 0) {
+    return {
+      isCorrect: false,
+      isUnanswered: false,
+      ratio: 0,
+      points: 0,
+    }
+  }
+
+  let correctRows = 0
+  let answeredRows = 0
+
+  for (const statementId of statementIds) {
+    const correctValue = normalize(correctObj[statementId])
+    const userValue = normalize(userObj[statementId])
+
+    if (userValue !== '') {
+      answeredRows++
+    }
+
+    if (
+      userValue !== '' &&
+      userValue === correctValue
+    ) {
+      correctRows++
+    }
+  }
+
+  const ratio = correctRows / statementIds.length
+  const isCorrect = correctRows === statementIds.length
+
+  return {
+    isCorrect,
+    isUnanswered: answeredRows === 0,
+    ratio,
+    points: ratio * qMaxScore,
+  }
+}
+
+
   // 4. Essay / Uraian
-  // 4. Essay / Uraian
+  
+  // Essay / Uraian - menunggu penilaian guru/admin
   if (qType === 'essay') {
     const essayText =
       typeof userAns === 'string'
@@ -207,8 +215,9 @@ const evaluateQuestion = (q: any, userAns: any) => {
     return {
       isCorrect: false,
       isUnanswered: !isFilled,
-      ratio: isFilled ? Math.min(1, 1 / qMaxScore) : 0,
-      points: isFilled ? Math.min(1, qMaxScore) : 0,
+      isPending: isFilled,
+      ratio: 0,
+      points: 0,
     }
   }
 
