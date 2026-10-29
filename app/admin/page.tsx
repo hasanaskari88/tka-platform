@@ -13,6 +13,11 @@ function AdminDashboardContent() {
   const [materials, setMaterials] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // 🟢 STATE FILTER & SORTING DAFTAR UJIAN
+  const [activeTabMode, setActiveTabMode] = useState<'ALL' | 'EXAM' | 'PRACTICE'>('ALL')
+  const [selectedSubtestFilter, setSelectedSubtestFilter] = useState<string>('ALL')
+  const [sortBy, setSortBy] = useState<string>('newest')
+
   // State Form Edit / Tambah Ujian
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
@@ -23,6 +28,7 @@ function AdminDashboardContent() {
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
   const [isPublished, setIsPublished] = useState(true)
+  const [targetMode, setTargetMode] = useState<'BOTH' | 'EXAM_ONLY' | 'PRACTICE_ONLY'>('BOTH')
 
   // State Toggle Pengaturan CBT
   const [shuffleQuestions, setShuffleQuestions] = useState(true)
@@ -109,6 +115,38 @@ function AdminDashboardContent() {
     fetchData()
   }, [])
 
+  // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
+  const filteredAndSortedExams = exams
+    .filter((exam) => {
+      // 1. Filter Kategori Tab (Ujian Resmi vs Aktivitas Latihan)
+      if (activeTabMode === 'EXAM') {
+        if (exam.target_mode === 'PRACTICE_ONLY') return false
+      } else if (activeTabMode === 'PRACTICE') {
+        if (exam.target_mode === 'EXAM_ONLY') return false
+      }
+
+      // 2. Filter Subtes
+      if (selectedSubtestFilter !== 'ALL') {
+        if (String(exam.subtest || '').toUpperCase() !== selectedSubtestFilter.toUpperCase()) {
+          return false
+        }
+      }
+
+      return true
+    })
+    .sort((a, b) => {
+      if (sortBy === 'newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
+      if (sortBy === 'oldest') {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      }
+      if (sortBy === 'title') {
+        return (a.title || '').localeCompare(b.title || '')
+      }
+      return 0
+    })
+
   const generateRandomToken = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     let generated = ''
@@ -128,6 +166,7 @@ function AdminDashboardContent() {
     setStartTime('')
     setEndTime('')
     setIsPublished(true)
+    setTargetMode('BOTH')
     setShuffleQuestions(true)
     setShuffleOptions(true)
     setShowResults(true)
@@ -141,8 +180,9 @@ function AdminDashboardContent() {
     setSelectedSubtest(exam.subtest || (subtests[0]?.name || 'KUANTITATIF'))
     setDescription(exam.description || '')
     setDuration(exam.duration_minutes || 15)
-    setExamToken(exam.token || '')
+    setExamToken(exam.token || exam.token_code || '')
     setIsPublished(exam.is_published ?? true)
+    setTargetMode(exam.target_mode || 'BOTH')
     setShuffleQuestions(exam.shuffle_questions ?? true)
     setShuffleOptions(exam.shuffle_options ?? true)
     setShowResults(exam.show_results ?? true)
@@ -179,9 +219,11 @@ function AdminDashboardContent() {
       description,
       duration_minutes: Number(duration),
       token: examToken.trim() ? examToken.trim().toUpperCase() : null,
+      token_code: examToken.trim() ? examToken.trim().toUpperCase() : null,
       start_time: startTime ? new Date(startTime).toISOString() : null,
       end_time: endTime ? new Date(endTime).toISOString() : null,
       is_published: isPublished,
+      target_mode: targetMode,
       shuffle_questions: shuffleQuestions,
       shuffle_options: shuffleOptions,
       show_results: showResults,
@@ -254,7 +296,7 @@ function AdminDashboardContent() {
     fetchData()
   }
 
-  // --- 📢 CRUD PENGUMUMAN (DENGAN EDIT & TOOLBAR) ---
+  // --- 📢 CRUD PENGUMUMAN ---
   const resetAnnForm = () => {
     setEditingAnnId(null)
     setAnnTitle('')
@@ -306,7 +348,7 @@ function AdminDashboardContent() {
     fetchData()
   }
 
-  // --- 📚 CRUD MATERI (DENGAN EDIT & TOOLBAR) ---
+  // --- 📚 CRUD MATERI ---
   const resetMatForm = () => {
     setEditingMatId(null)
     setMatTitle('')
@@ -407,13 +449,12 @@ function AdminDashboardContent() {
             >
               👥 Akun & Admin
             </Link>
-            {/* TOMBOL NAVIGASI PENGATURAN MODE LATIHAN & GAME */}
-                      <Link
-                        href="/admin/practice"
-                        className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2"
-                      >
-                        <span>🎮 Kelola Mode Latihan & Game Edukatif →</span>
-                      </Link>
+            <Link
+              href="/admin/practice"
+              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2"
+            >
+              <span>🎮 Kelola Mode Latihan & Game Edukatif →</span>
+            </Link>
             <Link
               href="/"
               className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition-colors"
@@ -499,19 +540,37 @@ function AdminDashboardContent() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Durasi (Menit)
-                </label>
-                <input
-                  type="number"
-                  required
-                  min={1}
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                    Durasi (Menit)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={duration}
+                    onChange={(e) => setDuration(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    suppressHydrationWarning
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                    Mode Peruntukan
+                  </label>
+                  <select
+                    value={targetMode}
+                    onChange={(e: any) => setTargetMode(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-indigo-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    suppressHydrationWarning
+                  >
+                    <option value="BOTH">🌐 Keduanya (CBT & Latihan)</option>
+                    <option value="EXAM_ONLY">🎯 Hanya Ujian Resmi (CBT)</option>
+                    <option value="PRACTICE_ONLY">🎮 Hanya Latihan Mandiri</option>
+                  </select>
+                </div>
               </div>
 
               {/* Status Visibilitas ke Siswa */}
@@ -669,16 +728,87 @@ function AdminDashboardContent() {
             </form>
           </div>
 
-          {/* Daftar Ujian Aktif */}
+          {/* Daftar Ujian Aktif (Dengan Tab Kategori & Filter Subtes / Sorting) */}
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-lg font-bold text-slate-800">
-              📋 Daftar Ujian Terdaftar ({exams.length})
+            
+            {/* BILAH TAB NAVIGASI KATEGORI & FILTER SUBTES */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                
+                {/* TAB SWITCHER */}
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabMode('ALL')}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      activeTabMode === 'ALL'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    📋 Semua ({exams.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabMode('EXAM')}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      activeTabMode === 'EXAM'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🎯 Ujian Resmi (CBT)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTabMode('PRACTICE')}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      activeTabMode === 'PRACTICE'
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    🎮 Aktivitas Latihan
+                  </button>
+                </div>
+
+                {/* FILTER SUBTES & SORTING */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <select
+                    value={selectedSubtestFilter}
+                    onChange={(e) => setSelectedSubtestFilter(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  >
+                    <option value="ALL">🌐 Semua Subtes</option>
+                    {subtests.map((st) => (
+                      <option key={st.id} value={st.name}>
+                        Subtes: {st.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  >
+                    <option value="newest">⏱️ Terbaru</option>
+                    <option value="oldest">⏱️ Terlama</option>
+                    <option value="title">🔤 Judul (A-Z)</option>
+                  </select>
+                </div>
+
+              </div>
+            </div>
+
+            <h2 className="text-lg font-bold text-slate-800 flex items-center justify-between">
+              <span>📋 Daftar Ujian Terdaftar ({filteredAndSortedExams.length})</span>
             </h2>
 
             {loading ? (
               <p className="text-slate-500 text-sm">Memuat daftar ujian...</p>
-            ) : exams.length > 0 ? (
-              exams.map((exam) => (
+            ) : filteredAndSortedExams.length > 0 ? (
+              filteredAndSortedExams.map((exam) => (
                 <div
                   key={exam.id}
                   className={`bg-white p-5 rounded-xl border shadow-sm space-y-3 ${
@@ -687,7 +817,7 @@ function AdminDashboardContent() {
                 >
                   <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                     <div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
                           {exam.subtest}
                         </span>
@@ -707,7 +837,7 @@ function AdminDashboardContent() {
                         </button>
 
                         <span className="text-xs text-slate-400">
-                          ⏱ {exam.duration_minutes} Menit
+                          ⏱ {exam.duration_minutes || 15} Menit
                         </span>
                       </div>
                       <h3 className="text-base font-bold text-slate-800 mt-1">
@@ -718,7 +848,7 @@ function AdminDashboardContent() {
                       </p>
                     </div>
 
-                    <div className="flex items-center space-x-2 shrink-0">
+                    <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-1">
                       <button
                         onClick={() => handleEditClick(exam)}
                         className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg transition-colors"
@@ -738,7 +868,6 @@ function AdminDashboardContent() {
                       >
                         👁️ Pengawasan Live
                       </Link>
-                    
                       <Link
                         href={`/admin/exam/${exam.id}`}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
@@ -755,10 +884,10 @@ function AdminDashboardContent() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 text-[11px] pt-2 border-t border-slate-100">
-                    {exam.token ? (
+                  <div className="flex flex-wrap gap-2 text-[11px] pt-2 border-t border-slate-100 font-medium">
+                    {exam.token || exam.token_code ? (
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded font-mono font-bold">
-                        🔑 Token: {exam.token}
+                        🔑 Token: {exam.token || exam.token_code}
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
@@ -767,39 +896,47 @@ function AdminDashboardContent() {
                     )}
 
                     {exam.shuffle_questions && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-medium">
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
                         🔀 Soal Diacak
                       </span>
                     )}
 
                     {exam.shuffle_options && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-medium">
+                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
                         🔀 Opsi Diacak
                       </span>
                     )}
 
                     {exam.show_results ? (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-medium">
+                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
                         📊 Tampil Nilai
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded font-medium">
+                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded">
                         🚫 Nilai Sembunyi
                       </span>
                     )}
+
+                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-bold uppercase">
+                      {exam.target_mode === 'PRACTICE_ONLY'
+                        ? '🎮 Latihan Mandiri'
+                        : exam.target_mode === 'EXAM_ONLY'
+                        ? '🎯 Ujian Resmi'
+                        : '🌐 CBT & Latihan'}
+                    </span>
                   </div>
                 </div>
               ))
             ) : (
               <div className="bg-white p-8 text-center rounded-xl border border-slate-200 text-slate-500 text-sm">
-                Belum ada paket ujian.
+                Tidak ada modul / paket ujian pada kategori tab atau filter subtes ini.
               </div>
             )}
           </div>
         </div>
       </main>
 
-      {/* 📢 MODAL HIGH-TECH CMS PENGUMUMAN & MATERI (DENGAN DUAL VIEW & RICH TOOLBAR) */}
+      {/* 📢 MODAL HIGH-TECH CMS PENGUMUMAN & MATERI */}
       {isCMSModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
           <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col overflow-hidden">
