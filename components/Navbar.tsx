@@ -91,15 +91,13 @@ export default function Navbar() {
   const currentThemeConfig =
     themeConfig[theme] || themeConfig.school
 
-  
   const navLink =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent px-3 py-2.5 text-xs font-bold text-slate-700 transition-colors duration-200 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2'
+    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent px-2 py-2.5 text-xs font-bold text-slate-700 transition-colors duration-200 hover:border-indigo-100 hover:bg-indigo-50 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 sm:px-3'
 
   const activeGameLink =
-    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-3 py-2 text-xs font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md'
+    'inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-2 py-2 text-xs font-black text-indigo-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md sm:px-3'
 
   // Sembunyikan Navbar ketika Mode Fokus aktif.
-  // Semua hooks tetap dipanggil sebelum kondisi ini.
   if (!chromeVisible) {
     return null
   }
@@ -110,7 +108,6 @@ export default function Navbar() {
       {/* STRIP INFORMASI SEKOLAH */}
       <div className="border-b border-blue-400/20 bg-gradient-to-r from-[#071638] via-[#102a66] to-[#071638] px-3 py-2 text-[10px] text-blue-50 sm:px-6 sm:text-xs">
         <div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-x-4 gap-y-1">
-
           <span className="min-w-0 truncate font-semibold">
             📍 Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774)
           </span>
@@ -127,7 +124,6 @@ export default function Navbar() {
               Email Sekolah
             </span>
           </a>
-
         </div>
       </div>
 
@@ -168,26 +164,31 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* DAFTAR NAVIGASI */}
-          <div className="-mx-1 flex flex-wrap items-center gap-1.5 px-1 pb-1 lg:mx-0 lg:justify-end lg:pb-0">
-  
+          {/* NAVIGASI: SATU BARIS DI HP */}
+          <div className="-mx-1 flex w-[calc(100%+0.5rem)] flex-nowrap items-center gap-1 overflow-x-auto px-1 pb-1 sm:gap-1.5 lg:mx-0 lg:w-auto lg:justify-end lg:overflow-visible lg:pb-0">
+
             {/* PEMILIH TEMA */}
             <div className="relative shrink-0">
               <button
                 type="button"
+                aria-label={`Tema saat ini: ${currentThemeConfig.name}`}
                 aria-expanded={showThemeMenu}
                 aria-haspopup="menu"
+                title={currentThemeConfig.name}
                 onClick={() => setShowThemeMenu((previous) => !previous)}
-                className={`inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r px-3 py-2 text-[11px] font-black shadow-md ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:text-xs ${currentThemeConfig.style}`}
+                className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-gradient-to-r px-2 py-2.5 text-[11px] font-black shadow-md ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg active:scale-95 sm:gap-1.5 sm:px-3 sm:text-xs ${currentThemeConfig.style}`}
               >
                 <span>{currentThemeConfig.icon}</span>
-                <span>{currentThemeConfig.name}</span>
-                <span className="text-[9px]">▾</span>
+                <span className="hidden sm:inline">
+                  {currentThemeConfig.name}
+                </span>
+                <span className="hidden text-[9px] sm:inline">
+                  ▾
+                </span>
               </button>
 
               {showThemeMenu && (
                 <>
-                  {/* Lapisan untuk menutup menu saat area luar diklik */}
                   <button
                     type="button"
                     aria-label="Tutup menu tema"
@@ -195,10 +196,9 @@ export default function Navbar() {
                     onClick={() => setShowThemeMenu(false)}
                   />
 
-                  {/* Daftar pilihan tema */}
                   <div
                     role="menu"
-                      className="absolute left-0 z-50 mt-3 w-52 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-[0_20px_60px_-15px_rgba(30,41,59,0.35)] sm:left-auto sm:right-0"
+                    className="absolute left-0 z-50 mt-3 w-52 max-w-[calc(100vw-1.5rem)] rounded-2xl border border-indigo-100 bg-white p-2 shadow-[0_20px_60px_-15px_rgba(30,41,59,0.35)] sm:left-auto sm:right-0"
                   >
                     <p className="px-3 pb-2 pt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
                       🎨 Pilih Dunia Belajarmu
@@ -242,41 +242,63 @@ export default function Navbar() {
             </div>
 
             {/* BERANDA */}
-            <Link href="/" className={navLink}>
+            <Link
+              href="/"
+              className={navLink}
+              title="Beranda"
+              aria-label="Beranda"
+            >
               <span>🏠</span>
-              <span>Beranda</span>
+              <span className="hidden sm:inline">Beranda</span>
             </Link>
 
             {/* RIWAYAT */}
             {user && (
-              <Link href="/history" className={navLink}>
+              <Link
+                href="/history"
+                className={navLink}
+                title="Riwayat"
+                aria-label="Riwayat"
+              >
                 <span>📊</span>
-                <span>Riwayat</span>
+                <span className="hidden sm:inline">Riwayat</span>
               </Link>
             )}
 
             {/* LATIHAN MANDIRI */}
-            <Link href="/practice" className={activeGameLink}>
+            <Link
+              href="/practice"
+              className={activeGameLink}
+              title="Latihan Mandiri"
+              aria-label="Latihan Mandiri"
+            >
               <span className="text-base">🎮</span>
-              <span>Latihan Mandiri</span>
+              <span className="hidden sm:inline">
+                Latihan Mandiri
+              </span>
             </Link>
 
             {/* ADMIN */}
-            <Link href="/admin" className={navLink}>
+            <Link
+              href="/admin"
+              className={navLink}
+              title="Admin"
+              aria-label="Admin"
+            >
               <span>⚙️</span>
-              <span>Admin</span>
+              <span className="hidden sm:inline">Admin</span>
             </Link>
 
             {/* MODE FOKUS */}
             <button
               type="button"
               onClick={() => setChromeVisible(false)}
-              title="Sembunyikan Navbar dan Footer"
+              title="Mode Fokus"
               aria-label="Aktifkan Mode Fokus"
-              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-700"
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2 py-2.5 text-xs font-bold text-slate-700 transition hover:bg-indigo-50 hover:text-indigo-700 sm:px-3"
             >
               <span>⛶</span>
-              <span>Mode Fokus</span>
+              <span className="hidden sm:inline">Mode Fokus</span>
             </button>
 
             {/* LOGIN / LOGOUT */}
@@ -284,17 +306,22 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-3 py-2 text-xs font-black text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md"
+                title="Logout"
+                aria-label="Logout"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-gradient-to-r from-rose-50 to-pink-50 px-2 py-2.5 text-xs font-black text-rose-600 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md sm:px-3"
               >
                 <span>↪</span>
-                <span>Logout</span>
+                <span className="hidden sm:inline">Logout</span>
               </button>
             ) : (
               <Link
                 href="/login"
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-3 py-2 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-600 hover:shadow-lg"
+                title="Masuk"
+                aria-label="Masuk"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-2 py-2.5 text-xs font-black text-white shadow-md transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-600 hover:shadow-lg sm:px-3"
               >
-                🔑 Masuk
+                <span>🔑</span>
+                <span className="hidden sm:inline">Masuk</span>
               </Link>
             )}
 
