@@ -171,58 +171,67 @@ function ExamEngineContent() {
     setExam(examData)
 
     // D. RESTORE JAWABAN DARI LOCALSTORAGE
-    const localAnswersKey = `cbt_answers_${examId}`
-    const savedAns = localStorage.getItem(localAnswersKey)
-    if (savedAns) {
-      try {
-        const parsedMap = JSON.parse(savedAns)
-        if (parsedMap && typeof parsedMap === 'object') {
-          setUserAnswers(parsedMap)
-          userAnswersRef.current = parsedMap
-        }
-      } catch (e) {
-        console.error('Gagal memulihkan jawaban tersimpan:', e)
-      }
-    }
+    
 
     // E. 🟢 PROSES SESI REAL-TIME DI SUPABASE (AGAR MUNCUL DI LIVE PROCTORING)
-    let currentSessId = null
+    // E. Cari sesi terbaru, termasuk sesi yang sudah selesai
+    let currentSessId: string | null = null
     let startTimeIso = new Date().toISOString()
+    let currentSession: any = null
 
-    const { data: existingSession } = await supabase
+    const { data: existingSession, error: sessionError } = await supabase
       .from('exam_sessions')
       .select('*')
       .eq('exam_id', examId)
       .eq('user_id', activeUser.id)
-      .in('status', ['ongoing', 'paused'])
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
 
+    if (sessionError) {
+      console.error('Gagal memuat sesi:', sessionError)
+      alert('Gagal memuat sesi ujian. Silakan coba kembali.')
+      setLoading(false)
+      return
+    }
+
+    if (existingSession?.status === 'completed') {
+      router.replace(
+        `/exam/${examId}/summary?session_id=${existingSession.id}`
+      )
+      return
+    }
+
     if (existingSession) {
+      currentSession = existingSession
       currentSessId = existingSession.id
-      if (existingSession.start_time) {
-        startTimeIso = existingSession.start_time
-      }
+      startTimeIso = existingSession.start_time || startTimeIso
       setSessionStatus(existingSession.status)
     } else {
-      // Buat Sesi Baru berstatus 'ongoing' di Supabase
-      const { data: newSess } = await supabase
+      // Sesi baru hanya dibuat saat tidak ada sesi yang tersisa.
+      const { data: newSess, error: createError } = await supabase
         .from('exam_sessions')
-        .insert([
-          {
-            exam_id: examId,
-            user_id: activeUser.id,
-            status: 'ongoing',
-            start_time: startTimeIso,
-          },
-        ])
-        .select()
+        .insert({
+          exam_id: examId,
+          user_id: activeUser.id,
+          status: 'ongoing',
+          start_time: startTimeIso,
+          paused_duration_seconds: 0,
+          extra_time_seconds: 0,
+        })
+        .select('*')
         .single()
 
-      if (newSess) {
-        currentSessId = newSess.id
+      if (createError || !newSess) {
+        console.error('Gagal membuat sesi:', createError)
+        alert('Gagal membuat sesi ujian. Silakan muat ulang halaman.')
+        setLoading(false)
+        return
       }
+
+      currentSession = newSess
+      currentSessId = newSess.id
+      setSessionStatus('ongoing')
     }
 
     if (currentSessId) {
@@ -230,11 +239,74 @@ function ExamEngineContent() {
       sessionIdRef.current = currentSessId
     }
 
+    // C.1 Pulihkan jawaban hanya jika melanjutkan sesi yang sudah ada.
+    // Jika sesi baru dibuat, hapus jawaban lokal dari sesi sebelumnya.
+    const localAnswersKey = `cbt_answers_${examId}`
+
+    if (existingSession) {
+      const savedAns = localStorage.getItem(localAnswersKey)
+
+      if (savedAns) {
+        try {
+          const parsedMap = JSON.parse(savedAns)
+
+          if (parsedMap && typeof parsedMap === 'object') {
+            setUserAnswers(parsedMap)
+            userAnswersRef.current = parsedMap
+          }
+        } catch (e) {
+          console.error('Gagal memulihkan jawaban tersimpan:', e)
+          localStorage.removeItem(localAnswersKey)
+          setUserAnswers({})
+          userAnswersRef.current = {}
+        }
+      } else {
+        setUserAnswers({})
+        userAnswersRef.current = {}
+      }
+    } else {
+      // Tidak ada sesi lama: mulai benar-benar dari awal.
+      localStorage.removeItem(localAnswersKey)
+      localStorage.removeItem(`cbt_start_time_${examId}`)
+
+      setUserAnswers({})
+      userAnswersRef.current = {}
+      setFlaggedQuestions({})
+      setCurrentIndex(0)
+    }
+
     // F. PERHITUNGAN TIMER SISA WAKTU BERBASIS TIMESTAMP START_TIME
-    const durationSeconds = (examData.duration_minutes || 15) * 60
+    const durationSeconds =
+      (Number(examData.duration_minutes) || 15) * 60
+
+    const nowMs = Date.now()
     const startMs = new Date(startTimeIso).getTime()
-    const elapsedSeconds = Math.floor((Date.now() - startMs) / 1000)
-    const remainingSeconds = Math.max(0, durationSeconds - elapsedSeconds)
+
+    const pausedAtMs = currentSession?.paused_at
+      ? new Date(currentSession.paused_at).getTime()
+      : null
+
+    const accumulatedPause =
+      Number(currentSession?.paused_duration_seconds) || 0
+
+    const extraTime =
+      Number(currentSession?.extra_time_seconds) || 0
+
+    const currentPauseSeconds = pausedAtMs
+      ? Math.max(0, Math.floor((nowMs - pausedAtMs) / 1000))
+      : 0
+
+    const elapsedSeconds = Math.max(
+      0,
+      Math.floor((nowMs - startMs) / 1000) -
+        accumulatedPause -
+        currentPauseSeconds
+    )
+
+    const remainingSeconds = Math.max(
+      0,
+      durationSeconds + extraTime - elapsedSeconds
+    )
 
     setTimeLeft(remainingSeconds)
     setLoading(false)
@@ -255,25 +327,65 @@ function ExamEngineContent() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: activeSession } = await supabase
+      
+      const currentId = sessionIdRef.current
+
+      if (!currentId) return
+
+      const { data: activeSession, error } = await supabase
         .from('exam_sessions')
-        .select('status')
-        .eq('exam_id', examId)
+        .select('id, status')
+        .eq('id', currentId)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
         .maybeSingle()
 
-      if (activeSession && activeSession.status) {
-        setSessionStatus(activeSession.status)
+      if (error) {
+        console.error('Gagal memeriksa status sesi:', error)
+        return
       }
+
+      // Sesi telah dihapus oleh proktor melalui Reset Sesi.
+      if (!activeSession) {
+  // Hentikan proses submit lama agar tidak memakai sesi yang sudah dihapus.
+  isSubmittingRef.current = false
+  setIsSubmitting(false)
+
+  // Hapus seluruh cadangan jawaban sesi sebelumnya.
+  localStorage.removeItem(`cbt_answers_${examId}`)
+  localStorage.removeItem(`cbt_start_time_${examId}`)
+
+  // Reset state jawaban dan navigasi.
+  setUserAnswers({})
+  userAnswersRef.current = {}
+
+  setFlaggedQuestions({})
+  setCurrentIndex(0)
+
+  // Kosongkan referensi sesi lama.
+  sessionIdRef.current = null
+  setSessionId(null)
+
+  // Muat ulang untuk membuat sesi baru.
+  window.location.replace(`/exam/${examId}`)
+  return
+}
+
+      setSessionStatus(activeSession.status)
+
+      // Sesi dipaksa selesai oleh proktor.
+      if (activeSession.status === 'completed') {
+        router.replace(
+          `/exam/${examId}/summary?session_id=${activeSession.id}`
+        )
+      }
+
     }
 
     checkSessionStatus()
     const statusInterval = setInterval(checkSessionStatus, 3000)
 
     return () => clearInterval(statusInterval)
-  }, [examId, loading])
+}, [examId, loading, sessionId, router])
 
   // 🟢 PROTEKSI RELOAD & BACK BROWSER
   useEffect(() => {
@@ -288,8 +400,15 @@ function ExamEngineContent() {
   }, [])
 
   // 🟢 TIMER COUNTDOWN PRESISI (HENTIKAN TIMER JIKA DIPAUSE)
-  useEffect(() => {
-    if (timeLeft === null || timeLeft <= 0 || sessionStatus === 'paused') return
+      useEffect(() => {
+        if (
+      timeLeft === null ||
+      timeLeft <= 0 ||
+      sessionStatus === 'paused' ||
+      sessionStatus === 'completed'
+    ) {
+      return
+    }
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -363,8 +482,15 @@ function ExamEngineContent() {
   }
 
   // 🟢 SELAYAKAN UJIAN, POPULASI NILAI PRESISI, & SIMPAN HASIL KE DATABASE
-  const handleFinishExam = async (autoFinish = false) => {
+    const handleFinishExam = async (autoFinish = false) => {
     if (isSubmittingRef.current) return
+
+    if (sessionStatus === 'completed') return
+
+    if (!sessionIdRef.current) {
+      alert('Sesi ujian tidak ditemukan. Silakan muat ulang halaman.')
+      return
+    }
     if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
 
     isSubmittingRef.current = true
@@ -481,27 +607,37 @@ function ExamEngineContent() {
       }
 
       // 2. Pastikan sesi ujian tersedia
+      // 2. Pastikan sesi yang akan diselesaikan masih ada dan aktif
       if (!activeSessId) {
-        const { data: newSession, error: createSessionError } = await supabase
-          .from('exam_sessions')
-          .insert({
-            exam_id: examId,
-            user_id: user.id,
-            status: 'ongoing',
-            start_time: endTimeIso,
-          })
-          .select('id')
-          .single()
+        throw new Error(
+          'Sesi ujian tidak ditemukan. Silakan muat ulang halaman.'
+        )
+      }
 
-        if (createSessionError || !newSession) {
-          throw new Error(
-            `Gagal membuat sesi ujian: ${createSessionError?.message || 'Sesi tidak ditemukan'}`
-          )
-        }
+      const { data: activeSession, error: sessionCheckError } = await supabase
+        .from('exam_sessions')
+        .select('id, status')
+        .eq('id', activeSessId)
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-        activeSessId = newSession.id
-        sessionIdRef.current = newSession.id
-        setSessionId(newSession.id)
+      if (sessionCheckError) {
+        throw new Error(
+          `Gagal memeriksa sesi ujian: ${sessionCheckError.message}`
+        )
+      }
+
+      if (!activeSession) {
+        throw new Error(
+          'Sesi ujian sudah dihapus atau tidak ditemukan. Muat ulang halaman untuk memulai kembali.'
+        )
+      }
+
+      if (activeSession.status !== 'ongoing') {
+        throw new Error(
+          'Sesi ujian tidak lagi aktif. Muat ulang halaman untuk memeriksa status terbaru.'
+        )
       }
 
       // 3. Siapkan semua jawaban, termasuk soal yang tidak dijawab
@@ -563,6 +699,7 @@ function ExamEngineContent() {
         })
         .eq('id', activeSessId)
         .eq('user_id', user.id)
+        .eq('status', 'ongoing')
         .select('id')
         .maybeSingle()
 

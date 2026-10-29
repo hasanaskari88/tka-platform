@@ -136,47 +136,61 @@ function MonitorContent() {
   }
 
   // ⏸️ AKSI 1: PAUSE SESI UJIAN (Bekukan Layar & Waktu Siswa)
-  const handlePauseSession = async (session: any) => {
-    const student = profileMap.get(session.user_id)
-    const studentName = student?.full_name || 'Siswa'
+    const handlePauseSession = async (sessionId: string) => {
+    if (!confirm('Jeda ujian siswa ini?')) return
 
-    if (!confirm(`Pause / Bekukan pengerjaan ujian ${studentName}?\n\nLayar siswa akan dikunci dan sisa waktu dihentikan sementara.`)) {
+    const supabase = createClient()
+    const pausedAt = new Date().toISOString()
+
+    const { error } = await supabase
+      .from('exam_sessions')
+      .update({
+        status: 'paused',
+        paused_at: pausedAt,
+      })
+      .eq('id', sessionId)
+      .eq('status', 'ongoing')
+
+    if (error) {
+      alert(`Gagal menjeda ujian: ${error.message}`)
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('exam_sessions')
-      .update({ status: 'paused' })
-      .eq('id', session.id)
-
-    if (error) {
-      alert(`Gagal mem-pause sesi: ${error.message}`)
-    } else {
-      fetchData()
-    }
+    await fetchData()
   }
 
   // ▶️ AKSI 2: RESUME SESI UJIAN (Lanjutkan Pengerjaan Siswa)
-  const handleResumeSession = async (session: any) => {
-    const student = profileMap.get(session.user_id)
-    const studentName = student?.full_name || 'Siswa'
+    const handleResumeSession = async (session: any) => {
+    if (!confirm('Lanjutkan ujian siswa ini?')) return
 
-    if (!confirm(`Buka kuncian dan lanjutkan ujian untuk ${studentName}?`)) {
+    const supabase = createClient()
+    const now = Date.now()
+    const pausedAtMs = session.paused_at
+      ? new Date(session.paused_at).getTime()
+      : now
+
+    const pauseSeconds = Math.max(
+      0,
+      Math.floor((now - pausedAtMs) / 1000)
+    )
+
+    const { error } = await supabase
+      .from('exam_sessions')
+      .update({
+        status: 'ongoing',
+        paused_at: null,
+        paused_duration_seconds:
+          (Number(session.paused_duration_seconds) || 0) + pauseSeconds,
+      })
+      .eq('id', session.id)
+      .eq('status', 'paused')
+
+    if (error) {
+      alert(`Gagal melanjutkan ujian: ${error.message}`)
       return
     }
 
-    const supabase = createClient()
-    const { error } = await supabase
-      .from('exam_sessions')
-      .update({ status: 'ongoing' })
-      .eq('id', session.id)
-
-    if (error) {
-      alert(`Gagal melanjutkan sesi: ${error.message}`)
-    } else {
-      fetchData()
-    }
+    await fetchData()
   }
 
   // 🛑 AKSI 3: Force Submit
@@ -200,6 +214,7 @@ function MonitorContent() {
         end_time: nowIso,
       })
       .eq('id', session.id)
+      .in('status', ['ongoing', 'paused'])
 
     if (error) {
       alert(`Gagal memproses Force Submit: ${error.message}`)
@@ -208,52 +223,95 @@ function MonitorContent() {
     }
   }
 
+  
   // 🔄 AKSI 4: Reset Sesi Ujian
-  const handleResetSession = async (session: any) => {
-    const student = profileMap.get(session.user_id)
-    const studentName = student?.full_name || 'Siswa'
-
+  const handleResetSession = async (sessionId: string) => {
     if (
       !confirm(
-        `Apakah Anda yakin ingin MERESET sesi pengerjaan ${studentName}?\n\nSesi lama akan dihapus dan siswa dapat masuk kembali mengerjakan dari awal.`
+        'Reset sesi ini? Sesi dan seluruh jawabannya akan dihapus permanen. Siswa harus memulai ujian dari awal.'
       )
     ) {
       return
     }
 
     const supabase = createClient()
-    const { error } = await supabase.from('exam_sessions').delete().eq('id', session.id)
 
-    if (error) {
-      alert(`Gagal mereset sesi: ${error.message}`)
-    } else {
-      fetchData()
+    try {
+      // Hapus sesi. Jawaban terkait ikut terhapus melalui ON DELETE CASCADE.
+      const { data: deletedSession, error } = await supabase
+        .from('exam_sessions')
+        .delete()
+        .eq('id', sessionId)
+        .select('id')
+        .maybeSingle()
+
+      if (error) {
+        throw new Error(`Gagal menghapus sesi: ${error.message}`)
+      }
+
+      if (!deletedSession) {
+        throw new Error(
+          'Sesi tidak terhapus. Periksa izin akses database atau apakah sesi sudah dihapus.'
+        )
+      }
+
+      await fetchData()
+
+      alert(
+        'Sesi berhasil dihapus beserta seluruh jawabannya. Siswa harus memulai ujian dari awal.'
+      )
+    } catch (error) {
+      console.error('Gagal mereset sesi:', error)
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : 'Terjadi kesalahan saat mereset sesi.'
+      )
+
+      await fetchData()
     }
   }
 
-  // ⏱️ AKSI 5: Perpanjang Waktu (+10 Menit)
-  const handleExtendTime = async (session: any) => {
-    const student = profileMap.get(session.user_id)
-    const studentName = student?.full_name || 'Siswa'
 
-    if (!confirm(`Tambahkan waktu pengerjaan 10 menit khusus untuk ${studentName}?`)) {
+
+  // ⏱️ AKSI 5: Perpanjang Waktu (+10 Menit)
+    const handleExtendTime = async (sessionId: string) => {
+    if (!confirm('Tambahkan waktu ujian 10 menit?')) return
+
+    const supabase = createClient()
+
+    const { data: session, error: fetchError } = await supabase
+      .from('exam_sessions')
+      .select('extra_time_seconds, status')
+      .eq('id', sessionId)
+      .maybeSingle()
+
+    if (fetchError || !session) {
+      alert(`Gagal membaca sesi: ${fetchError?.message || 'Sesi tidak ditemukan'}`)
       return
     }
 
-    const supabase = createClient()
-    const currentStart = new Date(session.start_time).getTime()
-    const newStart = new Date(currentStart + 10 * 60 * 1000).toISOString()
+    if (!['ongoing', 'paused'].includes(session.status)) {
+      alert('Tambahan waktu hanya dapat diberikan pada sesi aktif atau pause.')
+      return
+    }
 
     const { error } = await supabase
       .from('exam_sessions')
-      .update({ start_time: newStart })
-      .eq('id', session.id)
+      .update({
+        extra_time_seconds:
+          (Number(session.extra_time_seconds) || 0) + 600,
+      })
+      .eq('id', sessionId)
+      .in('status', ['ongoing', 'paused'])
 
     if (error) {
-      alert(`Gagal memperpanjang waktu: ${error.message}`)
-    } else {
-      fetchData()
+      alert(`Gagal menambah waktu: ${error.message}`)
+      return
     }
+
+    await fetchData()
   }
 
   // FILTERING LOGIC SESI LIVE
@@ -626,7 +684,7 @@ function MonitorContent() {
                             {isOngoing && (
                               <>
                                 <button
-                                  onClick={() => handlePauseSession(s)}
+                                  onClick={() => handlePauseSession(s.id)}
                                   className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded text-[10px] transition-colors"
                                   title="Pause Ujian & Kunci Layar Siswa"
                                 >
@@ -660,7 +718,7 @@ function MonitorContent() {
                             )}
                             {s.status === 'completed' && (
                               <button
-                                onClick={() => handleResetSession(s)}
+                                onClick={() => handleResetSession(s.id)}
                                 className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 font-bold rounded text-[10px] transition-colors"
                               >
                                 🔄 Reset Sesi
