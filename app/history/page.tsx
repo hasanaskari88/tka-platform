@@ -49,6 +49,7 @@ function HistoryContent() {
   const router = useRouter()
   const [profile, setProfile] = useState<any>(null)
   const [historyList, setHistoryList] = useState<any[]>([])
+  const [practiceHistoryList, setPracticeHistoryList] = useState<any[]>([])
   const [subtestStats, setSubtestStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -114,12 +115,29 @@ function HistoryContent() {
       .order('created_at', { ascending: false })
 
     const { data: examData } = await supabase.from('exams').select('*')
-
+    const { data: practiceData, error: practiceError } = await supabase
+      .from('practice_attempts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+    
+    if (practiceError) {
+      console.error('Gagal mengambil riwayat latihan:', practiceError)
+    }
     const examMap = new Map()
     if (examData) {
       examData.forEach((e) => examMap.set(e.id, e))
     }
-
+    const processedPracticeHistory = (practiceData || []).map((attempt) => {
+      const exam = examMap.get(attempt.exam_id)
+    
+      return {
+        ...attempt,
+        exam_title: exam?.title || 'Latihan tanpa judul',
+      }
+    })
+    
+    setPracticeHistoryList(processedPracticeHistory)
     const processedHistory = (sessionData || []).map((session) => {
       const exam = examMap.get(session.exam_id) || {
         title: 'Paket Ujian',
@@ -419,7 +437,92 @@ function HistoryContent() {
             </p>
           )}
         </div>
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
+  <div className="border-b pb-3">
+    <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
+      <span>📚</span>
+      <span>Riwayat Latihan ({practiceHistoryList.length})</span>
+    </h2>
+    <p className="text-xs text-slate-500 mt-1">
+      Daftar latihan yang pernah Anda kerjakan beserta hasil dan XP yang diperoleh.
+    </p>
+  </div>
 
+  <div className="overflow-x-auto pt-1">
+    <table className="w-full text-left border-collapse text-xs">
+      <thead className="bg-slate-100 text-slate-700 font-bold border-b">
+        <tr>
+          <th className="p-3 text-center">No</th>
+          <th className="p-3">Nama Latihan</th>
+          <th className="p-3 text-center">Tanggal</th>
+          <th className="p-3 text-center">Status</th>
+          <th className="p-3 text-center">Jawaban</th>
+          <th className="p-3 text-center">Benar</th>
+          <th className="p-3 text-center">Skor</th>
+          <th className="p-3 text-center">Total XP</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {practiceHistoryList.length > 0 ? (
+          practiceHistoryList.map((item, idx) => (
+            <tr key={item.id} className="hover:bg-slate-50">
+              <td className="p-3 text-center font-bold text-slate-400">
+                {idx + 1}
+              </td>
+              <td className="p-3 font-bold text-slate-800">
+                {item.exam_title}
+                <div className="text-[10px] text-slate-400 font-normal">
+                  Percobaan ke-{item.attempt_number}
+                </div>
+              </td>
+              <td className="p-3 text-center text-slate-600">
+                {new Date(item.completed_at || item.started_at).toLocaleString(
+                  'id-ID',
+                  { dateStyle: 'medium', timeStyle: 'short' }
+                )}
+              </td>
+              <td className="p-3 text-center">
+                <span
+                  className={`px-2 py-1 rounded-lg font-bold ${
+                    item.status === 'completed'
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : item.status === 'in_progress'
+                      ? 'bg-amber-50 text-amber-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {item.status === 'completed'
+                    ? 'Selesai'
+                    : item.status === 'in_progress'
+                    ? 'Sedang Dikerjakan'
+                    : 'Dihentikan'}
+                </span>
+              </td>
+              <td className="p-3 text-center text-slate-600">
+                {item.answered_count} / {item.total_questions}
+              </td>
+              <td className="p-3 text-center font-bold text-emerald-600">
+                {item.correct_count}
+              </td>
+              <td className="p-3 text-center font-bold text-indigo-600">
+                {Number(item.score || 0)}
+              </td>
+              <td className="p-3 text-center font-bold text-amber-600">
+                ⭐ {item.total_xp}
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan={8} className="p-8 text-center text-slate-400">
+              Anda belum memiliki riwayat latihan.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+</div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
           <div className="border-b pb-3 flex justify-between items-center">
             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
