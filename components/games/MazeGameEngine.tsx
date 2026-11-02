@@ -264,14 +264,15 @@ export default function MazeGameEngine({
   }
 
   const resetRobot = () => {
-    if (isRunning || isFinishing) return
+  if (isRunning || isFinishing) return
 
-    setRobot({ ...start })
-    setDirection(1)
-    setIsRunning(false)
-    setIsComplete(false)
-    setFeedback('Robot kembali ke titik awal. Coba lagi!')
-  }
+  setCommands([])
+  setRobot({ ...start })
+  setDirection(1)
+  setIsRunning(false)
+  setIsComplete(false)
+  setFeedback('Robot kembali ke titik awal. Susun ulang perintah dan coba lagi!')
+}
 
   // ==========================================
   // 5. FINALISASI ATTEMPT
