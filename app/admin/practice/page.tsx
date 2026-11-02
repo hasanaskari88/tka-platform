@@ -676,29 +676,30 @@ function AdminPracticeContent() {
     if (!activeMazeExam || mazeSaving) return
 
     if (
-      mazeWidth < 2 ||
-      mazeWidth > 12 ||
-      mazeHeight < 2 ||
-      mazeHeight > 12
-    ) {
-      alert('Ukuran papan harus antara 2 sampai 12 kotak.')
-      return
-    }
+  !Number.isInteger(mazeWidth) ||
+  !Number.isInteger(mazeHeight) ||
+  mazeWidth < 2 ||
+  mazeWidth > 12 ||
+  mazeHeight < 2 ||
+  mazeHeight > 12
+) {
+  alert('Ukuran papan harus berupa bilangan bulat antara 2 sampai 12.')
+  return
+} 
 
     if (
-      mazeStart.x < 0 || mazeStart.x >= mazeWidth ||
-      mazeStart.y < 0 || mazeStart.y >= mazeHeight ||
-      mazeTarget.x < 0 || mazeTarget.x >= mazeWidth ||
-      mazeTarget.y < 0 || mazeTarget.y >= mazeHeight
-    ) {
-      alert('Posisi robot atau bintang berada di luar papan. Atur ulang posisinya.')
-      return
-    }
-
-    if (mazeStart.x === mazeTarget.x && mazeStart.y === mazeTarget.y) {
-      alert('Posisi robot dan bintang tidak boleh sama.')
-      return
-    }
+  !Number.isInteger(mazeStart.x) ||
+  !Number.isInteger(mazeStart.y) ||
+  !Number.isInteger(mazeTarget.x) ||
+  !Number.isInteger(mazeTarget.y) ||
+  mazeStart.x < 0 || mazeStart.x >= mazeWidth ||
+  mazeStart.y < 0 || mazeStart.y >= mazeHeight ||
+  mazeTarget.x < 0 || mazeTarget.x >= mazeWidth ||
+  mazeTarget.y < 0 || mazeTarget.y >= mazeHeight
+) {
+  alert('Posisi robot atau bintang tidak valid. Gunakan koordinat bilangan bulat di dalam papan.')
+  return
+}
 
     const wallSet = new Set(mazeObstacles.map((p) => `${p.x},${p.y}`))
     const queue: MazePoint[] = [{ ...mazeStart }]
