@@ -107,7 +107,42 @@ export default function MazeGameV2Engine({
     type,
     ...(type === 'REPEAT' ? { count: 2 } : {}),
   })
+const width = Math.max(
+  2,
+  Math.min(12, Number(currentMission?.maze_width ?? 6))
+)
 
+const height = Math.max(
+  2,
+  Math.min(12, Number(currentMission?.maze_height ?? 6))
+)
+
+const start = {
+  x: Number(currentMission?.start_x ?? 0),
+  y: Number(currentMission?.start_y ?? 0),
+}
+
+const target = {
+  x: Number(currentMission?.target_x ?? 3),
+  y: Number(currentMission?.target_y ?? 3),
+}
+
+const obstacles = useMemo<Position[]>(() => {
+  if (!Array.isArray(currentMission?.obstacles)) return []
+
+  return currentMission.obstacles.map((item: any) => ({
+    x: Number(item.x),
+    y: Number(item.y),
+  }))
+}, [currentMission])
+
+const [robot, setRobot] = useState<Position>(start)
+const [direction, setDirection] = useState<Direction>(1)
+
+const isWall = (position: Position) =>
+  obstacles.some(
+    (wall) => wall.x === position.x && wall.y === position.y
+  )
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-white">
       <div className="mx-auto max-w-5xl">
