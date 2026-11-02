@@ -48,7 +48,18 @@ function parseMatrixAnswer(value: any): Record<string, string> {
       return {}
     }
   }
+function getMatrixOptionKey(item: any, index: number): string {
+  if (
+    item &&
+    typeof item === 'object' &&
+    item.id !== undefined &&
+    item.id !== null
+  ) {
+    return String(item.id)
+  }
 
+  return String(index)
+}
   const result: Record<string, string> = {}
 
   if (Array.isArray(parsed)) {
@@ -350,54 +361,61 @@ if (active) {
     processXpAndStreak(isUserRight)
   }
 
-  const handleSelectMatrixRow = (rowIdx: number, value: string) => {
-    if (isAnswered) return
+  const handleSelectMatrixRow = (optionKey: string, value: string) => {
+  if (isAnswered) return
 
-    const currentMatrix =
-      userAnswer && typeof userAnswer === 'object'
-        ? { ...userAnswer }
-        : {}
+  const currentMatrix =
+    userAnswer && typeof userAnswer === 'object'
+      ? { ...userAnswer }
+      : {}
 
-    currentMatrix[String(rowIdx)] = value
-    setUserAnswer(currentMatrix)
+  currentMatrix[optionKey] = value
+  setUserAnswer(currentMatrix)
+}
+
+const handleCheckMatrixAnswer = () => {
+  if (isAnswered || !currentQuestion) return
+
+  const options = Array.isArray(currentQuestion.options)
+    ? currentQuestion.options
+    : []
+
+  if (options.length === 0) {
+    setConfigurationError('Pernyataan matriks belum tersedia.')
+    return
   }
 
-  const handleCheckMatrixAnswer = () => {
-    if (isAnswered || !currentQuestion) return
+  const correctMap = parseMatrixAnswer(
+    currentQuestion.correct_answers ??
+    currentQuestion.correct_answer
+  )
 
-    const options = Array.isArray(currentQuestion.options)
-      ? currentQuestion.options
-      : []
+  const missingKeys = options
+    .map((item: any, index: number) => ({
+      key: getMatrixOptionKey(item, index),
+      row: index + 1,
+    }))
+    .filter(({ key }) => !correctMap[key])
 
-    if (options.length === 0) {
-      setConfigurationError('Pernyataan matriks belum tersedia.')
-      return
-    }
-
-    const correctMap = parseMatrixAnswer(
-      currentQuestion.correct_answers ??
-      currentQuestion.correct_answer
+  if (missingKeys.length > 0) {
+    setConfigurationError(
+      `Kunci matriks belum lengkap. Periksa baris: ${missingKeys
+        .map(({ row }) => row)
+        .join(', ')}.`
     )
-
-    const missingKeys = options
-      .map((_: any, index: number) => String(index))
-      .filter((key: string) => !correctMap[key])
-
-    if (missingKeys.length > 0) {
-      setConfigurationError(
-        `Kunci matriks belum lengkap. Periksa baris: ${missingKeys.map((key: string) => Number(key) + 1).join(', ')}.`
-      )
-      return
-    }
-
-    const allCorrect = options.every((_: any, index: number) => {
-      const userValue = normalizeTruth(userAnswer?.[String(index)])
-      return userValue !== null && userValue === correctMap[String(index)]
-    })
-
-    setConfigurationError('')
-    processXpAndStreak(allCorrect)
+    return
   }
+
+  const allCorrect = options.every((item: any, index: number) => {
+    const key = getMatrixOptionKey(item, index)
+    const userValue = normalizeTruth(userAnswer?.[key])
+
+    return userValue !== null && userValue === correctMap[key]
+  })
+
+  setConfigurationError('')
+  processXpAndStreak(allCorrect)
+}
 
   const handleCheckFillInAnswer = () => {
     if (isAnswered || !currentQuestion) return
@@ -684,77 +702,83 @@ if (active) {
             )}
 
           {qType === 'true_false_matrix' &&
-            Array.isArray(currentQuestion.options) && (
-              <div className="border rounded-xl overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-slate-100">
-                    <tr>
-                      <th className="p-3 text-left">Pernyataan</th>
-                      <th className="p-3">Benar</th>
-                      <th className="p-3">Salah</th>
-                    </tr>
-                  </thead>
+  Array.isArray(currentQuestion.options) && (
+    <div className="border rounded-xl overflow-hidden">
+      <table className="w-full text-xs">
+        <thead className="bg-slate-100">
+          <tr>
+            <th className="p-3 text-left">Pernyataan</th>
+            <th className="p-3">Benar</th>
+            <th className="p-3">Salah</th>
+          </tr>
+        </thead>
 
-                  <tbody>
-                    {currentQuestion.options.map((item: any, index: number) => {
-                      const text =
-                        typeof item === 'string'
-                          ? item
-                          : item.text || item.statement || `Pernyataan ${index + 1}`
+        <tbody>
+          {currentQuestion.options.map((item: any, index: number) => {
+            const optionKey = getMatrixOptionKey(item, index)
 
-                      const selected = userAnswer?.[String(index)]
+            const text =
+              typeof item === 'string'
+                ? item
+                : item.text ||
+                  item.statement ||
+                  `Pernyataan ${index + 1}`
 
-                      return (
-                        <tr key={index} className="border-t">
-                          <td className="p-3">
-                            <MathRenderer content={text} />
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              disabled={isAnswered}
-                              onClick={() =>
-                                handleSelectMatrixRow(index, 'Benar')
-                              }
-                              className={`px-3 py-1 rounded border ${
-                                selected === 'Benar'
-                                  ? 'bg-emerald-600 text-white'
-                                  : ''
-                              }`}
-                            >
-                              Benar
-                            </button>
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              disabled={isAnswered}
-                              onClick={() =>
-                                handleSelectMatrixRow(index, 'Salah')
-                              }
-                              className={`px-3 py-1 rounded border ${
-                                selected === 'Salah'
-                                  ? 'bg-rose-600 text-white'
-                                  : ''
-                              }`}
-                            >
-                              Salah
-                            </button>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+            const selected = userAnswer?.[optionKey]
 
-                {!isAnswered && (
+            return (
+              <tr key={optionKey} className="border-t">
+                <td className="p-3">
+                  <MathRenderer content={text} />
+                </td>
+
+                <td className="p-3 text-center">
                   <button
-                    onClick={handleCheckMatrixAnswer}
-                    className="w-full py-2.5 bg-indigo-600 text-white font-bold"
+                    disabled={isAnswered}
+                    onClick={() =>
+                      handleSelectMatrixRow(optionKey, 'Benar')
+                    }
+                    className={`px-3 py-1 rounded border ${
+                      selected === 'Benar'
+                        ? 'bg-emerald-600 text-white'
+                        : ''
+                    }`}
                   >
-                    📊 Periksa Jawaban Matriks
+                    Benar
                   </button>
-                )}
-              </div>
-            )}
+                </td>
+
+                <td className="p-3 text-center">
+                  <button
+                    disabled={isAnswered}
+                    onClick={() =>
+                      handleSelectMatrixRow(optionKey, 'Salah')
+                    }
+                    className={`px-3 py-1 rounded border ${
+                      selected === 'Salah'
+                        ? 'bg-rose-600 text-white'
+                        : ''
+                    }`}
+                  >
+                    Salah
+                  </button>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      {!isAnswered && (
+        <button
+          onClick={handleCheckMatrixAnswer}
+          className="w-full py-2.5 bg-indigo-600 text-white font-bold"
+        >
+          📊 Periksa Jawaban Matriks
+        </button>
+      )}
+    </div>
+  )}
 
           {qType === 'fill_in' && (
             <div className="space-y-3">
