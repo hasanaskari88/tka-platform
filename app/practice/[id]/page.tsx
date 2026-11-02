@@ -94,7 +94,13 @@ function PracticeContent() {
   const [configurationError, setConfigurationError] = useState('')
 
   const finishStartedRef = useRef(false)
-  const startStartedRef = useRef(false)
+  const startAttemptPromiseRef = useRef<{
+  examId: string;
+  promise: Promise<{
+    attemptId: string | null;
+    error: unknown;
+  }>;
+} | null>(null);
   const streakXpRef = useRef(0)
 
   const checkAndUnlockBadges = async (
@@ -192,24 +198,58 @@ function PracticeContent() {
           return
         }
 
-        if (!startStartedRef.current) {
-          startStartedRef.current = true
+        if (
+  !startAttemptPromiseRef.current ||
+  startAttemptPromiseRef.current.examId !== examId
+) {
+  const promise = supabase
+    .rpc('start_practice_attempt', {
+      p_exam_id: examId,
+    })
+    .then(({ data, error }) => {
+      const attemptId =
+        typeof data === 'string'
+          ? data
+          : data?.attempt_id ?? data?.id ?? null;
 
-          const { data, error } = await supabase.rpc(
-            'start_practice_attempt',
-            { p_exam_id: examId }
-          )
+      return {
+        attemptId,
+        error,
+      };
+    })
+    .catch((error) => ({
+      attemptId: null,
+      error,
+    }));
 
-          if (error || !data?.attempt_id) {
-            console.error('Gagal memulai attempt:', error)
-            alert('Gagal memulai sesi latihan. Silakan coba lagi.')
-            router.push('/practice')
-            return
-          }
+  startAttemptPromiseRef.current = {
+    examId,
+    promise,
+  };
+}
 
-          if (active) setAttemptId(data.attempt_id)
-        }
-      }
+const startResult =
+  await startAttemptPromiseRef.current.promise;
+
+if (startResult.error || !startResult.attemptId) {
+  console.error(
+    'Gagal memulai practice attempt:',
+    startResult.error
+  );
+
+  if (active) {
+    setConfigurationError(
+      'Sesi latihan gagal dimulai. Silakan muat ulang halaman.'
+    );
+    setLoading(false);
+  }
+
+  return;
+}
+
+if (active) {
+  setAttemptId(startResult.attemptId);
+}
 
       if (active) setLoading(false)
     }
