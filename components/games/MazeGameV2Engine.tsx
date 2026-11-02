@@ -394,6 +394,32 @@ const resetGame = () => {
             >
               Hapus Semua Blok
             </button>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+  <button
+    type="button"
+    onClick={resetGame}
+    disabled={isRunning}
+    className="rounded-xl bg-slate-700 px-3 py-3 font-bold disabled:opacity-40"
+  >
+    ↺ Ulangi
+  </button>
+
+  <button
+    type="button"
+    onClick={runProgram}
+    disabled={isRunning || isComplete || program.length === 0}
+    className="rounded-xl bg-emerald-600 px-3 py-3 font-extrabold disabled:opacity-40"
+  >
+    ▶ Jalankan
+  </button>
+</div>
+
+<div
+  aria-live="polite"
+  className="mt-3 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-sm text-indigo-100"
+>
+  {feedback}
+</div>
           </section>
         </div>
       </div>
