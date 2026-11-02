@@ -143,6 +143,125 @@ const isWall = (position: Position) =>
   obstacles.some(
     (wall) => wall.x === position.x && wall.y === position.y
   )
+  const [isRunning, setIsRunning] = useState(false)
+const [feedback, setFeedback] = useState(
+  'Susun blok, lalu jalankan program!'
+)
+const [isComplete, setIsComplete] = useState(false)
+
+const runProgram = async () => {
+  if (isRunning || isComplete || program.length === 0) return
+
+  setIsRunning(true)
+  setFeedback('🤖 Robot sedang menjalankan program...')
+
+  let currentPosition = { ...start }
+  let currentDirection: Direction = 1
+  let reachedGoal = false
+  let crashed = false
+
+  const moveRobot = async () => {
+    const movement = DIRECTIONS[currentDirection]
+
+    const nextPosition = {
+      x: currentPosition.x + movement.x,
+      y: currentPosition.y + movement.y,
+    }
+
+    if (
+      nextPosition.x < 0 ||
+      nextPosition.x >= width ||
+      nextPosition.y < 0 ||
+      nextPosition.y >= height ||
+      isWall(nextPosition)
+    ) {
+      crashed = true
+      return
+    }
+
+    currentPosition = nextPosition
+
+    setRobot({ ...currentPosition })
+    setDirection(currentDirection)
+
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
+    if (
+      currentPosition.x === target.x &&
+      currentPosition.y === target.y
+    ) {
+      reachedGoal = true
+    }
+  }
+
+  for (const block of program) {
+    if (reachedGoal || crashed) break
+
+    if (block.type === 'LEFT') {
+      currentDirection = ((currentDirection + 3) % 4) as Direction
+      setDirection(currentDirection)
+    }
+
+    if (block.type === 'RIGHT') {
+      currentDirection = ((currentDirection + 1) % 4) as Direction
+      setDirection(currentDirection)
+    }
+
+    if (block.type === 'FORWARD') {
+      await moveRobot()
+    }
+
+    if (block.type === 'REPEAT') {
+      for (let i = 0; i < (block.count ?? 2); i++) {
+        if (reachedGoal || crashed) break
+        await moveRobot()
+      }
+    }
+
+    if (block.type === 'IF_CLEAR') {
+      const movement = DIRECTIONS[currentDirection]
+
+      const nextPosition = {
+        x: currentPosition.x + movement.x,
+        y: currentPosition.y + movement.y,
+      }
+
+      const blocked =
+        nextPosition.x < 0 ||
+        nextPosition.x >= width ||
+        nextPosition.y < 0 ||
+        nextPosition.y >= height ||
+        isWall(nextPosition)
+
+      if (!blocked) {
+        await moveRobot()
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+  }
+
+  setIsRunning(false)
+
+  if (reachedGoal) {
+    setIsComplete(true)
+    setFeedback('🎉 Hebat! Robot berhasil mencapai bintang!')
+  } else if (crashed) {
+    setFeedback('💥 Robot menabrak penghalang atau keluar papan!')
+  } else {
+    setFeedback('Robot belum mencapai bintang. Perbaiki programmu!')
+  }
+}
+
+const resetGame = () => {
+  if (isRunning) return
+
+  setRobot({ ...start })
+  setDirection(1)
+  setProgram([])
+  setIsComplete(false)
+  setFeedback('Robot kembali ke titik awal. Coba lagi!')
+}
   return (
     <div className="min-h-screen bg-slate-950 p-4 text-white">
       <div className="mx-auto max-w-5xl">
@@ -153,7 +272,61 @@ const isWall = (position: Position) =>
         <p className="mt-2 text-sm text-slate-400">
           Susun blok dengan cara menariknya ke area program.
         </p>
+<section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-4">
+  <h2 className="mb-3 font-bold">🗺️ Papan Labirin</h2>
 
+  <div className="mb-3 text-xs text-slate-400">
+    Misi {missionIndex + 1} dari {questions.length}
+    {' · '}
+    Ukuran {width} × {height}
+  </div>
+
+  <div
+    className="mx-auto grid aspect-square max-w-md gap-1"
+    style={{
+      gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
+    }}
+  >
+    {Array.from({ length: width * height }, (_, index) => {
+      const x = index % width
+      const y = Math.floor(index / width)
+
+      const position = { x, y }
+      const wall = isWall(position)
+      const isRobot = robot.x === x && robot.y === y
+      const isTarget = target.x === x && target.y === y
+      const isStart = start.x === x && start.y === y
+
+      return (
+        <div
+          key={`${x}-${y}`}
+          className={`flex aspect-square items-center justify-center rounded-md border text-lg sm:text-2xl ${
+            wall
+              ? 'border-slate-700 bg-slate-700'
+              : 'border-slate-700 bg-slate-800'
+          }`}
+        >
+          {isRobot
+            ? ['⬆️', '➡️', '⬇️', '⬅️'][direction]
+            : isTarget
+              ? '⭐'
+              : wall
+                ? '🧱'
+                : isStart
+                  ? '🏁'
+                  : ''}
+        </div>
+      )
+    })}
+  </div>
+
+  <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-400">
+    <span>🤖 Robot</span>
+    <span>🏁 Awal</span>
+    <span>⭐ Tujuan</span>
+    <span>🧱 Penghalang</span>
+  </div>
+</section>
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
             <h2 className="mb-3 font-bold">🧱 Panel Blok</h2>
