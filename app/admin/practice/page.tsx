@@ -983,6 +983,16 @@ function AdminPracticeContent() {
               🌀 Coding Maze
             </button>
             <button
+              onClick={() => setFilterType('MAZE_GAME_V2')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                filterType === 'MAZE_GAME_V2'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🧩 Coding Maze V2
+            </button>
+            <button
               onClick={() => setFilterType('FLASHCARD')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
                 filterType === 'FLASHCARD'
@@ -1010,6 +1020,11 @@ function AdminPracticeContent() {
                 actBadge = {
                   label: '🌀 Coding Maze Logika',
                   bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                }
+              } else if (exam.activity_type === 'MAZE_GAME_V2') {
+                actBadge = {
+                  label: '🧩 Coding Maze V2 — Blok Visual',
+                  bg: 'bg-violet-500/20 text-violet-300 border-violet-500/40',
                 }
               } else if (exam.activity_type === 'FLASHCARD') {
                 actBadge = {
@@ -1061,13 +1076,14 @@ function AdminPracticeContent() {
                   </div>
 
                   <div className="space-y-2 pt-3 border-t border-slate-800">
-                    <div
-                      className={`grid gap-1 ${
-                        exam.activity_type === 'MAZE_GAME'
-                          ? 'grid-cols-3 sm:grid-cols-5'
-                          : 'grid-cols-4'
-                      }`}
-                    >
+                        <div
+                          className={`grid gap-1 ${
+                            exam.activity_type === 'MAZE_GAME' ||
+                            exam.activity_type === 'MAZE_GAME_V2'
+                              ? 'grid-cols-3 sm:grid-cols-5'
+                              : 'grid-cols-4'
+                          }`}
+                        >
                       <button
                         onClick={() => handleAutoGenerateQuestions(exam)}
                         className="py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
@@ -1192,6 +1208,7 @@ function AdminPracticeContent() {
                 >
                   <option value="QUIZ">📝 Quiz Pilihan Ganda</option>
                   <option value="MAZE_GAME">🌀 Coding Maze</option>
+                  <option value="MAZE_GAME_V2">🧩 Coding Maze V2 (Blok Visual)</option>
                   <option value="FLASHCARD">🃏 Flashcard Rumus</option>
                 </select>
               </div>
