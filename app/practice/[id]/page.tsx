@@ -48,18 +48,7 @@ function parseMatrixAnswer(value: any): Record<string, string> {
       return {}
     }
   }
-function getMatrixOptionKey(item: any, index: number): string {
-  if (
-    item &&
-    typeof item === 'object' &&
-    item.id !== undefined &&
-    item.id !== null
-  ) {
-    return String(item.id)
-  }
 
-  return String(index)
-}
   const result: Record<string, string> = {}
 
   if (Array.isArray(parsed)) {
@@ -80,6 +69,18 @@ function getMatrixOptionKey(item: any, index: number): string {
   return result
 }
 
+function getMatrixOptionKey(item: any, index: number): string {
+  if (
+    item &&
+    typeof item === 'object' &&
+    item.id !== undefined &&
+    item.id !== null
+  ) {
+    return String(item.id)
+  }
+
+  return String(index)
+}
 function PracticeContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -390,12 +391,14 @@ const handleCheckMatrixAnswer = () => {
     currentQuestion.correct_answer
   )
 
-  const missingKeys = options
-    .map((item: any, index: number) => ({
-      key: getMatrixOptionKey(item, index),
-      row: index + 1,
-    }))
-    .filter(({ key }) => !correctMap[key])
+  const missingKeys: { key: string; row: number }[] = options
+  .map((item: any, index: number) => ({
+    key: getMatrixOptionKey(item, index),
+    row: index + 1,
+  }))
+  .filter(
+    ({ key }: { key: string; row: number }) => !correctMap[key]
+  )
 
   if (missingKeys.length > 0) {
     setConfigurationError(
