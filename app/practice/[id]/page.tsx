@@ -1,14 +1,73 @@
+
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
-
-// 🟢 Import Engine Game Edukatif
 import MazeGameEngine from '@/components/games/MazeGameEngine'
 import FlashcardEngine from '@/components/games/FlashcardEngine'
+
+function normalizeKey(value: any): string {
+  return String(value ?? '').trim().toUpperCase()
+}
+
+function normalizeTruth(value: any): string | null {
+  const normalized = String(value ?? '').trim().toLowerCase()
+
+  if (['benar', 'true', '1', 'b'].includes(normalized)) return 'benar'
+  if (['salah', 'false', '0', 's'].includes(normalized)) return 'salah'
+
+  return null
+}
+
+function parseComplexAnswer(value: any): string[] {
+  let parsed = value
+
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed)
+    } catch {
+      parsed = parsed.split(',')
+    }
+  }
+
+  if (!Array.isArray(parsed)) return []
+
+  return [...new Set(parsed.map(normalizeKey).filter(Boolean))].sort()
+}
+
+function parseMatrixAnswer(value: any): Record<string, string> {
+  let parsed = value
+
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed)
+    } catch {
+      return {}
+    }
+  }
+
+  const result: Record<string, string> = {}
+
+  if (Array.isArray(parsed)) {
+    parsed.forEach((item, index) => {
+      const normalized = normalizeTruth(item)
+      if (normalized) result[String(index)] = normalized
+    })
+    return result
+  }
+
+  if (parsed && typeof parsed === 'object') {
+    Object.entries(parsed).forEach(([key, item]) => {
+      const normalized = normalizeTruth(item)
+      if (normalized) result[String(key)] = normalized
+    })
+  }
+
+  return result
+}
 
 function PracticeContent() {
   const params = useParams()
@@ -19,24 +78,35 @@ function PracticeContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
 
-  // State Jawaban & Feedback Instan per Soal
   const [userAnswer, setUserAnswer] = useState<any>(null)
-  const [isAnswered, setIsAnswered] = useState<boolean>(false)
-  const [isCorrect, setIsCorrect] = useState<boolean>(false)
+  const [isAnswered, setIsAnswered] = useState(false)
+  const [isCorrect, setIsCorrect] = useState(false)
 
-  // Stats Sesi Latihan Mandiri
-  const [totalXpEarned, setTotalXpEarned] = useState<number>(0)
-  const [streakCount, setStreakCount] = useState<number>(0)
-  const [answeredCount, setAnsweredCount] = useState<number>(0)
-  const [correctCount, setCorrectCount] = useState<number>(0)
+  const [totalXpEarned, setTotalXpEarned] = useState(0)
+  const [streakCount, setStreakCount] = useState(0)
+  const [answeredCount, setAnsweredCount] = useState(0)
+  const [correctCount, setCorrectCount] = useState(0)
+
   const [loading, setLoading] = useState(true)
+  const [attemptId, setAttemptId] = useState<string | null>(null)
+  const [isFinishing, setIsFinishing] = useState(false)
+  const [finishSummary, setFinishSummary] = useState<any>(null)
+  const [configurationError, setConfigurationError] = useState('')
 
-  // 🟢 FUNGSI CEK & UNLOCK LENCANA OTOMATIS
-  const checkAndUnlockBadges = async (currentXp: number, currentStreak: number) => {
+  const finishStartedRef = useRef(false)
+  const startStartedRef = useRef(false)
+  const streakXpRef = useRef(0)
+
+  const checkAndUnlockBadges = async (
+    currentXp: number,
+    currentStreak: number
+  ) => {
     const supabase = createClient()
+
     const {
       data: { user },
     } = await supabase.auth.getUser()
+
     if (!user) return
 
     const { data: profile } = await supabase
@@ -45,114 +115,170 @@ function PracticeContent() {
       .eq('id', user.id)
       .single()
 
-    let userBadges: string[] = Array.isArray(profile?.badges) ? profile.badges : []
-    let newlyUnlocked: string[] = []
+    const userBadges: string[] = Array.isArray(profile?.badges)
+      ? profile.badges
+      : []
 
-    // 1. Lencana: Langkah Pertama
+    const newlyUnlocked: string[] = []
+
     if (!userBadges.includes('Langkah Pertama') && currentXp >= 10) {
       newlyUnlocked.push('Langkah Pertama')
     }
 
-    // 2. Lencana: Raja Combo
     if (!userBadges.includes('Raja Combo') && currentStreak >= 3) {
       newlyUnlocked.push('Raja Combo')
     }
 
-    // 3. Lencana: Bintang Getasan
     if (!userBadges.includes('Bintang Getasan') && currentXp >= 100) {
       newlyUnlocked.push('Bintang Getasan')
     }
 
-    // Simpan ke Supabase jika ada Lencana Baru
     if (newlyUnlocked.length > 0) {
-      const updatedBadges = [...userBadges, ...newlyUnlocked]
       await supabase
         .from('profiles')
-        .update({ badges: updatedBadges })
+        .update({ badges: [...userBadges, ...newlyUnlocked] })
         .eq('id', user.id)
 
-      alert(`🎉 Selamat! Kamu Membuka Lencana Baru: ${newlyUnlocked.join(', ')}!`)
+      alert(`🎉 Kamu membuka lencana: ${newlyUnlocked.join(', ')}!`)
     }
   }
 
   useEffect(() => {
+    let active = true
+
     async function loadQuestions() {
       if (!examId) return
+
       const supabase = createClient()
 
-      const { data: examData } = await supabase
+      const { data: examData, error: examError } = await supabase
         .from('exams')
         .select('*')
         .eq('id', examId)
         .single()
 
-      if (!examData) {
+      if (examError || !examData) {
         alert('Modul latihan tidak ditemukan!')
         router.push('/practice')
         return
       }
-      setExam(examData)
 
-      const { data: questionData } = await supabase
+      const { data: questionData, error: questionError } = await supabase
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
         .order('created_at', { ascending: true })
 
-      if (questionData) setQuestions(questionData)
-      setLoading(false)
+      if (questionError) {
+        alert('Gagal memuat soal latihan.')
+        router.push('/practice')
+        return
+      }
+
+      const loadedQuestions = questionData || []
+
+      if (!active) return
+
+      setExam(examData)
+      setQuestions(loadedQuestions)
+
+      if (
+        examData.activity_type !== 'MAZE_GAME' &&
+        examData.activity_type !== 'FLASHCARD'
+      ) {
+        if (loadedQuestions.length === 0) {
+          setConfigurationError('Modul ini belum memiliki soal.')
+          setLoading(false)
+          return
+        }
+
+        if (!startStartedRef.current) {
+          startStartedRef.current = true
+
+          const { data, error } = await supabase.rpc(
+            'start_practice_attempt',
+            { p_exam_id: examId }
+          )
+
+          if (error || !data?.attempt_id) {
+            console.error('Gagal memulai attempt:', error)
+            alert('Gagal memulai sesi latihan. Silakan coba lagi.')
+            router.push('/practice')
+            return
+          }
+
+          if (active) setAttemptId(data.attempt_id)
+        }
+      }
+
+      if (active) setLoading(false)
     }
 
     loadQuestions()
+
+    return () => {
+      active = false
+    }
   }, [examId, router])
 
   const currentQuestion = questions[currentIndex]
   const qType = currentQuestion?.question_type || 'multiple_choice'
 
-  // Helper Tambah Skor XP & Combo
-  const processXpAndStreak = async (isUserRight: boolean) => {
+  const processXpAndStreak = (isUserRight: boolean) => {
+    if (isAnswered) return
+
     setIsAnswered(true)
     setIsCorrect(isUserRight)
-    setAnsweredCount((prev) => prev + 1)
+    setAnsweredCount((previous) => previous + 1)
 
     if (isUserRight) {
-      setCorrectCount((prev) => prev + 1)
+      setCorrectCount((previous) => previous + 1)
+
       const newStreak = streakCount + 1
       setStreakCount(newStreak)
 
-      const earnedXp = 10
-      const newTotalXp = totalXpEarned + earnedXp
-      setTotalXpEarned(newTotalXp)
+      const bonus =
+        newStreak >= 10 ? 10 :
+        newStreak >= 6 ? 8 :
+        newStreak >= 4 ? 5 :
+        newStreak >= 2 ? 2 : 0
 
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        await supabase.rpc('add_user_xp', { user_id_input: user.id, xp_to_add: earnedXp })
-        await checkAndUnlockBadges(newTotalXp, newStreak)
-      }
+      streakXpRef.current += bonus
+      setTotalXpEarned((previous) => previous + 10 + bonus)
+
+      checkAndUnlockBadges(totalXpEarned + 10, newStreak)
     } else {
       setStreakCount(0)
     }
   }
 
-  // 1. Handler Pilihan Ganda Tunggal
   const handleSingleChoiceSelect = (selectedOptKey: string) => {
     if (isAnswered || !currentQuestion) return
+
     setUserAnswer(selectedOptKey)
 
-    const correctOpt = String(currentQuestion.correct_option ?? currentQuestion.correct_answer ?? '').trim().toUpperCase()
-    const isUserRight = String(selectedOptKey).trim().toUpperCase() === correctOpt
-    processXpAndStreak(isUserRight)
+    const correctOpt = normalizeKey(
+      currentQuestion.correct_option ??
+      currentQuestion.correct_answer
+    )
+
+    if (!correctOpt) {
+      setConfigurationError('Kunci jawaban pilihan ganda belum diatur.')
+      return
+    }
+
+    processXpAndStreak(normalizeKey(selectedOptKey) === correctOpt)
   }
 
-  // 2. Handler Pilihan Ganda Kompleks (Kotak Centang)
   const handleToggleComplexChoice = (optKey: string) => {
     if (isAnswered) return
-    const currentList: string[] = Array.isArray(userAnswer) ? userAnswer : []
+
+    const currentList: string[] = Array.isArray(userAnswer)
+      ? userAnswer
+      : []
+
     if (currentList.includes(optKey)) {
-      setUserAnswer(currentList.filter((k) => k !== optKey))
+      setUserAnswer(currentList.filter((key) => key !== optKey))
     } else {
       setUserAnswer([...currentList, optKey])
     }
@@ -160,109 +286,180 @@ function PracticeContent() {
 
   const handleCheckComplexAnswer = () => {
     if (isAnswered || !currentQuestion) return
-    let correctList: string[] = []
 
-    if (Array.isArray(currentQuestion.correct_answers)) {
-      correctList = currentQuestion.correct_answers.map((k: any) => String(k).trim().toUpperCase())
-    } else if (typeof currentQuestion.correct_answers === 'string') {
-      try {
-        const parsed = JSON.parse(currentQuestion.correct_answers)
-        correctList = Array.isArray(parsed) ? parsed.map((k: any) => String(k).trim().toUpperCase()) : []
-      } catch {
-        correctList = currentQuestion.correct_answers.split(',').map((k: string) => k.trim().toUpperCase())
-      }
-    } else {
-      correctList = [String(currentQuestion.correct_option || 'A').trim().toUpperCase()]
+    const correctList = parseComplexAnswer(
+      currentQuestion.correct_answers ??
+      currentQuestion.correct_option
+    )
+
+    if (correctList.length === 0) {
+      setConfigurationError(
+        'Kunci PG kompleks belum valid. Gunakan array seperti ["A","C"].'
+      )
+      return
     }
 
-    const userList: string[] = (Array.isArray(userAnswer) ? userAnswer : []).map((k) => String(k).trim().toUpperCase())
-    const isUserRight =
-      userList.length === correctList.length && userList.every((val) => correctList.includes(val))
+    const userList = parseComplexAnswer(userAnswer)
 
+    const isUserRight =
+      userList.length === correctList.length &&
+      userList.every((value, index) => value === correctList[index])
+
+    setConfigurationError('')
     processXpAndStreak(isUserRight)
   }
 
-  // 3. Handler Matriks Benar/Salah
-  const handleSelectMatrixRow = (rowIdx: number, val: string) => {
+  const handleSelectMatrixRow = (rowIdx: number, value: string) => {
     if (isAnswered) return
-    const currentMatrix = typeof userAnswer === 'object' && userAnswer !== null ? { ...userAnswer } : {}
-    currentMatrix[rowIdx] = val
+
+    const currentMatrix =
+      userAnswer && typeof userAnswer === 'object'
+        ? { ...userAnswer }
+        : {}
+
+    currentMatrix[String(rowIdx)] = value
     setUserAnswer(currentMatrix)
   }
 
   const handleCheckMatrixAnswer = () => {
     if (isAnswered || !currentQuestion) return
-    let correctMap: any = currentQuestion.correct_answers || {}
 
-    if (typeof correctMap === 'string') {
-      try {
-        correctMap = JSON.parse(correctMap)
-      } catch {
-        correctMap = {}
-      }
+    const options = Array.isArray(currentQuestion.options)
+      ? currentQuestion.options
+      : []
+
+    if (options.length === 0) {
+      setConfigurationError('Pernyataan matriks belum tersedia.')
+      return
     }
 
-    const opts = Array.isArray(currentQuestion.options) ? currentQuestion.options : []
-    let allCorrect = true
+    const correctMap = parseMatrixAnswer(
+      currentQuestion.correct_answers ??
+      currentQuestion.correct_answer
+    )
 
-    opts.forEach((_: any, idx: number) => {
-      const userVal = userAnswer?.[idx] || ''
-      const key = String(idx)
-      const targetVal = correctMap[key] || correctMap[idx] || 'Benar'
-      if (userVal.trim().toLowerCase() !== String(targetVal).trim().toLowerCase()) {
-        allCorrect = false
-      }
+    const missingKeys = options
+      .map((_: any, index: number) => String(index))
+      .filter((key: string) => !correctMap[key])
+
+    if (missingKeys.length > 0) {
+      setConfigurationError(
+        `Kunci matriks belum lengkap. Periksa baris: ${missingKeys.map((key) => Number(key) + 1).join(', ')}.`
+      )
+      return
+    }
+
+    const allCorrect = options.every((_: any, index: number) => {
+      const userValue = normalizeTruth(userAnswer?.[String(index)])
+      return userValue !== null && userValue === correctMap[String(index)]
     })
 
+    setConfigurationError('')
     processXpAndStreak(allCorrect)
   }
 
-  // 4. Handler Isian Singkat
   const handleCheckFillInAnswer = () => {
     if (isAnswered || !currentQuestion) return
+
     const userText = String(userAnswer || '').trim().toLowerCase()
-    const targetText = String(currentQuestion.correct_option || currentQuestion.correct_answer || '').trim().toLowerCase()
-    const isUserRight = userText === targetText
-    processXpAndStreak(isUserRight)
+    const targetText = String(
+      currentQuestion.correct_option ??
+      currentQuestion.correct_answer ??
+      ''
+    ).trim().toLowerCase()
+
+    if (!targetText) {
+      setConfigurationError('Kunci jawaban isian belum diatur.')
+      return
+    }
+
+    processXpAndStreak(userText === targetText)
   }
 
-  // 5. Handler Essay / Uraian
   const handleSubmitEssayAnswer = () => {
     if (isAnswered || !currentQuestion) return
-    processXpAndStreak(true) // Menghargai usaha menjawab esai mandiri dengan XP
+
+    // Sesuai perilaku lama: essay mendapatkan XP berbasis usaha.
+    processXpAndStreak(true)
   }
 
-  // Navigasi Soal
   const handleNextQuestion = () => {
+    if (currentIndex >= questions.length - 1) return
+
     setIsAnswered(false)
     setUserAnswer(null)
     setIsCorrect(false)
-
-    if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1)
-    }
+    setConfigurationError('')
+    setCurrentIndex((previous) => previous + 1)
   }
 
   const handleSkipQuestion = () => {
-    setIsAnswered(false)
+    if (isAnswered) return
+
+    setStreakCount(0)
     setUserAnswer(null)
     setIsCorrect(false)
-    setStreakCount(0)
+    setConfigurationError('')
 
     if (currentIndex < questions.length - 1) {
-      setCurrentIndex((prev) => prev + 1)
+      setCurrentIndex((previous) => previous + 1)
+    } else {
+      // Soal terakhir boleh dilewati. Tidak menambah answered_count.
+      setIsAnswered(true)
+      setConfigurationError('Soal terakhir dilewati.')
     }
+  }
+
+  const handleFinishQuiz = async () => {
+    if (!attemptId || finishStartedRef.current || isFinishing) return
+
+    finishStartedRef.current = true
+    setIsFinishing(true)
+
+    const supabase = createClient()
+
+    const { data, error } = await supabase.rpc(
+      'finish_practice_attempt',
+      {
+        p_attempt_id: attemptId,
+        p_answered_count: answeredCount,
+        p_correct_count: correctCount,
+        p_streak_xp: streakXpRef.current,
+      }
+    )
+
+    if (error) {
+      console.error('Gagal menyimpan hasil:', error)
+      alert('Hasil belum berhasil disimpan. Silakan coba lagi.')
+      finishStartedRef.current = false
+      setIsFinishing(false)
+      return
+    }
+
+    setFinishSummary(data)
+    setIsFinishing(false)
+  }
+
+  const comboMessages: Record<number, string> = {
+    2: 'Mantap! Teruskan! 🔥',
+    3: 'Hebat! Kamu mulai panas! ⚡',
+    4: 'Luar biasa! Pertahankan! 🚀',
+    5: 'Amazing! Kamu hebat sekali! 🌟',
+    6: 'Super! Konsentrasimu luar biasa! 💪',
+    7: 'Fantastis! Jangan berhenti! 🏆',
+    8: 'Wow! Kamu sedang bersinar! ✨',
+    9: 'Hampir sempurna! Ayo lanjut! 🔥',
+    10: 'LEGENDARIS! 10 COMBO! 👑',
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
-        <p className="font-semibold text-sm">Memuat Lembar Latihan Interaktif...</p>
+      <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+        <p className="font-semibold text-sm">Memuat latihan...</p>
       </div>
     )
   }
 
-  // 🟢 PENGALIH GAME EDUKATIF BERDASARKAN activity_type
   if (exam?.activity_type === 'MAZE_GAME') {
     return <MazeGameEngine exam={exam} questions={questions} />
   }
@@ -271,196 +468,216 @@ function PracticeContent() {
     return <FlashcardEngine exam={exam} questions={questions} />
   }
 
+  if (configurationError && !currentQuestion) {
+    return <div className="p-8">{configurationError}</div>
+  }
+
+  if (!currentQuestion) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>{configurationError || 'Soal tidak tersedia.'}</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
-      {/* HEADER LATIHAN MANDIRI */}
       <header className="bg-slate-900 text-white px-6 py-3.5 flex justify-between items-center shadow-md">
         <div className="flex items-center space-x-3">
           <Link
             href="/practice"
-            className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition-colors border border-slate-700"
+            className="px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl"
           >
             ← Keluar
           </Link>
+
           <div>
-            <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
+            <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold">
               MODE LATIHAN MANDIRI
             </span>
-            <h1 className="text-sm font-bold mt-0.5">{exam?.title}</h1>
+            <h1 className="text-sm font-bold mt-1">{exam?.title}</h1>
           </div>
         </div>
 
-        {/* INDIKATOR POIN XP & COMBO STREAK */}
-        <div className="flex items-center space-x-4">
+        <div className="text-right">
           {streakCount >= 2 && (
-            <div className="px-3 py-1 bg-amber-500/20 border border-amber-400/40 text-amber-300 rounded-xl text-xs font-black animate-pulse">
+            <div className="text-amber-300 text-xs font-black animate-pulse">
               🔥 Combo x{streakCount}!
             </div>
           )}
-          <div className="text-right">
-            <span className="text-[10px] text-slate-400 block font-bold uppercase">
-              Bonus XP Terkumpul
-            </span>
-            <span className="font-mono text-base font-bold text-amber-400">
-              ⭐ +{totalXpEarned} XP
-            </span>
+
+          {streakCount >= 2 && (
+            <div className="text-amber-200 text-[10px] mt-1">
+              {comboMessages[streakCount] ||
+                (streakCount > 10
+                  ? 'GILA KEREN! COMBO TERUS! 🎉'
+                  : '')}
+            </div>
+          )}
+
+          <div className="text-amber-400 font-mono font-bold">
+            ⭐ +{totalXpEarned} XP
           </div>
         </div>
       </header>
 
-      {/* LEMBAR KONTEN LATIHAN */}
-      <div className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6 space-y-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6">
+        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
           <div className="flex justify-between items-center border-b pb-3">
-            <div className="flex items-center space-x-2">
+            <div>
               <span className="font-bold text-slate-800 text-xs">
-                Soal Latihan {currentIndex + 1} dari {questions.length}
+                Soal {currentIndex + 1} dari {questions.length}
               </span>
-              <span className="text-[10px] bg-indigo-50 text-indigo-700 border border-indigo-200 font-extrabold px-2 py-0.5 rounded-md uppercase">
-                {qType === 'complex_multiple_choice'
-                  ? '☑️ PG Kompleks'
-                  : qType === 'true_false_matrix'
-                  ? '📊 Matriks Pernyataan'
-                  : qType === 'fill_in'
-                  ? '✏️ Isian Singkat'
-                  : qType === 'essay'
-                  ? '📝 Uraian / Essay'
-                  : '🔘 Pilihan Ganda'}
+              <span className="ml-2 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold">
+                {qType}
               </span>
             </div>
+
             <span className="text-xs text-slate-500 font-semibold">
-              Terjawab Benar: {correctCount} / {answeredCount}
+              Benar: {correctCount} / {answeredCount} dijawab
             </span>
           </div>
 
-          {/* TEKS SOAL */}
           <div className="text-slate-900 text-sm font-semibold leading-relaxed">
-            <MathRenderer content={currentQuestion?.question_text || ''} />
+            <MathRenderer content={currentQuestion.question_text || ''} />
           </div>
 
-          {currentQuestion?.image_url && (
+          {currentQuestion.image_url && (
             <img
               src={currentQuestion.image_url}
-              alt="Gambar Soal"
+              alt="Gambar soal"
               className="max-h-56 rounded-xl border"
             />
           )}
 
-          {/* 🔘 TIPE 1: PILIHAN GANDA TUNGGAL */}
-          {qType === 'multiple_choice' && Array.isArray(currentQuestion?.options) && (
-            <div className="space-y-2 pt-2">
-              {currentQuestion.options.map((opt: any, oIdx: number) => {
-                const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                const displayLabel = String.fromCharCode(65 + oIdx)
-                const isSelected = userAnswer === optKey
-
-                const correctOpt = String(currentQuestion.correct_option ?? currentQuestion.correct_answer ?? '')
-                  .trim()
-                  .toUpperCase()
-                const isThisOptionCorrect = optKey === correctOpt
-
-                let btnStyle = 'border-slate-200 hover:bg-slate-50 text-slate-800'
-                if (isAnswered) {
-                  if (isThisOptionCorrect) {
-                    btnStyle = 'border-emerald-500 bg-emerald-50 text-emerald-900 font-bold ring-2 ring-emerald-500'
-                  } else if (isSelected && !isThisOptionCorrect) {
-                    btnStyle = 'border-rose-500 bg-rose-50 text-rose-900 font-bold ring-2 ring-rose-500'
-                  }
-                }
-
-                return (
-                  <button
-                    key={optKey || oIdx}
-                    disabled={isAnswered}
-                    onClick={() => handleSingleChoiceSelect(optKey)}
-                    className={`w-full text-left p-3.5 rounded-xl border text-xs flex items-center space-x-3 transition-all ${btnStyle}`}
-                  >
-                    <span className="w-6 h-6 rounded-lg bg-slate-100 flex items-center justify-center font-mono font-bold text-xs shrink-0">
-                      {displayLabel}
-                    </span>
-                    <div className="flex-1 font-semibold">
-                      <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          )}
-
-          {/* ☑️ TIPE 2: PILIHAN GANDA KOMPLEKS (KOTAK CENTANG) */}
-          {qType === 'complex_multiple_choice' && Array.isArray(currentQuestion?.options) && (
-            <div className="space-y-3 pt-2">
+          {qType === 'multiple_choice' &&
+            Array.isArray(currentQuestion.options) && (
               <div className="space-y-2">
-                {currentQuestion.options.map((opt: any, oIdx: number) => {
-                  const optKey = opt.key || String.fromCharCode(65 + oIdx)
-                  const isChecked = Array.isArray(userAnswer) && userAnswer.includes(optKey)
+                {currentQuestion.options.map((opt: any, index: number) => {
+                  const key = String(
+                    opt?.key || String.fromCharCode(65 + index)
+                  )
+                  const correctKey = normalizeKey(
+                    currentQuestion.correct_option ??
+                    currentQuestion.correct_answer
+                  )
+
+                  const selected = userAnswer === key
+                  const correct = normalizeKey(key) === correctKey
+
+                  let style =
+                    'border-slate-200 hover:bg-slate-50 text-slate-800'
+
+                  if (isAnswered && correct) {
+                    style =
+                      'border-emerald-500 bg-emerald-50 text-emerald-900'
+                  } else if (isAnswered && selected && !correct) {
+                    style =
+                      'border-rose-500 bg-rose-50 text-rose-900'
+                  }
 
                   return (
-                    <div
-                      key={optKey || oIdx}
-                      onClick={() => handleToggleComplexChoice(optKey)}
-                      className={`p-3.5 rounded-xl border text-xs flex items-center space-x-3 cursor-pointer transition-all ${
-                        isChecked
-                          ? 'border-indigo-500 bg-indigo-50/50 font-bold text-indigo-950'
-                          : 'border-slate-200 hover:bg-slate-50 text-slate-800'
-                      }`}
+                    <button
+                      key={key}
+                      disabled={isAnswered}
+                      onClick={() => handleSingleChoiceSelect(key)}
+                      className={`w-full text-left p-3.5 rounded-xl border text-xs ${style}`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        readOnly
-                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                      <span className="font-bold mr-3">{key}.</span>
+                      <MathRenderer
+                        content={
+                          typeof opt === 'string'
+                            ? opt
+                            : opt.text || opt.title || ''
+                        }
                       />
-                      <div className="flex-1 font-semibold">
-                        <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
-                      </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
+            )}
 
-              {!isAnswered && (
-                <button
-                  onClick={handleCheckComplexAnswer}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md"
-                >
-                  ☑️ Cek Jawaban PG Kompleks
-                </button>
-              )}
-            </div>
-          )}
+          {qType === 'complex_multiple_choice' &&
+            Array.isArray(currentQuestion.options) && (
+              <div className="space-y-3">
+                {currentQuestion.options.map((opt: any, index: number) => {
+                  const key = String(
+                    opt?.key || String.fromCharCode(65 + index)
+                  )
+                  const checked =
+                    Array.isArray(userAnswer) && userAnswer.includes(key)
 
-          {/* 📊 TIPE 3: MATRIKS BENAR - SALAH */}
-          {qType === 'true_false_matrix' && Array.isArray(currentQuestion?.options) && (
-            <div className="space-y-4 pt-2">
-              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px]">
+                  return (
+                    <label
+                      key={key}
+                      className="flex items-center gap-3 border rounded-xl p-3 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        disabled={isAnswered}
+                        checked={checked}
+                        onChange={() => handleToggleComplexChoice(key)}
+                      />
+                      <span className="text-sm font-semibold">
+                        <MathRenderer
+                          content={
+                            typeof opt === 'string'
+                              ? opt
+                              : opt.text || opt.title || ''
+                          }
+                        />
+                      </span>
+                    </label>
+                  )
+                })}
+
+                {!isAnswered && (
+                  <button
+                    onClick={handleCheckComplexAnswer}
+                    className="w-full py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl"
+                  >
+                    ☑️ Cek Jawaban PG Kompleks
+                  </button>
+                )}
+              </div>
+            )}
+
+          {qType === 'true_false_matrix' &&
+            Array.isArray(currentQuestion.options) && (
+              <div className="border rounded-xl overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100">
                     <tr>
-                      <th className="p-3 border-b border-slate-200">Pernyataan</th>
-                      <th className="p-3 border-b border-slate-200 text-center w-24">Benar</th>
-                      <th className="p-3 border-b border-slate-200 text-center w-24">Salah</th>
+                      <th className="p-3 text-left">Pernyataan</th>
+                      <th className="p-3">Benar</th>
+                      <th className="p-3">Salah</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {currentQuestion.options.map((item: any, rIdx: number) => {
-                      const statementText = typeof item === 'string' ? item : (item.text || item.statement || `Pernyataan #${rIdx + 1}`)
-                      const selectedVal = userAnswer?.[rIdx] || ''
+
+                  <tbody>
+                    {currentQuestion.options.map((item: any, index: number) => {
+                      const text =
+                        typeof item === 'string'
+                          ? item
+                          : item.text || item.statement || `Pernyataan ${index + 1}`
+
+                      const selected = userAnswer?.[String(index)]
 
                       return (
-                        <tr key={rIdx} className="hover:bg-slate-50">
-                          <td className="p-3 font-medium text-slate-800">
-                            <MathRenderer content={statementText} />
+                        <tr key={index} className="border-t">
+                          <td className="p-3">
+                            <MathRenderer content={text} />
                           </td>
                           <td className="p-3 text-center">
                             <button
-                              type="button"
                               disabled={isAnswered}
-                              onClick={() => handleSelectMatrixRow(rIdx, 'Benar')}
-                              className={`px-3 py-1 rounded-lg font-bold border ${
-                                selectedVal === 'Benar'
-                                  ? 'bg-emerald-600 text-white border-emerald-600'
-                                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              onClick={() =>
+                                handleSelectMatrixRow(index, 'Benar')
+                              }
+                              className={`px-3 py-1 rounded border ${
+                                selected === 'Benar'
+                                  ? 'bg-emerald-600 text-white'
+                                  : ''
                               }`}
                             >
                               Benar
@@ -468,13 +685,14 @@ function PracticeContent() {
                           </td>
                           <td className="p-3 text-center">
                             <button
-                              type="button"
                               disabled={isAnswered}
-                              onClick={() => handleSelectMatrixRow(rIdx, 'Salah')}
-                              className={`px-3 py-1 rounded-lg font-bold border ${
-                                selectedVal === 'Salah'
-                                  ? 'bg-rose-600 text-white border-rose-600'
-                                  : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                              onClick={() =>
+                                handleSelectMatrixRow(index, 'Salah')
+                              }
+                              className={`px-3 py-1 rounded border ${
+                                selected === 'Salah'
+                                  ? 'bg-rose-600 text-white'
+                                  : ''
                               }`}
                             >
                               Salah
@@ -485,140 +703,162 @@ function PracticeContent() {
                     })}
                   </tbody>
                 </table>
+
+                {!isAnswered && (
+                  <button
+                    onClick={handleCheckMatrixAnswer}
+                    className="w-full py-2.5 bg-indigo-600 text-white font-bold"
+                  >
+                    📊 Periksa Jawaban Matriks
+                  </button>
+                )}
               </div>
+            )}
 
-              {!isAnswered && (
-                <button
-                  onClick={handleCheckMatrixAnswer}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md"
-                >
-                  📊 Periksa Jawaban Matriks
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* ✏️ TIPE 4: ISIAN SINGKAT */}
           {qType === 'fill_in' && (
-            <div className="space-y-3 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Ketikkan Jawaban Singkat Kamu:
-                </label>
-                <input
-                  type="text"
-                  disabled={isAnswered}
-                  value={userAnswer || ''}
-                  onChange={(e) => setUserAnswer(e.target.value)}
-                  placeholder="Ketik jawaban di sini..."
-                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-indigo-500 font-semibold"
-                />
-              </div>
+            <div className="space-y-3">
+              <input
+                type="text"
+                disabled={isAnswered}
+                value={userAnswer || ''}
+                onChange={(event) => setUserAnswer(event.target.value)}
+                placeholder="Ketik jawaban di sini..."
+                className="w-full p-3 border rounded-xl text-sm"
+              />
 
               {!isAnswered && (
                 <button
                   onClick={handleCheckFillInAnswer}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md"
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl"
                 >
-                  ✏️ Cek Jawaban Isian
+                  Cek Jawaban
                 </button>
               )}
             </div>
           )}
 
-          {/* 📝 TIPE 5: URAIAN / ESSAY */}
           {qType === 'essay' && (
-            <div className="space-y-3 pt-2">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Tuliskan Lembar Uraian / Jawaban Lengkap Kamu:
-                </label>
-                <textarea
-                  rows={4}
-                  disabled={isAnswered}
-                  value={userAnswer || ''}
-                  onChange={(e) => setUserAnswer(e.target.value)}
-                  placeholder="Jelaskan langkah-langkah pengerjaan..."
-                  className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:outline-none focus:border-indigo-500 font-medium"
-                />
-              </div>
+            <div className="space-y-3">
+              <textarea
+                rows={4}
+                disabled={isAnswered}
+                value={userAnswer || ''}
+                onChange={(event) => setUserAnswer(event.target.value)}
+                placeholder="Tuliskan jawaban lengkap..."
+                className="w-full p-3 border rounded-xl text-sm"
+              />
 
               {!isAnswered && (
                 <button
                   onClick={handleSubmitEssayAnswer}
-                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-md"
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl"
                 >
-                  📝 Kirim Jawaban & Lihat Solusi Guru
+                  Kirim Jawaban
                 </button>
               )}
             </div>
           )}
 
-          {/* UMPAN BALIK INSTAN & PEMBAHASAN LANGSUNG */}
+          {configurationError && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+              {configurationError}
+            </div>
+          )}
+
           {isAnswered && (
             <div
-              className={`p-4 rounded-xl border text-xs space-y-2 animate-fadeIn ${
+              className={`p-4 rounded-xl border text-xs space-y-2 ${
                 isCorrect
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900'
-                  : 'bg-rose-500/10 border-rose-500/30 text-rose-900'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                  : 'bg-rose-50 border-rose-300 text-rose-900'
               }`}
             >
-              <div className="flex items-center space-x-2 font-bold text-sm">
-                <span>{isCorrect ? '🎉 Tepat Sempurna! (+10 XP)' : '❌ Kurang Tepat!'}</span>
-              </div>
+              <strong>
+                {isCorrect ? '🎉 Jawaban benar!' : '❌ Jawaban belum tepat.'}
+              </strong>
 
-              {(currentQuestion?.explanation || currentQuestion?.pembahasan) && (
-                <div className="pt-2 border-t border-slate-300/60">
-                  <span className="font-extrabold block text-slate-800 mb-1">
-                    💡 Pembahasan Langkah demi Langkah:
-                  </span>
-                  <div className="text-slate-700 leading-relaxed">
-                    <MathRenderer content={currentQuestion.explanation || currentQuestion.pembahasan} />
-                  </div>
+              {(currentQuestion.explanation ||
+                currentQuestion.pembahasan) && (
+                <div className="pt-2 border-t">
+                  <strong>Pembahasan:</strong>
+                  <MathRenderer
+                    content={
+                      currentQuestion.explanation ||
+                      currentQuestion.pembahasan
+                    }
+                  />
                 </div>
               )}
             </div>
           )}
 
-          {/* 🟢 NAVIGASI BAWAH */}
           <div className="flex items-center justify-between border-t pt-4">
-            {!isAnswered && currentIndex < questions.length - 1 ? (
+            {!isAnswered && (
               <button
                 onClick={handleSkipQuestion}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors border border-slate-300 flex items-center space-x-1"
-                suppressHydrationWarning
+                className="px-4 py-2 bg-slate-100 border rounded-xl text-xs font-bold"
               >
-                <span>⏭️ Lewati Soal</span>
+                Lewati Soal
               </button>
-            ) : (
-              <div />
             )}
 
-            {isAnswered ? (
-              currentIndex < questions.length - 1 ? (
-                <button
-                  onClick={handleNextQuestion}
-                  className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm"
-                  suppressHydrationWarning
-                >
-                  Soal Selanjutnya →
-                </button>
-              ) : (
-                <Link
-                  href="/practice"
-                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-colors shadow-sm"
-                >
-                  🏆 Selesai & Ambil XP
-                </Link>
-              )
-            ) : (
-              <p className="text-slate-400 text-xs font-medium hidden sm:block">
-                Pilih/isi jawaban kamu lalu periksa hasilnya.
-              </p>
+            {isAnswered && currentIndex < questions.length - 1 && (
+              <button
+                onClick={handleNextQuestion}
+                className="ml-auto px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold"
+              >
+                Soal Selanjutnya →
+              </button>
+            )}
+
+            {isAnswered && currentIndex === questions.length - 1 && (
+              <button
+                onClick={handleFinishQuiz}
+                disabled={isFinishing || !attemptId}
+                className="ml-auto px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+              >
+                {isFinishing ? 'Menyimpan...' : '🏆 Selesai & Ambil XP'}
+              </button>
             )}
           </div>
         </div>
-      </div>
+      </main>
+
+      {finishSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center text-slate-900">
+            <div className="text-4xl">🏆</div>
+            <h2 className="mt-3 text-xl font-extrabold">Latihan Selesai!</h2>
+
+            <p className="mt-4 text-4xl font-black text-indigo-600">
+              {finishSummary.score ?? 0}
+            </p>
+            <p className="text-xs font-bold text-slate-500">NILAI AKHIR</p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-xl bg-slate-100 p-3">
+                <p className="text-slate-500">Jawaban benar</p>
+                <p className="text-xl font-extrabold">
+                  {finishSummary.correct_count ?? correctCount}
+                </p>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-3">
+                <p className="text-amber-700">Total XP</p>
+                <p className="text-xl font-extrabold text-amber-600">
+                  +{finishSummary.total_xp ?? 0}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => router.push('/practice')}
+              className="mt-6 w-full rounded-xl bg-indigo-600 px-4 py-3 font-bold text-white"
+            >
+              Kembali ke Latihan
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -627,8 +867,8 @@ export default function InteractivePracticePage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
-          <p className="font-semibold text-sm">Memuat Lembar Latihan Interaktif...</p>
+        <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">
+          Memuat Lembar Latihan Interaktif...
         </div>
       }
     >
