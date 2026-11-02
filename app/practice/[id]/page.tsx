@@ -89,6 +89,9 @@ function PracticeContent() {
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [skippedQuestionIds, setSkippedQuestionIds] = useState<string[]>([])
+  const [isReviewingSkipped, setIsReviewingSkipped] = useState(false)
+  const [reviewIndex, setReviewIndex] = useState(0)
 
   const [userAnswer, setUserAnswer] = useState<any>(null)
   const [isAnswered, setIsAnswered] = useState(false)
@@ -274,11 +277,16 @@ if (active) {
     }
   }, [examId, router])
 
-  const currentQuestion = questions[currentIndex]
-  const qType = currentQuestion?.question_type || 'multiple_choice'
+  const currentQuestion = isReviewingSkipped
+  ? questions.find((question) => question.id === skippedQuestionIds[reviewIndex])
+  : questions[currentIndex]
+
+const qType = currentQuestion?.question_type || 'multiple_choice'
 
   const processXpAndStreak = (isUserRight: boolean) => {
     if (isAnswered) return
+    
+    setConfigurationError('')
 
     setIsAnswered(true)
     setIsCorrect(isUserRight)
@@ -446,31 +454,67 @@ const handleCheckMatrixAnswer = () => {
   }
 
   const handleNextQuestion = () => {
-    if (currentIndex >= questions.length - 1) return
+  if (isReviewingSkipped) {
+    if (!currentQuestion?.id) return
 
-    setIsAnswered(false)
-    setUserAnswer(null)
-    setIsCorrect(false)
-    setConfigurationError('')
+    setSkippedQuestionIds((previous) =>
+      previous.filter((id) => id !== currentQuestion.id)
+    )
+    setReviewIndex(0)
+  } else if (currentIndex < questions.length - 1) {
     setCurrentIndex((previous) => previous + 1)
+  } else if (skippedQuestionIds.length > 0) {
+    setIsReviewingSkipped(true)
+    setReviewIndex(0)
+  } else {
+    return
   }
 
-  const handleSkipQuestion = () => {
-    if (isAnswered) return
+  setIsAnswered(false)
+  setUserAnswer(null)
+  setIsCorrect(false)
+  setConfigurationError('')
+}
 
-    setStreakCount(0)
-    setUserAnswer(null)
-    setIsCorrect(false)
-    setConfigurationError('')
+  const handleSkipQuestion = () => {
+  if (isAnswered || !currentQuestion?.id) return
+
+  setStreakCount(0)
+  setUserAnswer(null)
+  setIsCorrect(false)
+  setConfigurationError('')
+
+  if (!isReviewingSkipped) {
+    const nextSkippedIds = [
+      ...new Set([...skippedQuestionIds, currentQuestion.id]),
+    ]
+
+    setSkippedQuestionIds(nextSkippedIds)
 
     if (currentIndex < questions.length - 1) {
       setCurrentIndex((previous) => previous + 1)
     } else {
-      // Soal terakhir boleh dilewati. Tidak menambah answered_count.
-      setIsAnswered(true)
-      setConfigurationError('Soal terakhir dilewati.')
+      setIsReviewingSkipped(true)
+      setReviewIndex(0)
     }
+
+    return
   }
+
+  // Saat putaran soal tertunda, pindahkan soal yang dilewati
+  // ke urutan paling belakang jika masih ada soal tertunda lainnya.
+  if (skippedQuestionIds.length > 1) {
+  setSkippedQuestionIds((previous) => [
+    ...previous.filter((id) => id !== currentQuestion.id),
+    currentQuestion.id,
+  ])
+  setReviewIndex(0)
+} else {
+  setConfigurationError(
+    'Soal ini masih tertunda. Kamu bisa mencoba menjawabnya atau memilih Selesai & Ambil XP.'
+  )
+}
+}
 
   const handleFinishQuiz = async () => {
     if (!attemptId || finishStartedRef.current || isFinishing) return
@@ -588,7 +632,9 @@ const handleCheckMatrixAnswer = () => {
           <div className="flex justify-between items-center border-b pb-3">
             <div>
               <span className="font-bold text-slate-800 text-xs">
-                Soal {currentIndex + 1} dari {questions.length}
+              {isReviewingSkipped
+                ? `Soal Tertunda ${reviewIndex + 1} dari ${skippedQuestionIds.length}`
+                : `Soal ${currentIndex + 1} dari ${questions.length}`}              
               </span>
               <span className="ml-2 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold">
                 {qType}
@@ -860,35 +906,63 @@ const handleCheckMatrixAnswer = () => {
             </div>
           )}
 
-          <div className="flex items-center justify-between border-t pt-4">
-            {!isAnswered && (
-              <button
-                onClick={handleSkipQuestion}
-                className="px-4 py-2 bg-slate-100 border rounded-xl text-xs font-bold"
-              >
-                Lewati Soal
-              </button>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+  {!isAnswered && (
+    <button
+      onClick={handleSkipQuestion}
+      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
+    >
+      {isReviewingSkipped ? 'Lewati Kembali' : 'Lewati Soal'}
+    </button>
+  )}
 
-            {isAnswered && currentIndex < questions.length - 1 && (
-              <button
-                onClick={handleNextQuestion}
-                className="ml-auto px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-bold"
-              >
-                Soal Selanjutnya →
-              </button>
-            )}
+  {isReviewingSkipped && (
+    <button
+      onClick={handleFinishQuiz}
+      disabled={isFinishing || !attemptId}
+      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+    >
+      {isFinishing ? 'Menyimpan...' : '🏆 Selesai & Ambil XP'}
+    </button>
+  )}
 
-            {isAnswered && currentIndex === questions.length - 1 && (
-              <button
-                onClick={handleFinishQuiz}
-                disabled={isFinishing || !attemptId}
-                className="ml-auto px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-bold disabled:opacity-50"
-              >
-                {isFinishing ? 'Menyimpan...' : '🏆 Selesai & Ambil XP'}
-              </button>
-            )}
-          </div>
+  {isAnswered && !isReviewingSkipped && currentIndex < questions.length - 1 && (
+    <button
+      onClick={handleNextQuestion}
+      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+    >
+      Soal Selanjutnya →
+    </button>
+  )}
+
+  {isAnswered && !isReviewingSkipped && currentIndex === questions.length - 1 && (
+    skippedQuestionIds.length > 0 ? (
+      <button
+        onClick={handleNextQuestion}
+        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+      >
+        Lihat Soal Tertunda →
+      </button>
+    ) : (
+      <button
+        onClick={handleFinishQuiz}
+        disabled={isFinishing || !attemptId}
+        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+      >
+        {isFinishing ? 'Menyimpan...' : '🏆 Selesai & Ambil XP'}
+      </button>
+    )
+  )}
+
+  {isAnswered && isReviewingSkipped && skippedQuestionIds.length > 1 && (
+    <button
+      onClick={handleNextQuestion}
+      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+    >
+      Soal Tertunda Berikutnya →
+    </button>
+  )}
+</div>
         </div>
       </main>
 
