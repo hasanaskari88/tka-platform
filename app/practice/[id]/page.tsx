@@ -205,6 +205,7 @@ function PracticeContent() {
 
       if (
         examData.activity_type !== 'MAZE_GAME' &&
+        examData.activity_type !== 'MAZE_GAME_V2' &&
         examData.activity_type !== 'FLASHCARD'
       ) {
         if (loadedQuestions.length === 0) {
