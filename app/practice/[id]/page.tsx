@@ -202,25 +202,26 @@ function PracticeContent() {
   !startAttemptPromiseRef.current ||
   startAttemptPromiseRef.current.examId !== examId
 ) {
-  const promise = supabase
-    .rpc('start_practice_attempt', {
-      p_exam_id: examId,
-    })
-    .then(({ data, error }) => {
-      const attemptId =
-        typeof data === 'string'
-          ? data
-          : data?.attempt_id ?? data?.id ?? null;
+  const promise = Promise.resolve(
+  supabase.rpc('start_practice_attempt', {
+    p_exam_id: examId,
+  })
+)
+  .then(({ data, error }) => {
+    const attemptId =
+      typeof data === 'string'
+        ? data
+        : data?.attempt_id ?? data?.id ?? null;
 
-      return {
-        attemptId,
-        error,
-      };
-    })
-    .catch((error) => ({
-      attemptId: null,
+    return {
+      attemptId,
       error,
-    }));
+    };
+  })
+  .catch((error: unknown) => ({
+    attemptId: null,
+    error,
+  }));
 
   startAttemptPromiseRef.current = {
     examId,
