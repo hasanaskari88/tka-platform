@@ -250,7 +250,7 @@ if (startResult.error || !startResult.attemptId) {
 if (active) {
   setAttemptId(startResult.attemptId);
 }
-
+}
       if (active) setLoading(false)
     }
 
