@@ -32,6 +32,10 @@ function ExamEngineContent() {
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [participantName, setParticipantName] = useState('')
+  const [participantIdentifier, setParticipantIdentifier] = useState('')
+  const [participantClass, setParticipantClass] = useState('')
+  const [showQuestionNav, setShowQuestionNav] = useState(true)
 
   // Ref untuk menghindari stale closure dan submit ganda
   const userAnswersRef = useRef<{ [key: string]: any }>({})
@@ -163,6 +167,22 @@ function ExamEngineContent() {
       router.push('/login')
       return
     }
+
+    // Ambil identitas peserta dari tabel profiles berdasarkan ID akun login.
+    const { data: participantProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('full_name, username, class_code')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileError) {
+      console.error('Gagal mengambil profil peserta:', profileError)
+    }
+
+    setParticipantName(participantProfile?.full_name || 'Peserta Ujian')
+    setParticipantIdentifier(participantProfile?.username || '')
+    setParticipantClass(participantProfile?.class_code || '')
+
     // A. Ambil User Aktif
     const {
       data: { user: activeUser },
@@ -961,6 +981,32 @@ const { data: existingSession, error: sessionError } = await supabase
             </span>
           </div>
 
+          <div className="hidden md:flex flex-col items-end max-w-[190px] leading-tight">
+            <span className="text-[10px] text-slate-400 font-bold uppercase">Peserta</span>
+            <span className="text-xs text-white font-semibold truncate max-w-full" title={participantName}>
+              {participantName || 'Memuat identitas...'}
+            </span>
+            {participantIdentifier && (
+              <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Username: ${participantIdentifier}`}>
+                @{participantIdentifier}
+              </span>
+            )}
+            {participantClass && (
+              <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Kelas: ${participantClass}`}>
+                Kelas {participantClass}
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={() => setShowQuestionNav((visible) => !visible)}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+            title={showQuestionNav ? 'Sembunyikan navigasi nomor soal' : 'Tampilkan navigasi nomor soal'}
+            aria-label={showQuestionNav ? 'Sembunyikan navigasi nomor soal' : 'Tampilkan navigasi nomor soal'}
+          >
+            {showQuestionNav ? 'Sembunyikan Nomor' : 'Tampilkan Nomor'}
+          </button>
+
           <button
             onClick={() => handleFinishExam(false)}
             disabled={isSubmitting || sessionStatus !== 'ongoing'}
@@ -973,10 +1019,10 @@ const { data: existingSession, error: sessionError } = await supabase
       </header>
 
       {/* BODY KONTEN SOAL & NAVIGASI */}
-      <div className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className={`flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 ${showQuestionNav ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-6`}>
         {/* LEMBAR SOAL */}
         <div
-          className={`lg:col-span-3 p-6 rounded-2xl border shadow-sm flex flex-col justify-between space-y-6 ${
+          className={`${showQuestionNav ? 'lg:col-span-3' : 'lg:col-span-1'} p-6 rounded-2xl border shadow-sm flex flex-col justify-between space-y-6 ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -1329,7 +1375,7 @@ const { data: existingSession, error: sessionError } = await supabase
         </div>
 
         {/* SIDEBAR NAVIGASI NOMOR SOAL */}
-        <div
+        {showQuestionNav && <div
           className={`p-5 rounded-2xl border shadow-sm space-y-4 h-fit ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}
@@ -1377,7 +1423,7 @@ const { data: existingSession, error: sessionError } = await supabase
               )
             })}
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* 🔒 OVERLAY LAYAR DIPAUSE / DIHENTIKAN SEMENTARA OLEH PENGAWAS */}
