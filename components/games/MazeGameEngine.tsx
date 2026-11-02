@@ -2,7 +2,6 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
@@ -63,17 +62,26 @@ export default function MazeGameEngine({
   const [missionIndex, setMissionIndex] = useState(0)
   const currentMission = missions[missionIndex]
 
+  // Attempt
   const [attemptId, setAttemptId] = useState<string | null>(null)
   const [attemptLoading, setAttemptLoading] = useState(true)
   const [attemptError, setAttemptError] = useState('')
+  const [attemptRetryKey, setAttemptRetryKey] = useState(0)
 
+  // Satu Promise untuk mencegah pembuatan attempt ganda
+  // ketika React Strict Mode menjalankan effect dua kali.
+  const startAttemptPromiseRef = useRef<Promise<string> | null>(null)
+
+  // Progress misi
   const [completedCount, setCompletedCount] = useState(0)
   const completedMissionIdsRef = useRef<Set<string>>(new Set())
-  const finishingRef = useRef(false)
 
+  // Finalisasi
+  const finishingRef = useRef(false)
   const [finishSummary, setFinishSummary] = useState<any>(null)
   const [isFinishing, setIsFinishing] = useState(false)
 
+  // Ukuran papan
   const width = Math.max(
     2,
     Math.min(12, Number(currentMission?.maze_width ?? 6))
@@ -116,6 +124,7 @@ export default function MazeGameEngine({
       (wall) => wall.x === position.x && wall.y === position.y
     )
 
+  // Kondisi permainan
   const [commands, setCommands] = useState<Command[]>([])
   const [robot, setRobot] = useState<Position>(start)
   const [direction, setDirection] = useState<Direction>(1)
@@ -124,6 +133,10 @@ export default function MazeGameEngine({
   const [feedback, setFeedback] = useState(
     'Susun blok perintah, lalu jalankan program!'
   )
+
+  // ==========================================
+  // 1. MEMULAI ATTEMPT
+  // ==========================================
 
   useEffect(() => {
     let active = true
@@ -137,25 +150,57 @@ export default function MazeGameEngine({
         return
       }
 
-      const supabase = createClient()
+      if (!exam?.id) {
+        setAttemptError('ID modul tidak ditemukan.')
+        setAttemptLoading(false)
+        return
+      }
 
-      const { data, error } = await supabase.rpc(
-        'start_practice_attempt',
-        { p_exam_id: exam.id }
-      )
+      try {
+        if (!startAttemptPromiseRef.current) {
+          startAttemptPromiseRef.current = (async () => {
+            const supabase = createClient()
 
-      if (error || !data?.attempt_id) {
+            const { data, error } = await supabase.rpc(
+              'start_practice_attempt',
+              {
+                p_exam_id: exam.id,
+              }
+            )
+
+            if (error) throw error
+
+            // Mendukung respons UUID langsung maupun objek.
+            const newAttemptId =
+              typeof data === 'string'
+                ? data
+                : data?.attempt_id ?? data?.id
+
+            if (!newAttemptId) {
+              throw new Error('ID attempt tidak ditemukan dari RPC.')
+            }
+
+            return String(newAttemptId)
+          })()
+        }
+
+        const newAttemptId = await startAttemptPromiseRef.current
+
+        if (active) {
+          setAttemptId(newAttemptId)
+          setAttemptError('')
+          setAttemptLoading(false)
+        }
+      } catch (error) {
         console.error('Gagal memulai Maze attempt:', error)
+
+        // Izinkan percobaan ulang setelah kegagalan.
+        startAttemptPromiseRef.current = null
+
         if (active) {
           setAttemptError('Gagal memulai sesi Maze. Silakan coba lagi.')
           setAttemptLoading(false)
         }
-        return
-      }
-
-      if (active) {
-        setAttemptId(data.attempt_id)
-        setAttemptLoading(false)
       }
     }
 
@@ -164,19 +209,37 @@ export default function MazeGameEngine({
     return () => {
       active = false
     }
-  }, [exam.id, questions.length])
+  }, [exam?.id, questions.length, attemptRetryKey])
+
+  const retryStartAttempt = () => {
+    startAttemptPromiseRef.current = null
+    setAttemptId(null)
+    setAttemptError('')
+    setAttemptLoading(true)
+    setAttemptRetryKey((previous) => previous + 1)
+  }
+
+  // ==========================================
+  // 2. RESET SAAT PINDAH MISI
+  // ==========================================
 
   useEffect(() => {
     setCommands([])
+
     setRobot({
       x: Number(currentMission?.start_x ?? 0),
       y: Number(currentMission?.start_y ?? 0),
     })
+
     setDirection(1)
     setIsRunning(false)
     setIsComplete(false)
     setFeedback('Misi siap! Susun algoritmamu.')
   }, [missionIndex, currentMission])
+
+  // ==========================================
+  // 3. INFORMASI KESULITAN
+  // ==========================================
 
   const difficultyLabel = (() => {
     const value = String(
@@ -185,23 +248,34 @@ export default function MazeGameEngine({
 
     if (value === 'easy' || value === 'mudah') return 'Mudah'
     if (value === 'hard' || value === 'sulit') return 'Sulit'
+
     return 'Sedang'
   })()
 
+  // ==========================================
+  // 4. BLOK PERINTAH
+  // ==========================================
+
   const addCommand = (command: Command) => {
-    if (isRunning || isComplete) return
+    if (isRunning || isComplete || isFinishing) return
 
     setCommands((previous) => [...previous, command])
     setFeedback('Perintah ditambahkan.')
   }
 
   const resetRobot = () => {
+    if (isRunning || isFinishing) return
+
     setRobot({ ...start })
     setDirection(1)
     setIsRunning(false)
     setIsComplete(false)
     setFeedback('Robot kembali ke titik awal. Coba lagi!')
   }
+
+  // ==========================================
+  // 5. FINALISASI ATTEMPT
+  // ==========================================
 
   const finishMaze = async (newCompletedCount: number) => {
     if (
@@ -215,40 +289,57 @@ export default function MazeGameEngine({
     finishingRef.current = true
     setIsFinishing(true)
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    const { data, error } = await supabase.rpc(
-      'finish_practice_attempt',
-      {
-        p_attempt_id: attemptId,
-        p_answered_count: newCompletedCount,
-        p_correct_count: newCompletedCount,
-        p_streak_xp: 0,
-      }
-    )
-
-    if (error) {
-      console.error('Gagal menyimpan hasil Maze:', error)
-      finishingRef.current = false
-      setIsFinishing(false)
-      setFeedback(
-        'Semua misi selesai, tetapi hasil belum tersimpan. Coba lagi.'
+      const { data, error } = await supabase.rpc(
+        'finish_practice_attempt',
+        {
+          p_attempt_id: attemptId,
+          p_answered_count: newCompletedCount,
+          p_correct_count: newCompletedCount,
+          p_streak_xp: 0,
+        }
       )
-      return
-    }
 
-    setFinishSummary(data)
-    setIsFinishing(false)
+      if (error) throw error
+
+      setFinishSummary(data)
+      setFeedback('🏆 Semua misi berhasil diselesaikan!')
+    } catch (error) {
+      console.error('Gagal menyimpan hasil Maze:', error)
+
+      // Reset guard supaya finalisasi bisa dicoba lagi.
+      finishingRef.current = false
+
+      setFeedback(
+        'Semua misi selesai, tetapi hasil belum tersimpan. Tekan tombol coba simpan lagi.'
+      )
+    } finally {
+      setIsFinishing(false)
+    }
   }
 
+  // ==========================================
+  // 6. MENJALANKAN PROGRAM ROBOT
+  // ==========================================
+
   const runProgram = async () => {
-    if (isRunning || isComplete || !attemptId) return
+    if (
+      isRunning ||
+      isComplete ||
+      !attemptId ||
+      isFinishing
+    ) {
+      return
+    }
 
     if (commands.length === 0) {
       setFeedback('Tambahkan setidaknya satu blok perintah.')
       return
     }
 
+    // Validasi konfigurasi papan.
     if (
       start.x < 0 ||
       start.x >= width ||
@@ -271,8 +362,11 @@ export default function MazeGameEngine({
 
     let nextRobot: Position = { ...start }
     let nextDirection: Direction = 1
+
     let reachedGoal =
-      nextRobot.x === target.x && nextRobot.y === target.y
+      nextRobot.x === target.x &&
+      nextRobot.y === target.y
+
     let crashed = false
 
     for (const command of commands) {
@@ -324,12 +418,13 @@ export default function MazeGameEngine({
         currentMission?.id ?? `mission-${missionIndex}`
       )
 
+      // Mencegah misi yang sama dihitung dua kali.
       if (!completedMissionIdsRef.current.has(missionId)) {
         completedMissionIdsRef.current.add(missionId)
 
         const newCount = completedMissionIdsRef.current.size
-        setCompletedCount(newCount)
 
+        setCompletedCount(newCount)
         setFeedback('🎉 Hebat! Robot berhasil mencapai bintang!')
 
         if (newCount === missions.length) {
@@ -341,14 +436,37 @@ export default function MazeGameEngine({
         '💥 Robot menabrak penghalang atau keluar papan. Coba lagi!'
       )
     } else {
-      setFeedback('Robot belum mencapai bintang. Perbaiki algoritmamu!')
+      setFeedback(
+        'Robot belum mencapai bintang. Perbaiki algoritmamu!'
+      )
     }
   }
+
+  // ==========================================
+  // 7. COBA FINALISASI LAGI
+  // ==========================================
+
+  const retryFinishMaze = async () => {
+    if (
+      completedMissionIdsRef.current.size !== missions.length ||
+      finishSummary ||
+      isFinishing
+    ) {
+      return
+    }
+
+    await finishMaze(completedMissionIdsRef.current.size)
+  }
+
+  // ==========================================
+  // 8. PINDAH MISI
+  // ==========================================
 
   const nextMission = () => {
     if (
       missionIndex >= missions.length - 1 ||
-      !isComplete
+      !isComplete ||
+      isFinishing
     ) {
       return
     }
@@ -356,25 +474,86 @@ export default function MazeGameEngine({
     setMissionIndex((previous) => previous + 1)
   }
 
+  // ==========================================
+  // 9. KELUAR DAN ABANDON ATTEMPT
+  // ==========================================
+
+  const handleExit = async () => {
+    if (isRunning || isFinishing) return
+
+    // Jika hasil sudah selesai disimpan, cukup kembali.
+    if (finishSummary || !attemptId) {
+      router.push('/practice')
+      return
+    }
+
+    const confirmed = window.confirm(
+      'Keluar dari latihan Maze? Progres sesi ini akan ditandai sebagai ditinggalkan.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase.rpc(
+        'abandon_practice_attempt',
+        {
+          p_attempt_id: attemptId,
+        }
+      )
+
+      if (error) throw error
+
+      router.push('/practice')
+    } catch (error) {
+      console.error('Gagal menandai attempt sebagai abandoned:', error)
+
+      alert(
+        'Sesi belum berhasil ditutup. Periksa koneksi lalu coba lagi.'
+      )
+    }
+  }
+
+  // ==========================================
+  // 10. TAMPILAN LOADING
+  // ==========================================
+
   if (attemptLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         Memulai sesi Maze...
       </div>
     )
   }
 
+  // ==========================================
+  // 11. TAMPILAN ERROR
+  // ==========================================
+
   if (attemptError) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-white">
         <div className="max-w-md text-center">
           <p>{attemptError}</p>
-          <button
-            onClick={() => router.push('/practice')}
-            className="mt-4 rounded-xl bg-indigo-600 px-5 py-3 font-bold"
-          >
-            Kembali
-          </button>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <button
+              type="button"
+              onClick={retryStartAttempt}
+              className="rounded-xl bg-indigo-600 px-5 py-3 font-bold"
+            >
+              Coba Lagi
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push('/practice')}
+              className="rounded-xl bg-slate-700 px-5 py-3 font-bold"
+            >
+              Kembali
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -382,17 +561,23 @@ export default function MazeGameEngine({
 
   if (!currentMission) return null
 
+  // ==========================================
+  // 12. TAMPILAN UTAMA
+  // ==========================================
+
   return (
     <div className="min-h-screen bg-slate-950 font-sans text-white">
       <header className="border-b border-slate-800 bg-slate-900 px-4 py-4">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div>
-            <Link
-              href="/practice"
-              className="text-xs font-bold text-slate-400 hover:text-white"
+            <button
+              type="button"
+              onClick={handleExit}
+              disabled={isRunning || isFinishing}
+              className="text-xs font-bold text-slate-400 hover:text-white disabled:opacity-40"
             >
               ← Keluar
-            </Link>
+            </button>
 
             <h1 className="mt-2 text-lg font-extrabold">
               🤖 {exam?.title || 'Misi Labirin Robot'}
@@ -413,14 +598,18 @@ export default function MazeGameEngine({
 
       <main className="mx-auto grid max-w-5xl gap-5 p-4 md:grid-cols-2 md:p-6">
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <h2 className="mb-2 font-extrabold">🗺️ Papan Labirin</h2>
+          <h2 className="mb-2 font-extrabold">
+            🗺️ Papan Labirin
+          </h2>
 
           <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-400">
             <span>Arah: {DIRECTIONS[direction].label}</span>
             <span>·</span>
             <span>Kesulitan: {difficultyLabel}</span>
             <span>·</span>
-            <span>{width} × {height}</span>
+            <span>
+              {width} × {height}
+            </span>
           </div>
 
           <div
@@ -431,37 +620,40 @@ export default function MazeGameEngine({
             role="img"
             aria-label={`Papan labirin ${width} kali ${height}`}
           >
-            {Array.from({ length: width * height }, (_, index) => {
-              const x = index % width
-              const y = Math.floor(index / width)
-              const position = { x, y }
+            {Array.from(
+              { length: width * height },
+              (_, index) => {
+                const x = index % width
+                const y = Math.floor(index / width)
+                const position = { x, y }
 
-              const wall = isWall(position)
-              const isRobot = robot.x === x && robot.y === y
-              const isTarget = target.x === x && target.y === y
-              const isStart = start.x === x && start.y === y
+                const wall = isWall(position)
+                const isRobot = robot.x === x && robot.y === y
+                const isTarget = target.x === x && target.y === y
+                const isStart = start.x === x && start.y === y
 
-              return (
-                <div
-                  key={`${x}-${y}`}
-                  className={`flex aspect-square items-center justify-center rounded-md border text-base sm:text-2xl ${
-                    wall
-                      ? 'border-slate-700 bg-slate-700'
-                      : 'border-slate-700 bg-slate-800'
-                  }`}
-                >
-                  {isRobot
-                    ? ['⬆️', '➡️', '⬇️', '⬅️'][direction]
-                    : isTarget
-                      ? '⭐'
-                      : wall
-                        ? '🧱'
-                        : isStart
-                          ? '🏁'
-                          : ''}
-                </div>
-              )
-            })}
+                return (
+                  <div
+                    key={`${x}-${y}`}
+                    className={`flex aspect-square items-center justify-center rounded-md border text-base sm:text-2xl ${
+                      wall
+                        ? 'border-slate-700 bg-slate-700'
+                        : 'border-slate-700 bg-slate-800'
+                    }`}
+                  >
+                    {isRobot
+                      ? ['⬆️', '➡️', '⬇️', '⬅️'][direction]
+                      : isTarget
+                        ? '⭐'
+                        : wall
+                          ? '🧱'
+                          : isStart
+                            ? '🏁'
+                            : ''}
+                  </div>
+                )
+              }
+            )}
           </div>
 
           <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400">
@@ -475,6 +667,7 @@ export default function MazeGameEngine({
         <section className="space-y-4">
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
             <h2 className="font-extrabold">🎯 Misi</h2>
+
             <p className="mt-2 text-sm leading-relaxed text-slate-300">
               {currentMission.question_text ||
                 'Arahkan robot menuju bintang.'}
@@ -482,20 +675,27 @@ export default function MazeGameEngine({
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 font-extrabold">🧩 Blok Perintah</h2>
+            <h2 className="mb-3 font-extrabold">
+              🧩 Blok Perintah
+            </h2>
 
             <div className="grid grid-cols-3 gap-2">
               {COMMANDS.map((command) => (
                 <button
                   key={command.id}
                   type="button"
-                  disabled={isRunning || isComplete}
+                  disabled={
+                    isRunning ||
+                    isComplete ||
+                    isFinishing
+                  }
                   onClick={() => addCommand(command.id)}
                   className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-2 py-3 text-xs font-bold text-indigo-200 disabled:opacity-40"
                 >
                   <span className="mb-1 block text-xl">
                     {command.icon}
                   </span>
+
                   {command.label}
                 </button>
               ))}
@@ -534,6 +734,7 @@ export default function MazeGameEngine({
                 disabled={
                   isRunning ||
                   isComplete ||
+                  isFinishing ||
                   commands.length === 0
                 }
                 onClick={() => {
@@ -547,7 +748,11 @@ export default function MazeGameEngine({
 
               <button
                 type="button"
-                disabled={isRunning || isComplete}
+                disabled={
+                  isRunning ||
+                  isComplete ||
+                  isFinishing
+                }
                 onClick={() => {
                   setCommands([])
                   resetRobot()
@@ -560,7 +765,11 @@ export default function MazeGameEngine({
 
             <button
               type="button"
-              disabled={isRunning || isComplete}
+              disabled={
+                isRunning ||
+                isComplete ||
+                isFinishing
+              }
               onClick={runProgram}
               className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-3 font-extrabold disabled:opacity-40"
             >
@@ -579,33 +788,50 @@ export default function MazeGameEngine({
             <button
               type="button"
               onClick={nextMission}
-              className="w-full rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-slate-950"
+              disabled={isFinishing}
+              className="w-full rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-slate-950 disabled:opacity-40"
             >
               Misi Berikutnya →
             </button>
           )}
 
-          {isComplete &&
-            missionIndex === missions.length - 1 &&
-            finishSummary && (
-              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-                <h2 className="text-lg font-extrabold text-emerald-300">
-                  🏆 Semua Misi Selesai!
-                </h2>
-                <p className="mt-2 text-sm">
-                  Nilai: {finishSummary.score ?? 0}
-                </p>
-                <p className="text-sm">
-                  Total XP: +{finishSummary.total_xp ?? 0}
-                </p>
-                <button
-                  onClick={() => router.push('/practice')}
-                  className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold"
-                >
-                  Kembali ke Latihan
-                </button>
-              </div>
+          {/* Retry finalisasi jika seluruh misi sudah selesai */}
+          {completedCount === missions.length &&
+            !finishSummary &&
+            !isFinishing && (
+              <button
+                type="button"
+                onClick={retryFinishMaze}
+                className="w-full rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-slate-950"
+              >
+                Coba Simpan Hasil Lagi
+              </button>
             )}
+
+          {/* Ringkasan hasil */}
+          {finishSummary && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <h2 className="text-lg font-extrabold text-emerald-300">
+                🏆 Semua Misi Selesai!
+              </h2>
+
+              <p className="mt-2 text-sm">
+                Nilai: {finishSummary.score ?? 0}
+              </p>
+
+              <p className="text-sm">
+                Total XP: +{finishSummary.total_xp ?? 0}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => router.push('/practice')}
+                className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold"
+              >
+                Kembali ke Latihan
+              </button>
+            </div>
+          )}
 
           {isFinishing && (
             <p className="text-center text-xs text-amber-300">
