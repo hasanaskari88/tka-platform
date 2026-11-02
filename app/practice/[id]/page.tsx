@@ -278,7 +278,7 @@ function PracticeContent() {
       : []
 
     if (currentList.includes(optKey)) {
-      setUserAnswer(currentList.filter((key) => key !== optKey))
+      setUserAnswer(currentList.filter((key: string) => key !== optKey))
     } else {
       setUserAnswer([...currentList, optKey])
     }
@@ -344,7 +344,7 @@ function PracticeContent() {
 
     if (missingKeys.length > 0) {
       setConfigurationError(
-        `Kunci matriks belum lengkap. Periksa baris: ${missingKeys.map((key) => Number(key) + 1).join(', ')}.`
+        `Kunci matriks belum lengkap. Periksa baris: ${missingKeys.map((key: string) => Number(key) + 1).join(', ')}.`
       )
       return
     }
