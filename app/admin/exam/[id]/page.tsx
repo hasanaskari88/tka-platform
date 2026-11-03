@@ -742,6 +742,24 @@ function QuestionManagerContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {/* 📄 1. TOMBOL CETAK FORM LJK */}
+            <Link
+              href={`/admin/exam/${examId}/ljk-print`}
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
+            >
+              <span>📄</span>
+              <span>Cetak Form LJK</span>
+            </Link>
+
+            {/* 📷 2. TOMBOL SCAN LJK (OMR) */}
+            <Link
+              href={`/admin/exam/${examId}/ljk-scanner`}
+              className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
+            >
+              <span>📷</span>
+              <span>Scan LJK (OMR)</span>
+            </Link>
+
             {/* TOMBOL EXPORT EXCEL */}
             <button
               onClick={handleExportExcel}
