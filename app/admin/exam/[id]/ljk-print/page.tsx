@@ -33,31 +33,45 @@ function LjkPrintContent() {
 
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
+  const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  // State Mode Cetak & Filter Kelas
+  const [printMode, setPrintMode] = useState<'blank' | 'students'>('students')
+  const [selectedClass, setSelectedClass] = useState<string>('ALL')
+
   useEffect(() => {
-    async function loadExamData() {
+    async function loadData() {
       if (!examId) return
       const supabase = createClient()
 
+      // 1. Fetch Ujian
       const { data: examData } = await supabase
         .from('exams')
         .select('*')
         .eq('id', examId)
         .single()
 
+      // 2. Fetch Soal Ujian
       const { data: questionData } = await supabase
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
         .order('created_at', { ascending: true })
 
+      // 3. Fetch Data Siswa
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, class_code')
+        .order('full_name', { ascending: true })
+
       if (examData) setExam(examData)
       if (questionData) setQuestions(questionData)
+      if (profileData) setStudents(profileData)
       setLoading(false)
     }
 
-    loadExamData()
+    loadData()
   }, [examId])
 
   const handlePrint = () => {
@@ -67,18 +81,26 @@ function LjkPrintContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-        <p className="text-slate-600 font-medium">Memuat LJK Presisi Grid Ultra-Kompak...</p>
+        <p className="text-slate-600 font-medium">Memuat LJK Bulk Generator...</p>
       </div>
     )
   }
 
-  const qrData = JSON.stringify({ exam_id: examId, code: exam?.token_code || 'EXAM' })
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(qrData)}`
+  // Dapatkan Daftar Kelas Unik
+  const classList = Array.from(
+    new Set(students.map((s) => s.class_code).filter(Boolean))
+  )
 
-  // Sedia data soal dengan indeks asli
+  // Filter Siswa Sesuai Pilihan Kelas
+  const filteredStudents = students.filter((st) => {
+    if (selectedClass === 'ALL') return true
+    return st.class_code === selectedClass
+  })
+
+  // Sedia data soal terindeks
   const indexedQuestions = questions.map((q, idx) => ({ ...q, originalNo: idx + 1 }))
 
-  // Grouping berdasarkan jenis soal
+  // Grouping Soal Berdasarkan Tipe
   const pgQuestions = indexedQuestions.filter(
     (q) => (q.question_type || 'multiple_choice') === 'multiple_choice' || q.question_type === 'complex_multiple_choice'
   )
@@ -89,7 +111,7 @@ function LjkPrintContent() {
     (q) => q.question_type === 'essay'
   )
 
-  // Distribusi PG & PGK ke 4 KOLOM GRID (Ultra-Kompak)
+  // Grid Kolom PG (4 Kolom) & Matriks (3 Kolom)
   const pgPerCol = Math.ceil(pgQuestions.length / 4)
   const pgColumns = [
     pgQuestions.slice(0, pgPerCol),
@@ -98,7 +120,6 @@ function LjkPrintContent() {
     pgQuestions.slice(pgPerCol * 3),
   ].filter((col) => col.length > 0)
 
-  // Distribusi MATRIKS B/S ke 3 KOLOM GRID (Ultra-Kompak)
   const matrixPerCol = Math.ceil(matrixQuestions.length / 3)
   const matrixColumns = [
     matrixQuestions.slice(0, matrixPerCol),
@@ -106,63 +127,24 @@ function LjkPrintContent() {
     matrixQuestions.slice(matrixPerCol * 2),
   ].filter((col) => col.length > 0)
 
-  return (
-    <div className="min-h-screen bg-slate-100 font-sans pb-8">
-      {/* ATURAN STYLESHEET STRICT 1 HALAMAN A4 PORTRAIT */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 3mm 3mm 3mm 3mm;
-          }
-          html, body {
-            height: 100%;
-            overflow: hidden !important;
-            background-color: white !important;
-            color: black !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .ljk-single-page {
-            border: 2px solid #000 !important;
-            box-shadow: none !important;
-            max-height: 282mm !important;
-            height: 282mm !important;
-            box-sizing: border-box !important;
-            overflow: hidden !important;
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
-          }
-        }
-      `}</style>
+  // Helper Render Komponen LJK Satuan
+  const renderSingleLjkSheet = (studentData?: any, indexKey: number = 0) => {
+    const isPrefilled = !!studentData
+    const studentUsername = studentData?.username || ''
+    const studentName = studentData?.full_name || ''
+    const studentClass = studentData?.class_code ? `Kelas ${studentData.class_code}` : 'SD Negeri Getasan'
 
-      {/* ACTION BAR SCREEN BIASA */}
-      <div className="no-print bg-slate-900 text-white p-3 sticky top-0 z-50 shadow-md">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div>
-            <h1 className="text-sm font-bold">📄 LJK Presisi (Grid PG 4-Kolom & Matriks 3-Kolom)</h1>
-            <p className="text-[11px] text-slate-300">Ujian: {exam?.title}</p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handlePrint}
-              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow transition-colors"
-            >
-              🖨️ Cetak LJK (A4 1 Halaman)
-            </button>
-            <Link
-              href={`/admin/exam/${examId}`}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors"
-            >
-              ← Kembali
-            </Link>
-          </div>
-        </div>
-      </div>
+    const qrData = JSON.stringify({
+      exam_id: examId,
+      username: studentUsername || 'GENERIC_STUDENT',
+    })
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=90x90&data=${encodeURIComponent(qrData)}`
 
-      {/* KONTEN UTAMA LJK 1 HALAMAN A4 */}
-      <div className="max-w-[204mm] mx-auto my-3 bg-white p-3 shadow-xl ljk-single-page border-2 border-black relative text-black font-serif text-[9px] select-none flex flex-col justify-between">
+    return (
+      <div
+        key={studentData?.id || indexKey}
+        className="max-w-[204mm] mx-auto my-3 bg-white p-3 shadow-xl ljk-single-page border-2 border-black relative text-black font-serif text-[9px] select-none flex flex-col justify-between"
+      >
         {/* ⬛ 4 ANCHOR MARKS UNTUK OMR */}
         <div className="absolute top-1.5 left-1.5 w-4 h-4 bg-black"></div>
         <div className="absolute top-1.5 right-1.5 w-4 h-4 bg-black"></div>
@@ -170,7 +152,7 @@ function LjkPrintContent() {
         <div className="absolute bottom-1.5 right-1.5 w-4 h-4 bg-black"></div>
 
         <div className="space-y-1.5">
-          {/* KOP SEKOLAH KOMPAK */}
+          {/* KOP SEKOLAH */}
           <div className="border-b-2 border-black pb-0.5 text-center">
             <h3 className="text-[8.5px] font-bold uppercase tracking-wider leading-none">
               DINAS PENDIDIKAN KABUPATEN SEMARANG
@@ -181,31 +163,45 @@ function LjkPrintContent() {
             <p className="text-[7.5px] italic leading-none">Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774)</p>
           </div>
 
-          {/* INFORMASI SISWA & QR CODE */}
+          {/* INFORMASI SISWA & QR CODE (PRE-FILLED JIKA BULK) */}
           <div className="grid grid-cols-12 gap-1.5 border border-black p-1.5 bg-slate-50/50">
             <div className="col-span-9 space-y-0.5">
               <div className="flex items-center space-x-1">
                 <span className="w-20 font-bold text-[8.5px]">NAMA SISWA</span>
                 <span>:</span>
-                <div className="border-b border-dotted border-black flex-1 h-3"></div>
+                {isPrefilled ? (
+                  <span className="font-bold text-[9px] uppercase tracking-wide border-b border-black flex-1 h-3.5 leading-none">
+                    {studentName}
+                  </span>
+                ) : (
+                  <div className="border-b border-dotted border-black flex-1 h-3"></div>
+                )}
               </div>
               <div className="flex items-center space-x-1">
-                <span className="w-20 font-bold text-[8.5px]">NISN / NO UJIAN</span>
+                <span className="w-20 font-bold text-[8.5px]">NISN / USERNAME</span>
                 <span>:</span>
-                <div className="border-b border-dotted border-black flex-1 h-3"></div>
+                {isPrefilled ? (
+                  <span className="font-bold text-[9px] font-mono border-b border-black flex-1 h-3.5 leading-none">
+                    {studentUsername}
+                  </span>
+                ) : (
+                  <div className="border-b border-dotted border-black flex-1 h-3"></div>
+                )}
               </div>
               <div className="flex items-center space-x-1">
                 <span className="w-20 font-bold text-[8.5px]">MAPEL / KELAS</span>
                 <span>:</span>
                 <span className="font-bold uppercase text-[8.5px]">
-                  {exam?.subtest || 'UMUM'} | SD NEGERI GETASAN
+                  {exam?.subtest || 'UMUM'} | {studentClass}
                 </span>
               </div>
             </div>
 
             <div className="col-span-3 flex flex-col items-center justify-center border-l border-black pl-1">
               <img src={qrUrl} alt="QR Code" className="w-10 h-10 border border-black p-0.5 bg-white" />
-              <span className="text-[6.5px] font-mono mt-0.5 font-bold">OMR-ID</span>
+              <span className="text-[6.5px] font-mono mt-0.5 font-bold">
+                {studentUsername ? `@${studentUsername}` : 'OMR-ID'}
+              </span>
             </div>
           </div>
 
@@ -218,7 +214,7 @@ function LjkPrintContent() {
             </div>
           </div>
 
-          {/* BAGIAN I: PILIHAN GANDA & PG KOMPLEKS (4 KOLOM GRID) */}
+          {/* BAGIAN I: PILIHAN GANDA & PG KOMPLEKS (4 KOLOM) */}
           {pgQuestions.length > 0 && (
             <div className="border border-black p-1 bg-white">
               <div className="text-[7.5px] font-bold uppercase border-b border-black pb-0.5 mb-0.5 bg-slate-100 px-1 flex justify-between">
@@ -255,7 +251,7 @@ function LjkPrintContent() {
             </div>
           )}
 
-          {/* BAGIAN II: MATRIKS BENAR / SALAH (3 KOLOM GRID) */}
+          {/* BAGIAN II: MATRIKS BENAR / SALAH (3 KOLOM) */}
           {matrixQuestions.length > 0 && (
             <div className="border border-black p-1 bg-white">
               <div className="text-[7.5px] font-bold uppercase border-b border-black pb-0.5 mb-0.5 bg-slate-100 px-1 flex justify-between">
@@ -304,7 +300,7 @@ function LjkPrintContent() {
             </div>
           )}
 
-          {/* BAGIAN III: ESSAY / URAIAN (3 KOLOM GRID JIKA ADA) */}
+          {/* BAGIAN III: ESSAY / URAIAN */}
           {essayQuestions.length > 0 && (
             <div className="border border-black p-1 bg-white">
               <div className="text-[7.5px] font-bold uppercase border-b border-black pb-0.5 mb-0.5 bg-slate-100 px-1">
@@ -322,12 +318,14 @@ function LjkPrintContent() {
           )}
         </div>
 
-        {/* TANDA TANGAN KOMPAK DI BAWAH */}
+        {/* TANDA TANGAN SISWA */}
         <div className="flex justify-between items-end text-[7.5px] pt-1 border-t border-slate-300 mt-0.5">
           <div className="text-center w-28">
             <p>Tanda Tangan Siswa,</p>
             <div className="h-4"></div>
-            <p className="border-b border-black font-bold">( ............................. )</p>
+            <p className="border-b border-black font-bold">
+              {studentName ? `( ${studentName.substring(0, 18)} )` : '( ............................. )'}
+            </p>
           </div>
           <div className="text-center w-36">
             <p>Getasan, ......................... 2026</p>
@@ -337,6 +335,104 @@ function LjkPrintContent() {
           </div>
         </div>
       </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-100 font-sans pb-8">
+      {/* ATURAN STYLESHEET STRICT BULK PRINTING (PAGE-BREAK PER SISWA) */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 3mm 3mm 3mm 3mm;
+          }
+          html, body {
+            height: auto;
+            background-color: white !important;
+            color: black !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .ljk-single-page {
+            border: 2px solid #000 !important;
+            box-shadow: none !important;
+            max-height: 282mm !important;
+            height: 282mm !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            page-break-after: always !important;
+            page-break-inside: avoid !important;
+          }
+        }
+      `}</style>
+
+      {/* ACTION BAR SCREEN BIASA (FILTER & BULK PRINT CONTROLS) */}
+      <div className="no-print bg-slate-900 text-white p-3 sticky top-0 z-50 shadow-md">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
+          <div>
+            <h1 className="text-sm font-bold">🖨️ Cetak Massal LJK (Bulk Generator)</h1>
+            <p className="text-[11px] text-slate-300">Ujian: {exam?.title}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {/* SELECT MODE CETAK */}
+            <select
+              value={printMode}
+              onChange={(e: any) => setPrintMode(e.target.value)}
+              className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg focus:outline-none"
+            >
+              <option value="students">👤 Cetak Massal Siswa (Pre-filled)</option>
+              <option value="blank">📄 Cetak Template Kosong (Isi Manual)</option>
+            </select>
+
+            {/* SELECT FILTER KELAS */}
+            {printMode === 'students' && (
+              <select
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                className="px-2.5 py-1.5 bg-slate-800 border border-slate-700 text-white text-xs font-bold rounded-lg focus:outline-none"
+              >
+                <option value="ALL">🌐 Semua Kelas ({students.length} Siswa)</option>
+                {classList.map((cCode) => (
+                  <option key={cCode} value={cCode}>
+                    🏫 Kelas {cCode}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              onClick={handlePrint}
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow transition-colors flex items-center space-x-1"
+            >
+              <span>🖨️</span>
+              <span>
+                Cetak ({printMode === 'blank' ? '1 Lembar' : `${filteredStudents.length} Halaman`})
+              </span>
+            </button>
+
+            <Link
+              href={`/admin/exam/${examId}`}
+              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-lg transition-colors"
+            >
+              ← Kembali
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* KONTEN HASIL CETAK LJK */}
+      {printMode === 'blank' ? (
+        renderSingleLjkSheet(null, 0)
+      ) : filteredStudents.length > 0 ? (
+        filteredStudents.map((student, idx) => renderSingleLjkSheet(student, idx))
+      ) : (
+        <div className="max-w-md mx-auto my-12 bg-white p-6 rounded-2xl border text-center text-slate-500 text-xs font-bold">
+          Tidak ada data siswa ditemukan untuk kelas yang dipilih.
+        </div>
+      )}
     </div>
   )
 }

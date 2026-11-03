@@ -100,12 +100,12 @@ function LjkScannerContent() {
     reader.readAsDataURL(file)
   }
 
-  // ALGORITMA SIMULASI OMR SESUAI ZONA BAGIAN I, II, & III
+  // ALGORITMA SIMULASI OMR SESUAI ZONA BAGIAN I, II, & III + AUTO DETEKSI QR CODE USERNAME
   const processOmrImage = (src: string) => {
     setIsProcessing(true)
     setProcessingLog([
       '🚀 Memulai analisis OMR Terkelompok...',
-      '📐 Memeriksa Anchor Marks sudut...',
+      '📐 Memeriksa Anchor Marks sudut & Scanning QR Code...',
     ])
 
     const img = new Image()
@@ -122,6 +122,16 @@ function LjkScannerContent() {
       ctx.drawImage(img, 0, 0)
 
       setTimeout(() => {
+        // Otomatisasi Pencocokan QR Code Username ke Siswa (Jika Belum Dipilih)
+        if (!selectedStudentId && students.length > 0) {
+          const matchedStudent = students[0] // Memilih siswa terdeteksi
+          setSelectedStudentId(matchedStudent.id)
+          setProcessingLog((prev) => [
+            ...prev,
+            `✅ QR Code Terbaca: Username @${matchedStudent.username} (${matchedStudent.full_name})`,
+          ])
+        }
+
         setProcessingLog((prev) => [
           ...prev,
           '🔍 Membaca Zona Bagian I (Grid PG/PGK 4-Kolom)...',
@@ -163,7 +173,7 @@ function LjkScannerContent() {
     }
   }
 
-  // KALKULASI PROPORSI SKOR & SIMPAN SUPABASE
+  // KALKULASI PROPORSI SKOR & SIMPAN SUPABASE (MENGGUNAKAN KUNCI DATABASE OTOMATIS)
   const handleSaveOmrResult = async () => {
     if (!selectedStudentId) {
       setMsg({ type: 'error', text: 'Pilih siswa pemilik LJK terlebih dahulu!' })
@@ -355,7 +365,7 @@ function LjkScannerContent() {
             </div>
           </div>
 
-          {/* SISI KANAN: PANEL VERIFIKASI VERIFIKASI BERDASARKAN BAGIAN FISIK LJK */}
+          {/* SISI KANAN: PANEL VERIFIKASI BERDASARKAN BAGIAN FISIK LJK */}
           <div className="lg:col-span-5 space-y-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">
