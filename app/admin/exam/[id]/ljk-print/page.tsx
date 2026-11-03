@@ -26,7 +26,7 @@ function LjkPrintContent() {
 
       const { data: questionData } = await supabase
         .from('questions')
-        .select('id, question_type')
+        .select('*')
         .eq('exam_id', examId)
         .order('created_at', { ascending: true })
 
@@ -55,12 +55,12 @@ function LjkPrintContent() {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans pb-12">
-      {/* STYLE KHUSUS PRINT A4 */}
+      {/* STYLE CETAK A4 */}
       <style jsx global>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 8mm 8mm 8mm 8mm;
+            margin: 6mm 6mm 6mm 6mm;
           }
           body {
             background-color: white !important;
@@ -88,7 +88,7 @@ function LjkPrintContent() {
       <div className="no-print bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
-            <h1 className="text-base font-bold">🖨️ Cetak Lembar Jawab Komputer (LJK)</h1>
+            <h1 className="text-base font-bold">🖨️ Cetak Lembar Jawab Komputer (LJK Dynamic Multi-Type)</h1>
             <p className="text-xs text-slate-300">Ujian: {exam?.title || 'TKA SD Negeri Getasan'}</p>
           </div>
           <div className="flex items-center space-x-2">
@@ -110,7 +110,7 @@ function LjkPrintContent() {
 
       {/* LEMBAR LJK A4 */}
       <div className="max-w-[210mm] mx-auto my-6 bg-white p-6 shadow-xl ljk-container border-2 border-black relative text-black font-serif text-xs select-none">
-        {/* ⬛ 4 ANCHOR MARKS UNTUK DETEKSI SISI SUTUD OMR */}
+        {/* ⬛ 4 ANCHOR MARKS UNTUK DETEKSI SISI SUDUT OMR */}
         <div className="absolute top-2 left-2 w-5 h-5 bg-black" title="Anchor Top-Left"></div>
         <div className="absolute top-2 right-2 w-5 h-5 bg-black" title="Anchor Top-Right"></div>
         <div className="absolute bottom-2 left-2 w-5 h-5 bg-black" title="Anchor Bottom-Left"></div>
@@ -125,7 +125,7 @@ function LjkPrintContent() {
         </div>
 
         {/* INFORMASI SISWA & QR CODE */}
-        <div className="grid grid-cols-12 gap-3 border border-black p-3 mb-4 bg-slate-50/50">
+        <div className="grid grid-cols-12 gap-3 border border-black p-3 mb-3 bg-slate-50/50">
           <div className="col-span-8 space-y-1.5">
             <div className="flex items-center space-x-2">
               <span className="w-24 font-bold text-[11px]">NAMA SISWA</span>
@@ -155,61 +155,120 @@ function LjkPrintContent() {
           </div>
         </div>
 
-        {/* PETUNJUK PENGISIAN LJK */}
-        <div className="border border-black p-2 mb-4 text-[9px] leading-tight bg-slate-100">
-          <p className="font-bold uppercase mb-0.5">📌 PETUNJUK PENGISIAN LEMBAR JAWAB:</p>
-          <ol className="list-decimal pl-4 space-y-0.5">
-            <li>Isilah identitas Nama, NISN, dan Kelas dengan jelas menggunakan pulpen/pensil 2B.</li>
-            <li>Hitamkan atau silanglah (⬛ / ✖) secara penuh pada salah satu bulatan opsi (A, B, C, D).</li>
-            <li>Jika ingin mengganti jawaban, hapus atau coret tanda sebelumnya sampai bersih.</li>
-          </ol>
+        {/* PETUNJUK PENGISIAN LJK MULTI-TIPE */}
+        <div className="border border-black p-2 mb-3 text-[9px] leading-tight bg-slate-100">
+          <p className="font-bold uppercase mb-0.5">📌 PETUNJUK PENGISIAN LJK MULTI-TIPE:</p>
+          <ul className="list-disc pl-4 space-y-0.5">
+            <li><b>PG Biasa:</b> Hitamkan / silang (⬛ / ✖) <b>SATU</b> opsi pilihan (A, B, C, D).</li>
+            <li><b>PG Kompleks:</b> Hitamkan / silang <b>SEMUA</b> opsi pilihan yang Anda anggap benar.</li>
+            <li><b>Matriks B/S:</b> Pilih <b>B</b> (Benar) atau <b>S</b> (Salah) pada setiap baris pernyataan.</li>
+            <li><b>Essay / Uraian:</b> Tuliskan jawaban singkat pada kotak yang disediakan.</li>
+          </ul>
         </div>
 
-        {/* GRID BULATAN JAWABAN (3 KOLOM KELOMPOK SOAL) */}
-        <div className="grid grid-cols-3 gap-3 border border-black p-3">
-          {[0, 1, 2].map((colIdx) => {
-            const startNo = colIdx * 10 + 1
-            const endNo = Math.min((colIdx + 1) * 10, Math.max(questions.length, 30))
+        {/* DAFTAR JAWABAN DINAMIS SESUAI TIPE SOAL */}
+        <div className="space-y-3">
+          <h4 className="font-black text-[11px] uppercase border-b border-black pb-1">
+            LEMBAR JAWABAN SISWA ({questions.length} SOAL)
+          </h4>
 
-            return (
-              <div key={colIdx} className="space-y-1.5 border-r last:border-r-0 border-slate-300 pr-2">
-                <div className="grid grid-cols-6 text-[10px] font-bold text-center border-b border-black pb-1 mb-1">
-                  <span>NO</span>
-                  <span>A</span>
-                  <span>B</span>
-                  <span>C</span>
-                  <span>D</span>
-                  <span></span>
-                </div>
+          <div className="space-y-2 text-[10px]">
+            {questions.map((q, idx) => {
+              const no = idx + 1
+              const qType = q.question_type || 'multiple_choice'
 
-                {Array.from({ length: 10 }).map((_, rIdx) => {
-                  const no = startNo + rIdx
-                  if (no > 30 && no > questions.length) return null
+              return (
+                <div key={q.id} className="border border-black p-2 bg-slate-50/30">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold">
+                      No. {no}{' '}
+                      <span className="font-normal italic text-[9px]">
+                        ({qType === 'complex_multiple_choice'
+                          ? 'PG Kompleks - Pilihan Bisa > 1'
+                          : qType === 'true_false_matrix'
+                          ? 'Matriks Benar / Salah'
+                          : qType === 'essay'
+                          ? 'Uraian / Esai'
+                          : 'Pilihan Ganda 1 Jawaban'})
+                      </span>
+                    </span>
+                    <span className="text-[9px] font-bold">Bobot: {q.max_score || 1} Poin</span>
+                  </div>
 
-                  return (
-                    <div key={no} className="grid grid-cols-6 items-center text-center text-[10px]">
-                      <span className="font-bold">{no}.</span>
+                  {/* A. PILIHAN GANDA & PG KOMPLEKS */}
+                  {(qType === 'multiple_choice' || qType === 'complex_multiple_choice') && (
+                    <div className="flex items-center space-x-6 pl-2 py-1">
                       {['A', 'B', 'C', 'D'].map((opt) => (
-                        <div key={opt} className="flex justify-center items-center">
-                          <div className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[8px] font-sans font-semibold">
+                        <div key={opt} className="flex items-center space-x-1">
+                          <div className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[8px] font-sans font-bold">
                             {opt}
                           </div>
+                          <span>Pilihan {opt}</span>
                         </div>
                       ))}
-                      <span></span>
                     </div>
-                  )
-                })}
-              </div>
-            )
-          })}
+                  )}
+
+                  {/* B. MATRIKS BENAR / SALAH */}
+                  {qType === 'true_false_matrix' && (
+                    <div className="pl-2 space-y-1">
+                      {Array.isArray(q.options) && q.options.length > 0 ? (
+                        q.options.map((st: any, sIdx: number) => {
+                          const stId = st.id || String(sIdx + 1)
+                          return (
+                            <div key={stId} className="flex items-center justify-between border-b border-slate-200 py-0.5 pr-2">
+                              <span className="text-[9px] flex-1">
+                                #{sIdx + 1}. {st.text || `Pernyataan ${sIdx + 1}`}
+                              </span>
+                              <div className="flex items-center space-x-4 shrink-0">
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[7px] font-bold">
+                                    B
+                                  </div>
+                                  <span>Benar</span>
+                                </div>
+                                <div className="flex items-center space-x-1">
+                                  <div className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[7px] font-bold">
+                                    S
+                                  </div>
+                                  <span>Salah</span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center space-x-1">
+                            <div className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[7px] font-bold">B</div>
+                            <span>Benar</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <div className="w-4 h-4 rounded-full border border-black flex items-center justify-center text-[7px] font-bold">S</div>
+                            <span>Salah</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* C. ESSAY / URAIAN */}
+                  {qType === 'essay' && (
+                    <div className="p-2 border border-dotted border-black bg-white rounded mt-1 min-h-[40px] text-[9px] italic text-slate-500">
+                      Tuliskan ringkasan jawaban esai di sini atau di lembar tambahan...
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </div>
 
         {/* FOOTER TANDA TANGAN */}
         <div className="mt-6 flex justify-between items-end text-[10px]">
           <div className="text-center w-36">
             <p>Tanda Tangan Siswa,</p>
-            <div className="h-12"></div>
+            <div className="h-10"></div>
             <p className="border-b border-black font-bold">( .................................... )</p>
           </div>
           <div className="text-center w-44">
