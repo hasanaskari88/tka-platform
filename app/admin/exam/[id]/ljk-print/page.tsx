@@ -5,6 +5,28 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+// Helper mengekstrak daftar pernyataan matriks
+function getStatementsList(q: any) {
+  let opts = q.options
+  if (typeof opts === 'string') {
+    try {
+      opts = JSON.parse(opts)
+    } catch (e) {
+      opts = []
+    }
+  }
+  if (!Array.isArray(opts) || opts.length === 0) {
+    return [
+      { id: '1', text: 'Pernyataan 1' },
+      { id: '2', text: 'Pernyataan 2' },
+    ]
+  }
+  return opts.map((st: any, idx: number) => ({
+    id: String(st.id || idx + 1),
+    text: typeof st === 'string' ? st : String(st.text || `Pernyataan ${idx + 1}`),
+  }))
+}
+
 function LjkPrintContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -45,7 +67,7 @@ function LjkPrintContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-        <p className="text-slate-600 font-medium">Memuat LJK 1 Halaman...</p>
+        <p className="text-slate-600 font-medium">Memuat LJK Presisi Multi-Pernyataan...</p>
       </div>
     )
   }
@@ -53,7 +75,7 @@ function LjkPrintContent() {
   const qrData = JSON.stringify({ exam_id: examId, code: exam?.token_code || 'EXAM' })
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(qrData)}`
 
-  // Bagi soal ke dalam 3 Kolom Sejajar (Max 10 soal per kolom agar muat pas)
+  // Bagi soal ke dalam 3 Kolom Sejajar
   const totalQuestions = questions.length
   const itemsPerCol = Math.ceil(Math.max(totalQuestions, 30) / 3)
   const col1 = questions.slice(0, itemsPerCol)
@@ -101,7 +123,7 @@ function LjkPrintContent() {
       <div className="no-print bg-slate-900 text-white p-3 sticky top-0 z-50 shadow-md">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div>
-            <h1 className="text-sm font-bold">📄 LJK Ultra-Simpel (Pasti 1 Halaman A4)</h1>
+            <h1 className="text-sm font-bold">📄 LJK Presisi Multi-Pernyataan Matriks</h1>
             <p className="text-[11px] text-slate-300">Ujian: {exam?.title}</p>
           </div>
           <div className="flex items-center space-x-2">
@@ -109,7 +131,7 @@ function LjkPrintContent() {
               onClick={handlePrint}
               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg shadow transition-colors"
             >
-              🖨️ Cetak (1 Halaman A4)
+              🖨️ Cetak LJK (A4)
             </button>
             <Link
               href={`/admin/exam/${examId}`}
@@ -130,7 +152,7 @@ function LjkPrintContent() {
         <div className="absolute bottom-1.5 right-1.5 w-4 h-4 bg-black"></div>
 
         <div>
-          {/* KOP RINGKAS */}
+          {/* KOP RINGKAS SEKOLAH */}
           <div className="border-b-2 border-black pb-1 mb-2 text-center">
             <h3 className="text-[9px] font-bold uppercase tracking-wider leading-none">
               DINAS PENDIDIKAN KABUPATEN SEMARANG
@@ -174,7 +196,7 @@ function LjkPrintContent() {
             <span><b>PETUNJUK:</b> Hitamkan/Silang bulatan (⬛ / ✖) pada opsi jawaban.</span>
             <div className="flex items-center space-x-2 font-bold text-[7px]">
               <span>[PG/PGK: A-B-C-D]</span>
-              <span>[Matriks: B-S]</span>
+              <span>[Matriks: B-S per Pernyataan]</span>
             </div>
           </div>
 
@@ -183,7 +205,7 @@ function LjkPrintContent() {
             {columnsData.map((col, colIdx) => (
               <div
                 key={colIdx}
-                className="space-y-1 border-r last:border-r-0 border-slate-300 pr-1.5"
+                className="space-y-1.5 border-r last:border-r-0 border-slate-300 pr-1.5"
               >
                 <div className="flex justify-between font-bold border-b border-black pb-0.5 text-[8px] text-slate-700">
                   <span>NO</span>
@@ -197,13 +219,20 @@ function LjkPrintContent() {
                   return (
                     <div
                       key={q.id}
-                      className="flex items-center justify-between border-b border-slate-100 py-0.5"
+                      className="border-b border-slate-100 pb-1 pt-0.5 space-y-0.5"
                     >
-                      <span className="font-bold text-[9px] w-5">{no}.</span>
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-[9px]">
+                          No. {no}{' '}
+                          {qType === 'true_false_matrix' && (
+                            <span className="text-[7px] font-normal italic text-indigo-700">(Matriks B/S)</span>
+                          )}
+                        </span>
+                      </div>
 
-                      {/* A. PG & PG KOMPLEKS */}
+                      {/* A. PILIHAN GANDA & PG KOMPLEKS */}
                       {(qType === 'multiple_choice' || qType === 'complex_multiple_choice') && (
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-end space-x-2 pt-0.5">
                           {['A', 'B', 'C', 'D'].map((opt) => (
                             <div
                               key={opt}
@@ -215,23 +244,41 @@ function LjkPrintContent() {
                         </div>
                       )}
 
-                      {/* B. MATRIKS BENAR / SALAH */}
+                      {/* B. MATRIKS BENAR / SALAH (MENAMPILKAN SEMUA PERNYATAAN SECARA DINAMIS) */}
                       {qType === 'true_false_matrix' && (
-                        <div className="flex items-center space-x-1.5">
-                          <span className="text-[7px] italic text-slate-500">Mtrx:</span>
-                          <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[6px] font-bold bg-slate-50">
-                            B
-                          </div>
-                          <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[6px] font-bold bg-slate-50">
-                            S
-                          </div>
+                        <div className="flex flex-col space-y-1 w-full pl-1 mt-1">
+                          {getStatementsList(q).map((st: any, sIdx: number) => (
+                            <div
+                              key={st.id || sIdx}
+                              className="flex items-center justify-between text-[8px] bg-slate-50/80 px-1.5 py-0.5 rounded border border-slate-200"
+                            >
+                              <span
+                                className="font-semibold text-slate-700 truncate max-w-[85px]"
+                                title={st.text}
+                              >
+                                #{sIdx + 1}. {st.text.length > 12 ? st.text.substring(0, 12) + '...' : st.text}
+                              </span>
+                              <div className="flex items-center space-x-2 shrink-0">
+                                <div className="flex items-center space-x-0.5">
+                                  <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[7px] font-bold bg-white">
+                                    B
+                                  </div>
+                                </div>
+                                <div className="flex items-center space-x-0.5">
+                                  <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[7px] font-bold bg-white">
+                                    S
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
 
                       {/* C. ESSAY / URAIAN */}
                       {qType === 'essay' && (
-                        <div className="w-24 border border-dotted border-black h-3.5 rounded flex items-center justify-center text-[6px] text-slate-400 italic">
-                          [ Esai ]
+                        <div className="w-full border border-dotted border-black h-4 rounded flex items-center justify-center text-[6px] text-slate-400 italic mt-0.5">
+                          [ Lembar Esai Fisik ]
                         </div>
                       )}
                     </div>
@@ -242,7 +289,7 @@ function LjkPrintContent() {
           </div>
         </div>
 
-        {/* TANDA TANGAN DI BAGIAN BAWAH */}
+        {/* TANDA TANGAN */}
         <div className="flex justify-between items-end text-[8px] pt-2 border-t border-slate-300">
           <div className="text-center w-28">
             <p>Tanda Tangan Siswa,</p>
