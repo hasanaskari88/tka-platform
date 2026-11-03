@@ -5,6 +5,28 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+// Helper mengekstrak daftar pernyataan matriks
+function getStatementsList(q: any) {
+  let opts = q.options
+  if (typeof opts === 'string') {
+    try {
+      opts = JSON.parse(opts)
+    } catch (e) {
+      opts = []
+    }
+  }
+  if (!Array.isArray(opts) || opts.length === 0) {
+    return [
+      { id: '1', text: 'Pernyataan 1' },
+      { id: '2', text: 'Pernyataan 2' },
+    ]
+  }
+  return opts.map((st: any, idx: number) => ({
+    id: String(st.id || idx + 1),
+    text: typeof st === 'string' ? st : String(st.text || `Pernyataan ${idx + 1}`),
+  }))
+}
+
 function LjkScannerContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -57,6 +79,14 @@ function LjkScannerContent() {
     loadData()
   }, [examId])
 
+  // Data Soal Terindeks & Terkelompokkan sesuai LJK Cetak
+  const indexedQuestions = questions.map((q, idx) => ({ ...q, originalNo: idx + 1 }))
+  const pgQuestions = indexedQuestions.filter(
+    (q) => (q.question_type || 'multiple_choice') === 'multiple_choice' || q.question_type === 'complex_multiple_choice'
+  )
+  const matrixQuestions = indexedQuestions.filter((q) => q.question_type === 'true_false_matrix')
+  const essayQuestions = indexedQuestions.filter((q) => q.question_type === 'essay')
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -70,10 +100,13 @@ function LjkScannerContent() {
     reader.readAsDataURL(file)
   }
 
-  // ALGORITMA SIMULASI PEMINDAIAN OMR MULTI-TIPE SOAL
+  // ALGORITMA SIMULASI OMR SESUAI ZONA BAGIAN I, II, & III
   const processOmrImage = (src: string) => {
     setIsProcessing(true)
-    setProcessingLog(['🚀 Memulai analisis LJK Multi-Tipe...', '📐 Mengidentifikasi Registration Marks sudut...'])
+    setProcessingLog([
+      '🚀 Memulai analisis OMR Terkelompok...',
+      '📐 Memeriksa Anchor Marks sudut...',
+    ])
 
     const img = new Image()
     img.crossOrigin = 'anonymous'
@@ -89,7 +122,11 @@ function LjkScannerContent() {
       ctx.drawImage(img, 0, 0)
 
       setTimeout(() => {
-        setProcessingLog((prev) => [...prev, '🔍 Ekstraksi OMR untuk PG, PG Kompleks, & Matriks B/S...'])
+        setProcessingLog((prev) => [
+          ...prev,
+          '🔍 Membaca Zona Bagian I (Grid PG/PGK 4-Kolom)...',
+          '🔍 Membaca Zona Bagian II (Grid Matriks 3-Kolom)...',
+        ])
 
         const detectedAnswers: Record<string, any> = {}
         const detectedEssayScores: Record<string, number> = {}
@@ -104,12 +141,10 @@ function LjkScannerContent() {
             detectedAnswers[q.id] = ['A', 'C']
           } else if (qType === 'true_false_matrix') {
             const matrixRes: Record<string, string> = {}
-            if (Array.isArray(q.options)) {
-              q.options.forEach((st: any, idx: number) => {
-                const stId = st.id || String(idx + 1)
-                matrixRes[stId] = idx % 2 === 0 ? 'Benar' : 'Salah'
-              })
-            }
+            const stList = getStatementsList(q)
+            stList.forEach((st: any, idx: number) => {
+              matrixRes[st.id] = idx % 2 === 0 ? 'Benar' : 'Salah'
+            })
             detectedAnswers[q.id] = matrixRes
           } else if (qType === 'essay') {
             detectedAnswers[q.id] = 'Jawaban Esai Terdeteksi'
@@ -121,14 +156,14 @@ function LjkScannerContent() {
         setEssayScores(detectedEssayScores)
         setProcessingLog((prev) => [
           ...prev,
-          `✅ Ekstraksi ${questions.length} soal berhasil disesuaikan!`,
+          `✅ Ekstraksi ${questions.length} soal sukses disesuaikan dengan tata letak LJK!`,
         ])
         setIsProcessing(false)
       }, 1200)
     }
   }
 
-  // KALKULASI PROPORSI OMR & SIMPAN DATABASE
+  // KALKULASI PROPORSI SKOR & SIMPAN SUPABASE
   const handleSaveOmrResult = async () => {
     if (!selectedStudentId) {
       setMsg({ type: 'error', text: 'Pilih siswa pemilik LJK terlebih dahulu!' })
@@ -169,16 +204,17 @@ function LjkScannerContent() {
         } else if (qType === 'true_false_matrix') {
           const correctObj: Record<string, string> = q.correct_answers || {}
           const userObj: Record<string, string> = typeof userAns === 'object' && userAns !== null ? userAns : {}
-          const stKeys = Object.keys(correctObj)
+          const stList = getStatementsList(q)
 
           let matchCount = 0
-          stKeys.forEach((stId) => {
-            if (String(userObj[stId]).toLowerCase() === String(correctObj[stId]).toLowerCase()) {
+          stList.forEach((st: any) => {
+            const correctVal = correctObj[st.id] || 'Benar'
+            if (String(userObj[st.id]).toLowerCase() === String(correctVal).toLowerCase()) {
               matchCount += 1
             }
           })
 
-          const ratio = stKeys.length > 0 ? matchCount / stKeys.length : 0
+          const ratio = stList.length > 0 ? matchCount / stList.length : 0
           totalPointsEarned += ratio * qMaxScore
         } else if (qType === 'essay') {
           const score = Number(essayScores[q.id]) || 0
@@ -219,7 +255,7 @@ function LjkScannerContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-        <p className="text-slate-600 font-medium">Memuat sistem pemindai LJK OMR...</p>
+        <p className="text-slate-600 font-medium">Memuat sistem pemindai LJK Terkelompok...</p>
       </div>
     )
   }
@@ -227,13 +263,14 @@ function LjkScannerContent() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-16">
       <main className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+        {/* HEADER BAR */}
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:justify-between md:items-center gap-4">
           <div>
             <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
-              PEMINDAI OMR DIGITAL MULTI-TIPE
+              PEMINDAI OMR TERKELOMPOK
             </span>
             <h1 className="text-xl font-black text-slate-800 mt-1">
-              📷 Scan & Koreksi Otomatis LJK (PG, Kompleks, Matriks, Essay)
+              📷 Scan & Koreksi Otomatis LJK (PG, PGK, Matriks, Essay)
             </h1>
             <p className="text-xs text-slate-500">Ujian: {exam?.title}</p>
           </div>
@@ -267,6 +304,7 @@ function LjkScannerContent() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* SISI KIRI: INPUT FOTO & PREVIEW */}
           <div className="lg:col-span-7 space-y-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">
@@ -302,7 +340,7 @@ function LjkScannerContent() {
                 {isProcessing && (
                   <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center text-white space-y-2">
                     <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-xs font-bold animate-pulse">Memindai OMR Multi-Tipe...</p>
+                    <p className="text-xs font-bold animate-pulse">Memindai Zona Bagian LJK...</p>
                   </div>
                 )}
               </div>
@@ -317,10 +355,11 @@ function LjkScannerContent() {
             </div>
           </div>
 
+          {/* SISI KANAN: PANEL VERIFIKASI VERIFIKASI BERDASARKAN BAGIAN FISIK LJK */}
           <div className="lg:col-span-5 space-y-4">
             <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
               <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider">
-                2. Verifikasi & Koreksi Jawaban
+                2. Verifikasi Hasil Jawaban
               </h2>
 
               <div className="space-y-1">
@@ -339,26 +378,25 @@ function LjkScannerContent() {
                 </select>
               </div>
 
-              <div className="space-y-2 pt-2 border-t">
-                <span className="text-xs font-bold text-slate-700 block">
-                  Hasil Pemindaian per Nomor Soal:
-                </span>
+              <div className="space-y-3 pt-2 border-t max-h-[360px] overflow-y-auto pr-1">
+                {/* BAGIAN I: PILIHAN GANDA & PG KOMPLEKS */}
+                {pgQuestions.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-black text-indigo-900 uppercase block bg-indigo-50 p-1.5 rounded-lg border border-indigo-100">
+                      BAGIAN I: PG & PG KOMPLEKS
+                    </span>
 
-                <div className="max-h-[300px] overflow-y-auto space-y-2 pr-1">
-                  {questions.map((q, idx) => {
-                    const no = idx + 1
-                    const qType = q.question_type || 'multiple_choice'
-                    const userAns = scannedAnswers[q.id]
+                    {pgQuestions.map((q) => {
+                      const qType = q.question_type || 'multiple_choice'
+                      const userAns = scannedAnswers[q.id]
 
-                    return (
-                      <div key={q.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
-                        <div className="flex justify-between items-center font-bold">
-                          <span className="text-indigo-700">No. {no} ({qType})</span>
-                          <span className="text-[10px] text-slate-500">Max: {q.max_score || 1} Poin</span>
-                        </div>
+                      return (
+                        <div key={q.id} className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                          <div className="flex justify-between items-center font-bold">
+                            <span className="text-slate-800">No. {q.originalNo} ({qType === 'complex_multiple_choice' ? 'PGK' : 'PG'})</span>
+                            <span className="text-[10px] text-slate-500">{q.max_score || 1} Poin</span>
+                          </div>
 
-                        {/* OPSI JAWABAN PG & PG KOMPLEKS */}
-                        {(qType === 'multiple_choice' || qType === 'complex_multiple_choice') && (
                           <div className="flex items-center space-x-1.5">
                             {['A', 'B', 'C', 'D'].map((opt) => {
                               const isSelected = qType === 'multiple_choice'
@@ -391,66 +429,98 @@ function LjkScannerContent() {
                               )
                             })}
                           </div>
-                        )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
 
-                        {/* OPSI MATRIKS B/S */}
-                        {qType === 'true_false_matrix' && (
+                {/* BAGIAN II: MATRIKS BENAR / SALAH */}
+                {matrixQuestions.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <span className="text-[11px] font-black text-indigo-900 uppercase block bg-indigo-50 p-1.5 rounded-lg border border-indigo-100">
+                      BAGIAN II: MATRIKS BENAR / SALAH
+                    </span>
+
+                    {matrixQuestions.map((q) => {
+                      const userAns = scannedAnswers[q.id]
+
+                      return (
+                        <div key={q.id} className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1.5">
+                          <div className="flex justify-between items-center font-bold">
+                            <span className="text-indigo-800">Soal No. {q.originalNo} (Matriks)</span>
+                            <span className="text-[10px] text-slate-500">{q.max_score || 1} Poin</span>
+                          </div>
+
                           <div className="space-y-1">
-                            {Array.isArray(q.options) &&
-                              q.options.map((st: any, sIdx: number) => {
-                                const stId = st.id || String(sIdx + 1)
-                                const curVal = userAns?.[stId] || 'Benar'
+                            {getStatementsList(q).map((st: any, sIdx: number) => {
+                              const curVal = userAns?.[st.id] || 'Benar'
 
-                                return (
-                                  <div key={stId} className="flex items-center justify-between text-[11px] bg-white p-1 rounded border">
-                                    <span className="truncate max-w-[140px]">#{sIdx + 1}. {st.text}</span>
-                                    <div className="flex items-center space-x-1">
-                                      {['Benar', 'Salah'].map((val) => (
-                                        <button
-                                          key={val}
-                                          type="button"
-                                          onClick={() => {
-                                            const updatedMatrix = { ...(userAns || {}), [stId]: val }
-                                            setScannedAnswers((prev) => ({ ...prev, [q.id]: updatedMatrix }))
-                                          }}
-                                          className={`px-2 py-0.5 rounded text-[9px] font-bold ${
-                                            curVal === val
-                                              ? 'bg-indigo-600 text-white'
-                                              : 'bg-slate-100 text-slate-600'
-                                          }`}
-                                        >
-                                          {val}
-                                        </button>
-                                      ))}
-                                    </div>
+                              return (
+                                <div key={st.id || sIdx} className="flex items-center justify-between text-[10px] bg-white p-1 rounded border">
+                                  <span className="truncate max-w-[130px]">#{sIdx + 1}. {st.text}</span>
+                                  <div className="flex items-center space-x-1">
+                                    {['Benar', 'Salah'].map((val) => (
+                                      <button
+                                        key={val}
+                                        type="button"
+                                        onClick={() => {
+                                          const updatedMatrix = { ...(userAns || {}), [st.id]: val }
+                                          setScannedAnswers((prev) => ({ ...prev, [q.id]: updatedMatrix }))
+                                        }}
+                                        className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                          curVal === val
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                      >
+                                        {val}
+                                      </button>
+                                    ))}
                                   </div>
-                                )
-                              })}
+                                </div>
+                              )
+                            })}
                           </div>
-                        )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
 
-                        {/* ESSAY MANUALLY ADJUSTABLE */}
-                        {qType === 'essay' && (
-                          <div className="flex items-center space-x-2 pt-1">
-                            <span className="text-[10px] font-bold">Nilai Guru:</span>
-                            <input
-                              type="number"
-                              step="0.5"
-                              min="0"
-                              max={q.max_score || 10}
-                              value={essayScores[q.id] || 0}
-                              onChange={(e) => {
-                                const val = parseFloat(e.target.value) || 0
-                                setEssayScores((prev) => ({ ...prev, [q.id]: val }))
-                              }}
-                              className="w-20 p-1 bg-white border border-slate-300 rounded text-xs font-bold text-indigo-700"
-                            />
-                          </div>
-                        )}
+                {/* BAGIAN III: ESSAY */}
+                {essayQuestions.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    <span className="text-[11px] font-black text-indigo-900 uppercase block bg-indigo-50 p-1.5 rounded-lg border border-indigo-100">
+                      BAGIAN III: ESSAY / URAIAN
+                    </span>
+
+                    {essayQuestions.map((q) => (
+                      <div key={q.id} className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                        <div className="flex justify-between items-center font-bold">
+                          <span>Soal No. {q.originalNo} (Esai)</span>
+                          <span className="text-[10px] text-slate-500">Max: {q.max_score || 10} Poin</span>
+                        </div>
+
+                        <div className="flex items-center space-x-2 pt-1">
+                          <span className="text-[10px] font-bold">Input Nilai Guru:</span>
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max={q.max_score || 10}
+                            value={essayScores[q.id] || 0}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0
+                              setEssayScores((prev) => ({ ...prev, [q.id]: val }))
+                            }}
+                            className="w-20 p-1 bg-white border border-slate-300 rounded text-xs font-bold text-indigo-700"
+                          />
+                        </div>
                       </div>
-                    )
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <button
