@@ -951,76 +951,12 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                       <p className="text-xs text-slate-500 mt-0.5">
                         {exam.description || 'Tidak ada deskripsi'}
                       </p>
-                      {editingAuthorExamId === exam.id && (
-                      <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
-                        <label className="block text-[10px] font-bold text-indigo-800">
-                          UBAH NAMA PENULIS
-                        </label>
-                    
-                        <input
-                          type="text"
-                          value={quickExamAuthorName}
-                          onChange={(e) => setQuickExamAuthorName(e.target.value)}
-                          placeholder="Masukkan nama penulis..."
-                          className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white"
-                        />
-                    
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleQuickExamAuthorSave(exam.id)}
-                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg"
-                          >
-                            💾 Simpan
-                          </button>
-                    
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingAuthorExamId(null)
-                              setQuickExamAuthorName('')
-                            }}
-                            className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded-lg"
-                          >
-                            Batal
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                    </div>
-
-                    <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-1">
+                      <div className="flex flex-wrap gap-2 mt-2">
                       <button
                         onClick={() => handleEditClick(exam)}
-                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg transition-colors"
-                        suppressHydrationWarning
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg"
                       >
                         ✏️ Edit
-                      </button>
-                      <Link
-                        href={`/admin/exam/${exam.id}/results`}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        📊 Rekap Nilai
-                      </Link>
-                      <Link
-                        href={`/admin/exam/${exam.id}/monitor`}
-                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        👁️ Pengawasan Live
-                      </Link>
-                      <Link
-                        href={`/admin/exam/${exam.id}`}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        Kelola Soal →
-                      </Link>
-                      <button
-                        onClick={() => handleDeleteExam(exam.id, exam.title)}
-                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
-                        suppressHydrationWarning
-                      >
-                        Hapus
                       </button>
                       <button
                         type="button"
@@ -1030,10 +966,43 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                             exam.author_display_name || exam.author?.full_name || ''
                           )
                         }}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors"
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
                       >
                         ✍️ Edit Penulis
                       </button>
+                    </div>
+                      <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-1">
+                      <Link
+                        href={`/admin/exam/${exam.id}/results`}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        📊 Rekap Nilai
+                      </Link>
+                    
+                      <Link
+                        href={`/admin/exam/${exam.id}/monitor`}
+                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        👁️ Pengawasan Live
+                      </Link>
+                    
+                      <Link
+                        href={`/admin/exam/${exam.id}`}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        Kelola Soal →
+                      </Link>
+                    
+                      <button
+                        onClick={() => handleDeleteExam(exam.id, exam.title)}
+                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
+                        suppressHydrationWarning
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                      </div>
+                    )}
                     </div>
                   </div>
 
