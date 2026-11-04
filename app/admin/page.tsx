@@ -62,6 +62,7 @@ function AdminDashboardContent() {
   const [matUrl, setMatUrl] = useState('')
   const [matDesc, setMatDesc] = useState('')
   const [matSubject, setMatSubject] = useState('Umum')
+  const [matAuthorDisplayName, setMatAuthorDisplayName] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -371,52 +372,61 @@ function AdminDashboardContent() {
 
   // --- 📚 CRUD MATERI ---
   const resetMatForm = () => {
-    setEditingMatId(null)
-    setMatTitle('')
-    setMatUrl('')
-    setMatDesc('')
-    setMatSubject('Umum')
-  }
+  setEditingMatId(null)
+  setMatTitle('')
+  setMatUrl('')
+  setMatDesc('')
+  setMatSubject('Umum')
+  setMatAuthorDisplayName('')
+}
 
   const handleSaveMaterial = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
-    const supabase = createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      alert('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
-      return
+  e.preventDefault()
+  if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
+
+  const supabase = createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+  if (userError || !user) {
+    alert('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
+    return
+  }
+
+  const materialData = {
+    title: matTitle,
+    file_url: matUrl,
+    description: matDesc,
+    subject: matSubject,
+    author_display_name: matAuthorDisplayName.trim() || null,
+  }
+
+  if (editingMatId) {
+    const { error } = await supabase
+      .from('study_materials')
+      .update(materialData)
+      .eq('id', editingMatId)
+
+    if (error) alert(`Gagal memperbarui materi: ${error.message}`)
+    else {
+      alert('✅ Modul materi berhasil diperbarui!')
+      resetMatForm()
+      fetchData()
     }
+  } else {
+    const { error } = await supabase.from('study_materials').insert([
+      {
+        ...materialData,
+        created_by: user.id,
+      },
+    ])
 
-    if (editingMatId) {
-      const { error } = await supabase
-        .from('study_materials')
-        .update({ title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject })
-        .eq('id', editingMatId)
-
-      if (error) alert(`Gagal memperbarui materi: ${error.message}`)
-      else {
-        alert('✅ Modul materi berhasil diperbarui!')
-        resetMatForm()
-        fetchData()
-      }
-    } else {
-      const { error } = await supabase.from('study_materials').insert([
-        {
-          title: matTitle,
-          file_url: matUrl,
-          description: matDesc,
-          subject: matSubject,
-          created_by: user.id,
-        },
-      ])
-      if (error) alert(`Gagal menambah materi: ${error.message}`)
-      else {
-        resetMatForm()
-        fetchData()
-      }
+    if (error) alert(`Gagal menambah materi: ${error.message}`)
+    else {
+      resetMatForm()
+      fetchData()
     }
   }
+}
 
   const handleEditMatClick = (mat: any) => {
     setEditingMatId(mat.id)
@@ -424,6 +434,7 @@ function AdminDashboardContent() {
     setMatUrl(mat.file_url || '')
     setMatDesc(mat.description || '')
     setMatSubject(mat.subject || 'Umum')
+    setMatAuthorDisplayName(mat.author_display_name || '')
   }
 
   const handleDeleteMaterial = async (id: string) => {
@@ -1363,7 +1374,22 @@ function AdminDashboardContent() {
                       />
                     </div>
                   </div>
-
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      NAMA PENULIS TAMPILAN (ALIAS)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Kosongkan untuk menggunakan nama lengkap akun"
+                      value={matAuthorDisplayName}
+                      onChange={(e) => setMatAuthorDisplayName(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Contoh: Hasan Askari, Tim Penyusun, atau Guru Kelas 2.
+                      Jika kosong, nama lengkap akun akan digunakan.
+                    </p>
+                  </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">URL / LINK MATERI (GOOGLE DRIVE / PDF / YOUTUBE)</label>
                     <input
