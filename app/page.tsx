@@ -259,14 +259,12 @@ function HomePageContent() {
 // ========================================
 
 const materialSubjects = useMemo(() => {
-  return Array.from(
-    new Set(
-      materials
-        .map((mat) => mat.subject?.trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) =>
-    String(a).localeCompare(String(b), 'id')
+  const subjects = materials
+    .map((mat) => String(mat.subject || 'Modul').trim())
+    .filter((subject) => subject.length > 0)
+
+  return Array.from(new Set(subjects)).sort(
+    (a, b) => a.localeCompare(b, 'id')
   )
 }, [materials])
 
@@ -275,7 +273,8 @@ const filteredMaterials = useMemo(() => {
 
   if (selectedSubject !== 'Semua') {
     result = result.filter(
-      (mat) => mat.subject === selectedSubject
+      (mat) =>
+  String(mat.subject || 'Modul').trim() === selectedSubject
     )
   }
 
