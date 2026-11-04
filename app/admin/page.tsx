@@ -382,6 +382,11 @@ function AdminDashboardContent() {
     e.preventDefault()
     if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
     const supabase = createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      alert('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
+      return
+    }
 
     if (editingMatId) {
       const { error } = await supabase
@@ -397,7 +402,13 @@ function AdminDashboardContent() {
       }
     } else {
       const { error } = await supabase.from('study_materials').insert([
-        { title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject },
+        {
+          title: matTitle,
+          file_url: matUrl,
+          description: matDesc,
+          subject: matSubject,
+          created_by: user.id,
+        },
       ])
       if (error) alert(`Gagal menambah materi: ${error.message}`)
       else {
