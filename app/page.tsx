@@ -296,11 +296,12 @@ const filteredMaterials = useMemo(() => {
       )
     }
 
-    if (materialSort === 'Nama Z-A') {
-      return (b.title || '').localeCompare(
-        a.title || '', 'id'
-      )
-    }
+    if (materialSort === 'Penulis A-Z') {
+  const authorA = a.author?.full_name || 'Penulis belum dicantumkan'
+  const authorB = b.author?.full_name || 'Penulis belum dicantumkan'
+
+  return authorA.localeCompare(authorB, 'id')
+  }
 
     const dateA = new Date(a.created_at || 0).getTime()
     const dateB = new Date(b.created_at || 0).getTime()
@@ -354,11 +355,12 @@ const filteredExams = useMemo(() => {
   }
 
   result.sort((a, b) => {
-    if (examSort === 'Nama A-Z') {
-      return (a.title || '').localeCompare(
-        b.title || '', 'id'
-      )
-    }
+    if (examSort === 'Penulis A-Z') {
+  const authorA = a.author?.full_name || 'Penulis belum dicantumkan'
+  const authorB = b.author?.full_name || 'Penulis belum dicantumkan'
+
+  return authorA.localeCompare(authorB, 'id')
+  }
 
     if (examSort === 'Durasi terpendek') {
       return (a.duration_minutes || 0) -
@@ -772,6 +774,7 @@ const filteredExams = useMemo(() => {
                         <option value="Terlama">Terlama</option>
                         <option value="Nama A-Z">Nama A–Z</option>
                         <option value="Nama Z-A">Nama Z–A</option>
+                        <option value="Penulis A-Z">Penulis A–Z</option>
                       </select>
                     </label>
                   </div>
@@ -965,6 +968,7 @@ const filteredExams = useMemo(() => {
                       <option value="Terbaru">Terbaru</option>
                       <option value="Terlama">Terlama</option>
                       <option value="Nama A-Z">Nama A–Z</option>
+                      <option value="Penulis A-Z">Penulis A–Z</option>
                       <option value="Durasi terpendek">Durasi terpendek</option>
                       <option value="Durasi terpanjang">Durasi terpanjang</option>
                     </select>
