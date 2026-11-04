@@ -676,64 +676,109 @@ const filteredExams = useMemo(() => {
                 {filteredMaterials.length} dari {materials.length} materi
               </span>
             </div>
-
-            <div className={`space-y-4 rounded-2xl border p-4 sm:p-5 ${themeDetails.boxBg}`}>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">🔎</span>
-                <input
-                  type="search"
-                  value={materialSearch}
-                  onChange={(e) => setMaterialSearch(e.target.value)}
-                  placeholder="Cari judul, deskripsi, atau mata pelajaran..."
-                  aria-label="Cari materi"
-                  className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-extrabold uppercase tracking-wide">Mata Pelajaran</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSubject('Semua')}
-                    aria-pressed={selectedSubject === 'Semua'}
-                    className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubject === 'Semua' ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+          
+            <div className={`overflow-hidden rounded-2xl border ${themeDetails.boxBg}`}>
+              <button
+                type="button"
+                onClick={() => setShowMaterialFilters((prev) => !prev)}
+                aria-expanded={showMaterialFilters}
+                className="flex w-full items-center justify-between gap-3 p-3 text-left transition hover:bg-black/5 sm:p-4"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="text-lg">🔎</span>
+                  <span className="text-xs font-extrabold sm:text-sm">
+                    Cari dan sortir materi
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="text-[10px] font-bold opacity-70">
+                    {showMaterialFilters ? 'Tutup' : 'Buka filter'}
+                  </span>
+                  <span
+                    className={`text-lg transition-transform duration-200 ${
+                      showMaterialFilters ? 'rotate-180' : ''
+                    }`}
                   >
-                    🌟 Semua
-                  </button>
-                  {materialSubjects.map((subject) => (
-                    <button
-                      key={subject}
-                      type="button"
-                      onClick={() => setSelectedSubject(subject)}
-                      aria-pressed={selectedSubject === subject}
-                      className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubject === subject ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
-                    >
-                      {subject}
-                    </button>
-                  ))}
+                    ▾
+                  </span>
+                </span>
+              </button>
+            
+              {showMaterialFilters && (
+                <div className="space-y-3 border-t border-current/10 p-3 sm:p-4">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">
+                      🔎
+                    </span>
+                    <input
+                      type="search"
+                      value={materialSearch}
+                      onChange={(e) => setMaterialSearch(e.target.value)}
+                      placeholder="Cari judul, deskripsi, atau mata pelajaran..."
+                      aria-label="Cari materi"
+                      className="w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 pl-10 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                    />
+                  </div>
+            
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide">
+                      Mata Pelajaran
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSubject('Semua')}
+                        aria-pressed={selectedSubject === 'Semua'}
+                        className={`rounded-lg border-2 px-3 py-1.5 text-[11px] font-bold transition ${
+                          selectedSubject === 'Semua'
+                            ? themeDetails.btnBg
+                            : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'
+                        }`}
+                      >
+                        🌟 Semua
+                      </button>
+            
+                      {materialSubjects.map((subject) => (
+                        <button
+                          key={subject}
+                          type="button"
+                          onClick={() => setSelectedSubject(subject)}
+                          aria-pressed={selectedSubject === subject}
+                          className={`rounded-lg border-2 px-3 py-1.5 text-[11px] font-bold transition ${
+                            selectedSubject === subject
+                              ? themeDetails.btnBg
+                              : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'
+                          }`}
+                        >
+                          {subject}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+            
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/10 pt-3">
+                    <p className="text-[11px] font-semibold">
+                      Menampilkan {filteredMaterials.length} materi
+                    </p>
+            
+                    <label className="flex items-center gap-2 text-[11px] font-semibold">
+                      <span>Urutkan:</span>
+                      <select
+                        value={materialSort}
+                        onChange={(e) => setMaterialSort(e.target.value)}
+                        className="rounded-lg border-2 border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-800 outline-none focus:border-amber-400"
+                      >
+                        <option value="Terbaru">Terbaru</option>
+                        <option value="Terlama">Terlama</option>
+                        <option value="Nama A-Z">Nama A–Z</option>
+                        <option value="Nama Z-A">Nama Z–A</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/10 pt-3">
-                <p className="text-xs font-semibold">
-                  Menampilkan {filteredMaterials.length} materi
-                </p>
-                <label className="flex items-center gap-2 text-xs font-semibold">
-                  <span>Urutkan:</span>
-                  <select
-                    value={materialSort}
-                    onChange={(e) => setMaterialSort(e.target.value)}
-                    className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
-                  >
-                    <option value="Terbaru">Terbaru</option>
-                    <option value="Terlama">Terlama</option>
-                    <option value="Nama A-Z">Nama A–Z</option>
-                    <option value="Nama Z-A">Nama Z–A</option>
-                  </select>
-                </label>
-              </div>
+              )}
             </div>
+
 
             {filteredMaterials.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -819,86 +864,131 @@ const filteredExams = useMemo(() => {
               {filteredExams.length} dari {exams.length} ujian
             </span>
           </div>
-
-          <div className={`space-y-4 rounded-2xl border p-4 sm:p-5 ${themeDetails.boxBg}`}>
-            <input
-              type="search"
-              value={examSearch}
-              onChange={(e) => setExamSearch(e.target.value)}
-              placeholder="Cari nama atau deskripsi ujian..."
-              aria-label="Cari ujian"
-              className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-            />
-
-            <div className="space-y-2">
-              <p className="text-xs font-extrabold uppercase tracking-wide">Pilih Subtes</p>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedSubtest('Semua')}
-                  aria-pressed={selectedSubtest === 'Semua'}
-                  className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubtest === 'Semua' ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+          
+          <div className={`overflow-hidden rounded-2xl border ${themeDetails.boxBg}`}>
+            <button
+              type="button"
+              onClick={() => setShowExamFilters((prev) => !prev)}
+              aria-expanded={showExamFilters}
+              className="flex w-full items-center justify-between gap-3 p-3 text-left transition hover:bg-black/5 sm:p-4"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <span className="text-lg">🔎</span>
+                <span className="text-xs font-extrabold sm:text-sm">
+                  Cari, pilih subtes, dan sortir ujian
+                </span>
+              </span>
+          
+              <span className="flex shrink-0 items-center gap-2">
+                <span className="text-[10px] font-bold opacity-70">
+                  {showExamFilters ? 'Tutup' : 'Buka filter'}
+                </span>
+                <span
+                  className={`text-lg transition-transform duration-200 ${
+                    showExamFilters ? 'rotate-180' : ''
+                  }`}
                 >
-                  🌟 Semua Subtes
-                </button>
-                {examSubtests.map((subtest) => (
+                  ▾
+                </span>
+              </span>
+            </button>
+          
+            {showExamFilters && (
+              <div className="space-y-3 border-t border-current/10 p-3 sm:p-4">
+                <input
+                  type="search"
+                  value={examSearch}
+                  onChange={(e) => setExamSearch(e.target.value)}
+                  placeholder="Cari nama atau deskripsi ujian..."
+                  aria-label="Cari ujian"
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+          
+                <div className="space-y-2">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide">
+                    Pilih Subtes
+                  </p>
+          
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSubtest('Semua')}
+                      aria-pressed={selectedSubtest === 'Semua'}
+                      className={`rounded-lg border-2 px-3 py-1.5 text-[11px] font-bold transition ${
+                        selectedSubtest === 'Semua'
+                          ? themeDetails.btnBg
+                          : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'
+                      }`}
+                    >
+                      🌟 Semua Subtes
+                    </button>
+          
+                    {examSubtests.map((subtest) => (
+                      <button
+                        key={subtest}
+                        type="button"
+                        onClick={() => setSelectedSubtest(subtest)}
+                        aria-pressed={selectedSubtest === subtest}
+                        className={`rounded-lg border-2 px-3 py-1.5 text-[11px] font-bold transition ${
+                          selectedSubtest === subtest
+                            ? themeDetails.btnBg
+                            : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'
+                        }`}
+                      >
+                        {subtest}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+          
+                <div className="grid grid-cols-1 gap-3 border-t border-current/10 pt-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1.5 text-[11px] font-semibold">
+                    <span>Akses ujian</span>
+                    <select
+                      value={examAccess}
+                      onChange={(e) => setExamAccess(e.target.value)}
+                      className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                    >
+                      <option value="Semua">Semua ujian</option>
+                      <option value="Butuh Token">Butuh token</option>
+                      <option value="Tanpa Token">Tanpa token</option>
+                    </select>
+                  </label>
+          
+                  <label className="flex flex-col gap-1.5 text-[11px] font-semibold">
+                    <span>Urutkan ujian</span>
+                    <select
+                      value={examSort}
+                      onChange={(e) => setExamSort(e.target.value)}
+                      className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                    >
+                      <option value="Terbaru">Terbaru</option>
+                      <option value="Terlama">Terlama</option>
+                      <option value="Nama A-Z">Nama A–Z</option>
+                      <option value="Durasi terpendek">Durasi terpendek</option>
+                      <option value="Durasi terpanjang">Durasi terpanjang</option>
+                    </select>
+                  </label>
+                </div>
+          
+                <div className="flex justify-end border-t border-current/10 pt-2">
                   <button
-                    key={subtest}
                     type="button"
-                    onClick={() => setSelectedSubtest(subtest)}
-                    aria-pressed={selectedSubtest === subtest}
-                    className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubtest === subtest ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+                    onClick={() => {
+                      setExamSearch('')
+                      setSelectedSubtest('Semua')
+                      setExamSort('Terbaru')
+                      setExamAccess('Semua')
+                    }}
+                    className="text-[11px] font-bold underline underline-offset-2 opacity-80 hover:opacity-100"
                   >
-                    {subtest}
+                    Reset filter ujian
                   </button>
-                ))}
+                </div>
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 border-t border-current/10 pt-3 sm:grid-cols-2">
-              <label className="flex flex-col gap-1.5 text-xs font-semibold">
-                <span>Akses ujian</span>
-                <select
-                  value={examAccess}
-                  onChange={(e) => setExamAccess(e.target.value)}
-                  className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
-                >
-                  <option value="Semua">Semua ujian</option>
-                  <option value="Butuh Token">Butuh token</option>
-                  <option value="Tanpa Token">Tanpa token</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1.5 text-xs font-semibold">
-                <span>Urutkan ujian</span>
-                <select
-                  value={examSort}
-                  onChange={(e) => setExamSort(e.target.value)}
-                  className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
-                >
-                  <option value="Terbaru">Terbaru</option>
-                  <option value="Terlama">Terlama</option>
-                  <option value="Nama A-Z">Nama A–Z</option>
-                  <option value="Durasi terpendek">Durasi terpendek</option>
-                  <option value="Durasi terpanjang">Durasi terpanjang</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setExamSearch('')
-                  setSelectedSubtest('Semua')
-                  setExamSort('Terbaru')
-                  setExamAccess('Semua')
-                }}
-                className="text-xs font-bold underline underline-offset-2 opacity-80 hover:opacity-100"
-              >
-                Reset filter ujian
-              </button>
-            </div>
+            )}
           </div>
+
 
           {filteredExams.length > 0 ? (
             <div className="space-y-4">
