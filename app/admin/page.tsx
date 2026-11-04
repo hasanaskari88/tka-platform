@@ -64,6 +64,8 @@ function AdminDashboardContent() {
   const [matDesc, setMatDesc] = useState('')
   const [matSubject, setMatSubject] = useState('Umum')
   const [matAuthorDisplayName, setMatAuthorDisplayName] = useState('')
+  const [editingAuthorMatId, setEditingAuthorMatId] = useState<string | null>(null)
+  const [quickAuthorName, setQuickAuthorName] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -440,7 +442,26 @@ function AdminDashboardContent() {
     setMatSubject(mat.subject || 'Umum')
     setMatAuthorDisplayName(mat.author_display_name || '')
   }
-
+    const handleQuickAuthorSave = async (matId: string) => {
+      const supabase = createClient()
+    
+      const { error } = await supabase
+        .from('study_materials')
+        .update({
+          author_display_name: quickAuthorName.trim() || null,
+        })
+        .eq('id', matId)
+    
+      if (error) {
+        alert(`Gagal mengubah nama penulis: ${error.message}`)
+        return
+      }
+    
+      alert('Nama penulis berhasil diperbarui!')
+      setEditingAuthorMatId(null)
+      setQuickAuthorName('')
+      fetchData()
+    }
   const handleDeleteMaterial = async (id: string) => {
     if (!confirm('Hapus materi ini?')) return
     const supabase = createClient()
@@ -1520,6 +1541,42 @@ function AdminDashboardContent() {
                         <div className="text-[11px] text-slate-600 line-clamp-1">
                           <MathRenderer content={mat.description || '-'} />
                         </div>
+                        {editingAuthorMatId === mat.id && (
+                          <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
+                            <label className="block text-[10px] font-bold text-indigo-800">
+                              UBAH NAMA PENULIS
+                            </label>
+                        
+                            <input
+                              type="text"
+                              value={quickAuthorName}
+                              onChange={(e) => setQuickAuthorName(e.target.value)}
+                              placeholder="Masukkan nama penulis..."
+                              className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white"
+                            />
+                        
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickAuthorSave(mat.id)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg"
+                              >
+                                💾 Simpan
+                              </button>
+                        
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingAuthorMatId(null)
+                                  setQuickAuthorName('')
+                                }}
+                                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded-lg"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-1 shrink-0">
@@ -1529,6 +1586,16 @@ function AdminDashboardContent() {
                           className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded transition-colors"
                         >
                           ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAuthorMatId(mat.id)
+                            setQuickAuthorName(mat.author_display_name || mat.author?.full_name || '')
+                          }}
+                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded transition-colors"
+                        >
+                          ✍️ Edit Penulis
                         </button>
                         <button
                           type="button"
