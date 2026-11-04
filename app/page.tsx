@@ -22,6 +22,8 @@ function HomePageContent() {
   const [materialSearch, setMaterialSearch] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('Semua')
   const [materialSort, setMaterialSort] = useState('Terbaru')
+  const [showMaterialFilters, setShowMaterialFilters] = useState(false)
+  const [showExamFilters, setShowExamFilters] = useState(false)
   
   // FILTER UJIAN
   const [examSearch, setExamSearch] = useState('')
