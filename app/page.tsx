@@ -57,7 +57,7 @@ function HomePageContent() {
         // 1. Ambil ujian yang dipublikasikan.
         const { data: examData, error: examErr } = await supabase
           .from('exams')
-          .select('*')
+          .select('*, author:profiles!exams_created_by_fkey(full_name)')
           .eq('is_published', true)
           .order('created_at', { ascending: false })
 
@@ -91,7 +91,7 @@ function HomePageContent() {
         try {
           const { data: matData } = await supabase
             .from('study_materials')
-            .select('*')
+            .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
             .order('created_at', { ascending: false })
 
           if (matData) setMaterials(matData)
