@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import ExamTokenModal from '@/components/ExamTokenModal'
@@ -18,6 +18,17 @@ function HomePageContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+    // FILTER MATERI
+  const [materialSearch, setMaterialSearch] = useState('')
+  const [selectedSubject, setSelectedSubject] = useState('Semua')
+  const [materialSort, setMaterialSort] = useState('Terbaru')
+  
+  // FILTER UJIAN
+  const [examSearch, setExamSearch] = useState('')
+  const [selectedSubtest, setSelectedSubtest] = useState('Semua')
+  const [examSort, setExamSort] = useState('Terbaru')
+  const [examAccess, setExamAccess] = useState('Semua')
+  
   const [selectedExam, setSelectedExam] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
@@ -243,7 +254,133 @@ function HomePageContent() {
   }
 
   const themeDetails = themeMap[theme] || themeMap.school
+  // ========================================
+// PENGOLAHAN DATA MATERI
+// ========================================
 
+const materialSubjects = useMemo(() => {
+  return Array.from(
+    new Set(
+      materials
+        .map((mat) => mat.subject?.trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) =>
+    String(a).localeCompare(String(b), 'id')
+  )
+}, [materials])
+
+const filteredMaterials = useMemo(() => {
+  let result = [...materials]
+
+  if (selectedSubject !== 'Semua') {
+    result = result.filter(
+      (mat) => mat.subject === selectedSubject
+    )
+  }
+
+  if (materialSearch.trim()) {
+    const keyword = materialSearch.toLowerCase()
+
+    result = result.filter((mat) =>
+      `${mat.title || ''} ${mat.description || ''} ${mat.subject || ''}`
+        .toLowerCase()
+        .includes(keyword)
+    )
+  }
+
+  result.sort((a, b) => {
+    if (materialSort === 'Nama A-Z') {
+      return (a.title || '').localeCompare(
+        b.title || '', 'id'
+      )
+    }
+
+    if (materialSort === 'Nama Z-A') {
+      return (b.title || '').localeCompare(
+        a.title || '', 'id'
+      )
+    }
+
+    const dateA = new Date(a.created_at || 0).getTime()
+    const dateB = new Date(b.created_at || 0).getTime()
+
+    return materialSort === 'Terlama'
+      ? dateA - dateB
+      : dateB - dateA
+  })
+
+  return result
+}, [materials, selectedSubject, materialSearch, materialSort])
+
+// ========================================
+// PENGOLAHAN DATA UJIAN
+// ========================================
+
+const examSubtests = useMemo(() => {
+  return Array.from(
+    new Set(
+      exams.map((exam) =>
+        exam.subtest?.trim() || 'UMUM'
+      )
+    )
+  ).sort((a, b) => a.localeCompare(b, 'id'))
+}, [exams])
+
+const filteredExams = useMemo(() => {
+  let result = [...exams]
+
+  if (selectedSubtest !== 'Semua') {
+    result = result.filter(
+      (exam) =>
+        (exam.subtest?.trim() || 'UMUM') === selectedSubtest
+    )
+  }
+
+  if (examAccess === 'Token') {
+    result = result.filter((exam) => !!exam.token)
+  } else if (examAccess === 'Terbuka') {
+    result = result.filter((exam) => !exam.token)
+  }
+
+  if (examSearch.trim()) {
+    const keyword = examSearch.toLowerCase()
+
+    result = result.filter((exam) =>
+      `${exam.title || ''} ${exam.description || ''} ${exam.subtest || ''}`
+        .toLowerCase()
+        .includes(keyword)
+    )
+  }
+
+  result.sort((a, b) => {
+    if (examSort === 'Nama A-Z') {
+      return (a.title || '').localeCompare(
+        b.title || '', 'id'
+      )
+    }
+
+    if (examSort === 'Durasi terpendek') {
+      return (a.duration_minutes || 0) -
+        (b.duration_minutes || 0)
+    }
+
+    if (examSort === 'Durasi terpanjang') {
+      return (b.duration_minutes || 0) -
+        (a.duration_minutes || 0)
+    }
+
+    const dateA = new Date(a.created_at || 0).getTime()
+    const dateB = new Date(b.created_at || 0).getTime()
+
+    return examSort === 'Terlama'
+      ? dateA - dateB
+      : dateB - dateA
+  })
+
+  return result
+}, [exams, selectedSubtest, examAccess, examSearch, examSort])
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center font-sans">
