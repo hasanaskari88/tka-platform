@@ -802,7 +802,7 @@ const filteredExams = useMemo(() => {
                               {mat.subject || 'Modul'}
                             </span>
                             <span className={`max-w-full truncate text-[10px] font-semibold ${themeDetails.textMuted}`}>
-                              ✍️ {mat.author?.full_name || 'Penulis belum dicantumkan'}
+                              ✍️ mat.author_display_name || mat.author?.full_name || 'Penulis belum dicantumkan'
                             </span>
                           </div>
                         </div>
