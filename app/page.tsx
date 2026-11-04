@@ -297,8 +297,8 @@ const filteredMaterials = useMemo(() => {
     }
 
     if (materialSort === 'Penulis A-Z') {
-  const authorA = a.author?.full_name || 'Penulis belum dicantumkan'
-  const authorB = b.author?.full_name || 'Penulis belum dicantumkan'
+  const authorA = a.author?.full_name || 'Tim Penyusun'
+  const authorB = b.author?.full_name || 'Tim Penyusun'
 
   return authorA.localeCompare(authorB, 'id')
   }
@@ -356,8 +356,8 @@ const filteredExams = useMemo(() => {
 
   result.sort((a, b) => {
     if (examSort === 'Penulis A-Z') {
-  const authorA = a.author?.full_name || 'Penulis belum dicantumkan'
-  const authorB = b.author?.full_name || 'Penulis belum dicantumkan'
+  const authorA = a.author?.full_name || 'Tim Penyusun'
+  const authorB = b.author?.full_name || 'Tim Penyusun'
 
   return authorA.localeCompare(authorB, 'id')
   }
@@ -802,7 +802,7 @@ const filteredExams = useMemo(() => {
                               {mat.subject || 'Modul'}
                             </span>
                             <span className={`max-w-full truncate text-[10px] font-semibold ${themeDetails.textMuted}`}>
-                              ✍️  {mat.author_display_name || mat.author?.full_name || 'Penulis belum dicantumkan'}
+                              ✍️  {mat.author_display_name || mat.author?.full_name || 'Tim Penyusun'}
                             </span>
                           </div>
                         </div>
@@ -1068,7 +1068,7 @@ const filteredExams = useMemo(() => {
                           ⏱️ Durasi: {exam.duration_minutes || 0} menit
                         </span>
                         <span className={`max-w-full truncate text-[10px] font-semibold ${themeDetails.textMuted}`}>
-                          ✍️ {exam.author?.full_name || 'Penulis belum dicantumkan'}
+                          ✍️ {exam.author_display_name || exam.author?.full_name || 'TIM Penyusun'}
                         </span>
                       </div>
                     
