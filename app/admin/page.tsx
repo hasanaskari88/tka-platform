@@ -66,6 +66,8 @@ function AdminDashboardContent() {
   const [matAuthorDisplayName, setMatAuthorDisplayName] = useState('')
   const [editingAuthorMatId, setEditingAuthorMatId] = useState<string | null>(null)
   const [quickAuthorName, setQuickAuthorName] = useState('')
+  const [editingAuthorExamId, setEditingAuthorExamId] = useState<string | null>(null)
+  const [quickExamAuthorName, setQuickExamAuthorName] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -277,7 +279,26 @@ function AdminDashboardContent() {
     }
     setIsSubmitting(false)
   }
+const handleQuickExamAuthorSave = async (examId: string) => {
+  const supabase = createClient()
 
+  const { error } = await supabase
+    .from('exams')
+    .update({
+      author_display_name: quickExamAuthorName.trim() || null,
+    })
+    .eq('id', examId)
+
+  if (error) {
+    alert(`Gagal mengubah nama penulis: ${error.message}`)
+    return
+  }
+
+  alert('Nama penulis ujian berhasil diperbarui!')
+  setEditingAuthorExamId(null)
+  setQuickExamAuthorName('')
+  fetchData()
+}
   const handleDeleteExam = async (id: string, examTitle: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus ujian "${examTitle}" beserta seluruh soalnya?`)) return
     const supabase = createClient()
@@ -930,6 +951,42 @@ function AdminDashboardContent() {
                       <p className="text-xs text-slate-500 mt-0.5">
                         {exam.description || 'Tidak ada deskripsi'}
                       </p>
+                      {editingAuthorExamId === exam.id && (
+                      <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
+                        <label className="block text-[10px] font-bold text-indigo-800">
+                          UBAH NAMA PENULIS
+                        </label>
+                    
+                        <input
+                          type="text"
+                          value={quickExamAuthorName}
+                          onChange={(e) => setQuickExamAuthorName(e.target.value)}
+                          placeholder="Masukkan nama penulis..."
+                          className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white"
+                        />
+                    
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickExamAuthorSave(exam.id)}
+                            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg"
+                          >
+                            💾 Simpan
+                          </button>
+                    
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingAuthorExamId(null)
+                              setQuickExamAuthorName('')
+                            }}
+                            className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded-lg"
+                          >
+                            Batal
+                          </button>
+                        </div>
+                      </div>
+                    )}
                     </div>
 
                     <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-1">
@@ -964,6 +1021,18 @@ function AdminDashboardContent() {
                         suppressHydrationWarning
                       >
                         Hapus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingAuthorExamId(exam.id)
+                          setQuickExamAuthorName(
+                            exam.author_display_name || exam.author?.full_name || ''
+                          )
+                        }}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors"
+                      >
+                        ✍️ Edit Penulis
                       </button>
                     </div>
                   </div>
