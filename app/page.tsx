@@ -273,8 +273,7 @@ const filteredMaterials = useMemo(() => {
 
   if (selectedSubject !== 'Semua') {
     result = result.filter(
-      (mat) =>
-  String(mat.subject || 'Modul').trim() === selectedSubject
+      (mat) => String(mat.subject || 'Modul').trim() === selectedSubject
     )
   }
 
@@ -336,9 +335,9 @@ const filteredExams = useMemo(() => {
     )
   }
 
-  if (examAccess === 'Token') {
+  if (examAccess === 'Butuh Token') {
     result = result.filter((exam) => !!exam.token)
-  } else if (examAccess === 'Terbuka') {
+  } else if (examAccess === 'Tanpa Token') {
     result = result.filter((exam) => !exam.token)
   }
 
@@ -379,6 +378,17 @@ const filteredExams = useMemo(() => {
 
   return result
 }, [exams, selectedSubtest, examAccess, examSearch, examSort])
+
+  // Kelompokkan hasil ujian berdasarkan subtes yang tersedia.
+  const groupedExams = useMemo(() => {
+    return filteredExams.reduce((groups: Record<string, any[]>, exam) => {
+      const groupName = String(exam.subtest || 'UMUM').trim() || 'UMUM'
+      if (!groups[groupName]) groups[groupName] = []
+      groups[groupName].push(exam)
+      return groups
+    }, {})
+  }, [filteredExams])
+
   
   if (loading) {
     return (
@@ -431,7 +441,7 @@ const filteredExams = useMemo(() => {
         <Navbar />
 
 
-      <main className="p-4 sm:p-8 max-w-5xl mx-auto space-y-8 flex-grow w-full relative z-10">
+      <main className="mx-auto w-full max-w-6xl flex-grow space-y-8 p-4 sm:p-8 relative z-10">
         {/* Banner utama */}
         <section
           className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 backdrop-blur-xl shadow-2xl transition-all duration-300 ${themeDetails.heroBg}`}
@@ -647,139 +657,343 @@ const filteredExams = useMemo(() => {
           </section>
         )}
 
-        {/* Materi dan modul belajar */}
+        {/* Materi & Modul Belajar - Cartoon 3D Modern */}
         {materials.length > 0 && (
-          <section className="space-y-3">
-            <h2 className={`flex items-center gap-2 text-base sm:text-lg ${themeDetails.sectionTitle}`}>
-              <span>📚</span>
-              <span>Materi & Modul Belajar</span>
-            </h2>
-
-            <div
-              className={`grid gap-4 ${
-                materials.length === 1
-                  ? 'grid-cols-1'
-                  : materials.length === 2
-                    ? 'grid-cols-1 sm:grid-cols-2'
-                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-              }`}
-            >
-              {materials.map((mat) => (
-                <article
-                  key={mat.id}
-                  className={`flex flex-col justify-between space-y-3 rounded-2xl border p-4 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${themeDetails.boxBg}`}
-                >
-                  <div className="space-y-1">
-                    <span className={`inline-block rounded px-2 py-0.5 text-[10px] font-bold uppercase ${themeDetails.badgeColor}`}>
-                      {mat.subject || 'Modul'}
-                    </span>
-
-                    <h3 className="text-xs font-bold leading-snug">
-                      {mat.title}
-                    </h3>
-
-                    <div className={`line-clamp-2 text-[11px] ${themeDetails.textMuted}`}>
-                      <MathRenderer content={mat.description || '-'} />
-                    </div>
-                  </div>
-
-                  <a
-                    href={mat.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`block w-full rounded-xl py-2 text-center text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${themeDetails.btnBg}`}
-                  >
-                    📖 Buka Materi →
-                  </a>
-                </article>
-              ))}
+          <section className="space-y-5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className={`flex items-center gap-2 text-lg sm:text-xl ${themeDetails.sectionTitle}`}>
+                  <span>📚</span>
+                  <span>Materi & Modul Belajar</span>
+                </h2>
+                <p className={`mt-1 text-xs ${themeDetails.textMuted}`}>
+                  Temukan materi dan pelajari hal baru setiap hari!
+                </p>
+              </div>
+              <span className={`rounded-full border px-3 py-1.5 text-xs font-extrabold ${themeDetails.badgeColor}`}>
+                {filteredMaterials.length} dari {materials.length} materi
+              </span>
             </div>
+
+            <div className={`space-y-4 rounded-2xl border p-4 sm:p-5 ${themeDetails.boxBg}`}>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg">🔎</span>
+                <input
+                  type="search"
+                  value={materialSearch}
+                  onChange={(e) => setMaterialSearch(e.target.value)}
+                  placeholder="Cari judul, deskripsi, atau mata pelajaran..."
+                  aria-label="Cari materi"
+                  className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 pl-10 pr-4 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs font-extrabold uppercase tracking-wide">Mata Pelajaran</p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubject('Semua')}
+                    aria-pressed={selectedSubject === 'Semua'}
+                    className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubject === 'Semua' ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+                  >
+                    🌟 Semua
+                  </button>
+                  {materialSubjects.map((subject) => (
+                    <button
+                      key={subject}
+                      type="button"
+                      onClick={() => setSelectedSubject(subject)}
+                      aria-pressed={selectedSubject === subject}
+                      className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubject === subject ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+                    >
+                      {subject}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/10 pt-3">
+                <p className="text-xs font-semibold">
+                  Menampilkan {filteredMaterials.length} materi
+                </p>
+                <label className="flex items-center gap-2 text-xs font-semibold">
+                  <span>Urutkan:</span>
+                  <select
+                    value={materialSort}
+                    onChange={(e) => setMaterialSort(e.target.value)}
+                    className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                  >
+                    <option value="Terbaru">Terbaru</option>
+                    <option value="Terlama">Terlama</option>
+                    <option value="Nama A-Z">Nama A–Z</option>
+                    <option value="Nama Z-A">Nama Z–A</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            {filteredMaterials.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {filteredMaterials.map((mat, index) => (
+                  <article
+                    key={mat.id}
+                    className={`group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border-2 p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${themeDetails.cardBg}`}
+                  >
+                    <div aria-hidden="true" className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-amber-400/15 transition-transform duration-300 group-hover:scale-150" />
+                    <div className="relative space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-2xl shadow-sm">
+                          {['📕', '📘', '📗', '📙', '📚'][index % 5]}
+                        </span>
+                        <span className={`max-w-[70%] truncate rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase ${themeDetails.badgeColor}`}>
+                          {mat.subject || 'Modul'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <h3 className={`text-sm font-black leading-snug ${themeDetails.cardTitle}`}>
+                          {mat.title}
+                        </h3>
+                        <div className={`line-clamp-3 text-xs leading-relaxed ${themeDetails.textMuted}`}>
+                          <MathRenderer content={mat.description || 'Pelajari materi ini untuk menambah pengetahuanmu.'} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="relative mt-4 border-t border-current/10 pt-3">
+                      {mat.file_url ? (
+                        <a
+                          href={mat.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`block w-full rounded-xl px-3 py-2.5 text-center text-xs font-black transition hover:-translate-y-0.5 active:scale-[0.98] ${themeDetails.btnBg}`}
+                        >
+                          📖 Buka Materi →
+                        </a>
+                      ) : (
+                        <span className="block w-full rounded-xl bg-slate-200 px-3 py-2.5 text-center text-xs font-bold text-slate-500">
+                          Materi belum tersedia
+                        </span>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className={`rounded-2xl border-2 border-dashed p-8 text-center ${themeDetails.boxBg}`}>
+                <div className="mb-3 text-4xl">🔍</div>
+                <h3 className="text-sm font-black">Materi Tidak Ditemukan</h3>
+                <p className={`mt-1 text-xs ${themeDetails.textMuted}`}>
+                  Coba gunakan kata kunci atau kategori lainnya.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMaterialSearch('')
+                    setSelectedSubject('Semua')
+                    setMaterialSort('Terbaru')
+                  }}
+                  className={`mt-4 rounded-xl px-4 py-2 text-xs font-bold ${themeDetails.btnBg}`}
+                >
+                  Reset Filter
+                </button>
+              </div>
+            )}
           </section>
         )}
 
-        {/* Judul daftar ujian */}
-        <h2 className={`flex items-center gap-2 text-lg sm:text-xl ${themeDetails.sectionTitle}`}>
-          <span>📝</span>
-          <span>Daftar Ujian Tersedia ({exams.length})</span>
-        </h2>
+                {/* Pusat Ujian & Asesmen */}
+        <section className="space-y-5">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className={`flex items-center gap-2 text-lg sm:text-xl ${themeDetails.sectionTitle}`}>
+                <span>📝</span>
+                <span>Pusat Ujian & Asesmen</span>
+              </h2>
+              <p className={`mt-1 text-xs ${themeDetails.textMuted}`}>
+                Pilih subtes dan temukan ujian yang ingin kamu kerjakan.
+              </p>
+            </div>
+            <span className={`rounded-full border px-3 py-1.5 text-xs font-extrabold ${themeDetails.badgeColor}`}>
+              {filteredExams.length} dari {exams.length} ujian
+            </span>
+          </div>
 
-        {/* Kartu ujian */}
-        <section className="grid gap-4">
-          {exams.length > 0 ? (
-            exams.map((exam) => (
-              <article
-                key={exam.id}
-                className={`space-y-3 rounded-2xl border p-5 sm:p-6 backdrop-blur-xl shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl ${themeDetails.cardBg}`}
+          <div className={`space-y-4 rounded-2xl border p-4 sm:p-5 ${themeDetails.boxBg}`}>
+            <input
+              type="search"
+              value={examSearch}
+              onChange={(e) => setExamSearch(e.target.value)}
+              placeholder="Cari nama atau deskripsi ujian..."
+              aria-label="Cari ujian"
+              className="w-full rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+            />
+
+            <div className="space-y-2">
+              <p className="text-xs font-extrabold uppercase tracking-wide">Pilih Subtes</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedSubtest('Semua')}
+                  aria-pressed={selectedSubtest === 'Semua'}
+                  className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubtest === 'Semua' ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+                >
+                  🌟 Semua Subtes
+                </button>
+                {examSubtests.map((subtest) => (
+                  <button
+                    key={subtest}
+                    type="button"
+                    onClick={() => setSelectedSubtest(subtest)}
+                    aria-pressed={selectedSubtest === subtest}
+                    className={`rounded-xl border-2 px-3 py-2 text-xs font-bold transition ${selectedSubtest === subtest ? themeDetails.btnBg : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'}`}
+                  >
+                    {subtest}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 border-t border-current/10 pt-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1.5 text-xs font-semibold">
+                <span>Akses ujian</span>
+                <select
+                  value={examAccess}
+                  onChange={(e) => setExamAccess(e.target.value)}
+                  className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                >
+                  <option value="Semua">Semua ujian</option>
+                  <option value="Butuh Token">Butuh token</option>
+                  <option value="Tanpa Token">Tanpa token</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5 text-xs font-semibold">
+                <span>Urutkan ujian</span>
+                <select
+                  value={examSort}
+                  onChange={(e) => setExamSort(e.target.value)}
+                  className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                >
+                  <option value="Terbaru">Terbaru</option>
+                  <option value="Terlama">Terlama</option>
+                  <option value="Nama A-Z">Nama A–Z</option>
+                  <option value="Durasi terpendek">Durasi terpendek</option>
+                  <option value="Durasi terpanjang">Durasi terpanjang</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setExamSearch('')
+                  setSelectedSubtest('Semua')
+                  setExamSort('Terbaru')
+                  setExamAccess('Semua')
+                }}
+                className="text-xs font-bold underline underline-offset-2 opacity-80 hover:opacity-100"
               >
-                {/* Judul dan status token */}
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <h3 className={`text-lg ${themeDetails.cardTitle}`}>
-                      {exam.title}
-                    </h3>
+                Reset filter ujian
+              </button>
+            </div>
+          </div>
 
-                    <span
-                      className={`inline-block rounded-full border px-2.5 py-0.5 text-xs font-bold uppercase ${themeDetails.badgeColor}`}
-                    >
-                      {exam.subtest || 'UMUM'}
+          {filteredExams.length > 0 ? (
+            <div className="space-y-4">
+              {Object.entries(groupedExams).map(([subtest, group]) => (
+                <section
+                  key={subtest}
+                  className={`overflow-hidden rounded-2xl border-2 ${themeDetails.boxBg}`}
+                >
+                  <div className="flex items-center justify-between gap-3 border-b border-current/10 px-4 py-3">
+                    <div className="min-w-0">
+                      <h3 className={`truncate text-sm font-black ${themeDetails.sectionTitle}`}>
+                        📘 {subtest}
+                      </h3>
+                      <p className={`mt-0.5 text-[11px] ${themeDetails.textMuted}`}>
+                        {group.length} ujian tersedia
+                      </p>
+                    </div>
+                    <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${themeDetails.badgeColor}`}>
+                      {group.length} Ujian
                     </span>
                   </div>
 
-                  {exam.token ? (
-                    <span className="rounded-xl border border-amber-300 bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-900">
-                      🔒 Butuh Token
-                    </span>
-                  ) : (
-                    <span className="rounded-xl border border-emerald-300 bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-900">
-                      🔓 Terbuka
-                    </span>
-                  )}
-                </div>
+                  <div className="grid gap-3 p-3 sm:p-4 lg:grid-cols-2">
+                    {group.map((exam: any) => (
+                      <article
+                        key={exam.id}
+                        className={`flex min-w-0 flex-col justify-between gap-3 rounded-xl border p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${themeDetails.cardBg}`}
+                      >
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h4 className={`min-w-0 flex-1 text-sm font-black leading-snug ${themeDetails.cardTitle}`}>
+                              {exam.title}
+                            </h4>
+                            {exam.token ? (
+                              <span className="shrink-0 rounded-lg border border-amber-300 bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-900">
+                                🔒 Butuh Token
+                              </span>
+                            ) : (
+                              <span className="shrink-0 rounded-lg border border-emerald-300 bg-emerald-100 px-2 py-1 text-[10px] font-bold text-emerald-900">
+                                🔓 Terbuka
+                              </span>
+                            )}
+                          </div>
 
-                {/* Deskripsi ujian */}
-                <p className={`text-xs sm:text-sm leading-relaxed ${themeDetails.textMuted}`}>
-                  {exam.description || 'Tidak ada deskripsi ujian.'}
-                </p>
+                          <p className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>
+                            {exam.description || 'Tidak ada deskripsi ujian.'}
+                          </p>
 
-                {/* Jadwal ujian */}
-                {exam.start_time && (
-                  <p className="flex items-center gap-1 text-xs font-semibold text-amber-500">
-                    <span>📅</span>
-                    <span>
-                      Jadwal Buka:{' '}
-                      {new Date(exam.start_time).toLocaleString('id-ID', {
-                        dateStyle: 'medium',
-                        timeStyle: 'short',
-                      })}
-                    </span>
-                  </p>
-                )}
+                          {exam.start_time && (
+                            <p className="flex items-center gap-1 text-xs font-semibold text-amber-500">
+                              <span>📅</span>
+                              <span>
+                                Jadwal Buka:{' '}
+                                {new Date(exam.start_time).toLocaleString('id-ID', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                                })}
+                              </span>
+                            </p>
+                          )}
+                        </div>
 
-                {/* Durasi dan tombol mulai */}
-                <div className="flex items-center justify-between gap-3 border-t border-current/15 pt-3">
-                  <span className={`flex items-center gap-1 text-xs font-semibold ${themeDetails.textMuted}`}>
-                    <span>⏱️</span>
-                    <span>Durasi: {exam.duration_minutes} Menit</span>
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => handleOpenTokenModal(exam)}
-                    className={`shrink-0 rounded-xl px-5 py-2.5 text-xs font-bold shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] ${themeDetails.btnBg}`}
-                    suppressHydrationWarning
-                  >
-                    Mulai Ujian 🚀
-                  </button>
-                </div>
-              </article>
-            ))
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/15 pt-3">
+                          <span className={`flex items-center gap-1 text-xs font-semibold ${themeDetails.textMuted}`}>
+                            ⏱️ Durasi: {exam.duration_minutes || 0} menit
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenTokenModal(exam)}
+                            className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow-md transition hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] ${themeDetails.btnBg}`}
+                            suppressHydrationWarning
+                          >
+                            Mulai Ujian 🚀
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
           ) : (
-            <div className="rounded-2xl border border-white/20 bg-slate-900/80 p-8 text-center text-xs sm:text-sm font-medium text-white backdrop-blur-md">
-              Belum ada ujian yang dipublikasikan saat ini.
+            <div className={`rounded-2xl border-2 border-dashed p-8 text-center ${themeDetails.boxBg}`}>
+              <div className="mb-3 text-4xl">📝</div>
+              <h3 className="text-sm font-black">
+                {exams.length === 0 ? 'Belum Ada Ujian' : 'Ujian Tidak Ditemukan'}
+              </h3>
+              <p className={`mt-1 text-xs ${themeDetails.textMuted}`}>
+                {exams.length === 0
+                  ? 'Belum ada ujian yang dipublikasikan saat ini.'
+                  : 'Coba ubah kata kunci atau filter yang dipilih.'}
+              </p>
             </div>
           )}
         </section>
-      </main>
+
+              </main>
 
       {/* Modal verifikasi token ujian */}
       <ExamTokenModal
