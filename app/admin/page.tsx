@@ -21,6 +21,7 @@ function AdminDashboardContent() {
   // State Form Edit / Tambah Ujian
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
+  const [examAuthorDisplayName, setExamAuthorDisplayName] = useState('')
   const [selectedSubtest, setSelectedSubtest] = useState('')
   const [description, setDescription] = useState('')
   const [duration, setDuration] = useState(15)
@@ -173,6 +174,7 @@ function AdminDashboardContent() {
   const resetForm = () => {
     setEditingExamId(null)
     setTitle('')
+    setExamAuthorDisplayName('')
     if (subtests.length > 0) setSelectedSubtest(subtests[0].name)
     setDescription('')
     setDuration(15)
@@ -191,6 +193,7 @@ function AdminDashboardContent() {
   const handleEditClick = (exam: any) => {
     setEditingExamId(exam.id)
     setTitle(exam.title || '')
+    setExamAuthorDisplayName(exam.author_display_name || '')
     setSelectedSubtest(exam.subtest || (subtests[0]?.name || 'KUANTITATIF'))
     setDescription(exam.description || '')
     setDuration(exam.duration_minutes || 15)
@@ -235,6 +238,7 @@ function AdminDashboardContent() {
     }
     const payload = {
       title,
+      author_display_name: examAuthorDisplayName.trim() || null,
       subtest: selectedSubtest.toUpperCase(),
       description,
       duration_minutes: Number(duration),
@@ -539,21 +543,37 @@ function AdminDashboardContent() {
             )}
 
             <form onSubmit={handleSaveExam} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Judul Ujian / Paket
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                />
-              </div>
-
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Judul Ujian / Paket
+              </label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                suppressHydrationWarning
+              />
+            </div>
+          
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Nama Penulis Tampilan (Alias)
+              </label>
+              <input
+                type="text"
+                value={examAuthorDisplayName}
+                onChange={(e) => setExamAuthorDisplayName(e.target.value)}
+                placeholder="Kosongkan untuk menggunakan nama lengkap akun"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Contoh: Tim Penyusun, atau Guru Kelas 6.
+                Jika kosong, nama lengkap akun akan digunakan.
+              </p>
+            </div>
               {/* Select Option Subtes Dinamis */}
               <div>
                 <div className="flex justify-between items-center mb-1">
