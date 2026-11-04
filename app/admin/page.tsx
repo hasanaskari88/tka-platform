@@ -82,13 +82,18 @@ function AdminDashboardContent() {
       }
     }
 
+    
     // 2. Exams
-    const { data: examData } = await supabase
+    const { data: examData, error: examError } = await supabase
       .from('exams')
-      .select('*')
+      .select('*, author:profiles!exams_created_by_fkey(full_name)')
       .order('created_at', { ascending: false })
 
-    if (examData) setExams(examData)
+    if (examError) {
+      console.error('Gagal mengambil data ujian:', examError)
+    } else if (examData) {
+      setExams(examData)
+    }
 
     // 3. Announcements (Fault-tolerant)
     try {
@@ -101,12 +106,19 @@ function AdminDashboardContent() {
 
     // 4. Materials (Fault-tolerant)
     try {
-      const { data: matData } = await supabase
+      const { data: matData, error: matError } = await supabase
         .from('study_materials')
-        .select('*')
+        .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
         .order('created_at', { ascending: false })
-      if (matData) setMaterials(matData)
-    } catch (e) {}
+
+      if (matError) {
+        console.error('Gagal mengambil data materi:', matError)
+      } else if (matData) {
+        setMaterials(matData)
+      }
+    } catch (e) {
+      console.error('Gagal mengambil data materi:', e)
+    }
 
     setLoading(false)
   }
@@ -114,6 +126,7 @@ function AdminDashboardContent() {
   useEffect(() => {
     fetchData()
   }, [])
+
 
   // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
   const filteredAndSortedExams = exams
