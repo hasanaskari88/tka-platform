@@ -792,14 +792,21 @@ const filteredExams = useMemo(() => {
                   >
                     <div aria-hidden="true" className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-amber-400/15 transition-transform duration-300 group-hover:scale-150" />
                     <div className="relative space-y-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-2xl shadow-sm">
-                          {['📕', '📘', '📗', '📙', '📚'][index % 5]}
-                        </span>
-                        <span className={`max-w-[70%] truncate rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase ${themeDetails.badgeColor}`}>
-                          {mat.subject || 'Modul'}
-                        </span>
-                      </div>
+                    <div className="flex items-center justify-between gap-2">
+                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-2xl shadow-sm">
+                            {['📕', '📘', '📗', '📙', '📚'][index % 5]}
+                          </span>
+                        
+                          <div className="flex min-w-0 flex-col items-end gap-1">
+                            <span className={`max-w-full truncate rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase ${themeDetails.badgeColor}`}>
+                              {mat.subject || 'Modul'}
+                            </span>
+                            <span className={`max-w-full truncate text-[10px] font-semibold ${themeDetails.textMuted}`}>
+                              ✍️ {mat.author?.full_name || 'Penulis belum dicantumkan'}
+                            </span>
+                          </div>
+                        </div>
+
                       <div className="space-y-2">
                         <h3 className={`text-sm font-black leading-snug ${themeDetails.cardTitle}`}>
                           {mat.title}
@@ -1054,20 +1061,27 @@ const filteredExams = useMemo(() => {
                             </p>
                           )}
                         </div>
+                        
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/15 pt-3">
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <span className={`flex items-center gap-1 text-xs font-semibold ${themeDetails.textMuted}`}>
+                          ⏱️ Durasi: {exam.duration_minutes || 0} menit
+                        </span>
+                        <span className={`max-w-full truncate text-[10px] font-semibold ${themeDetails.textMuted}`}>
+                          ✍️ {exam.author?.full_name || 'Penulis belum dicantumkan'}
+                        </span>
+                      </div>
+                    
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTokenModal(exam)}
+                        className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow-md transition hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] ${themeDetails.btnBg}`}
+                        suppressHydrationWarning
+                      >
+                        Mulai Ujian 🚀
+                      </button>
+                    </div>
 
-                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/15 pt-3">
-                          <span className={`flex items-center gap-1 text-xs font-semibold ${themeDetails.textMuted}`}>
-                            ⏱️ Durasi: {exam.duration_minutes || 0} menit
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenTokenModal(exam)}
-                            className={`rounded-xl px-4 py-2.5 text-xs font-bold shadow-md transition hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] ${themeDetails.btnBg}`}
-                            suppressHydrationWarning
-                          >
-                            Mulai Ujian 🚀
-                          </button>
-                        </div>
                       </article>
                     ))}
                   </div>
