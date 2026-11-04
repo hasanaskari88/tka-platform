@@ -226,6 +226,12 @@ function AdminDashboardContent() {
     setMsg(null)
 
     const supabase = createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      setMsg('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
+      setIsSubmitting(false)
+      return
+    }
     const payload = {
       title,
       subtest: selectedSubtest.toUpperCase(),
@@ -249,7 +255,9 @@ function AdminDashboardContent() {
       const res = await supabase.from('exams').update(payload).eq('id', editingExamId)
       error = res.error
     } else {
-      const res = await supabase.from('exams').insert([payload])
+      const res = await supabase.from('exams').insert([
+      { ...payload, created_by: user.id },
+    ])
       error = res.error
     }
 
