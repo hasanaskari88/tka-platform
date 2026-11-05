@@ -350,7 +350,10 @@ function ExamResultsContent() {
 
           // Evaluasi Soal Uraian / Essay vs Pilihan Ganda (PG / PGK / Matriks)
           if (qType === 'essay' || qType === 'uraian') {
-            const essayScore = (ans && ans.score !== undefined && ans.score !== null) ? Number(ans.score) : 0
+            const essayScore =
+                ans?.teacher_score !== undefined && ans?.teacher_score !== null
+                  ? Number(ans.teacher_score)
+                  : 0
             totalPointsEarned += essayScore
             // Jika essay diberi skor > 0 oleh guru, hitung sebagai poin benar
             if (essayScore > 0) correctCount += 1
@@ -583,8 +586,8 @@ function ExamResultsContent() {
     if (Array.isArray(session.rawAnswers)) {
       session.rawAnswers.forEach((ans: any) => {
         map[ans.question_id] = ans.user_answer ?? ans.selected_answers ?? ans.selected_option
-        if (ans.score !== undefined && ans.score !== null) {
-          answerScoreMap[ans.question_id] = Number(ans.score)
+        if (ans.teacher_score !== undefined && ans.teacher_score !== null) {
+          answerScoreMap[ans.question_id] = Number(ans.teacher_score)
         }
       })
     }
@@ -636,46 +639,68 @@ function ExamResultsContent() {
     }
   }
 
-  const handleSaveAssessment = async () => {
-    if (!selectedSessionForDetail) return
-    setIsSavingScore(true)
+  
+const handleSaveAssessment = async () => {
+  if (!selectedSessionForDetail) return
 
-    const supabase = createClient()
-    const newScore = Math.max(0, Math.min(100, Number(customFinalScore)))
+  setIsSavingScore(true)
 
-    const { error } = await supabase
+  const supabase = createClient()
+  const newScore = Math.max(0, Math.min(100, Number(customFinalScore) || 0))
+
+  try {
+    // 1. Simpan nilai manual setiap soal uraian
+    for (const [qId, eScore] of Object.entries(essayScores)) {
+      const { error: answerError } = await supabase
+        .from('answers')
+        .update({ teacher_score: eScore })
+        .eq('session_id', selectedSessionForDetail.id)
+        .eq('question_id', qId)
+
+      if (answerError) throw answerError
+    }
+
+    // 2. Simpan nilai akhir, bonus, dan override
+    const { error: sessionError } = await supabase
       .from('exam_sessions')
-      .update({ score: newScore })
+      .update({
+        score: newScore,
+        bonus_points: bonusPoints,
+        score_override: isOverrideScore ? newScore : null
+      })
       .eq('id', selectedSessionForDetail.id)
 
-    try {
-      for (const [qId, eScore] of Object.entries(essayScores)) {
-        await supabase
-          .from('answers')
-          .update({ score: eScore })
-          .eq('session_id', selectedSessionForDetail.id)
-          .eq('question_id', qId)
-      }
-    } catch (e) {
-      // Abaikan jika tabel answers belum memiliki kolom score
-    }
+    if (sessionError) throw sessionError
 
-    if (error) {
-      alert(`Gagal menyimpan nilai: ${error.message}`)
-    } else {
-      setSessions((prev) =>
-        prev.map((s) => {
-          if (s.id === selectedSessionForDetail.id) {
-            return { ...s, earned_score: newScore, accuracy_percentage: newScore }
+    // 3. Perbarui tampilan daftar hasil
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id === selectedSessionForDetail.id) {
+          return {
+            ...s,
+            score: newScore,
+            earned_score: newScore,
+            accuracy_percentage: newScore,
+            bonus_points: bonusPoints,
+            score_override: isOverrideScore ? newScore : null
           }
-          return s
-        })
-      )
-      alert(`✅ Nilai ${selectedSessionForDetail.full_name} berhasil diperbarui menjadi ${newScore}!`)
-      setSelectedSessionForDetail(null)
-    }
+        }
+        return s
+      })
+    )
+
+    alert(
+      `✅ Nilai ${selectedSessionForDetail.full_name} berhasil diperbarui menjadi ${newScore}!`
+    )
+
+    setSelectedSessionForDetail(null)
+  } catch (e: any) {
+    alert(`Gagal menyimpan nilai: ${e.message}`)
+  } finally {
     setIsSavingScore(false)
   }
+}
+
 
   const handlePrint = () => {
     window.print()
