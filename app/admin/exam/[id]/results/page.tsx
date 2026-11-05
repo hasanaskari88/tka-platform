@@ -2152,7 +2152,7 @@ const handleSaveAssessment = async () => {
                 </label>
               </div>
 
-              <<div className="flex justify-between items-center gap-2">
+              <div className="flex justify-between items-center gap-2">
                 <div className="flex items-center space-x-2">
                   <span className="font-bold text-slate-700">Nilai Akhir Terhitung:</span>
                   {isOverrideScore ? (
