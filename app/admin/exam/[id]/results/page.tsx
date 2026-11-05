@@ -1895,8 +1895,8 @@ const handleSaveAssessment = async () => {
 
       {/* 📝 MODAL REVIEW & PENILAIAN GURU (INPUT ESSAY MANUAL + BONUS + OVERRIDE) */}
       {selectedSessionForDetail && !showPrintCertModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 bg-slate-100 z-50 flex items-stretch justify-stretch">
+        <div className="bg-white w-full h-full flex flex-col overflow-hidden">
             <div className="p-4 bg-slate-900 text-white flex justify-between items-start gap-4">
               <div className="min-w-0">
                 <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
@@ -1951,7 +1951,7 @@ const handleSaveAssessment = async () => {
               </button>
             </div>
 
-            <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
+            <div className="p-6 md:p-8 overflow-y-auto space-y-5 flex-1 text-sm">
               {questions.map((q, idx) => {
                 const rawAns = sessionAnswersMap[q.id]
                 const evalRes = evaluateAnswer(q, rawAns)
@@ -1959,7 +1959,7 @@ const handleSaveAssessment = async () => {
                 const isEssay = q.question_type === 'essay' || q.question_type === 'uraian'
 
                 return (
-                  <div key={q.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+                  <div key={q.id} className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
                     <div className="flex justify-between items-center border-b pb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-slate-800">Soal #{idx + 1}</span>
@@ -1983,14 +1983,14 @@ const handleSaveAssessment = async () => {
                       )}
                     </div>
 
-                    <div className="text-slate-800 font-medium text-xs">
+                    <div className="text-slate-800 font-medium text-base leading-relaxed">
                       <MathRenderer content={q.question_text} />
                     </div>
 
                     <div className="p-3 bg-white rounded-xl border border-slate-200 font-semibold text-slate-800">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Jawaban Siswa:</span>
                       {isEssay ? (
-                        <div className="whitespace-pre-wrap text-slate-900 bg-slate-50 p-2.5 rounded-lg border border-slate-200 text-xs font-mono">
+                        <div className="whitespace-pre-wrap text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm leading-relaxed font-mono min-h-[60px]">
                           {evalRes.displayVal}
                         </div>
                       ) : (
