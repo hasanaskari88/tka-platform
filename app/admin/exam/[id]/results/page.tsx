@@ -587,7 +587,10 @@ function ExamResultsContent() {
       const qType = q.question_type || 'multiple_choice'
 
       if (qType === 'essay' || qType === 'uraian') {
-        const manualScore = currentEssayScores[q.id] !== undefined ? Number(currentEssayScores[q.id]) : 3
+        const manualScore =
+        currentEssayScores[q.id] !== undefined
+          ? Number(currentEssayScores[q.id])
+          : 0
         totalPoints += Math.min(qMax, Math.max(0, manualScore))
       } else {
         const rawAns = answersMap[q.id]
@@ -634,13 +637,39 @@ const getFilteredGradingQuestions = () => {
     setSessionAnswersMap(map)
 
     const initialEssayScores: { [key: string]: number } = {}
-    questions.forEach((q) => {
-      const qType = q.question_type || 'multiple_choice'
-      if (qType === 'essay' || qType === 'uraian') {
-        const savedScore = answerScoreMap[q.id]
-        initialEssayScores[q.id] = savedScore !== undefined ? savedScore : 3
-      }
-    })
+      questions.forEach((q) => {
+        const qType = q.question_type || 'multiple_choice'
+      
+        if (qType === 'essay' || qType === 'uraian') {
+          const savedScore = answerScoreMap[q.id]
+          const rawAnswer = map[q.id]
+      
+          const hasAnswer =
+            rawAnswer !== null &&
+            rawAnswer !== undefined &&
+            (
+              typeof rawAnswer === 'string'
+                ? rawAnswer.trim() !== ''
+                : Array.isArray(rawAnswer)
+                  ? rawAnswer.length > 0
+                  : typeof rawAnswer === 'object'
+                    ? Object.values(rawAnswer).some(
+                        (value: any) =>
+                          value !== null &&
+                          value !== undefined &&
+                          String(value).trim() !== ''
+                      )
+                    : true
+            )
+      
+          initialEssayScores[q.id] =
+            savedScore !== undefined
+              ? savedScore
+              : hasAnswer
+                ? 1
+                : 0
+        }
+      })
 
     setEssayScores(initialEssayScores)
     const savedBonus = Number(session.bonus_points) || 0
@@ -1897,7 +1926,7 @@ const handleSaveAssessment = async () => {
       {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-100 z-50 flex items-stretch justify-stretch">
         <div className="bg-white w-full h-full flex flex-col overflow-hidden">
-            <div className="p-4 bg-slate-900 text-white flex justify-between items-start gap-4">
+            <div className="px-4 py-2 bg-slate-900 text-white flex justify-between items-center gap-3 shrink-0">
               <div className="min-w-0">
                 <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
                   PENILAIAN SISWA
@@ -1907,7 +1936,7 @@ const handleSaveAssessment = async () => {
                   📝 Lembar Jawaban: {selectedSessionForDetail.full_name}
                 </h3>
             
-                <div className="flex flex-wrap items-center gap-2 mt-3">
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <button
                     type="button"
                     onClick={() => goToGradingSession(gradingSessionIndex - 1)}
@@ -2082,7 +2111,7 @@ const handleSaveAssessment = async () => {
                             min={0}
                             max={qMax}
                             step={0.5}
-                            value={essayScores[q.id] ?? 3}
+                            value={essayScores[q.id] ?? 0}
                             onChange={(e) => handleEssayScoreChange(q.id, Number(e.target.value), qMax)}
                             className="w-24 p-1.5 border-2 border-indigo-400 rounded-lg text-center font-black text-sm text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                           />
@@ -2096,8 +2125,8 @@ const handleSaveAssessment = async () => {
             </div>
 
             {/* PANEL CONTROL NILAI BONUS & OVERRIDE */}
-            <div className="p-4 border-t bg-slate-100 space-y-3 font-sans text-xs">
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-200">
+            <div className="px-4 py-2 border-t bg-slate-100 space-y-2 font-sans text-xs shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
                 <div className="flex items-center space-x-2">
                   <label className="font-bold text-slate-700">🎁 Nilai Bonus / Tambahan:</label>
                   <input
@@ -2123,7 +2152,7 @@ const handleSaveAssessment = async () => {
                 </label>
               </div>
 
-              <div className="flex justify-between items-center pt-1">
+              <<div className="flex justify-between items-center gap-2">
                 <div className="flex items-center space-x-2">
                   <span className="font-bold text-slate-700">Nilai Akhir Terhitung:</span>
                   {isOverrideScore ? (
