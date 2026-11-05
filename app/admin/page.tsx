@@ -21,6 +21,7 @@ function AdminDashboardContent() {
   // State Form Edit / Tambah Ujian
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
+  const [examAuthorDisplayName, setExamAuthorDisplayName] = useState('')
   const [selectedSubtest, setSelectedSubtest] = useState('')
   const [description, setDescription] = useState('')
   const [duration, setDuration] = useState(15)
@@ -62,6 +63,11 @@ function AdminDashboardContent() {
   const [matUrl, setMatUrl] = useState('')
   const [matDesc, setMatDesc] = useState('')
   const [matSubject, setMatSubject] = useState('Umum')
+  const [matAuthorDisplayName, setMatAuthorDisplayName] = useState('')
+  const [editingAuthorMatId, setEditingAuthorMatId] = useState<string | null>(null)
+  const [quickAuthorName, setQuickAuthorName] = useState('')
+  const [editingAuthorExamId, setEditingAuthorExamId] = useState<string | null>(null)
+  const [quickExamAuthorName, setQuickExamAuthorName] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
@@ -82,13 +88,18 @@ function AdminDashboardContent() {
       }
     }
 
+    
     // 2. Exams
-    const { data: examData } = await supabase
+    const { data: examData, error: examError } = await supabase
       .from('exams')
-      .select('*')
+      .select('*, author:profiles!exams_created_by_fkey(full_name)')
       .order('created_at', { ascending: false })
 
-    if (examData) setExams(examData)
+    if (examError) {
+      console.error('Gagal mengambil data ujian:', examError)
+    } else if (examData) {
+      setExams(examData)
+    }
 
     // 3. Announcements (Fault-tolerant)
     try {
@@ -101,12 +112,19 @@ function AdminDashboardContent() {
 
     // 4. Materials (Fault-tolerant)
     try {
-      const { data: matData } = await supabase
+      const { data: matData, error: matError } = await supabase
         .from('study_materials')
-        .select('*')
+        .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
         .order('created_at', { ascending: false })
-      if (matData) setMaterials(matData)
-    } catch (e) {}
+
+      if (matError) {
+        console.error('Gagal mengambil data materi:', matError)
+      } else if (matData) {
+        setMaterials(matData)
+      }
+    } catch (e) {
+      console.error('Gagal mengambil data materi:', e)
+    }
 
     setLoading(false)
   }
@@ -114,6 +132,7 @@ function AdminDashboardContent() {
   useEffect(() => {
     fetchData()
   }, [])
+
 
   // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
   const filteredAndSortedExams = exams
@@ -159,6 +178,7 @@ function AdminDashboardContent() {
   const resetForm = () => {
     setEditingExamId(null)
     setTitle('')
+    setExamAuthorDisplayName('')
     if (subtests.length > 0) setSelectedSubtest(subtests[0].name)
     setDescription('')
     setDuration(15)
@@ -177,6 +197,7 @@ function AdminDashboardContent() {
   const handleEditClick = (exam: any) => {
     setEditingExamId(exam.id)
     setTitle(exam.title || '')
+    setExamAuthorDisplayName(exam.author_display_name || '')
     setSelectedSubtest(exam.subtest || (subtests[0]?.name || 'KUANTITATIF'))
     setDescription(exam.description || '')
     setDuration(exam.duration_minutes || 15)
@@ -213,8 +234,15 @@ function AdminDashboardContent() {
     setMsg(null)
 
     const supabase = createClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError || !user) {
+      setMsg('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
+      setIsSubmitting(false)
+      return
+    }
     const payload = {
       title,
+      author_display_name: examAuthorDisplayName.trim() || null,
       subtest: selectedSubtest.toUpperCase(),
       description,
       duration_minutes: Number(duration),
@@ -236,7 +264,9 @@ function AdminDashboardContent() {
       const res = await supabase.from('exams').update(payload).eq('id', editingExamId)
       error = res.error
     } else {
-      const res = await supabase.from('exams').insert([payload])
+      const res = await supabase.from('exams').insert([
+      { ...payload, created_by: user.id },
+    ])
       error = res.error
     }
 
@@ -249,7 +279,26 @@ function AdminDashboardContent() {
     }
     setIsSubmitting(false)
   }
+const handleQuickExamAuthorSave = async (examId: string) => {
+  const supabase = createClient()
 
+  const { error } = await supabase
+    .from('exams')
+    .update({
+      author_display_name: quickExamAuthorName.trim() || null,
+    })
+    .eq('id', examId)
+
+  if (error) {
+    alert(`Gagal mengubah nama penulis: ${error.message}`)
+    return
+  }
+
+  alert('Nama penulis ujian berhasil diperbarui!')
+  setEditingAuthorExamId(null)
+  setQuickExamAuthorName('')
+  fetchData()
+}
   const handleDeleteExam = async (id: string, examTitle: string) => {
     if (!confirm(`Apakah Anda yakin ingin menghapus ujian "${examTitle}" beserta seluruh soalnya?`)) return
     const supabase = createClient()
@@ -350,41 +399,61 @@ function AdminDashboardContent() {
 
   // --- 📚 CRUD MATERI ---
   const resetMatForm = () => {
-    setEditingMatId(null)
-    setMatTitle('')
-    setMatUrl('')
-    setMatDesc('')
-    setMatSubject('Umum')
-  }
+  setEditingMatId(null)
+  setMatTitle('')
+  setMatUrl('')
+  setMatDesc('')
+  setMatSubject('Umum')
+  setMatAuthorDisplayName('')
+}
 
   const handleSaveMaterial = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
-    const supabase = createClient()
+  e.preventDefault()
+  if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
 
-    if (editingMatId) {
-      const { error } = await supabase
-        .from('study_materials')
-        .update({ title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject })
-        .eq('id', editingMatId)
+  const supabase = createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-      if (error) alert(`Gagal memperbarui materi: ${error.message}`)
-      else {
-        alert('✅ Modul materi berhasil diperbarui!')
-        resetMatForm()
-        fetchData()
-      }
-    } else {
-      const { error } = await supabase.from('study_materials').insert([
-        { title: matTitle, file_url: matUrl, description: matDesc, subject: matSubject },
-      ])
-      if (error) alert(`Gagal menambah materi: ${error.message}`)
-      else {
-        resetMatForm()
-        fetchData()
-      }
+  if (userError || !user) {
+    alert('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
+    return
+  }
+
+  const materialData = {
+    title: matTitle,
+    file_url: matUrl,
+    description: matDesc,
+    subject: matSubject,
+    author_display_name: matAuthorDisplayName.trim() || null,
+  }
+
+  if (editingMatId) {
+    const { error } = await supabase
+      .from('study_materials')
+      .update(materialData)
+      .eq('id', editingMatId)
+
+    if (error) alert(`Gagal memperbarui materi: ${error.message}`)
+    else {
+      alert('✅ Modul materi berhasil diperbarui!')
+      resetMatForm()
+      fetchData()
+    }
+  } else {
+    const { error } = await supabase.from('study_materials').insert([
+      {
+        ...materialData,
+        created_by: user.id,
+      },
+    ])
+
+    if (error) alert(`Gagal menambah materi: ${error.message}`)
+    else {
+      resetMatForm()
+      fetchData()
     }
   }
+}
 
   const handleEditMatClick = (mat: any) => {
     setEditingMatId(mat.id)
@@ -392,8 +461,28 @@ function AdminDashboardContent() {
     setMatUrl(mat.file_url || '')
     setMatDesc(mat.description || '')
     setMatSubject(mat.subject || 'Umum')
+    setMatAuthorDisplayName(mat.author_display_name || '')
   }
-
+    const handleQuickAuthorSave = async (matId: string) => {
+      const supabase = createClient()
+    
+      const { error } = await supabase
+        .from('study_materials')
+        .update({
+          author_display_name: quickAuthorName.trim() || null,
+        })
+        .eq('id', matId)
+    
+      if (error) {
+        alert(`Gagal mengubah nama penulis: ${error.message}`)
+        return
+      }
+    
+      alert('Nama penulis berhasil diperbarui!')
+      setEditingAuthorMatId(null)
+      setQuickAuthorName('')
+      fetchData()
+    }
   const handleDeleteMaterial = async (id: string) => {
     if (!confirm('Hapus materi ini?')) return
     const supabase = createClient()
@@ -496,21 +585,37 @@ function AdminDashboardContent() {
             )}
 
             <form onSubmit={handleSaveExam} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Judul Ujian / Paket
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                />
-              </div>
-
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Judul Ujian / Paket
+              </label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                suppressHydrationWarning
+              />
+            </div>
+          
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
+                Nama Penulis Tampilan (Alias)
+              </label>
+              <input
+                type="text"
+                value={examAuthorDisplayName}
+                onChange={(e) => setExamAuthorDisplayName(e.target.value)}
+                placeholder="Kosongkan untuk menggunakan nama lengkap akun"
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Contoh: Tim Penyusun, atau Guru Kelas 6.
+                Jika kosong, nama lengkap akun akan digunakan.
+              </p>
+            </div>
               {/* Select Option Subtes Dinamis */}
               <div>
                 <div className="flex justify-between items-center mb-1">
@@ -805,18 +910,27 @@ function AdminDashboardContent() {
               <span>📋 Daftar Ujian Terdaftar ({filteredAndSortedExams.length})</span>
             </h2>
 
+            
+            {/* MULAI PERBAIKAN DAFTAR UJIAN */}
             {loading ? (
-              <p className="text-slate-500 text-sm">Memuat daftar ujian...</p>
+              <p className="text-slate-500 text-sm">
+                Memuat daftar ujian...
+              </p>
             ) : filteredAndSortedExams.length > 0 ? (
               filteredAndSortedExams.map((exam) => (
                 <div
                   key={exam.id}
                   className={`bg-white p-5 rounded-xl border shadow-sm space-y-3 ${
-                    exam.is_published ? 'border-slate-200' : 'border-amber-300 bg-amber-50/30'
+                    exam.is_published
+                      ? 'border-slate-200'
+                      : 'border-amber-300 bg-amber-50/30'
                   }`}
                 >
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                    <div>
+                  {/* BAGIAN ATAS: INFORMASI DAN TOMBOL */}
+                  <div className="flex flex-col sm:flex-row justify-between gap-4">
+
+                    {/* KOLOM KIRI: INFORMASI UJIAN */}
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                         <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
                           {exam.subtest}
@@ -831,60 +945,131 @@ function AdminDashboardContent() {
                               : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
                           }`}
                           title="Klik untuk mengubah status visibilitas siswa"
-                          suppressHydrationWarning
                         >
-                          {exam.is_published ? '🟢 Tampil pada Siswa' : '🔴 Sembunyi dari Siswa'}
+                          {exam.is_published
+                            ? '🟢 Tampil pada Siswa'
+                            : '🔴 Sembunyi dari Siswa'}
                         </button>
 
                         <span className="text-xs text-slate-400">
                           ⏱ {exam.duration_minutes || 15} Menit
                         </span>
                       </div>
+
                       <h3 className="text-base font-bold text-slate-800 mt-1">
                         {exam.title}
                       </h3>
+
                       <p className="text-xs text-slate-500 mt-0.5">
                         {exam.description || 'Tidak ada deskripsi'}
                       </p>
+
+                      {/* TOMBOL EDIT DAN EDIT PENULIS */}
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <button
+                          type="button"
+                          onClick={() => handleEditClick(exam)}
+                          className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg"
+                        >
+                          ✏️ Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAuthorExamId(exam.id)
+                            setQuickExamAuthorName(
+                              exam.author_display_name ||
+                              exam.author?.full_name ||
+                              ''
+                            )
+                          }}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                        >
+                          ✍️ Edit Penulis
+                        </button>
+                      </div>
+
+                      {/* FORM EDIT NAMA PENULIS */}
+                      {editingAuthorExamId === exam.id && (
+                        <div className="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
+                          <label className="block text-xs font-bold text-indigo-800">
+                            UBAH NAMA PENULIS UJIAN
+                          </label>
+
+                          <input
+                            type="text"
+                            value={quickExamAuthorName}
+                            onChange={(e) =>
+                              setQuickExamAuthorName(e.target.value)
+                            }
+                            placeholder="Masukkan nama penulis..."
+                            className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          />
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleQuickExamAuthorSave(exam.id)
+                              }
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                            >
+                              💾 Simpan
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingAuthorExamId(null)
+                                setQuickExamAuthorName('')
+                              }}
+                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center space-x-2 shrink-0 flex-wrap gap-y-1">
-                      <button
-                        onClick={() => handleEditClick(exam)}
-                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg transition-colors"
-                        suppressHydrationWarning
-                      >
-                        ✏️ Edit
-                      </button>
+                    {/* KOLOM KANAN: TOMBOL KELOLA UJIAN */}
+                    <div className="flex items-start flex-wrap gap-2 shrink-0">
                       <Link
                         href={`/admin/exam/${exam.id}/results`}
                         className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
                       >
                         📊 Rekap Nilai
                       </Link>
+
                       <Link
                         href={`/admin/exam/${exam.id}/monitor`}
                         className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors"
                       >
                         👁️ Pengawasan Live
                       </Link>
+
                       <Link
                         href={`/admin/exam/${exam.id}`}
                         className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
                       >
                         Kelola Soal →
                       </Link>
+
                       <button
-                        onClick={() => handleDeleteExam(exam.id, exam.title)}
+                        type="button"
+                        onClick={() =>
+                          handleDeleteExam(exam.id, exam.title)
+                        }
                         className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
-                        suppressHydrationWarning
                       >
                         Hapus
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-2 text-[11px] pt-2 border-t border-slate-100 font-medium">
+                  {/* BAGIAN BAWAH: TOKEN DAN PENGATURAN UJIAN */}
+                  <div className="flex flex-wrap gap-2 text-[11px] pt-3 border-t border-slate-100 font-medium">
                     {exam.token || exam.token_code ? (
                       <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded font-mono font-bold">
                         🔑 Token: {exam.token || exam.token_code}
@@ -932,6 +1117,7 @@ function AdminDashboardContent() {
                 Tidak ada modul / paket ujian pada kategori tab atau filter subtes ini.
               </div>
             )}
+            {/* AKHIR PERBAIKAN DAFTAR UJIAN */}
           </div>
         </div>
       </main>
@@ -1331,7 +1517,22 @@ function AdminDashboardContent() {
                       />
                     </div>
                   </div>
-
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      NAMA PENULIS TAMPILAN (ALIAS)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Kosongkan untuk menggunakan nama lengkap akun"
+                      value={matAuthorDisplayName}
+                      onChange={(e) => setMatAuthorDisplayName(e.target.value)}
+                      className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Contoh: Hasan Askari, Tim Penyusun, atau Guru Kelas 2.
+                      Jika kosong, nama lengkap akun akan digunakan.
+                    </p>
+                  </div>
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">URL / LINK MATERI (GOOGLE DRIVE / PDF / YOUTUBE)</label>
                     <input
@@ -1442,6 +1643,42 @@ function AdminDashboardContent() {
                         <div className="text-[11px] text-slate-600 line-clamp-1">
                           <MathRenderer content={mat.description || '-'} />
                         </div>
+                        {editingAuthorMatId === mat.id && (
+                          <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
+                            <label className="block text-[10px] font-bold text-indigo-800">
+                              UBAH NAMA PENULIS
+                            </label>
+                        
+                            <input
+                              type="text"
+                              value={quickAuthorName}
+                              onChange={(e) => setQuickAuthorName(e.target.value)}
+                              placeholder="Masukkan nama penulis..."
+                              className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white"
+                            />
+                        
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleQuickAuthorSave(mat.id)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg"
+                              >
+                                💾 Simpan
+                              </button>
+                        
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingAuthorMatId(null)
+                                  setQuickAuthorName('')
+                                }}
+                                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded-lg"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-1 shrink-0">
@@ -1451,6 +1688,16 @@ function AdminDashboardContent() {
                           className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded transition-colors"
                         >
                           ✏️ Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingAuthorMatId(mat.id)
+                            setQuickAuthorName(mat.author_display_name || mat.author?.full_name || '')
+                          }}
+                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded transition-colors"
+                        >
+                          ✍️ Edit Penulis
                         </button>
                         <button
                           type="button"
