@@ -366,9 +366,13 @@ function ExamResultsContent() {
       const calculatedScore = totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
       
       // Utamakan skor tersimpan di Database `session.score` (jika pernah di-override / disimpan)
-      const finalScore = session.score !== undefined && session.score !== null 
-        ? Number(session.score) 
-        : calculatedScore
+      const finalScore =
+        session.score_override !== undefined && session.score_override !== null
+          ? Number(session.score_override)
+          : Math.min(
+              100,
+              Math.max(0, calculatedScore + (Number(session.bonus_points) || 0))
+            )
 
       // e. 🟢 SINKRONISASI OTOMATIS (FALLBACK PERHITUNGAN JUMLAH BENAR)
       // Jika rincian di DB tidak ada/kosong tetapi Nilai Akhir ada, estimasikan jumlah benar dari Nilai Akhir
