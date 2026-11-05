@@ -926,6 +926,156 @@ const getQuestionGradingData = () => {
     }
   })
 }
+
+const handleSaveAllQuestionScores = async () => {
+  const currentQuestion = essayQuestions[gradingQuestionIndex]
+
+  if (!currentQuestion) {
+    alert('Tidak ada soal essay atau uraian yang dipilih.')
+    return
+  }
+
+  if (questionGradingHasChanges === false) {
+    alert('Belum ada perubahan nilai yang perlu disimpan.')
+    return
+  }
+
+  const confirmSave = window.confirm(
+    'Apakah Anda yakin ingin menyimpan seluruh nilai peserta untuk soal ini?'
+  )
+
+  if (!confirmSave) return
+
+  setIsSavingQuestionScores(true)
+
+  const supabase = createClient()
+
+  try {
+    for (const session of sortedSessions) {
+      const answer = (session.rawAnswers || []).find(
+        (ans: any) =>
+          String(ans.question_id) === String(currentQuestion.id)
+      )
+
+      if (!answer) continue
+
+      const rawAnswer =
+        answer.user_answer ??
+        answer.selected_answers ??
+        answer.selected_option
+
+      const hasAnswer =
+        rawAnswer !== null &&
+        rawAnswer !== undefined &&
+        (
+          Array.isArray(rawAnswer)
+            ? rawAnswer.some((item: any) => String(item).trim() !== '')
+            : String(rawAnswer).trim() !== ''
+        )
+
+      if (!hasAnswer) continue
+
+      const scoreKey = `${session.id}_${currentQuestion.id}`
+
+      const manualScore =
+        questionScores[scoreKey] ??
+        (answer.teacher_score !== null &&
+        answer.teacher_score !== undefined
+          ? Number(answer.teacher_score)
+          : 0)
+
+      const maxScore = Number(currentQuestion.max_score) || 1
+
+      const safeScore = Math.max(
+        0,
+        Math.min(maxScore, Number(manualScore) || 0)
+      )
+
+      // 1. Simpan nilai essay pada tabel answers
+      const { error: answerError } = await supabase
+        .from('answers')
+        .update({ teacher_score: safeScore })
+        .eq('session_id', session.id)
+        .eq('question_id', currentQuestion.id)
+
+      if (answerError) throw answerError
+
+      // 2. Siapkan seluruh nilai essay peserta
+      const currentEssayScores: { [qId: string]: number } = {}
+
+      essayQuestions.forEach((q) => {
+        const savedAnswer = (session.rawAnswers || []).find(
+          (ans: any) =>
+            String(ans.question_id) === String(q.id)
+        )
+
+        if (
+          String(q.id) === String(currentQuestion.id)
+        ) {
+          currentEssayScores[q.id] = safeScore
+        } else if (
+          savedAnswer?.teacher_score !== null &&
+          savedAnswer?.teacher_score !== undefined
+        ) {
+          currentEssayScores[q.id] = Number(
+            savedAnswer.teacher_score
+          )
+        } else {
+          currentEssayScores[q.id] = 0
+        }
+      })
+
+      // 3. Siapkan jawaban otomatis peserta
+      const answersMap: { [qId: string]: any } = {}
+
+      ;(session.rawAnswers || []).forEach((ans: any) => {
+        answersMap[ans.question_id] =
+          ans.user_answer ??
+          ans.selected_answers ??
+          ans.selected_option
+      })
+
+      // 4. Hitung nilai akhir
+      const bonus = Number(session.bonus_points) || 0
+
+      const calculatedScore = calculateAutoScore(
+        answersMap,
+        currentEssayScores,
+        bonus
+      )
+
+      // Override tetap menjadi prioritas
+      const finalScore =
+        session.score_override !== null &&
+        session.score_override !== undefined
+          ? Number(session.score_override)
+          : calculatedScore
+
+      // 5. Perbarui nilai akhir peserta
+      const { error: sessionError } = await supabase
+        .from('exam_sessions')
+        .update({ score: finalScore })
+        .eq('id', session.id)
+
+      if (sessionError) throw sessionError
+    }
+
+    // 6. Muat ulang data terbaru
+    setQuestionScores({})
+    setQuestionGradingHasChanges(false)
+
+    await loadData()
+
+    alert('Nilai seluruh peserta berhasil disimpan.')
+
+  } catch (error: any) {
+    alert(`Gagal menyimpan nilai: ${error.message}`)
+  } finally {
+    setIsSavingQuestionScores(false)
+  }
+}
+
+  
   const handlePrint = () => {
     window.print()
   }
@@ -1835,7 +1985,7 @@ const getQuestionGradingData = () => {
                       </div>
                     </details>
             
-           {/* DAFTAR JAWABAN SELURUH PESERTA */}
+                               {/* DAFTAR JAWABAN SELURUH PESERTA */}
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
                       <div className="p-4 bg-slate-50 border-b border-slate-200">
                         <h4 className="font-bold text-slate-800">
@@ -1863,9 +2013,11 @@ const getQuestionGradingData = () => {
                                   <span className="text-xs text-slate-400 font-bold">
                                     {idx + 1}.
                                   </span>
+
                                   <span className="font-bold text-sm text-slate-800">
                                     {item.fullName}
                                   </span>
+
                                   <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
                                     {item.classCode || 'Tanpa kelas'}
                                   </span>
@@ -1876,6 +2028,7 @@ const getQuestionGradingData = () => {
                                     <p className="text-xs font-bold text-slate-500 mb-1">
                                       JAWABAN PESERTA
                                     </p>
+
                                     <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">
                                       {item.answerText}
                                     </p>
@@ -1919,6 +2072,7 @@ const getQuestionGradingData = () => {
                                     }}
                                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-center font-bold text-lg disabled:bg-slate-100 disabled:text-slate-400"
                                   />
+
                                   <span className="text-sm text-slate-500 whitespace-nowrap">
                                     / {item.maxScore}
                                   </span>
@@ -1934,15 +2088,34 @@ const getQuestionGradingData = () => {
                           </div>
                         )}
                       </div>
+
+                      {/* TOMBOL SIMPAN SEMUA NILAI */}
+                      <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleSaveAllQuestionScores}
+                          disabled={
+                            isSavingQuestionScores ||
+                            !questionGradingHasChanges ||
+                            essayQuestions.length === 0
+                          }
+                          className="px-5 py-3 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-sm hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition"
+                        >
+                          {isSavingQuestionScores ? (
+                            'Menyimpan Nilai...'
+                          ) : (
+                            '💾 Simpan Semua Nilai'
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             )}
 
-            
-                      </div>
-                    )}
+          </div>
+        )}
 
         {/* TAB 2: PENGATURAN KOP, TANDA TANGAN & LIVE PREVIEW REAL-TIME */}
         {mainActiveTab === 'settings' && (
