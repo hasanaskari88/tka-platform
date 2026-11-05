@@ -120,8 +120,10 @@ function evaluateAnswer(q: any, rawAns: any) {
 
     const correctUserChoices = userKeys.filter((k) => correctKeys.includes(k)).length
     const wrongUserChoices = userKeys.filter((k) => !correctKeys.includes(k)).length
-    const netCorrect = Math.max(0, correctUserChoices - wrongUserChoices)
-    const ratio = correctKeys.length > 0 ? netCorrect / correctKeys.length : 0
+    const ratio =
+      correctKeys.length > 0
+        ? Math.max(0, correctUserChoices - wrongUserChoices) / correctKeys.length
+        : 0
 
     return {
       isCorrect: ratio === 1,
@@ -657,11 +659,26 @@ const getFilteredGradingQuestions = () => {
     const rawAns = sessionAnswersMap[q.id]
     const evalRes = evaluateAnswer(q, rawAns)
     const ratio = Number(evalRes.ratio) || 0
-
+    
     if (gradingStatusFilter === 'ungraded') return false
-    if (gradingStatusFilter === 'wrong') return ratio <= 0
-    if (gradingStatusFilter === 'low') return ratio > 0 && ratio < 1
-    if (gradingStatusFilter === 'maximum') return ratio >= 1
+    
+    // Jawaban kosong tidak dimasukkan ke kategori salah
+    if (evalRes.isUnanswered) return false
+    
+    // Salah sepenuhnya
+    if (gradingStatusFilter === 'wrong') {
+      return ratio === 0
+    }
+    
+    // Benar sebagian
+    if (gradingStatusFilter === 'low') {
+      return ratio > 0 && ratio < 1
+    }
+    
+    // Benar sepenuhnya
+    if (gradingStatusFilter === 'maximum') {
+      return ratio >= 1
+    }
 
     return true
   })
