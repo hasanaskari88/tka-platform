@@ -1,6 +1,22 @@
 
 /* FONT ARAB DAN AKSARA JAWA */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Javanese:wght@400;500;600;700&display=swap');
+/* FONT ARAB LOKAL */
+@font-face {
+  font-family: 'Noto Arabic Local';
+  src: url('/fonts/arabic/NotoNaskhArabic-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* FONT AKSARA JAWA LOKAL */
+@font-face {
+  font-family: 'Noto Javanese Local';
+  src: url('/fonts/javanese/NotoSansJavanese-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 @import "katex/dist/katex.min.css";
 @import "tailwindcss";
@@ -32,7 +48,7 @@ body {
 /* FONT KHUSUS ARAB */
 .font-arabic,
 [lang="ar"] {
-  font-family: "Noto Naskh Arabic", serif;
+  font-family: "Noto Arabic Local", serif;
   direction: rtl;
   text-align: right;
   line-height: 2;
@@ -41,7 +57,7 @@ body {
 /* FONT KHUSUS AKSARA JAWA */
 .font-aksara-jawa,
 [lang="jv"] {
-  font-family: "Noto Sans Javanese", sans-serif;
+  font-family: "Noto Javanese Local", sans-serif;
   line-height: 2.2;
 }
 
@@ -53,7 +69,7 @@ body {
 }
 
 .math-rendered-content .aksara-jawa {
-  font-family: "Noto Sans Javanese", sans-serif;
+  font-family: "Noto Javanese Local", sans-serif;
   line-height: 2.2;
 }
 
