@@ -880,8 +880,52 @@ const handleSaveAssessment = async () => {
       setIsSavingScore(false)
     }
     }
+// menampilkan nilai dan jawaban seluruh peserta
+const getQuestionGradingData = () => {
+  const currentQuestion = essayQuestions[gradingQuestionIndex]
 
+  if (!currentQuestion) return []
 
+  return sortedSessions.map((session) => {
+    const answer = (session.rawAnswers || []).find(
+      (ans: any) => ans.question_id === currentQuestion.id
+    )
+
+    const rawAnswer = answer
+      ? answer.user_answer ?? answer.selected_answers ?? answer.selected_option
+      : null
+
+    const hasAnswer =
+      rawAnswer !== null &&
+      rawAnswer !== undefined &&
+      (
+        Array.isArray(rawAnswer)
+          ? rawAnswer.some((item) => String(item).trim() !== '')
+          : String(rawAnswer).trim() !== ''
+      )
+
+    const savedScore =
+      answer?.teacher_score !== null &&
+      answer?.teacher_score !== undefined
+        ? Number(answer.teacher_score)
+        : null
+
+    return {
+      sessionId: session.id,
+      fullName: session.full_name,
+      classCode: session.class_code,
+      answerId: answer?.id ?? null,
+      answerText: hasAnswer
+        ? Array.isArray(rawAnswer)
+          ? rawAnswer.join(', ')
+          : String(rawAnswer)
+        : '',
+      hasAnswer,
+      score: savedScore,
+      maxScore: Number(currentQuestion.max_score) || 1,
+    }
+  })
+}
   const handlePrint = () => {
     window.print()
   }
