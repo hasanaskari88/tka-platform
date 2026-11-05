@@ -1677,18 +1677,127 @@ const handleSaveAssessment = async () => {
               </div>
             )}
             
-            {/* TAMPILAN SEMENTARA MODE PER SOAL */}
+            {/* MODE PENILAIAN PER SOAL */}
             {gradingMode === 'question' && (
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm text-center">
-                <div className="text-4xl mb-3">📝</div>
-                <h3 className="font-bold text-slate-800">
-                  Penilaian Berdasarkan Nomor Soal
-                </h3>
-                <p className="text-sm text-slate-500 mt-2">
-                  Area penilaian seluruh peserta untuk satu nomor soal akan dibuat pada langkah berikutnya.
-                </p>
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            
+                {/* HEADER MODE PER SOAL */}
+                <div className="p-5 border-b border-slate-200">
+                  <h3 className="font-bold text-lg text-slate-800">
+                    📝 Penilaian Berdasarkan Nomor Soal
+                  </h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Pilih satu soal untuk memeriksa jawaban seluruh peserta.
+                  </p>
+            
+                  <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGradingQuestionIndex((prev) => Math.max(0, prev - 1))
+                        }
+                        disabled={gradingQuestionIndex <= 0}
+                        className="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold disabled:opacity-30"
+                      >
+                        ← Soal Sebelumnya
+                      </button>
+            
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setGradingQuestionIndex((prev) =>
+                            Math.min(essayQuestions.length - 1, prev + 1)
+                          )
+                        }
+                        disabled={gradingQuestionIndex >= essayQuestions.length - 1}
+                        className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold disabled:opacity-30"
+                      >
+                        Soal Berikutnya →
+                      </button>
+                    </div>
+            
+                    <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-2 rounded-lg">
+                      Soal {essayQuestions.length > 0 ? gradingQuestionIndex + 1 : 0}
+                      {' / '}
+                      {essayQuestions.length}
+                    </span>
+                  </div>
+                </div>
+            
+                {/* PILIH NOMOR SOAL */}
+                <div className="p-5 bg-slate-50 border-b border-slate-200">
+                  <label className="block text-xs font-bold text-slate-600 mb-2">
+                    Pilih Soal yang Akan Dinilai
+                  </label>
+            
+                  <select
+                    value={gradingQuestionIndex}
+                    onChange={(e) => setGradingQuestionIndex(Number(e.target.value))}
+                    disabled={essayQuestions.length === 0}
+                    className="w-full md:w-96 p-3 border border-slate-300 rounded-xl bg-white text-sm font-semibold"
+                  >
+                    {essayQuestions.map((q, index) => (
+                      <option key={q.id} value={index}>
+                        Soal {index + 1} — {q.question_type === 'uraian' ? 'Uraian' : 'Essay'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+            
+                {/* DETAIL SOAL */}
+                {essayQuestions.length === 0 ? (
+                  <div className="p-10 text-center text-slate-400">
+                    Belum ada soal Essay atau Uraian.
+                  </div>
+                ) : (
+                  <div className="p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">
+                        Soal #{gradingQuestionIndex + 1}
+                      </span>
+                      <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-lg">
+                        Maksimal {Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1} poin
+                      </span>
+                    </div>
+            
+                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 leading-relaxed">
+                      <MathRenderer
+                        content={essayQuestions[gradingQuestionIndex]?.question_text || ''}
+                      />
+                    </div>
+            
+                    <details className="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                      <summary className="cursor-pointer font-bold text-emerald-800 text-xs">
+                        🔑 Lihat Kunci Jawaban
+                      </summary>
+                      <div className="mt-3 text-sm text-slate-700">
+                        Penilaian berdasarkan rubrik atau pedoman guru.
+                      </div>
+                    </details>
+            
+                    <details className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                      <summary className="cursor-pointer font-bold text-blue-800 text-xs">
+                        📖 Lihat Pembahasan / Rubrik
+                      </summary>
+                      <div className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">
+                        {essayQuestions[gradingQuestionIndex]?.explanation || 'Belum ada pembahasan atau rubrik penilaian.'}
+                      </div>
+                    </details>
+            
+                    <div className="p-4 border border-dashed border-indigo-300 rounded-xl bg-indigo-50/50 text-center">
+                      <p className="text-sm font-bold text-indigo-800">
+                        Area jawaban seluruh peserta akan ditampilkan di sini pada tahap berikutnya.
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Total peserta: {sortedSessions.length}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
+
             
                       </div>
                     )}
