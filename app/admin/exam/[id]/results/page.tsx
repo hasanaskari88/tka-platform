@@ -221,7 +221,7 @@ function ExamResultsContent() {
     // Filter jenis soal pada Mode per Peserta
   const [gradingQuestionFilter, setGradingQuestionFilter] = useState<
     'all' | 'essay' | 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix'
-  >('all')
+  >('essay')
     // Posisi peserta yang sedang dinilai
   const [gradingSessionIndex, setGradingSessionIndex] = useState(0)
     // Posisi soal uraian yang sedang dinilai pada Mode per Soal
