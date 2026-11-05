@@ -599,6 +599,25 @@ function ExamResultsContent() {
     return Math.min(100, Math.max(0, baseScore + bonus))
   }
 
+const essayQuestions = questions.filter((q) => {
+  const type = q.question_type || 'multiple_choice'
+  return type === 'essay' || type === 'uraian'
+})
+
+const getFilteredGradingQuestions = () => {
+  if (gradingQuestionFilter === 'all') return questions
+
+  return questions.filter((q) => {
+    const type = q.question_type || 'multiple_choice'
+
+    if (gradingQuestionFilter === 'essay') {
+      return type === 'essay' || type === 'uraian'
+    }
+
+    return type === gradingQuestionFilter
+  })
+}
+
   const handleOpenDetailModal = (session: any) => {
     const map: { [key: string]: any } = {}
     const answerScoreMap: { [key: string]: number } = {}
@@ -623,14 +642,42 @@ function ExamResultsContent() {
     })
 
     setEssayScores(initialEssayScores)
-    setBonusPoints(0)
-    setIsOverrideScore(false)
-
-    const autoCalculated = calculateAutoScore(map, initialEssayScores, 0)
-    setCustomFinalScore(autoCalculated)
+    const savedBonus = Number(session.bonus_points) || 0
+    const overrideActive =
+      session.score_override !== null &&
+      session.score_override !== undefined
+    
+    setBonusPoints(savedBonus)
+    setIsOverrideScore(overrideActive)
+    const autoCalculated = calculateAutoScore(
+      map,
+      initialEssayScores,
+      savedBonus
+    )
+    
+    setCustomFinalScore(
+      overrideActive
+        ? Number(session.score_override)
+        : autoCalculated
+    )
+    const currentIndex = sortedSessions.findIndex(
+      (s) => s.id === session.id
+    )
+    
+    if (currentIndex >= 0) {
+      setGradingSessionIndex(currentIndex)
+    }
     setSelectedSessionForDetail(session)
   }
+const goToGradingSession = (nextIndex: number) => {
+  if (nextIndex < 0 || nextIndex >= sortedSessions.length) return
 
+  const nextSession = sortedSessions[nextIndex]
+
+  setGradingSessionIndex(nextIndex)
+  handleOpenDetailModal(nextSession)
+}
+  
   const handleEssayScoreChange = (qId: string, value: number, maxScore: number) => {
     const val = Math.max(0, Math.min(value, maxScore))
     const updatedEssayScores = { ...essayScores, [qId]: val }
@@ -1835,12 +1882,47 @@ const handleSaveAssessment = async () => {
       {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col overflow-hidden">
-            <div className="p-4 bg-slate-900 text-white flex justify-between items-center">
-              <div>
-                <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">PENILAIAN SISWA</span>
-                <h3 className="text-sm font-bold mt-0.5">📝 Lembar Jawaban: {selectedSessionForDetail.full_name}</h3>
+            <div className="p-4 bg-slate-900 text-white flex justify-between items-start gap-4">
+              <div className="min-w-0">
+                <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
+                  PENILAIAN SISWA
+                </span>
+            
+                <h3 className="text-sm font-bold mt-1">
+                  📝 Lembar Jawaban: {selectedSessionForDetail.full_name}
+                </h3>
+            
+                <div className="flex flex-wrap items-center gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => goToGradingSession(gradingSessionIndex - 1)}
+                    disabled={gradingSessionIndex <= 0}
+                    className="px-3 py-1.5 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold"
+                  >
+                    ← Sebelumnya
+                  </button>
+            
+                  <span className="text-xs text-slate-300">
+                    Peserta {gradingSessionIndex + 1} dari {sortedSessions.length}
+                  </span>
+            
+                  <button
+                    type="button"
+                    onClick={() => goToGradingSession(gradingSessionIndex + 1)}
+                    disabled={gradingSessionIndex >= sortedSessions.length - 1}
+                    className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold"
+                  >
+                    Berikutnya →
+                  </button>
+                </div>
               </div>
-              <button onClick={() => setSelectedSessionForDetail(null)} className="text-white font-bold text-sm">✕</button>
+            
+              <button
+                onClick={() => setSelectedSessionForDetail(null)}
+                className="text-white font-bold text-sm hover:text-rose-300"
+              >
+                ✕
+              </button>
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
