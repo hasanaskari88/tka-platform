@@ -1523,6 +1523,9 @@ const handleSaveAssessment = async () => {
                 </p>
               </div>
             )}
+            
+                      </div>
+                    )}
 
         {/* TAB 2: PENGATURAN KOP, TANDA TANGAN & LIVE PREVIEW REAL-TIME */}
         {mainActiveTab === 'settings' && (
