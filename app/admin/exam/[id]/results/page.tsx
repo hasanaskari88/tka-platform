@@ -234,6 +234,7 @@ function ExamResultsContent() {
   const [isOverrideScore, setIsOverrideScore] = useState<boolean>(false)
   const [customFinalScore, setCustomFinalScore] = useState<number>(0)
   const [isSavingScore, setIsSavingScore] = useState<boolean>(false)
+  const [gradingHasChanges, setGradingHasChanges] = useState(false)
 
   // State Cetak Sertifikat Single
   const [showPrintCertModal, setShowPrintCertModal] = useState<boolean>(false)
@@ -672,8 +673,17 @@ const getFilteredGradingQuestions = () => {
 const goToGradingSession = (nextIndex: number) => {
   if (nextIndex < 0 || nextIndex >= sortedSessions.length) return
 
+  if (gradingHasChanges) {
+    const confirmLeave = window.confirm(
+      'Ada perubahan nilai yang belum disimpan. Jika berpindah peserta sekarang, perubahan tersebut akan hilang. Apakah Anda yakin ingin melanjutkan?'
+    )
+
+    if (!confirmLeave) return
+  }
+
   const nextSession = sortedSessions[nextIndex]
 
+  setGradingHasChanges(false)
   setGradingSessionIndex(nextIndex)
   handleOpenDetailModal(nextSession)
 }
@@ -682,6 +692,7 @@ const goToGradingSession = (nextIndex: number) => {
     const val = Math.max(0, Math.min(value, maxScore))
     const updatedEssayScores = { ...essayScores, [qId]: val }
     setEssayScores(updatedEssayScores)
+    setGradingHasChanges(true)
 
     if (!isOverrideScore) {
       const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores, bonusPoints)
@@ -692,6 +703,7 @@ const goToGradingSession = (nextIndex: number) => {
   const handleBonusChange = (bonusVal: number) => {
     const val = Number(bonusVal) || 0
     setBonusPoints(val)
+    setGradingHasChanges(true)
     if (!isOverrideScore) {
       const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, val)
       setCustomFinalScore(autoCalculated)
@@ -700,6 +712,7 @@ const goToGradingSession = (nextIndex: number) => {
 
   const handleOverrideToggle = (checked: boolean) => {
     setIsOverrideScore(checked)
+    setGradingHasChanges(true)
     if (!checked) {
       const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, bonusPoints)
       setCustomFinalScore(autoCalculated)
@@ -709,7 +722,7 @@ const goToGradingSession = (nextIndex: number) => {
   
 const handleSaveAssessment = async () => {
   if (!selectedSessionForDetail) return
-
+  setGradingHasChanges(false)
   setIsSavingScore(true)
 
   const supabase = createClient()
@@ -756,17 +769,19 @@ const handleSaveAssessment = async () => {
       })
     )
 
-    alert(
-      `✅ Nilai ${selectedSessionForDetail.full_name} berhasil diperbarui menjadi ${newScore}!`
+    aalert(
+  `✅ Nilai ${selectedSessionForDetail.full_name} berhasil diperbarui menjadi ${newScore}!`
     )
-
+    
+    setGradingHasChanges(false)
     setSelectedSessionForDetail(null)
-  } catch (e: any) {
-    alert(`Gagal menyimpan nilai: ${e.message}`)
-  } finally {
-    setIsSavingScore(false)
-  }
-}
+    
+    } catch (e: any) {
+      alert(`Gagal menyimpan nilai: ${e.message}`)
+    } finally {
+      setIsSavingScore(false)
+    }
+    }
 
 
   const handlePrint = () => {
@@ -1918,7 +1933,18 @@ const handleSaveAssessment = async () => {
               </div>
             
               <button
-                onClick={() => setSelectedSessionForDetail(null)}
+                onClick={() => {
+                  if (gradingHasChanges) {
+                    const confirmLeave = window.confirm(
+                      'Ada perubahan nilai yang belum disimpan. Yakin ingin menutup penilaian?'
+                    )
+              
+                    if (!confirmLeave) return
+                  }
+              
+                  setGradingHasChanges(false)
+                  setSelectedSessionForDetail(null)
+                }}
                 className="text-white font-bold text-sm hover:text-rose-300"
               >
                 ✕
@@ -2036,7 +2062,10 @@ const handleSaveAssessment = async () => {
                         min={0}
                         max={100}
                         value={customFinalScore}
-                        onChange={(e) => setCustomFinalScore(Number(e.target.value))}
+                        onChange={(e) => {
+                            setCustomFinalScore(Number(e.target.value))
+                            setGradingHasChanges(true)
+                          }}
                         className="w-24 px-3 py-1 border-2 border-amber-500 rounded-lg font-black text-sm text-amber-700 bg-amber-50 text-center focus:outline-none"
                       />
                       <span className="text-slate-500 font-bold">/ 100 (Manual)</span>
