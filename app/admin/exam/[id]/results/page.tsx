@@ -222,6 +222,9 @@ function ExamResultsContent() {
   const [gradingQuestionFilter, setGradingQuestionFilter] = useState<
     'all' | 'essay' | 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix'
   >('essay')
+  const [gradingStatusFilter, setGradingStatusFilter] = useState<
+  'all' | 'wrong' | 'low' | 'ungraded' | 'maximum'
+  >('all')
     // Posisi peserta yang sedang dinilai
   const [gradingSessionIndex, setGradingSessionIndex] = useState(0)
     // Posisi soal uraian yang sedang dinilai pada Mode per Soal
@@ -608,19 +611,62 @@ const essayQuestions = questions.filter((q) => {
   return type === 'essay' || type === 'uraian'
 })
 
-const getFilteredGradingQuestions = () => {
-  if (gradingQuestionFilter === 'all') return questions
 
+const getFilteredGradingQuestions = () => {
   return questions.filter((q) => {
     const type = q.question_type || 'multiple_choice'
+    const isEssay = type === 'essay' || type === 'uraian'
+    const qMax = Number(q.max_score) || 1
 
-    if (gradingQuestionFilter === 'essay') {
-      return type === 'essay' || type === 'uraian'
+    // FILTER JENIS SOAL
+    if (gradingQuestionFilter === 'essay' && !isEssay) return false
+
+    if (
+      gradingQuestionFilter !== 'all' &&
+      gradingQuestionFilter !== 'essay' &&
+      type !== gradingQuestionFilter
+    ) {
+      return false
     }
 
-    return type === gradingQuestionFilter
+    // CARI NILAI YANG SUDAH TERSIMPAN
+    const savedAnswer = selectedSessionForDetail?.rawAnswers?.find(
+      (ans: any) => String(ans.question_id) === String(q.id)
+    )
+
+    const hasSavedScore =
+      savedAnswer?.teacher_score !== null &&
+      savedAnswer?.teacher_score !== undefined
+
+    // STATUS ESSAY
+    if (isEssay) {
+      if (gradingStatusFilter === 'ungraded') return !hasSavedScore
+      if (gradingStatusFilter === 'all') return true
+      if (!hasSavedScore) return false
+
+      const score = Number(savedAnswer.teacher_score)
+
+      if (gradingStatusFilter === 'wrong') return score === 0
+      if (gradingStatusFilter === 'low') return score > 0 && score < qMax
+      if (gradingStatusFilter === 'maximum') return score >= qMax
+
+      return true
+    }
+
+    // STATUS SOAL OTOMATIS
+    const rawAns = sessionAnswersMap[q.id]
+    const evalRes = evaluateAnswer(q, rawAns)
+    const ratio = Number(evalRes.ratio) || 0
+
+    if (gradingStatusFilter === 'ungraded') return false
+    if (gradingStatusFilter === 'wrong') return ratio <= 0
+    if (gradingStatusFilter === 'low') return ratio > 0 && ratio < 1
+    if (gradingStatusFilter === 'maximum') return ratio >= 1
+
+    return true
   })
 }
+
 
   const handleOpenDetailModal = (session: any) => {
     const map: { [key: string]: any } = {}
@@ -2012,8 +2058,28 @@ const handleSaveAssessment = async () => {
                     {item.label}
                   </button>
                 ))}
+                 <div className="flex flex-wrap items-center gap-2 mt-3">
+                <label className="text-xs font-bold text-slate-700">
+                  Status Nilai:
+                </label>
+                 <select
+                  value={gradingStatusFilter}
+                  onChange={(e) =>
+                    setGradingStatusFilter(e.target.value as any)
+                  }
+                  className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="ungraded">Belum Dinilai</option>
+                  <option value="wrong">Salah / Nilai 0</option>
+                  <option value="low">Nilai Kurang</option>
+                  <option value="maximum">Nilai Maksimal</option>
+                </select>
+              </div>
               </div>
           
+             
+
               <div className="mt-2 text-[10px] text-slate-500">
                 Menampilkan {getFilteredGradingQuestions().length} dari {questions.length} soal
               </div>
