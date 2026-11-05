@@ -769,7 +769,7 @@ const handleSaveAssessment = async () => {
       })
     )
 
-    aalert(
+    alert(
   `✅ Nilai ${selectedSessionForDetail.full_name} berhasil diperbarui menjadi ${newScore}!`
     )
     
