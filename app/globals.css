@@ -1,4 +1,7 @@
 
+/* FONT ARAB DAN AKSARA JAWA */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Javanese:wght@400;500;600;700&display=swap');
+
 @import "katex/dist/katex.min.css";
 @import "tailwindcss";
 
@@ -26,9 +29,35 @@ body {
   line-height: 1.6;
 }
 
-/* Jangan memaksa warna semua judul, link, dan tombol.
-   Warna dari komponen Tailwind tetap digunakan. */
+/* FONT KHUSUS ARAB */
+.font-arabic,
+[lang="ar"] {
+  font-family: "Noto Naskh Arabic", serif;
+  direction: rtl;
+  text-align: right;
+  line-height: 2;
+}
 
+/* FONT KHUSUS AKSARA JAWA */
+.font-aksara-jawa,
+[lang="jv"] {
+  font-family: "Noto Sans Javanese", sans-serif;
+  line-height: 2.2;
+}
+
+/* Pengaturan teks Arab dan Aksara Jawa */
+.math-rendered-content [dir="rtl"] {
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+}
+
+.math-rendered-content .aksara-jawa {
+  font-family: "Noto Sans Javanese", sans-serif;
+  line-height: 2.2;
+}
+
+/* Jangan memaksa warna semua judul, link, dan tombol. */
 input,
 textarea,
 select {
