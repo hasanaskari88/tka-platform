@@ -216,6 +216,10 @@ function ExamResultsContent() {
 
   // State Modal Review & Penilaian Guru (Essay + Bonus + Override)
   const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<any | null>(null)
+  // Mode tampilan penilaian manual
+  const [gradingMode, setGradingMode] = useState<'student' | 'question'>('student')
+  // Panel pengaturan nilai akhir
+  const [showScoreSettings, setShowScoreSettings] = useState(false)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
   const [bonusPoints, setBonusPoints] = useState<number>(0)
