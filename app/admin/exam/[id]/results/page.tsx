@@ -1835,13 +1835,105 @@ const getQuestionGradingData = () => {
                       </div>
                     </details>
             
-                    <div className="p-4 border border-dashed border-indigo-300 rounded-xl bg-indigo-50/50 text-center">
-                      <p className="text-sm font-bold text-indigo-800">
-                        Area jawaban seluruh peserta akan ditampilkan di sini pada tahap berikutnya.
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Total peserta: {sortedSessions.length}
-                      </p>
+           {/* DAFTAR JAWABAN SELURUH PESERTA */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <div className="p-4 bg-slate-50 border-b border-slate-200">
+                        <h4 className="font-bold text-slate-800">
+                          Jawaban Seluruh Peserta
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Periksa jawaban dan berikan nilai untuk setiap peserta.
+                        </p>
+                      </div>
+
+                      <div className="divide-y divide-slate-200">
+                        {getQuestionGradingData().map((item, idx) => {
+                          const scoreKey = `${item.sessionId}_${essayQuestions[gradingQuestionIndex].id}`
+
+                          const currentScore =
+                            questionScores[scoreKey] ?? item.score ?? 0
+
+                          return (
+                            <div
+                              key={item.sessionId}
+                              className="p-4 grid grid-cols-1 md:grid-cols-[1fr_180px] gap-4"
+                            >
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2 mb-2">
+                                  <span className="text-xs text-slate-400 font-bold">
+                                    {idx + 1}.
+                                  </span>
+                                  <span className="font-bold text-sm text-slate-800">
+                                    {item.fullName}
+                                  </span>
+                                  <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+                                    {item.classCode || 'Tanpa kelas'}
+                                  </span>
+                                </div>
+
+                                {item.hasAnswer ? (
+                                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                                    <p className="text-xs font-bold text-slate-500 mb-1">
+                                      JAWABAN PESERTA
+                                    </p>
+                                    <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">
+                                      {item.answerText}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                                    <p className="text-sm text-amber-700">
+                                      Belum menjawab soal ini.
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col justify-center">
+                                <label className="text-xs font-bold text-slate-500 mb-2">
+                                  NILAI PESERTA
+                                </label>
+
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={item.maxScore}
+                                    step="0.5"
+                                    value={currentScore}
+                                    disabled={!item.hasAnswer}
+                                    onChange={(e) => {
+                                      const value = e.target.value
+                                      const numericValue =
+                                        value === '' ? 0 : Number(value)
+
+                                      setQuestionScores((prev) => ({
+                                        ...prev,
+                                        [scoreKey]: Math.max(
+                                          0,
+                                          Math.min(item.maxScore, numericValue)
+                                        )
+                                      }))
+
+                                      setQuestionGradingHasChanges(true)
+                                    }}
+                                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-center font-bold text-lg disabled:bg-slate-100 disabled:text-slate-400"
+                                  />
+                                  <span className="text-sm text-slate-500 whitespace-nowrap">
+                                    / {item.maxScore}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+
+                        {getQuestionGradingData().length === 0 && (
+                          <div className="p-8 text-center text-sm text-slate-500">
+                            Belum ada peserta yang dapat ditampilkan.
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
