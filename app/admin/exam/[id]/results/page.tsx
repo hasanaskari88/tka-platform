@@ -1926,16 +1926,14 @@ const handleSaveAssessment = async () => {
       {selectedSessionForDetail && !showPrintCertModal && (
         <div className="fixed inset-0 bg-slate-100 z-50 flex items-stretch justify-stretch">
         <div className="bg-white w-full h-full flex flex-col overflow-hidden">
-            <div className="px-4 py-2 bg-slate-900 text-white flex justify-between items-center gap-3 shrink-0">
+            <div className="px-3 py-1.5 bg-slate-900 text-white flex justify-between items-center gap-2 shrink-0">
               <div className="min-w-0">
                 <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
                   PENILAIAN SISWA
                 </span>
-            
                 <h3 className="text-sm font-bold mt-1">
                   📝 Lembar Jawaban: {selectedSessionForDetail.full_name}
                 </h3>
-            
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <button
                     type="button"
@@ -1980,15 +1978,55 @@ const handleSaveAssessment = async () => {
               </button>
             </div>
 
-            <div className="p-6 md:p-8 overflow-y-auto space-y-5 flex-1 text-sm">
-              {questions.map((q, idx) => {
+            
+          <div className="p-3 md:p-4 overflow-y-auto space-y-4 flex-1 text-sm">
+          {/* FILTER JENIS SOAL */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <span className="font-bold text-slate-700 text-xs">
+                  🔎 Filter Jenis Soal
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  Pilih jenis soal yang ingin dinilai
+                </span>
+              </div>
+          
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: 'all', label: 'Semua Soal' },
+                  { value: 'essay', label: 'Essay / Uraian' },
+                  { value: 'multiple_choice', label: 'Pilihan Ganda' },
+                  { value: 'complex_multiple_choice', label: 'PG Kompleks' },
+                  { value: 'true_false_matrix', label: 'Matriks Benar-Salah' }
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setGradingQuestionFilter(item.value as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition ${
+                      gradingQuestionFilter === item.value
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-indigo-50'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+          
+              <div className="mt-2 text-[10px] text-slate-500">
+                Menampilkan {getFilteredGradingQuestions().length} dari {questions.length} soal
+              </div>
+            </div>
+
+              {getFilteredGradingQuestions().map((q, idx) => {
                 const rawAns = sessionAnswersMap[q.id]
                 const evalRes = evaluateAnswer(q, rawAns)
                 const qMax = Number(q.max_score) || 1
                 const isEssay = q.question_type === 'essay' || q.question_type === 'uraian'
 
                 return (
-                  <div key={q.id} className="p-6 rounded-2xl border border-slate-200 bg-white shadow-sm space-y-4">
+                  <div key={q.id} className="p-3 md:p-4 rounded-xl border border-slate-200 bg-white shadow-sm space-y-3">
                     <div className="flex justify-between items-center border-b pb-2">
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-slate-800">Soal #{idx + 1}</span>
@@ -2125,8 +2163,8 @@ const handleSaveAssessment = async () => {
             </div>
 
             {/* PANEL CONTROL NILAI BONUS & OVERRIDE */}
-            <div className="px-4 py-2 border-t bg-slate-100 space-y-2 font-sans text-xs shrink-0">
-              <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-3 py-2 rounded-lg border border-slate-200">
+            <div className="px-3 py-1.5 border-t bg-slate-100 space-y-1 font-sans text-xs shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
                 <div className="flex items-center space-x-2">
                   <label className="font-bold text-slate-700">🎁 Nilai Bonus / Tambahan:</label>
                   <input
