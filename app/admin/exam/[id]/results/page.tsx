@@ -193,7 +193,11 @@ function ExamResultsContent() {
   const [searchTerm, setSearchTerm] = useState('')
 
   // State Tab Utama
-  const [mainActiveTab, setMainActiveTab] = useState<'recap' | 'settings'>('recap')
+  const [mainActiveTab, setMainActiveTab] = useState<
+      'recap' | 'grading' | 'settings'
+    >('recap')
+    
+    const [gradingSelectedSession, setGradingSelectedSession] = useState<any | null>(null)
   const [previewDocType, setPreviewDocType] = useState<'raport' | 'certificate'>('raport')
 
   // Filter Kelas & Bulk Modal
@@ -973,9 +977,9 @@ const handleSaveAssessment = async () => {
             
           </div>
         </div>
-
-        {/* 🟢 TAB NAVIGASI UTAMA ADMIN */}
-        <div className="flex space-x-2 bg-slate-200 p-1.5 rounded-xl border border-slate-300 w-fit">
+        
+        {/* TAB NAVIGASI UTAMA ADMIN */}
+        <div className="flex flex-wrap gap-2 bg-slate-200 p-1.5 rounded-xl border border-slate-300 w-fit">
           <button
             onClick={() => setMainActiveTab('recap')}
             className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
@@ -986,6 +990,18 @@ const handleSaveAssessment = async () => {
           >
             📊 Data & Analisis Nilai ({sortedSessions.length})
           </button>
+        
+          <button
+            onClick={() => setMainActiveTab('grading')}
+            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
+              mainActiveTab === 'grading'
+                ? 'bg-white text-indigo-700 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            📝 Penilaian Manual
+          </button>
+        
           <button
             onClick={() => setMainActiveTab('settings')}
             className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${
