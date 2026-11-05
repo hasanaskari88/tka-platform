@@ -397,6 +397,10 @@ function ExamResultsContent() {
       return {
         id: session.id,
         user_id: session.user_id,
+        // Data pengaturan nilai yang tersimpan
+        bonus_points: Number(session.bonus_points) || 0,
+        score_override: session.score_override ?? null,
+
         full_name: student.full_name,
         username: student.username,
         class_code: student.class_code || '-',
