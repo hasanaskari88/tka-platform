@@ -1986,7 +1986,78 @@ const handleSaveAssessment = async () => {
                     <div className="text-slate-800 font-medium text-base leading-relaxed">
                       <MathRenderer content={q.question_text} />
                     </div>
-
+                    {/* DROPDOWN KUNCI JAWABAN DAN PEMBAHASAN */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                    
+                      {/* DROPDOWN KUNCI JAWABAN */}
+                      <details className="group bg-emerald-50 border border-emerald-200 rounded-xl overflow-hidden">
+                        <summary className="cursor-pointer list-none flex items-center justify-between p-3 font-bold text-emerald-800 text-xs">
+                          <span>🔑 Lihat Kunci Jawaban</span>
+                          <span className="transition-transform group-open:rotate-180">▼</span>
+                        </summary>
+                    
+                        <div className="px-4 pb-4 pt-1 text-sm text-slate-700 space-y-2">
+                    
+                          {isEssay ? (
+                            <p>Penilaian berdasarkan rubrik atau pedoman guru.</p>
+                          ) : q.question_type === 'true_false_matrix' ? (
+                            <div className="space-y-2">
+                              {Object.entries(q.correct_answers || {}).map(
+                                ([statementId, answer]: [string, any]) => {
+                                  const statement = Array.isArray(q.options)
+                                    ? q.options.find(
+                                        (item: any) =>
+                                          String(item.id) === String(statementId)
+                                      )
+                                    : null
+                    
+                                  return (
+                                    <div key={statementId}>
+                                      <span className="font-semibold">
+                                        {statement?.text || statementId}:
+                                      </span>{' '}
+                                      <span className="font-bold text-emerald-700">
+                                        {String(answer)}
+                                      </span>
+                                    </div>
+                                  )
+                                }
+                              )}
+                            </div>
+                          ) : q.question_type === 'complex_multiple_choice' ? (
+                            <div className="font-bold text-emerald-700">
+                              {Array.isArray(q.correct_answers)
+                                ? q.correct_answers.join(', ')
+                                : String(q.correct_answers || q.correct_option || '-')}
+                            </div>
+                          ) : (
+                            <div className="font-bold text-emerald-700">
+                              {q.correct_option || '-'}
+                            </div>
+                          )}
+                    
+                        </div>
+                      </details>
+                    
+                      {/* DROPDOWN PEMBAHASAN */}
+                      <details className="group bg-blue-50 border border-blue-200 rounded-xl overflow-hidden">
+                        <summary className="cursor-pointer list-none flex items-center justify-between p-3 font-bold text-blue-800 text-xs">
+                          <span>📖 Lihat Pembahasan / Rubrik</span>
+                          <span className="transition-transform group-open:rotate-180">▼</span>
+                        </summary>
+                    
+                        <div className="px-4 pb-4 pt-1 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                          {q.explanation ? (
+                            <MathRenderer content={q.explanation} />
+                          ) : (
+                            <span className="text-slate-400 italic">
+                              Belum ada pembahasan atau rubrik penilaian.
+                            </span>
+                          )}
+                        </div>
+                      </details>
+                    
+                    </div>
                     <div className="p-3 bg-white rounded-xl border border-slate-200 font-semibold text-slate-800">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Jawaban Siswa:</span>
                       {isEssay ? (
