@@ -114,3 +114,24 @@ video {
     transition-duration: 0.01ms !important;
   }
 }
+/* Tampilan daftar di dalam editor Tiptap */
+.ProseMirror ul {
+  list-style-type: disc !important;
+  padding-left: 1.5rem !important;
+  margin: 0.75rem 0 !important;
+}
+
+.ProseMirror ol {
+  list-style-type: decimal !important;
+  padding-left: 1.5rem !important;
+  margin: 0.75rem 0 !important;
+}
+
+.ProseMirror li {
+  display: list-item !important;
+  margin: 0.25rem 0 !important;
+}
+
+.ProseMirror li p {
+  margin: 0 !important;
+}
