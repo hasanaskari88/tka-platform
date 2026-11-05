@@ -53,8 +53,7 @@ export default function MathRenderer({
             '<em style="font-style: italic;">$1</em>'
           )
 
-        // Pertahankan baris baru untuk teks biasa.
-        // Jangan mengubah baris baru pada konten tabel atau daftar HTML.
+        // Pertahankan baris baru.
         if (!/<table|<blockquote|<ul|<ol/i.test(formatted)) {
           formatted = formatted.replace(/\n/g, '<br />')
         }
@@ -73,6 +72,7 @@ export default function MathRenderer({
 
   return (
     <div
+      dir="auto"
       className={`
         math-rendered-content min-w-0 text-inherit
         [&_*]:!text-inherit
@@ -81,6 +81,18 @@ export default function MathRenderer({
         [&_em]:italic
         [&_i]:italic
         [&_u]:underline
+
+        [&_[dir=rtl]]:text-right
+        [&_[dir=rtl]]:leading-loose
+        [&_[dir=rtl]]:unicode-bidi-plaintext
+
+        [&_.aksara-jawa]:font-aksara-jawa
+        [&_.aksara-jawa]:leading-loose
+
+        [&_.katex]:!text-inherit
+        [&_.katex-display]:overflow-x-auto
+        [&_.katex-display]:overflow-y-hidden
+
         [&_table]:my-3
         [&_table]:w-full
         [&_table]:border-collapse
@@ -105,9 +117,13 @@ export default function MathRenderer({
         [&_blockquote]:py-1
         [&_blockquote]:pl-3
         [&_blockquote]:italic
+
         ${className}
       `}
-      style={{ color: 'inherit' }}
+      style={{
+        color: 'inherit',
+        unicodeBidi: 'plaintext',
+      }}
       dangerouslySetInnerHTML={{ __html: htmlContent }}
     />
   )
