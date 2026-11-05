@@ -1,10 +1,11 @@
 
 'use client'
 
+import { Suspense } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 
-export default function FontTestPage() {
+function FontTestContent() {
   const editor = useEditor({
     extensions: [StarterKit],
     content: `
@@ -53,6 +54,8 @@ export default function FontTestPage() {
 
           <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
             <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor?.chain().focus().toggleBold().run()}
               className="rounded border px-3 py-2 font-bold"
             >
@@ -60,6 +63,8 @@ export default function FontTestPage() {
             </button>
 
             <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor?.chain().focus().toggleItalic().run()}
               className="rounded border px-3 py-2 italic"
             >
@@ -67,6 +72,8 @@ export default function FontTestPage() {
             </button>
 
             <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor?.chain().focus().toggleBulletList().run()}
               className="rounded border px-3 py-2"
             >
@@ -74,6 +81,8 @@ export default function FontTestPage() {
             </button>
 
             <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor?.chain().focus().toggleOrderedList().run()}
               className="rounded border px-3 py-2"
             >
@@ -90,5 +99,19 @@ export default function FontTestPage() {
         </section>
       </div>
     </main>
+  )
+}
+
+export default function FontTestPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-slate-100 p-6">
+          <p className="text-slate-600">Memuat editor...</p>
+        </main>
+      }
+    >
+      <FontTestContent />
+    </Suspense>
   )
 }
