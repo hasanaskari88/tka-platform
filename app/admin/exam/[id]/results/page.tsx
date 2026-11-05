@@ -218,6 +218,14 @@ function ExamResultsContent() {
   const [selectedSessionForDetail, setSelectedSessionForDetail] = useState<any | null>(null)
   // Mode tampilan penilaian manual
   const [gradingMode, setGradingMode] = useState<'student' | 'question'>('student')
+    // Filter jenis soal pada Mode per Peserta
+  const [gradingQuestionFilter, setGradingQuestionFilter] = useState<
+    'all' | 'essay' | 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix'
+  >('all')
+    // Posisi peserta yang sedang dinilai
+  const [gradingSessionIndex, setGradingSessionIndex] = useState(0)
+    // Posisi soal uraian yang sedang dinilai pada Mode per Soal
+  const [gradingQuestionIndex, setGradingQuestionIndex] = useState(0)
   // Panel pengaturan nilai akhir
   const [showScoreSettings, setShowScoreSettings] = useState(false)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
