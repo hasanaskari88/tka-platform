@@ -231,6 +231,12 @@ function ExamResultsContent() {
   const [gradingSessionIndex, setGradingSessionIndex] = useState(0)
     // Posisi soal uraian yang sedang dinilai pada Mode per Soal
   const [gradingQuestionIndex, setGradingQuestionIndex] = useState(0)
+  
+// STATE KHUSUS MODE PENILAIAN PER SOAL
+const [questionScores, setQuestionScores] = useState<Record<string, number>>({})
+const [questionGradingHasChanges, setQuestionGradingHasChanges] = useState(false)
+const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
+
   // Panel pengaturan nilai akhir
   const [showScoreSettings, setShowScoreSettings] = useState(false)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
