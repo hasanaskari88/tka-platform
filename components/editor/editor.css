@@ -1,0 +1,112 @@
+.rich-text-editor .editor-content {
+  min-height: 220px;
+  background: #ffffff;
+}
+
+.rich-text-editor .editor-content:focus {
+  outline: none;
+}
+
+.rich-text-editor .editor-content p.is-editor-empty:first-child::before {
+  color: #94a3b8;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.rich-text-editor .editor-content h2 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.rich-text-editor .editor-content h3 {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.rich-text-editor .editor-content p {
+  margin: 0.35rem 0;
+}
+
+.rich-text-editor .editor-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor .editor-content ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor .editor-content li {
+  margin: 0.2rem 0;
+}
+
+.rich-text-editor .editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  table-layout: fixed;
+  overflow: hidden;
+}
+
+.rich-text-editor .editor-content th,
+.rich-text-editor .editor-content td {
+  min-width: 60px;
+  border: 1px solid #cbd5e1;
+  padding: 8px;
+  vertical-align: top;
+}
+
+.rich-text-editor .editor-content th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.rich-text-editor .editor-content .selectedCell {
+  background: #dbeafe;
+}
+
+.rich-text-editor .editor-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.rich-text-editor .editor-content [data-type='inline-math'] {
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.rich-text-editor .editor-content [data-type='block-math'] {
+  display: block;
+  margin: 1rem 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  text-align: center;
+  cursor: pointer;
+}
+
+.rich-text-editor .editor-content .ProseMirror-selectednode {
+  outline: 2px solid #93c5fd;
+  border-radius: 4px;
+}
+
+.rich-text-editor .editor-content [lang='ar'],
+.rich-text-editor .editor-content .font-arabic {
+  font-family: 'Noto Naskh Arabic', serif;
+  direction: rtl;
+  text-align: right;
+  line-height: 2;
+}
+
+.rich-text-editor .editor-content [lang='jv'],
+.rich-text-editor .editor-content .font-aksara-jawa {
+  font-family: 'Noto Sans Javanese', sans-serif;
+  line-height: 2.2;
+}
