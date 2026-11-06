@@ -6,7 +6,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/google-drive/token-encryption'
 
-export const runtime = 'nodejs'
+
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024
 

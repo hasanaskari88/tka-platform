@@ -5,7 +5,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
 import { encryptToken } from '@/lib/google-drive/token-encryption'
 
-export const runtime = 'nodejs'
+
 
 function finish(
   request: NextRequest,

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { requireAdmin } from '@/lib/supabase/admin'
 
-export const runtime = 'nodejs'
+
 
 export async function GET() {
   try {
