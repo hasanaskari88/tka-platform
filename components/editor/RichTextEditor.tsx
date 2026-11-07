@@ -1,8 +1,8 @@
+
 'use client'
 
 import { useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
-import type { Editor as TiptapEditor } from '@tiptap/react'
 
 import StarterKit from '@tiptap/starter-kit'
 import TextAlign from '@tiptap/extension-text-align'
@@ -11,7 +11,6 @@ import FontFamily from '@tiptap/extension-font-family'
 import Highlight from '@tiptap/extension-highlight'
 import Superscript from '@tiptap/extension-superscript'
 import Subscript from '@tiptap/extension-subscript'
-import Image from '@tiptap/extension-image'
 import Mathematics from '@tiptap/extension-mathematics'
 import { TextStyle } from '@tiptap/extension-text-style'
 
@@ -21,8 +20,10 @@ import {
   TableCell,
   TableHeader,
 } from '@tiptap/extension-table'
+
 import EditorToolbar from './EditorToolbar'
 import { FontSize } from './FontSize'
+import ResizableImage from './ResizableImage'
 import Underline from '@tiptap/extension-underline'
 
 import 'katex/dist/katex.min.css'
@@ -36,42 +37,6 @@ interface RichTextEditorProps {
   className?: string
 }
 
-const ResizableImage = Image.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-
-      width: {
-        default: null,
-        parseHTML: (element) =>
-          element.getAttribute('width') ||
-          element.style.width ||
-          null,
-        renderHTML: (attributes) =>
-          attributes.width
-            ? { width: attributes.width }
-            : {},
-      },
-
-      style: {
-        default: null,
-        parseHTML: (element) =>
-          element.getAttribute('style') || null,
-        renderHTML: (attributes) =>
-          attributes.style
-            ? { style: attributes.style }
-            : {},
-      },
-    }
-  },
-}).configure({
-  inline: false,
-  allowBase64: false,
-  HTMLAttributes: {
-    class: 'editor-image max-w-full rounded-lg',
-  },
-})
-
 export default function RichTextEditor({
   content = '',
   onChange,
@@ -82,7 +47,6 @@ export default function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit,
-
       Underline,
 
       TextStyle,
@@ -150,9 +114,7 @@ export default function RichTextEditor({
     ],
 
     content,
-
     immediatelyRender: false,
-
     editable,
 
     editorProps: {
@@ -169,8 +131,6 @@ export default function RichTextEditor({
     },
   })
 
-  // Memperbarui isi editor jika data dari luar berubah,
-  // tanpa memicu onChange berulang.
   useEffect(() => {
     if (!editor) return
 
