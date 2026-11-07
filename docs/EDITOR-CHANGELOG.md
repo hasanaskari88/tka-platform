@@ -1033,3 +1033,49 @@ Uji pengguna: **menunggu**. Belum boleh dinyatakan berhasil sampai pengguna meme
 - [ ] Pastikan halaman admin kembali normal setelah dialog cetak dibatalkan/ditutup.
 
 Tahap berikutnya setelah QA cetak: perbaiki kontras halaman hasil siswa; setelah itu integrasi editor jawaban essay siswa secara terpisah.
+
+
+## Penyempurnaan pengaturan tata letak cetak — 7 November 2026
+
+Status: **kode diterapkan pada `editor-test`; menunggu build Preview dan uji pengguna**.
+
+Commit aplikasi:
+- `18fcf1e37b2a2ccdd11926d39728b647515c24f1` — pengaturan font, kerapatan, kop/identitas ringkas, footer, dan ucapan penutup.
+- `0099ff3ca45d6ce887b64789e1b7ff5d514e7cfb` — ukuran font matriks mengikuti pengaturan font soal.
+
+File aplikasi:
+- `app/admin/exam/[id]/page.tsx`.
+
+Perubahan:
+1. Menambahkan pengaturan ukuran logo, font kop, font identitas, font soal, dan font footer.
+2. Menambahkan pengaturan spasi baris, jarak antarsoal, dan jarak antarkolom. Nilai awal dibuat rapat: spasi baris 1, jarak antarsoal 3 mm, dan jarak antarkolom 5 mm.
+3. Memadatkan kop sekolah dan mengurangi ukuran logo awal menjadi 14 mm; ukuran tetap dapat diubah melalui panel.
+4. Memadatkan informasi ujian dan identitas. Nama peserta, kelas, dan fase kini sejajar/rapat, dengan garis identitas yang lebih proporsional; kelas/fase tetap berasal dari input pengaturan.
+5. Memasang footer berukuran kecil yang memuat nama ujian dan nomor halaman melalui CSS page counter.
+6. Menambahkan ucapan penutup statis `☺ Selamat Mengerjakan, Semoga Sukses ☺` setelah naskah soal.
+7. Ukuran teks tabel matriks benar-salah mengikuti pengaturan font soal.
+
+Nilai awal:
+- Logo 14 mm; kop 9 pt; identitas 8 pt; soal 10 pt; footer 6 pt.
+- Spasi baris 1; jarak antarsoal 3 mm; jarak antarkolom 5 mm.
+- Tata letak awal tetap dua kolom; pilihan satu kolom tetap tersedia.
+
+Batas perubahan:
+- Hanya file halaman pengelolaan/cetak soal yang diubah.
+- Tidak mengubah data soal, query/database, skema, kunci jawaban, bobot, atau logika penilaian.
+- Tidak mengubah halaman hasil siswa maupun editor jawaban essay.
+- Branch `main` tidak disentuh.
+
+Pemeriksaan:
+- Kode sudah diperbarui pada branch `editor-test`.
+- Build Vercel Preview dan uji pratinjau/cetak pengguna **belum dikonfirmasi**. Nomor halaman menggunakan CSS `counter(page)`; wajib diperiksa pada dialog cetak browser dan hasil PDF karena dukungan dapat berbeda antarbrowser.
+
+Checklist QA:
+- [ ] Preview menampilkan kop dan logo dengan ukuran ringkas.
+- [ ] Ubah ukuran font logo/kop/identitas/soal/footer; pastikan pratinjau ikut berubah.
+- [ ] Ubah spasi baris, jarak soal, dan jarak kolom; pastikan tata letak mengikuti nilai.
+- [ ] Pastikan identitas Nama Peserta, Kelas, dan Fase rapat dan tidak memakan banyak ruang.
+- [ ] Pastikan teks tebal matriks tetap dirender dan ukuran font matriks mengikuti pengaturan.
+- [ ] Pastikan footer memuat nama ujian dan nomor halaman pada setiap halaman hasil PDF.
+- [ ] Pastikan ucapan penutup muncul setelah seluruh soal.
+- [ ] Uji soal panjang/multihalaman dan kombinasi satu/dua kolom.
