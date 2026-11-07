@@ -20,6 +20,12 @@ Branch produksi: `main` (tidak diubah selama pengujian)
 
 ## Implementasi terbaru — crop gambar
 
+### Perbaikan CORS untuk gambar Google Drive
+- Ditemukan bahwa thumbnail `drive.google.com` dapat ditampilkan tetapi tidak selalu dapat dibaca oleh browser canvas karena header CORS.
+- Ditambahkan `app/api/google-drive/image/[id]/route.ts` sebagai proxy same-origin yang mengambil file gambar melalui Google Drive API setelah memeriksa hak admin.
+- `ImageCropDialog.tsx` mengenali URL thumbnail Drive dan mengambil byte gambar melalui endpoint proxy tersebut sebelum memotong.
+- URL gambar eksternal non-Drive tetap diproses langsung dan tetap bergantung pada izin CORS dari situs asal.
+
 File baru:
 - `components/editor/ImageCropDialog.tsx`: dialog pemilihan area crop, pratinjau, pemrosesan canvas, dan upload hasil PNG ke endpoint Google Drive.
 
