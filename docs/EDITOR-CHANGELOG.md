@@ -810,8 +810,9 @@ Pemeriksaan deployment:
 Urutan kerja berikut menggantikan status lama yang tertinggal di bagian roadmap sebelumnya. Jangan mengulang pekerjaan yang sudah ditandai berhasil.
 
 ### Tahap 1A — QA editor admin dan toolbar
-- [ ] Uji toolbar lengkap: tombol Lainnya/Tutup, pangkat, indeks bawah, font, alignment, tabel, dan warna.
-- [x] Uji awal tombol rumus ringkas: tambah rumus pecahan pada soal yang sudah ada dan simpan — berhasil dikonfirmasi pengguna. (Buka ulang dan uji variasi rumus masih menunggu.)
+- [x] Uji tombol Lainnya/Tutup: toolbar lengkap dapat dibuka dan ditutup kembali — berhasil dikonfirmasi pengguna.
+- [ ] Uji kontrol toolbar lengkap lainnya: pangkat, indeks bawah, font, alignment, tabel, dan warna.
+- [x] Uji tombol rumus ringkas: tambah rumus pecahan pada soal yang sudah ada, simpan, buka ulang, dan pastikan rumus tetap tampil benar — berhasil dikonfirmasi pengguna.
 - [ ] Uji tombol gambar dan rumus lanjutan dari toolbar ringkas, termasuk pada posisi kursor/teks terpilih agar selection tidak hilang.
 - [ ] Uji simpan, buka ulang, dan edit ulang untuk PG tunggal, PG kompleks, matriks benar-salah, dan essay.
 - [ ] Pastikan gambar inline, node matematika, HTML lama, dan pembahasan tetap tampil pada daftar/pratinjau/cetak.
@@ -852,30 +853,35 @@ Urutan kerja berikut menggantikan status lama yang tertinggal di bagian roadmap 
 
 
 
-## Hasil QA pengguna — uji pertama rumus pecahan (7 November 2026)
+## Hasil QA pengguna — rumus pecahan dan kontrol toolbar (7 November 2026)
 
-Status: **berhasil**.
+Status: **berhasil untuk cakupan pengujian yang dicatat**.
 
-Pengguna mengonfirmasi telah:
-1. Membuka editor soal pada Preview.
-2. Mengedit soal yang sudah ada.
-3. Menambahkan rumus pecahan melalui editor matematika.
-4. Menyimpan perubahan soal.
-5. Memastikan penyimpanan berhasil.
+Pengguna mengonfirmasi bahwa:
+1. Rumus pecahan yang ditambahkan ke soal yang sudah ada berhasil disimpan.
+2. Setelah soal dibuka kembali, rumus pecahan tetap tampil dengan benar.
+3. Tombol **Lainnya** membuka toolbar lengkap.
+4. Tombol **Tutup** mengembalikan toolbar ke tampilan ringkas.
+5. Tombol **Rumus (∑)** berfungsi dan membuka alur penyisipan rumus.
 
 Cakupan yang sudah terbukti:
-- Dialog rumus dapat digunakan untuk menambahkan rumus pecahan pada soal yang sedang diedit.
-- Perubahan soal berhasil disimpan melalui alur simpan yang ada.
+- Penyisipan rumus pecahan melalui tombol rumus ringkas.
+- Penyimpanan dan pemuatan ulang konten rumus pada soal yang diedit.
+- Buka/tutup toolbar lengkap.
+- Tombol rumus ringkas dapat digunakan.
 
 Batas cakupan:
-- Uji ini belum membuktikan bahwa rumus tetap tampil benar setelah halaman dimuat ulang/dibuka kembali.
-- Belum membuktikan semua jenis rumus, semua tipe soal, atau tampilan siswa/koreksi/cetak.
-- Belum menguji tombol gambar atau seluruh toolbar lengkap.
+- Belum menguji kontrol toolbar lengkap satu per satu (pangkat, indeks bawah, font, alignment, tabel, warna, dan kontrol lainnya).
+- Belum menguji gambar dari toolbar ringkas pada sesi QA ini.
+- Belum menguji soal baru, seluruh tipe soal, tampilan siswa/koreksi/cetak, atau seluruh variasi rumus.
 
 Roadmap Tahap 1A diperbarui:
-- [x] Uji awal menambahkan rumus pecahan pada soal yang sudah ada dan menyimpan perubahan — berhasil dikonfirmasi pengguna.
-- [ ] Buka ulang soal dan pastikan rumus pecahan tetap tampil benar.
+- [x] Tambahkan rumus pecahan pada soal yang sudah ada dan simpan.
+- [x] Buka ulang soal dan pastikan rumus pecahan tetap tampil benar.
+- [x] Uji tombol Lainnya/Tutup dan tombol Rumus (∑).
+- [ ] Uji kontrol toolbar lengkap lainnya.
+- [ ] Uji tombol gambar dan perilaku selection/kursor.
 - [ ] Uji rumus pada soal baru dan tipe soal lain.
-- [ ] Lanjutkan QA toolbar lengkap, gambar, dan kompatibilitas tampilan.
+- [ ] Lanjutkan QA simpan/buka ulang seluruh tipe soal dan kompatibilitas tampilan.
 
 Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` pada langkah pengujian ini.
