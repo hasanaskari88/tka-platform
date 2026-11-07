@@ -1079,3 +1079,43 @@ Checklist QA:
 - [ ] Pastikan footer memuat nama ujian dan nomor halaman pada setiap halaman hasil PDF.
 - [ ] Pastikan ucapan penutup muncul setelah seluruh soal.
 - [ ] Uji soal panjang/multihalaman dan kombinasi satu/dua kolom.
+
+
+
+## Perbaikan lanjutan footer dan blok identitas cetak — 7 November 2026
+
+Status: **kode diterapkan pada `editor-test`; menunggu build Preview dan QA pengguna**.
+
+Commit:
+- `6c8716309793cdec7d6d8c084cf1df973ebaa176` — `Fix print footer flow and compact exam identity block`.
+
+File aplikasi:
+- `app/admin/exam/[id]/page.tsx`.
+
+Perubahan:
+1. Footer cetak tidak lagi memakai `position: fixed` dan offset negatif di bawah halaman. Posisi fixed sebelumnya berisiko berulang/bergeser pada pergantian halaman dan menimpa area soal.
+2. Footer dipindahkan ke alur dokumen normal, tepat setelah ucapan penutup naskah soal dan sebelum halaman opsional kunci jawaban/pembahasan. Footer dibuat tidak terpotong di tengah (`break-inside: avoid`) dan tetap memuat nama ujian serta nomor halaman CSS.
+3. Metadata dan identitas peserta digabung menjadi grid tiga kolom dan dua baris:
+   - Baris pertama: Mata Pelajaran, Nama Ujian, Alokasi Waktu.
+   - Baris kedua: Jumlah Soal, Nama, Kelas/Fase.
+4. Identitas nama peserta memakai garis kosong yang lebih pendek. Kelas dan fase ditampilkan sebagai satu label KELAS/FASE, menggunakan nilai dari pengaturan cetak.
+
+Batas perubahan:
+- Hanya file halaman pengelolaan/cetak soal dan catatan changelog yang diubah.
+- Tidak mengubah database, skema, isi soal, kunci, bobot, atau logika penilaian.
+- Branch `main` tidak disentuh.
+
+Pemeriksaan kode:
+- Footer lama dengan posisi fixed dan offset negatif telah dihapus.
+- Hanya satu elemen footer dokumen tersisa.
+- Footer berada setelah ucapan penutup naskah soal, sebelum bagian kunci jawaban opsional.
+- Grid identitas menggunakan tiga kolom.
+- Ini adalah pemeriksaan sumber; build Preview dan hasil PDF belum dikonfirmasi.
+
+Checklist QA:
+- [ ] Pastikan footer tidak menimpa soal pada halaman pertama maupun halaman lanjutan.
+- [ ] Pastikan footer muncul setelah bagian soal/ucapan penutup, bukan menyela konten.
+- [ ] Pastikan nama ujian dan nomor halaman terbaca pada hasil PDF.
+- [ ] Pastikan enam informasi tercetak dalam susunan tiga kolom × dua baris.
+- [ ] Pastikan Nama Peserta, Kelas/Fase cukup ruang dan tidak bertabrakan pada ukuran font berbeda.
+- [ ] Uji dokumen satu halaman dan beberapa halaman, satu kolom dan dua kolom.
