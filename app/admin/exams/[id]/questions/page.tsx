@@ -839,7 +839,7 @@ function BankSoalContent() {
                     <div className="grid grid-cols-1 gap-3">
                       <div><label className="block text-xs text-slate-400 mb-1">Pilihan A</label><RichTextEditor content={formData.option_a} onChange={(html) => setFormData({ ...formData, option_a: html })} placeholder="Isi pilihan A..." minHeight={100} /></div>
                       <div><label className="block text-xs text-slate-400 mb-1">Pilihan B</label><RichTextEditor content={formData.option_b} onChange={(html) => setFormData({ ...formData, option_b: html })} placeholder="Isi pilihan B..." minHeight={100} /></div>
-                      <div><label className="block text-xs text-slate-400 mb-1">Pilihan C</label><RichTextEditor content={formData.option_c} onChange={(html) => setFormData({ ...formData, option_c: html })} placeholder="Isi pilihan C..." placeholder="Isi pilihan C..." minHeight={100} /></div>
+                      <div><label className="block text-xs text-slate-400 mb-1">Pilihan C</label><RichTextEditor content={formData.option_c} onChange={(html) => setFormData({ ...formData, option_c: html })} placeholder="Isi pilihan C..." minHeight={100} /></div>
                       <div><label className="block text-xs text-slate-400 mb-1">Pilihan D</label><RichTextEditor content={formData.option_d} onChange={(html) => setFormData({ ...formData, option_d: html })} placeholder="Isi pilihan D..." minHeight={100} /></div>
                     </div>
                   </div>
