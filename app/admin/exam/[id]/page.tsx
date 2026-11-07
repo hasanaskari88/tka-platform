@@ -497,8 +497,7 @@ function QuestionManagerContent() {
       resetForm()
       loadData()
       setActiveTab('list')
-    }
-    setIsSubmitting(false)
+    }    setIsSubmitting(false)
   }
 
   const handleDeleteQuestion = async (qId: string) => {
@@ -574,9 +573,16 @@ function QuestionManagerContent() {
             page-break-inside: avoid;
           }
           .print-footer {
-            position: fixed; left: 0; right: 0; bottom: -9mm;
-            display: flex !important; justify-content: space-between;
-            border-top: 0.2mm solid #777; padding-top: 1mm; color: #333;
+            position: static !important;
+            display: flex !important;
+            justify-content: space-between;
+            align-items: center;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-top: 4mm;
+            border-top: 0.2mm solid #777;
+            padding-top: 1mm;
+            color: #333;
           }
           .print-footer-page::after { content: "Halaman " counter(page); }
           .page-break-before {
@@ -720,17 +726,14 @@ function QuestionManagerContent() {
             </div>
           </div>
         </div>
-        <div className="mb-2 bg-white" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-b border-black pb-1">
+        <div className="mb-2 bg-white border-b border-black pb-1" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1">
             <p><b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}</p>
-            <p><b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit</p>
             <p><b>NAMA UJIAN:</b> {exam?.title}</p>
+            <p><b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit</p>
             <p><b>JUMLAH SOAL:</b> {questions.length} Butir</p>
-          </div>
-          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 pt-1">
-            <span className="inline-flex items-baseline gap-1"><b>NAMA PESERTA:</b><span className="inline-block w-44 border-b border-black">&nbsp;</span></span>
-            <span className="inline-flex items-baseline gap-1"><b>KELAS:</b><span className="inline-block min-w-10 border-b border-black text-center">{printSettings.className || '\u00a0'}</span></span>
-            <span className="inline-flex items-baseline gap-1"><b>FASE:</b><span className="inline-block min-w-8 border-b border-black text-center">{printSettings.phase || '\u00a0'}</span></span>
+            <p className="whitespace-nowrap"><b>NAMA:</b> <span className="inline-block w-24 border-b border-black">&nbsp;</span></p>
+            <p className="whitespace-nowrap"><b>KELAS/FASE:</b> <span className="inline-block min-w-12 border-b border-black text-center">{[printSettings.className, printSettings.phase].filter(Boolean).join(' / ') || '\u00a0'}</span></p>
           </div>
         </div>
 
@@ -803,6 +806,10 @@ function QuestionManagerContent() {
         </div>
         <div className="py-2 text-center font-bold" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>☺ Selamat Mengerjakan, Semoga Sukses ☺</div>
 
+        <div className="print-footer" style={{ fontSize: `${printSettings.footerFontSize}pt` }}>
+          <span>{exam?.title || 'Naskah Ujian'}</span><span className="print-footer-page" />
+        </div>
+
         {/* LEMBAR KUNCI JAWABAN DAN PEMBAHASAN (OPSIONAL) */}
         {printSettings.includeAnswerKey && (
         <div className="page-break-before pt-4">
@@ -862,9 +869,6 @@ function QuestionManagerContent() {
           </table>
         </div>
         )}
-              <div className="print-footer" style={{ fontSize: `${printSettings.footerFontSize}pt` }}>
-                <span>{exam?.title || 'Naskah Ujian'}</span><span className="print-footer-page" />
-              </div>
             </div>
           </div>
         </div>
@@ -997,8 +1001,7 @@ function QuestionManagerContent() {
 
             {msg && (
               <div
-                className={`p-3 rounded-xl text-xs font-medium ${
-                  msg.startsWith('Error')
+                className={`p-3 rounded-xl text-xs font-medium ${                  msg.startsWith('Error')
                     ? 'bg-red-50 text-red-600 border border-red-200'
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 }`}
@@ -1497,8 +1500,7 @@ function QuestionManagerContent() {
       </main>
 
       <BulkUploadModal
-        examId={examId}
-        isOpen={isBulkModalOpen}
+        examId={examId}        isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         onSuccess={loadData}
       />
