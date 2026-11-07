@@ -423,3 +423,53 @@ Langkah berikutnya:
 1. Tunggu Preview READY untuk commit penyederhanaan form.
 2. Uji form guru: tambah/edit soal, gambar inline, gambar legacy, dan buka/tutup pembahasan.
 3. Setelah tahap form lolos, kerjakan editor jawaban siswa sebagai tahap tersendiri.
+
+
+## Toolbar RichTextEditor ringkas dan responsif — 7 November 2026
+
+Status: **kode diterapkan pada branch `editor-test`; menunggu build Vercel Preview dan uji browser pengguna**.
+
+Commit:
+- `5cfcda56d6d46a323594c2ce20969a0c3bffea3e` — implementasi toolbar satu baris dan dropdown.
+- `3405bc6ca60f664374087ae9e322910d8507c18f` — perbaikan penulisan template literal JSX setelah inspeksi file tersimpan.
+
+File aplikasi diubah:
+- `components/editor/EditorToolbar.tsx`.
+
+Perubahan tampilan:
+- Toolbar sekarang tertutup secara default.
+- Baris ringkas selalu satu baris (`flex-nowrap`) dan dapat digeser horizontal bila lebar layar sangat sempit.
+- Tombol cepat: tebal, miring, garis bawah, pangkat, dan indeks bawah.
+- Tombol `Lainnya ⌄` membuka empat baris toolbar lengkap yang sudah ada; tombol berubah menjadi `Tutup ⌃`.
+- Kontrol tabel kontekstual hanya tampil saat toolbar lengkap dibuka.
+- Dialog gambar tetap dipasang dan perilaku upload/galeri/crop tidak diubah.
+
+Kompatibilitas yang dipertahankan:
+- Semua kontrol lengkap sebelumnya tetap ada: coretan, jenis paragraf, font, ukuran, warna, sorotan, perataan, daftar, tabel, gambar, rumus, undo, dan redo.
+- Tidak mengubah mesin Tiptap, konten HTML, autosave, penyimpanan, database, atau penilaian.
+- Tidak mengubah `editor.css` karena tata letak toolbar ditangani oleh kelas responsif pada komponen.
+- Tidak mengubah branch `main`.
+
+Pemeriksaan kode setelah perubahan:
+- Toolbar state awal `false` (tertutup).
+- Baris ringkas memakai `flex-nowrap` dan `overflow-x-auto`.
+- Tombol dropdown memiliki `aria-expanded`.
+- Empat baris lama dirender kondisional saat dropdown terbuka.
+- Dialog gambar tetap tersedia.
+- Pemeriksaan ini adalah inspeksi struktur kode, **bukan** hasil TypeScript build.
+
+Hasil build Vercel Preview: **menunggu**.
+Hasil uji pengguna desktop/HP: **menunggu**.
+Masalah build baru: belum diketahui.
+
+Langkah uji setelah deployment READY:
+1. Buka halaman editor soal dan pastikan toolbar awal hanya satu baris.
+2. Tekan `Lainnya`; pastikan empat baris lengkap tampil.
+3. Tekan `Tutup`; pastikan kembali ringkas.
+4. Uji tombol cepat B, I, U, x², dan x₂.
+5. Uji fitur lengkap terutama font Arab/Jawa, warna, rumus, gambar, tabel, undo/redo.
+6. Uji lebar layar HP; pastikan toolbar tidak membungkus menjadi beberapa baris. Bila tombol tidak muat, geser baris secara horizontal.
+
+Roadmap:
+- Tunggu Preview READY dan uji tampilan ringkas/lengkap pada desktop serta HP.
+- Jika lolos, lanjutkan tahap berikutnya sesuai roadmap editor; jangan merge/promosikan ke `main` tanpa persetujuan eksplisit.
