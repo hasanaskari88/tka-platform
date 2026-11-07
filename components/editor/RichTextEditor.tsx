@@ -29,6 +29,31 @@ import Underline from '@tiptap/extension-underline'
 import 'katex/dist/katex.min.css'
 import './editor.css'
 
+function escapeMathAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/\"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function escapeMathText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+/** Ubah rumus format lama menjadi node matematika Tiptap saat dibuka di editor. */
+function prepareEditorContent(value: string): string {
+  return value.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g, (_match, blockLatex, inlineLatex) => {
+    const isBlock = blockLatex !== undefined
+    const latex = String(isBlock ? blockLatex : inlineLatex).trim()
+    const tag = isBlock ? 'div' : 'span'
+    const type = isBlock ? 'block-math' : 'inline-math'
+    return '<' + tag + ' data-type=\"' + type + '\" data-latex=\"' + escapeMathAttribute(latex) + '\">' + escapeMathText(latex) + '</' + tag + '>'
+  })
+}
 interface RichTextEditorProps {
   content?: string
   onChange?: (html: string) => void
@@ -113,7 +138,7 @@ export default function RichTextEditor({
       }),
     ],
 
-    content,
+    content: prepareEditorContent(content),
     immediatelyRender: false,
     editable,
 
@@ -134,10 +159,11 @@ export default function RichTextEditor({
   useEffect(() => {
     if (!editor) return
 
+    const preparedContent = prepareEditorContent(content || '')
     const currentContent = editor.getHTML()
 
-    if (content !== currentContent) {
-      editor.commands.setContent(content || '', {
+    if (preparedContent !== currentContent) {
+      editor.commands.setContent(preparedContent, {
         emitUpdate: false,
       })
     }
