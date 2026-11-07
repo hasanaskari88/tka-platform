@@ -800,9 +800,9 @@ Pemeriksaan deployment:
 | Bagian | Implementasi aktif | Status |
 |---|---|---|
 | Toolbar cepat | B / I / U / ▧ / ∑ / Lainnya | Berhasil diuji pengguna |
-| Sisip gambar | Memanggil `ImageDialog` yang sudah ada | Sudah terhubung; gunakan QA editor sebelumnya untuk uji upload/galeri |
+| Sisip gambar | Memanggil `ImageDialog` yang sudah ada | Berhasil diuji pengguna dari toolbar |
 | Rumus matematika | Memanggil `MathFormulaDialog` dalam mode compact | Berhasil diuji pengguna sebagai bagian toolbar |
-| Toolbar lengkap | Format teks, font, warna, alignment, list, tabel, pangkat, indeks bawah, dan kontrol lanjutan | Tetap tersedia; perlu QA regresi setelah perubahan ringkas |
+| Toolbar lengkap | Format teks, font, warna, alignment, list, tabel, pangkat, indeks bawah, dan kontrol lanjutan | Pengguna mengonfirmasi tombol-tombol yang dicoba berfungsi; uji simpan/buka ulang lintas tipe soal masih terpisah |
 | Tampilan HP | Satu baris, horizontal scroll; toolbar lengkap tersembunyi sampai Lainnya ditekan | Berhasil diuji pengguna secara tampilan |
 
 ## Roadmap aktif yang telah ditinjau ulang
@@ -811,10 +811,11 @@ Urutan kerja berikut menggantikan status lama yang tertinggal di bagian roadmap 
 
 ### Tahap 1A — QA editor admin dan toolbar
 - [x] Uji tombol Lainnya/Tutup: toolbar lengkap dapat dibuka dan ditutup kembali — berhasil dikonfirmasi pengguna.
-- [ ] Uji kontrol toolbar lengkap lainnya: pangkat, indeks bawah, font, alignment, tabel, dan warna.
+- [x] Uji tombol/fitur toolbar lengkap lainnya yang dicoba pengguna; dikonfirmasi berfungsi.
 - [x] Uji tombol rumus ringkas: tambah rumus pecahan pada soal yang sudah ada, simpan, buka ulang, dan pastikan rumus tetap tampil benar — berhasil dikonfirmasi pengguna.
-- [ ] Uji tombol gambar dan rumus lanjutan dari toolbar ringkas, termasuk pada posisi kursor/teks terpilih agar selection tidak hilang.
-- [ ] Uji simpan, buka ulang, dan edit ulang untuk PG tunggal, PG kompleks, matriks benar-salah, dan essay.
+- [x] Uji tombol gambar dari toolbar ringkas — pengguna mengonfirmasi berfungsi.
+- [ ] Uji lebih lanjut perilaku selection/kursor saat menyisipkan gambar dan rumus.
+- [ ] Uji simpan, buka ulang, dan edit ulang untuk PG tunggal, PG kompleks, matriks benar-salah, dan essay; uji toolbar pada PG kompleks, matriks, dan essay sudah dikonfirmasi, tetapi roundtrip simpan/buka ulang per tipe belum dicatat.
 - [ ] Pastikan gambar inline, node matematika, HTML lama, dan pembahasan tetap tampil pada daftar/pratinjau/cetak.
 - [ ] Pastikan bobot, kunci jawaban, struktur opsi, dan skor tidak berubah.
 
@@ -885,3 +886,33 @@ Roadmap Tahap 1A diperbarui:
 - [ ] Lanjutkan QA simpan/buka ulang seluruh tipe soal dan kompatibilitas tampilan.
 
 Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` pada langkah pengujian ini.
+
+
+## Hasil QA pengguna — tombol gambar dan toolbar pada berbagai tipe soal (7 November 2026)
+
+Status: **berhasil untuk fungsi toolbar yang dicoba pengguna**.
+
+Pengguna mengonfirmasi:
+1. Tombol gambar pada toolbar berfungsi.
+2. Tombol/fitur toolbar lainnya yang telah dicoba juga berfungsi.
+3. Pengujian dilakukan pada berbagai tipe soal, termasuk PG kompleks, matriks benar-salah, dan essay.
+
+Cakupan yang sudah terbukti:
+- Pemanggilan fitur gambar melalui toolbar.
+- Fungsi kontrol toolbar lainnya yang dicoba.
+- Toolbar dapat digunakan pada editor untuk tipe soal PG kompleks, matriks benar-salah, dan essay.
+
+Batas cakupan:
+- Konfirmasi ini membuktikan fungsi toolbar pada tipe soal tersebut; belum otomatis membuktikan seluruh data soal berhasil disimpan, dibuka ulang, dan diedit ulang untuk setiap tipe.
+- Belum ada konfirmasi terpisah untuk tampilan siswa, hasil/koreksi, analisis, export, dan cetak.
+- Perilaku pemeliharaan selection/kursor saat penyisipan gambar/rumus masih dapat diuji lebih lanjut bila ditemukan gejala.
+
+Roadmap Tahap 1A:
+- [x] Uji tombol gambar dari toolbar.
+- [x] Uji kontrol toolbar lain yang dicoba pengguna.
+- [x] Pastikan toolbar dapat digunakan pada PG kompleks, matriks benar-salah, dan essay.
+- [ ] Uji simpan, buka ulang, dan edit ulang seluruh tipe soal.
+- [ ] Periksa gambar/rumus/pembahasan pada daftar, pratinjau, tampilan siswa, dan cetak.
+- [ ] Pastikan bobot, kunci jawaban, struktur opsi, dan skor tidak berubah.
+
+Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` pada pengujian ini.
