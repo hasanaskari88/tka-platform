@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,31 +11,121 @@ interface ImageDialogProps {
 }
 
 type ImageAlignment = 'left' | 'center' | 'right'
+type ImageSourceMode = 'upload' | 'url'
 
 export default function ImageDialog({
   editor,
   open,
   onClose,
 }: ImageDialogProps) {
+  const [mode, setMode] = useState<ImageSourceMode>('upload')
+  const [file, setFile] = useState<File | null>(null)
   const [src, setSrc] = useState('')
   const [alt, setAlt] = useState('')
   const [width, setWidth] = useState('60%')
   const [alignment, setAlignment] = useState<ImageAlignment>('center')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (open) {
+      setMode('upload')
+      setFile(null)
       setSrc('')
       setAlt('')
       setWidth('60%')
       setAlignment('center')
       setError('')
+      setLoading(false)
     }
   }, [open])
 
   if (!open) return null
 
-  const insertImage = () => {
+  const insertImage = (imageUrl: string) => {
+    const widthValue = width === 'auto' ? 'auto' : width
+
+    const margin =
+      alignment === 'left'
+        ? '0 auto 0 0'
+        : alignment === 'right'
+          ? '0 0 0 auto'
+          : '0 auto'
+
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: 'image',
+        attrs: {
+          src: imageUrl,
+          alt: alt.trim(),
+          title: alt.trim(),
+          width: widthValue,
+          style: `width: ${widthValue}; display: block; margin: ${margin};`,
+        },
+      })
+      .run()
+
+    onClose()
+  }
+
+  const handleUpload = async () => {
+    if (!file) {
+      setError('Pilih gambar dari komputer terlebih dahulu.')
+      return
+    }
+
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+    ]
+
+    if (!allowedTypes.includes(file.type)) {
+      setError('Format gambar harus JPG, PNG, WEBP, atau GIF.')
+      return
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+      setError('Ukuran gambar maksimal 8 MB.')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch('/api/google-drive/upload', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success || !result.file?.imageUrl) {
+        throw new Error(
+          result.error || 'Gagal mengunggah gambar.'
+        )
+      }
+
+      insertImage(result.file.imageUrl)
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Terjadi kesalahan saat mengunggah gambar.'
+      )
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleInsertUrl = () => {
     const trimmedSrc = src.trim()
 
     if (!trimmedSrc) {
@@ -54,30 +145,7 @@ export default function ImageDialog({
       return
     }
 
-    const widthValue = width === 'auto' ? 'auto' : width
-    const margin =
-      alignment === 'left'
-        ? '0 auto 0 0'
-        : alignment === 'right'
-          ? '0 0 0 auto'
-          : '0 auto'
-
-    editor
-      .chain()
-      .focus()
-      .insertContent({
-        type: 'image',
-        attrs: {
-          src: trimmedSrc,
-          alt: alt.trim(),
-          title: alt.trim(),
-          width: widthValue,
-          style: `width: ${widthValue}; display: block; margin: ${margin};`,
-        },
-      })
-      .run()
-
-    onClose()
+    insertImage(trimmedSrc)
   }
 
   const fieldClass =
@@ -90,9 +158,11 @@ export default function ImageDialog({
           <h2 className="text-lg font-bold text-slate-800">
             Sisipkan Gambar
           </h2>
+
           <button
             type="button"
             onClick={onClose}
+            disabled={loading}
             className="rounded-lg px-3 py-1 text-xl text-slate-500 hover:bg-slate-100"
             aria-label="Tutup"
           >
@@ -100,24 +170,91 @@ export default function ImageDialog({
           </button>
         </div>
 
+        <div className="mb-4 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('upload')
+              setError('')
+            }}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${
+              mode === 'upload'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600'
+            }`}
+          >
+            Upload dari komputer
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMode('url')
+              setError('')
+            }}
+            className={`rounded-md px-3 py-2 text-sm font-medium ${
+              mode === 'url'
+                ? 'bg-white text-blue-700 shadow-sm'
+                : 'text-slate-600'
+            }`}
+          >
+            Gunakan URL
+          </button>
+        </div>
+
         <div className="space-y-4">
-          <label className="block space-y-1">
-            <span className="text-sm font-medium text-slate-700">
-              Alamat URL gambar
-            </span>
-            <input
-              type="url"
-              value={src}
-              onChange={(event) => setSrc(event.target.value)}
-              placeholder="https://contoh.com/gambar.jpg"
-              className={fieldClass}
-            />
-          </label>
+          {mode === 'upload' ? (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Pilih gambar dari komputer
+              </label>
+
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(event) => {
+                  setFile(event.target.files?.[0] || null)
+                  setError('')
+                }}
+                disabled={loading}
+                className={fieldClass}
+              />
+
+              <p className="text-xs text-slate-500">
+                Format JPG, PNG, WEBP, atau GIF. Maksimal 8 MB.
+                Gambar akan disimpan ke Google Drive.
+              </p>
+
+              {file && (
+                <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-800">
+                  <p className="font-medium">{file.name}</p>
+                  <p>
+                    {(file.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <label className="block space-y-1">
+              <span className="text-sm font-medium text-slate-700">
+                Alamat URL gambar
+              </span>
+
+              <input
+                type="url"
+                value={src}
+                onChange={(event) => setSrc(event.target.value)}
+                placeholder="https://contoh.com/gambar.jpg"
+                className={fieldClass}
+              />
+            </label>
+          )}
 
           <label className="block space-y-1">
             <span className="text-sm font-medium text-slate-700">
               Keterangan gambar
             </span>
+
             <input
               value={alt}
               onChange={(event) => setAlt(event.target.value)}
@@ -131,6 +268,7 @@ export default function ImageDialog({
               <span className="text-sm font-medium text-slate-700">
                 Ukuran gambar
               </span>
+
               <select
                 value={width}
                 onChange={(event) => setWidth(event.target.value)}
@@ -149,6 +287,7 @@ export default function ImageDialog({
               <span className="text-sm font-medium text-slate-700">
                 Posisi gambar
               </span>
+
               <select
                 value={alignment}
                 onChange={(event) =>
@@ -173,16 +312,23 @@ export default function ImageDialog({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg border border-slate-300 px-4 py-2 text-sm"
+              disabled={loading}
+              className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-50"
             >
               Batal
             </button>
+
             <button
               type="button"
-              onClick={insertImage}
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              onClick={mode === 'upload' ? handleUpload : handleInsertUrl}
+              disabled={loading}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Sisipkan Gambar
+              {loading
+                ? 'Mengunggah...'
+                : mode === 'upload'
+                  ? 'Upload dan Sisipkan'
+                  : 'Sisipkan Gambar'}
             </button>
           </div>
         </div>
