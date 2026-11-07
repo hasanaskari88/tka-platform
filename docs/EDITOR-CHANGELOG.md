@@ -19,7 +19,7 @@ Branch produksi: `main` (tidak diubah selama pengujian)
 | Autosave konten laboratorium editor ke localStorage | Berhasil diuji |
 | Build Vercel Preview untuk endpoint proxy gambar Drive | Berhasil setelah menghapus deklarasi `runtime` yang tidak kompatibel dengan `cacheComponents` |
 | Crop gambar dari Galeri Google Drive melalui proxy same-origin | Berhasil diuji pengguna: hasil tersimpan sebagai gambar baru dan tampil di editor; gambar asli tetap dipertahankan |
-| Integrasi RichTextEditor pada form soal, opsi, dan pembahasan | Sudah diterapkan di `editor-test`; menunggu build dan pengujian Vercel Preview |
+| Integrasi RichTextEditor pada form soal, opsi, dan pembahasan | Sudah diterapkan dan build Vercel Preview berstatus READY; menunggu pengujian fungsi oleh pengguna |
 | Konversi rumus lama `$...# Inventaris Pengembangan Rich Text Editor
 
 Branch pengembangan: `editor-test`  
