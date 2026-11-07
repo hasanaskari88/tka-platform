@@ -49,6 +49,7 @@ const alignments = [
 
 export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
+  const [toolbarOpen, setToolbarOpen] = useState(false)
 
   // Memantau perubahan format sesuai posisi kursor atau teks terpilih.
   const state = useEditorState({
@@ -112,8 +113,44 @@ export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) 
 
   return (
     <>
-      <div className="space-y-2 border-b border-slate-200 bg-slate-50 p-3">
+      <div className="border-b border-slate-200 bg-slate-50">
+        {/* Toolbar ringkas: selalu satu baris, termasuk pada layar HP. */}
+        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto px-2 py-2">
+          <button type="button" title="Tebal" aria-label="Tebal"
+            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm font-bold text-slate-700 hover:bg-slate-100 \${current?.bold ? activeClass : ''}\`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
+          <button type="button" title="Miring" aria-label="Miring"
+            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm italic text-slate-700 hover:bg-slate-100 \${current?.italic ? activeClass : ''}\`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
+          <button type="button" title="Garis bawah" aria-label="Garis bawah"
+            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm underline text-slate-700 hover:bg-slate-100 \${current?.underline ? activeClass : ''}\`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+          <button type="button" title="Pangkat" aria-label="Pangkat"
+            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 \${current?.superscript ? activeClass : ''}\`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleSuperscript().run()}>x²</button>
+          <button type="button" title="Indeks bawah" aria-label="Indeks bawah"
+            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 \${current?.subscript ? activeClass : ''}\`}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().toggleSubscript().run()}>x₂</button>
+          <span className="mx-1 h-6 shrink-0 border-l border-slate-300" />
+          <button type="button"
+            title={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
+            aria-label={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
+            aria-expanded={toolbarOpen}
+            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setToolbarOpen((open) => !open)}>
+            <span>{toolbarOpen ? 'Tutup' : 'Lainnya'}</span>
+            <span aria-hidden="true">{toolbarOpen ? '⌃' : '⌄'}</span>
+          </button>
+        </div>
 
+        {toolbarOpen && (
+          <div className="space-y-2 border-t border-slate-200 p-3">
         {/* BARIS 1: FORMAT TEKS */}
         <div className="flex flex-wrap items-center gap-1.5">
           <button
@@ -364,9 +401,11 @@ export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) 
             ↷ Ulangi
           </button>
         </div>
+          </div>
+        )}
       </div>
 
-      <TableControls editor={editor} />
+      {toolbarOpen && <TableControls editor={editor} />}
 
       <ImageDialog
         editor={editor}
