@@ -94,8 +94,16 @@ export default function FontTestPage() {
           </div>
 
           <div className="min-h-40 rounded-lg border border-slate-200 bg-white p-4">
-            <MathRenderer content={content} />
-          </div>
+  <Suspense
+    fallback={
+      <div className="text-sm text-slate-500">
+        Menyiapkan pratinjau...
+      </div>
+    }
+  >
+    <MathRenderer content={content} />
+  </Suspense>
+</div>
         </section>
 
         <section className="rounded-xl border border-blue-100 bg-blue-50 p-4">
