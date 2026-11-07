@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import RichTextEditor from '@/components/editor/RichTextEditor'
 import MathRenderer from '@/components/MathRenderer'
 
@@ -63,11 +63,19 @@ export default function FontTestPage() {
             </button>
           </div>
 
-          <RichTextEditor
-            content={content}
-            onChange={setContent}
-            placeholder="Tuliskan soal atau materi di sini..."
-          />
+          <Suspense
+  fallback={
+    <div className="min-h-[220px] rounded-lg border border-slate-200 p-4 text-sm text-slate-500">
+      Menyiapkan editor...
+    </div>
+  }
+>
+  <RichTextEditor
+    content={content}
+    onChange={setContent}
+    placeholder="Tuliskan soal atau materi di sini..."
+  />
+</Suspense>
 
           <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
             <span>Perubahan hanya tersimpan sementara di halaman ini.</span>
