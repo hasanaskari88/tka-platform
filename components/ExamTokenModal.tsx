@@ -80,6 +80,7 @@ export default function ExamTokenModal({
 
   const handleStartExam = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isVerifying) return
     setErrorMsg(null)
     setIsVerifying(true)
 
@@ -115,7 +116,7 @@ export default function ExamTokenModal({
       }
 
       // Jika Semua Validasi Lolos -> Pindah ke Ruang Ujian CBT
-      router.push(`/exam/${exam.id}`)
+      router.push(`/exam/${exam.id}?start=1`)
     } catch (err) {
       setErrorMsg('Terjadi kesalahan koneksi. Silahkan reload halaman dan coba lagi.')
       setIsVerifying(false)

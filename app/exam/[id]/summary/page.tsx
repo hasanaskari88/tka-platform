@@ -788,7 +788,9 @@ function ExamSummaryContent() {
                   {qType === 'essay' && (
                     <div className="p-3 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 space-y-1">
                       <span className="font-bold text-amber-900">Jawaban Essay Siswa:</span>
-                      <p className="whitespace-pre-wrap text-slate-900">{typeof userAns === 'string' ? userAns : '(Belum dijawab)'}</p>
+                      <div className="text-slate-900">
+                        <MathRenderer content={typeof userAns === 'string' ? userAns : '(Belum dijawab)'} />
+                      </div>
                     </div>
                   )}
 

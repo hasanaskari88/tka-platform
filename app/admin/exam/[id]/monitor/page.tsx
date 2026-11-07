@@ -118,12 +118,16 @@ function MonitorContent() {
   }
 
   // Hitung Sisa Waktu Pengerjaan Siswa
-  const calculateLiveTimer = (startTimeStr: string, durationMinutes: number) => {
-    if (!startTimeStr) return { isExpired: true, displayTime: '00:00', remainingSeconds: 0 }
-    const startMs = new Date(startTimeStr).getTime()
+  const calculateLiveTimer = (session: any, durationMinutes: number) => {
+    if (!session?.start_time) return { isExpired: true, displayTime: '00:00', remainingSeconds: 0 }
+    const startMs = new Date(session.start_time).getTime()
     const totalSec = (durationMinutes || 15) * 60
-    const elapsedSec = Math.floor((now - startMs) / 1000)
-    const remSec = totalSec - elapsedSec
+    const accumulatedPause = Number(session.paused_duration_seconds) || 0
+    const pausedAtMs = session.paused_at ? new Date(session.paused_at).getTime() : null
+    const currentPause = pausedAtMs ? Math.max(0, Math.floor((now - pausedAtMs) / 1000)) : 0
+    const extraTime = Number(session.extra_time_seconds) || 0
+    const elapsedSec = Math.max(0, Math.floor((now - startMs) / 1000) - accumulatedPause - currentPause)
+    const remSec = totalSec + extraTime - elapsedSec
 
     if (remSec <= 0) {
       return { isExpired: true, displayTime: 'Waktu Habis', remainingSeconds: 0 }
@@ -614,7 +618,7 @@ function MonitorContent() {
                         class_code: '-',
                       }
 
-                      const timerInfo = calculateLiveTimer(s.start_time, exam?.duration_minutes)
+                      const timerInfo = calculateLiveTimer(s, exam?.duration_minutes)
                       const isOngoing = s.status === 'ongoing'
                       const isPaused = s.status === 'paused'
                       const correctCount = getDisplayCorrect(s)

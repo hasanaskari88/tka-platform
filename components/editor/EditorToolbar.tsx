@@ -12,6 +12,7 @@ import TableControls from './TableControls'
 interface EditorToolbarProps {
   editor: Editor | null
   editorId: string
+  mode?: 'full' | 'essay'
 }
 
 const buttonClass =
@@ -47,7 +48,7 @@ const alignments = [
   { value: 'justify', label: '☰ Rata', title: 'Rata kiri-kanan' },
 ] as const
 
-export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, editorId, mode = 'full' }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
 
@@ -128,25 +129,31 @@ export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) 
             className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm underline text-slate-700 hover:bg-slate-100 ${current?.underline ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
-          <button type="button" title="Sisipkan gambar" aria-label="Sisipkan gambar"
-            className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg text-slate-700 hover:bg-slate-100"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setImageOpen(true)}>▧</button>
+          {mode !== 'essay' && (
+            <button type="button" title="Sisipkan gambar" aria-label="Sisipkan gambar"
+              className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg text-slate-700 hover:bg-slate-100"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setImageOpen(true)}>▧</button>
+          )}
           <MathFormulaDialog editor={editor} editorId={editorId} compact />
-          <span className="mx-1 h-6 shrink-0 border-l border-slate-300" />
-          <button type="button"
-            title={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
-            aria-label={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
-            aria-expanded={toolbarOpen}
-            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setToolbarOpen((open) => !open)}>
-            <span>{toolbarOpen ? 'Tutup' : 'Lainnya'}</span>
-            <span aria-hidden="true">{toolbarOpen ? '⌃' : '⌄'}</span>
-          </button>
+          {mode !== 'essay' && (
+            <>
+              <span className="mx-1 h-6 shrink-0 border-l border-slate-300" />
+              <button type="button"
+                title={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
+                aria-label={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
+                aria-expanded={toolbarOpen}
+                className="inline-flex h-9 shrink-0 items-center gap-1 rounded-md border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setToolbarOpen((open) => !open)}>
+                <span>{toolbarOpen ? 'Tutup' : 'Lainnya'}</span>
+                <span aria-hidden="true">{toolbarOpen ? '⌃' : '⌄'}</span>
+              </button>
+            </>
+          )}
         </div>
 
-        {toolbarOpen && (
+        {mode === 'full' && toolbarOpen && (
           <div className="space-y-2 border-t border-slate-200 p-3">
         {/* BARIS 1: FORMAT TEKS */}
         <div className="flex flex-wrap items-center gap-1.5">

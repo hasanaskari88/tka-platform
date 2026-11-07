@@ -1193,3 +1193,56 @@ Checklist QA:
 - [ ] Pastikan jawaban essay dan pembahasan terbaca.
 - [ ] Uji filter Semua, Benar, dan Salah; pastikan jumlah dan hasilnya tetap sesuai.
 - [ ] Pastikan skor dan status jawaban tidak berubah.
+
+
+
+## Student essay editor and exam-session lifecycle hardening — 7 November 2026
+
+Status: **implemented on `editor-test`; Vercel Preview build and end-to-end user QA pending**.
+
+Scope:
+- Integrate a reduced WYSIWYG editor for student essay responses.
+- Improve autosave queue recovery and final answer snapshot handling.
+- Require an explicit start action before creating a new exam session.
+- Align Live Proctor timer calculations with the student timer.
+
+Files changed:
+- `app/exam/[id]/page.tsx`
+- `app/admin/exam/[id]/monitor/page.tsx`
+- `components/ExamTokenModal.tsx`
+- `components/editor/RichTextEditor.tsx`
+- `components/editor/EditorToolbar.tsx`
+- `app/exam/[id]/summary/page.tsx`
+- `app/admin/exam/[id]/results/page.tsx`
+
+Changes:
+1. Student essay responses now use `RichTextEditor` with a reduced toolbar: bold, italic, underline, and mathematics. Image upload and the full formatting toolbar are hidden in this mode.
+2. Essay content remains HTML in `answers.user_answer`; the existing summary and teacher result pages render it through `MathRenderer` so formatted text and supported math nodes are readable.
+3. Autosave queue now recovers after a failed write instead of remaining permanently rejected. Final flush retries the latest snapshot up to three times before reporting a failure.
+4. Final submit merges the localStorage backup with the latest in-memory answer and flag refs; in-memory values take precedence. Existing answer upsert still completes before the session status is changed to `completed`.
+5. The token modal sends a one-time `start=1` intent and blocks duplicate submit clicks. The exam page creates a new session only with that explicit intent; without it, the page may resume an existing active session but will not silently create a new attempt.
+6. After a session is found/created, the start marker is removed from the URL. Reload therefore resumes an active session; after reset/deletion, the student returns to the home page and must deliberately start again.
+7. A load guard prevents repeated initial effects from creating duplicate sessions during development/Strict Mode.
+8. Live Proctor timer now accounts for accumulated pauses, current pause duration, and extra time, matching the student-side calculation.
+
+Important limits:
+- No database table, column, constraint, RPC, trigger, grading formula, or scoring rule was changed.
+- Student-side timeout can submit automatically while the exam page is running and the browser can reach Supabase. If the device/browser is fully closed or offline at the deadline, a browser-only timer cannot perform a remote submit; a server-side scheduled fallback would be a separate approved task.
+- Live Proctor still displays an expired active session as expired until the student client completes submission or a proctor uses its existing controls. The timer mismatch is fixed, but this change does not add server-side auto-finalization.
+- Build READY is not equivalent to successful student/teacher end-to-end QA.
+
+QA checklist:
+- [ ] Preview build succeeds.
+- [ ] Start a new test from the token modal; exactly one session appears in Live Proctor.
+- [ ] Reload an ongoing exam; the same session resumes and no new row appears.
+- [ ] Use Reset Session; the page must not silently create a replacement session. A deliberate new start creates exactly one new session.
+- [ ] Pause/resume and add extra time; Live Proctor countdown matches the student countdown.
+- [ ] Answer an essay using text formatting and a formula; navigate away and back; content remains.
+- [ ] Reload the exam; essay content restores from Supabase/localStorage.
+- [ ] Allow the timer to expire with the page open; answers are flushed and session becomes completed.
+- [ ] Check essay formatting/math in student summary and teacher grading.
+- [ ] Simulate one transient autosave failure followed by a successful save; subsequent queue operations must recover.
+- [ ] Confirm objective scores, manual essay scoring, answer keys, and existing sessions remain unchanged.
+
+Open follow-up:
+- Consider a server-side deadline finalizer for sessions whose browser is closed/offline at expiry. This requires an explicitly approved server-side design and must preserve saved answers before changing session status.

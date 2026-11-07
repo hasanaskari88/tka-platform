@@ -1,14 +1,17 @@
 'use client'
 
 import { useEffect, useState, useRef, Suspense } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
+import RichTextEditor from '@/components/editor/RichTextEditor'
 
 function ExamEngineContent() {
   const params = useParams()
   const examId = params?.id as string
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const explicitStart = searchParams.get('start') === '1'
 
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
@@ -45,6 +48,7 @@ function ExamEngineContent() {
   const flaggedQuestionsRef = useRef<{ [key: string]: boolean }>({})
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const loadStartedRef = useRef(false)
 
   // Helper Acak Array (Fisher-Yates Shuffle)
   const shuffleArray = (array: any[]) => {
@@ -107,8 +111,12 @@ function ExamEngineContent() {
   }
 
   const queueAutosave = () => {
-    saveQueueRef.current = saveQueueRef.current.then(() => persistAnswersToSupabase())
-    return saveQueueRef.current
+    // Pulihkan antrean setelah satu kegagalan agar penyimpanan berikutnya tetap dapat berjalan.
+    const nextSave = saveQueueRef.current
+      .catch(() => undefined)
+      .then(() => persistAnswersToSupabase())
+    saveQueueRef.current = nextSave
+    return nextSave
   }
 
   const scheduleAutosave = () => {
@@ -124,7 +132,18 @@ function ExamEngineContent() {
       clearTimeout(autosaveTimerRef.current)
       autosaveTimerRef.current = null
     }
-    await queueAutosave()
+
+    // Coba ulang penyimpanan snapshot terbaru beberapa kali sebelum submit dinyatakan gagal.
+    let lastError: unknown = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await queueAutosave()
+        return
+      } catch (error) {
+        lastError = error
+      }
+    }
+    throw lastError
   }
 
   // Update state, ref, cadangan lokal, lalu jadwalkan autosave 800 ms.
@@ -273,6 +292,13 @@ const { data: existingSession, error: sessionError } = await supabase
     }
 
 
+    if (!existingSession && !explicitStart) {
+      alert('Tidak ada sesi ujian aktif untuk dilanjutkan. Silakan kembali ke halaman utama dan tekan Mulai Kerjakan jika memang ingin memulai percobaan baru.')
+      setLoading(false)
+      router.replace('/')
+      return
+    }
+
     if (existingSession) {
       currentSession = existingSession
       currentSessId = existingSession.id
@@ -315,6 +341,10 @@ const { data: existingSession, error: sessionError } = await supabase
       setSessionId(currentSessId)
       sessionIdRef.current = currentSessId
     }
+
+    // Hapus penanda start dari URL setelah sesi ditemukan/dibuat. Reload berikutnya
+    // hanya boleh melanjutkan sesi aktif, bukan otomatis membuat percobaan baru.
+    if (explicitStart) router.replace(`/exam/${examId}`)
 
     // Buat placeholder untuk semua soal; ignoreDuplicates menjaga jawaban saat resume.
     if (currentSessId && questionsRef.current.length > 0) {
@@ -432,8 +462,11 @@ const { data: existingSession, error: sessionError } = await supabase
   }
 
   useEffect(() => {
+    // Mencegah pembuatan dua sesi jika efek dipanggil ulang saat development/Strict Mode.
+    if (loadStartedRef.current) return
+    loadStartedRef.current = true
     loadExamData()
-  }, [examId])
+  }, [examId, explicitStart])
 
   // 🟢 HOOK CEK STATUS SESI (PAUSE/RESUME) REAL-TIME
   useEffect(() => {
@@ -591,8 +624,9 @@ const { data: existingSession, error: sessionError } = await supabase
   }
 
   // Handler Jawaban Essay
-  const handleEssayChange = (questionId: string, text: string) => {
-    const updated = { ...userAnswersRef.current, [questionId]: text }
+  const handleEssayChange = (questionId: string, html: string) => {
+    const normalizedHtml = html.trim() === '<p></p>' ? '' : html
+    const updated = { ...userAnswersRef.current, [questionId]: normalizedHtml }
     updateAnswersState(updated)
   }
 
@@ -658,8 +692,21 @@ const { data: existingSession, error: sessionError } = await supabase
     }
 
     const currentQuestions = questionsRef.current
-    const currentAnswers = userAnswersRef.current
-    const currentFlags = flaggedQuestionsRef.current
+    let localAnswerSnapshot: { [key: string]: any } = {}
+    let localFlagSnapshot: { [key: string]: boolean } = {}
+    try {
+      localAnswerSnapshot = JSON.parse(localStorage.getItem(`cbt_answers_${examId}`) || '{}') || {}
+    } catch (error) {
+      console.error('Cadangan jawaban lokal tidak dapat dibaca:', error)
+    }
+    try {
+      localFlagSnapshot = JSON.parse(localStorage.getItem(`cbt_flags_${examId}`) || '{}') || {}
+    } catch (error) {
+      console.error('Cadangan status ragu lokal tidak dapat dibaca:', error)
+    }
+    // Ref terbaru menjadi prioritas; localStorage menjadi cadangan untuk nilai yang belum ada di ref.
+    const currentAnswers = { ...localAnswerSnapshot, ...userAnswersRef.current }
+    const currentFlags = { ...localFlagSnapshot, ...flaggedQuestionsRef.current }
 
     currentQuestions.forEach((q) => {
       const qMaxScore = Number(q.max_score) || 1
@@ -1326,18 +1373,14 @@ const { data: existingSession, error: sessionError } = await supabase
               {qType === 'essay' && (
                 <div className="space-y-2 pt-2">
                   <label className="block text-xs font-bold uppercase">Lembar Jawaban Essay Anda:</label>
-                  <textarea
-                    rows={6}
+                  <RichTextEditor
+                    content={typeof userAnswers[currentQuestion.id] === 'string' ? userAnswers[currentQuestion.id] : ''}
+                    onChange={(html) => handleEssayChange(currentQuestion.id, html)}
                     placeholder="Tuliskan jawaban lengkap Anda di sini..."
-                    value={userAnswers[currentQuestion.id] || ''}
-                    disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                    onChange={(e) => handleEssayChange(currentQuestion.id, e.target.value)}
-                    className={`w-full p-3.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 font-semibold shadow-inner ${textClass} ${
-                      isDark
-                        ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500'
-                        : 'bg-white border-slate-300 text-slate-900 placeholder:text-slate-400'
-                    }`}
-                    suppressHydrationWarning
+                    editable={!isSubmitting && timeLeft !== 0 && sessionStatus === 'ongoing'}
+                    toolbarMode="essay"
+                    minHeight={180}
+                    className="w-full shadow-inner"
                   />
                 </div>
               )}
