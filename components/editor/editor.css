@@ -209,3 +209,18 @@
   max-width: 100%;
   height: auto;
 }
+
+
+/* Pemisah kontrol posisi dan rotasi gambar */
+.rich-text-editor .editor-image-controls-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: #cbd5e1;
+  flex: 0 0 1px;
+}
+
+.rich-text-editor .editor-image-controls button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
