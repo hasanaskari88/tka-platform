@@ -119,6 +119,16 @@ function QuestionManagerContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
+  // Pengaturan dan pratinjau dokumen cetak.
+  const [showPrintPreview, setShowPrintPreview] = useState(false)
+  const [printSettings, setPrintSettings] = useState({
+    className: '',
+    phase: '',
+    twoColumns: true,
+    includeAnswerKey: true,
+    includeExplanations: true,
+  })
+
   const loadData = async () => {
     if (!examId) return
     const supabase = createClient()
@@ -198,6 +208,10 @@ function QuestionManagerContent() {
       alert('Belum ada soal untuk dicetak!')
       return
     }
+    setShowPrintPreview(true)
+  }
+
+  const handlePrintNow = () => {
     window.print()
   }
 
@@ -514,24 +528,45 @@ function QuestionManagerContent() {
           }
           nav,
           header,
-          .no-print {
+          .no-print,
+          .print-preview-controls {
             display: none !important;
           }
-          .print-only {
+          .print-preview-overlay {
+            position: static !important;
             display: block !important;
+            padding: 0 !important;
+            background: transparent !important;
           }
-          /* FORMAT 2 KOLOM NASKAH SOAL */
+          .print-preview-panel {
+            width: auto !important;
+            max-width: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
+          .print-document {
+            display: block !important;
+            color: black !important;
+            background: white !important;
+            padding: 0 !important;
+          }
           .soal-two-columns {
             column-count: 2;
             column-gap: 20px;
             column-rule: 1px solid #cbd5e1;
+          }
+          .soal-one-column {
+            column-count: 1;
           }
           .soal-item-print {
             break-inside: avoid;
             page-break-inside: avoid;
             margin-bottom: 16px;
           }
-          /* HALAMAN TERPISAH KUNCI & PEMBAHASAN */
           .page-break-before {
             break-before: page;
             page-break-before: always;
@@ -539,8 +574,44 @@ function QuestionManagerContent() {
           }
         }
         @media screen {
-          .print-only {
-            display: none !important;
+          .print-preview-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-y: auto;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.78);
+          }
+          .print-preview-panel {
+            width: min(1180px, 100%);
+            max-height: calc(100vh - 48px);
+            overflow: auto;
+            padding: 24px;
+            border-radius: 16px;
+            background: white;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+          }
+          .print-document {
+            display: block;
+            color: black;
+            background: white;
+            padding: 8px;
+          }
+          .soal-two-columns {
+            column-count: 2;
+            column-gap: 20px;
+            column-rule: 1px solid #cbd5e1;
+          }
+          .soal-one-column {
+            column-count: 1;
+          }
+          .soal-item-print {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 16px;
           }
         }
       `}</style>
@@ -550,12 +621,107 @@ function QuestionManagerContent() {
         <Navbar />
       </div>
 
-      {/* 🖨️ DOKUMEN CETAK/PDF (HANYA MUNCUL SAAT CETAK / WINDOW.PRINT) */}
-      <div className="print-only text-black p-2 font-serif leading-snug">
+      {/* PENGATURAN DAN PRATINJAU CETAK */}
+      {showPrintPreview && (
+        <div className="print-preview-overlay">
+          <div className="print-preview-panel">
+            <div className="print-preview-controls no-print mb-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Pengaturan & Pratinjau Cetak</h2>
+                  <p className="text-xs text-slate-500">Periksa tampilan naskah sebelum mencetak atau menyimpan sebagai PDF.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintPreview(false)}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Tutup Pratinjau
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
+                <label className="space-y-1 text-xs font-semibold text-slate-700">
+                  Kelas
+                  <input
+                    type="text"
+                    value={printSettings.className}
+                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, className: e.target.value }))}
+                    placeholder="Contoh: 2A"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
+                  />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-slate-700">
+                  Fase
+                  <input
+                    type="text"
+                    value={printSettings.phase}
+                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, phase: e.target.value }))}
+                    placeholder="Contoh: A"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
+                  />
+                </label>
+                <label className="space-y-1 text-xs font-semibold text-slate-700">
+                  Tata letak soal
+                  <select
+                    value={printSettings.twoColumns ? '2' : '1'}
+                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, twoColumns: e.target.value === '2' }))}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
+                  >
+                    <option value="2">Dua kolom</option>
+                    <option value="1">Satu kolom</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={printSettings.includeAnswerKey}
+                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, includeAnswerKey: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  Sertakan kunci jawaban
+                </label>
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={printSettings.includeExplanations}
+                    disabled={!printSettings.includeAnswerKey}
+                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, includeExplanations: e.target.checked }))}
+                    className="h-4 w-4"
+                  />
+                  Sertakan pembahasan
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPrintPreview(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintNow}
+                  className="rounded-lg bg-rose-600 px-5 py-2 text-xs font-bold text-white hover:bg-rose-700"
+                >
+                  Cetak / Simpan PDF
+                </button>
+              </div>
+            </div>
+
+            {/* DOKUMEN YANG SAMA DIPAKAI UNTUK PRATINJAU DAN HASIL CETAK */}
+            <div className="print-document text-black p-2 font-serif leading-snug">
         {/* KOP RAPORT RESMI SEKOLAH */}
         <div className="border-b-4 border-double border-black pb-3 mb-4 text-center relative">
-          <div className="flex items-center justify-center space-x-4">
-            <div className="text-left space-y-0.5">
+          <div className="flex items-center justify-center gap-4">
+            <img
+              src="/logo-sd-getasan.png"
+              alt="Logo SD Negeri Getasan"
+              className="h-20 w-20 shrink-0 object-contain"
+            />
+            <div className="text-center space-y-0.5">
               <h3 className="text-xs font-bold uppercase tracking-wider">
                 PEMERINTAH KABUPATEN SEMARANG
               </h3>
@@ -574,22 +740,21 @@ function QuestionManagerContent() {
         </div>
 
         {/* INFORMASI UJIAN */}
-        <div className="border border-black p-3 mb-4 text-xs grid grid-cols-2 gap-2 bg-slate-50">
-          <div>
-            <p>
-              <b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}
-            </p>
-            <p>
-              <b>NAMA UJIAN:</b> {exam?.title}
-            </p>
+        <div className="border border-black p-3 mb-4 bg-white text-xs">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p><b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}</p>
+              <p><b>NAMA UJIAN:</b> {exam?.title}</p>
+            </div>
+            <div>
+              <p><b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit</p>
+              <p><b>JUMLAH SOAL:</b> {questions.length} Butir</p>
+            </div>
           </div>
-          <div>
-            <p>
-              <b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit
-            </p>
-            <p>
-              <b>KELAS / FASE:</b> SD Negeri Getasan
-            </p>
+          <div className="mt-3 grid grid-cols-3 gap-3 border-t border-black pt-3">
+            <div><b>NAMA PESERTA:</b><div className="mt-2 border-b border-black min-h-5" /></div>
+            <div><b>KELAS:</b><div className="mt-2 min-h-5">{printSettings.className || '________________'}</div></div>
+            <div><b>FASE:</b><div className="mt-2 min-h-5">{printSettings.phase || '________________'}</div></div>
           </div>
         </div>
 
@@ -599,7 +764,7 @@ function QuestionManagerContent() {
         </p>
 
         {/* NASKAH SOAL 2 KOLOM */}
-        <div className="soal-two-columns text-xs">
+        <div className={`${printSettings.twoColumns ? 'soal-two-columns' : 'soal-one-column'} text-xs`}>
           {questions.map((q, idx) => (
             <div key={q.id} className="soal-item-print">
               <div className="flex items-start space-x-1">
@@ -645,7 +810,9 @@ function QuestionManagerContent() {
                       <tbody>
                         {q.options.map((st: any) => (
                           <tr key={st.id}>
-                            <td className="border border-black p-1">{st.text}</td>
+                            <td className="border border-black p-1">
+                              <MathRenderer content={st.text || ''} />
+                            </td>
                             <td className="border border-black p-1 text-center">◯</td>
                             <td className="border border-black p-1 text-center">◯</td>
                           </tr>
@@ -659,7 +826,8 @@ function QuestionManagerContent() {
           ))}
         </div>
 
-        {/* 📄 LEMBAR TERPISAH: KUNCI JAWABAN & PEMBAHASAN */}
+        {/* LEMBAR KUNCI JAWABAN DAN PEMBAHASAN (OPSIONAL) */}
+        {printSettings.includeAnswerKey && (
         <div className="page-break-before pt-4">
           <div className="text-center border-b-2 border-black pb-2 mb-4">
             <h2 className="text-base font-bold uppercase">
@@ -675,7 +843,9 @@ function QuestionManagerContent() {
               <tr className="bg-slate-200">
                 <th className="border border-black p-2 w-12 text-center">No</th>
                 <th className="border border-black p-2 w-28 text-center">Kunci Jawaban</th>
-                <th className="border border-black p-2 text-left">Pembahasan & Solusi</th>
+                {printSettings.includeExplanations && (
+                  <th className="border border-black p-2 text-left">Pembahasan & Solusi</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -699,20 +869,26 @@ function QuestionManagerContent() {
                     <td className="border border-black p-2 text-center font-bold text-indigo-900">
                       {kunciStr}
                     </td>
-                    <td className="border border-black p-2 leading-relaxed">
-                      {q.explanation ? (
-                        <MathRenderer content={q.explanation} />
-                      ) : (
-                        <span className="italic text-slate-500">Tidak ada pembahasan.</span>
-                      )}
-                    </td>
+                    {printSettings.includeExplanations && (
+                      <td className="border border-black p-2 leading-relaxed">
+                        {q.explanation ? (
+                          <MathRenderer content={q.explanation} />
+                        ) : (
+                          <span className="italic text-slate-500">Tidak ada pembahasan.</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
-      </div>
+        )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Halaman Interaktif Web Admin */}
       <main className="no-print p-8 max-w-6xl mx-auto space-y-6">
@@ -768,7 +944,7 @@ function QuestionManagerContent() {
               suppressHydrationWarning
             >
               <span>🖨️</span>
-              <span>Export PDF (Cetak A4)</span>
+              <span>Pratinjau & Cetak</span>
             </button>
 
             {/* IMPORT BULK */}
