@@ -984,16 +984,18 @@ function QuestionManagerContent() {
                           />
                         </div>
                       </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Opsi ${opt.key} (Opsional)`}
-                          value={opt.image_url || ''}
-                          onChange={(e) => handleOptionChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
+                      {opt.image_url && (
+                        <div className="pl-6">
+                          <img
+                            src={opt.image_url}
+                            alt={`Gambar lama opsi ${opt.key}`}
+                            className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
+                          />
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Gambar lama tetap tersimpan. Gunakan tombol gambar pada editor untuk menambahkan gambar.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
