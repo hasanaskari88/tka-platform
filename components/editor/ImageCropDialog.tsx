@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 
 interface ImageCropDialogProps {
   src: string
@@ -31,7 +32,7 @@ export default function ImageCropDialog({
     setError('')
   }, [src])
 
-  const getPoint = (event: React.PointerEvent<HTMLDivElement>) => {
+  const getPoint = (event: ReactPointerEvent<HTMLDivElement>) => {
     const image = imageRef.current
     if (!image) return null
 
