@@ -155,3 +155,57 @@
   background: #1d4ed8;
   transform: scale(1.12);
 }
+
+
+
+/* Tombol pengaturan posisi gambar */
+.rich-text-editor .editor-image-controls {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: -42px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.rich-text-editor .editor-image-controls button {
+  min-width: 30px;
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.rich-text-editor .editor-image-controls button:hover {
+  background: #dbeafe;
+}
+
+.rich-text-editor .editor-image-controls button.active {
+  border-color: #60a5fa;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+/* Area gambar yang mengalir bersama teks */
+.rich-text-editor .editor-image-wrapped {
+  line-height: 0;
+}
+
+/* Pastikan gambar tetap responsif */
+.rich-text-editor .editor-image-wrapper .editor-image {
+  max-width: 100%;
+  height: auto;
+}

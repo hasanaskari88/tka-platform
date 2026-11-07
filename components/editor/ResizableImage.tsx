@@ -2,12 +2,57 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import type {
+  PointerEvent as ReactPointerEvent,
+  CSSProperties,
+} from 'react'
 import Image from '@tiptap/extension-image'
 import {
   NodeViewWrapper,
   ReactNodeViewRenderer,
 } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
+
+type ImageLayout =
+  | 'left'
+  | 'center'
+  | 'right'
+  | 'wrap-left'
+  | 'wrap-right'
+
+function getLayout(style: string): ImageLayout {
+  if (/float:\s*left/i.test(style)) return 'wrap-left'
+  if (/float:\s*right/i.test(style)) return 'wrap-right'
+
+  const margin = style.match(/margin:\s*([^;]+)/i)?.[1]?.trim() || ''
+
+  if (margin.startsWith('0 auto 0 0')) return 'left'
+  if (margin.startsWith('0 0 0 auto')) return 'right'
+
+  return 'center'
+}
+
+function makeImageStyle(
+  width: string,
+  layout: ImageLayout
+): string {
+  if (layout === 'wrap-left') {
+    return `width: ${width}; display: block; float: left; margin: 0 16px 12px 0;`
+  }
+
+  if (layout === 'wrap-right') {
+    return `width: ${width}; display: block; float: right; margin: 0 0 12px 16px;`
+  }
+
+  const margin =
+    layout === 'left'
+      ? '0 auto 0 0'
+      : layout === 'right'
+        ? '0 0 0 auto'
+        : '0 auto'
+
+  return `width: ${width}; display: block; float: none; margin: ${margin};`
+}
 
 function ResizableImageView({
   node,
@@ -22,73 +67,111 @@ function ResizableImageView({
     startX: number
     startWidth: number
     editorWidth: number
+    previewWidth: number
   } | null>(null)
 
   const [previewWidth, setPreviewWidth] = useState<number | null>(null)
 
   const attrs = node.attrs
-  const imageWidth = attrs.width
+  const imageWidth = attrs.width ? String(attrs.width) : null
   const imageStyle = String(attrs.style || '')
+  const layout = getLayout(imageStyle)
 
-  const margin =
-    imageStyle.match(/margin:\s*([^;]+)/)?.[1] || '0 auto'
+  const isWrapped =
+    layout === 'wrap-left' || layout === 'wrap-right'
 
-  const alignment =
-    margin.includes('auto') && margin.startsWith('0 auto 0 0')
-      ? 'left'
-      : margin.startsWith('0 0 0 auto')
-        ? 'right'
-        : 'center'
+  const effectiveWidth =
+    previewWidth !== null
+      ? `${previewWidth}%`
+      : imageWidth && imageWidth !== 'auto'
+        ? imageWidth
+        : 'fit-content'
 
-  const currentWidth = () => {
-    if (previewWidth !== null) return previewWidth
-
-    const editorWidth = editor.view.dom.getBoundingClientRect().width
-    const actualWidth = imageRef.current?.getBoundingClientRect().width
-
-    if (!editorWidth || !actualWidth) return 60
-
-    return Math.min(100, Math.max(10, (actualWidth / editorWidth) * 100))
+  const wrapperStyle: CSSProperties = {
+    width: effectiveWidth,
+    maxWidth: '100%',
+    display: 'block',
+    margin: isWrapped
+      ? layout === 'wrap-left'
+        ? '0 16px 12px 0'
+        : '0 0 12px 16px'
+      : layout === 'left'
+        ? '0 auto 0 0'
+        : layout === 'right'
+          ? '0 0 0 auto'
+          : '0 auto',
+    float: isWrapped
+      ? layout === 'wrap-left'
+        ? 'left'
+        : 'right'
+      : 'none',
+    clear: isWrapped ? 'none' : 'both',
   }
+
+  const imageElementWidth =
+    previewWidth !== null || (imageWidth && imageWidth !== 'auto')
+      ? '100%'
+      : 'auto'
 
   const saveWidth = (value: number) => {
     const width = `${Math.round(value)}%`
 
-    const newMargin =
-      alignment === 'left'
-        ? '0 auto 0 0'
-        : alignment === 'right'
-          ? '0 0 0 auto'
-          : '0 auto'
-
     updateAttributes({
       width,
-      style: `width: ${width}; display: block; margin: ${newMargin};`,
+      style: makeImageStyle(width, layout),
     })
   }
 
+  const changeLayout = (nextLayout: ImageLayout) => {
+    const width = imageWidth || '60%'
+
+    updateAttributes({
+      width,
+      style: makeImageStyle(width, nextLayout),
+    })
+  }
+
+  const currentWidth = () => {
+    const editorWidth =
+      editor.view.dom.getBoundingClientRect().width
+
+    const actualWidth =
+      imageRef.current?.getBoundingClientRect().width
+
+    if (!editorWidth || !actualWidth) return 60
+
+    return Math.min(
+      100,
+      Math.max(10, (actualWidth / editorWidth) * 100)
+    )
+  }
+
   const handlePointerDown = (
-    event: React.PointerEvent<HTMLButtonElement>
+    event: ReactPointerEvent<HTMLButtonElement>
   ) => {
     event.preventDefault()
     event.stopPropagation()
 
-    const editorWidth = editor.view.dom.getBoundingClientRect().width
+    const editorWidth =
+      editor.view.dom.getBoundingClientRect().width
 
     if (!editorWidth || !imageRef.current) return
+
+    const startWidth = currentWidth()
 
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
-      startWidth: currentWidth(),
+      startWidth,
       editorWidth,
+      previewWidth: startWidth,
     }
 
     event.currentTarget.setPointerCapture(event.pointerId)
   }
 
   const handlePointerMove = (
-    event: React.PointerEvent<HTMLButtonElement>
+    event: ReactPointerEvent<HTMLButtonElement>
   ) => {
     const drag = dragRef.current
 
@@ -102,38 +185,85 @@ function ResizableImageView({
       Math.max(10, drag.startWidth + change)
     )
 
+    drag.previewWidth = nextWidth
     setPreviewWidth(nextWidth)
   }
 
   const finishResize = (
-    event: React.PointerEvent<HTMLButtonElement>
+    event: ReactPointerEvent<HTMLButtonElement>
   ) => {
     const drag = dragRef.current
 
     if (!drag || drag.pointerId !== event.pointerId) return
 
-    if (previewWidth !== null) {
-      saveWidth(previewWidth)
-    }
+    saveWidth(drag.previewWidth)
 
     dragRef.current = null
     setPreviewWidth(null)
   }
 
+  const layoutButtons: {
+    value: ImageLayout
+    label: string
+    title: string
+  }[] = [
+    {
+      value: 'left',
+      label: '⇤',
+      title: 'Gambar rata kiri',
+    },
+    {
+      value: 'center',
+      label: '↔',
+      title: 'Gambar rata tengah',
+    },
+    {
+      value: 'right',
+      label: '⇥',
+      title: 'Gambar rata kanan',
+    },
+    {
+      value: 'wrap-left',
+      label: '▣→',
+      title: 'Gambar di kiri, teks di kanan',
+    },
+    {
+      value: 'wrap-right',
+      label: '←▣',
+      title: 'Gambar di kanan, teks di kiri',
+    },
+  ]
+
   return (
     <NodeViewWrapper
-      className={`editor-image-wrapper ${selected ? 'is-selected' : ''}`}
-      style={{
-        width:
-          previewWidth !== null
-            ? `${previewWidth}%`
-            : imageWidth
-              ? String(imageWidth)
-              : 'auto',
-        maxWidth: '100%',
-        margin,
-      }}
+      className={`editor-image-wrapper ${
+        selected ? 'is-selected' : ''
+      } ${isWrapped ? 'editor-image-wrapped' : ''}`}
+      style={wrapperStyle}
     >
+      {selected && editor.isEditable && (
+        <div
+          className="editor-image-controls"
+          contentEditable={false}
+        >
+          {layoutButtons.map((button) => (
+            <button
+              key={button.value}
+              type="button"
+              title={button.title}
+              aria-label={button.title}
+              className={
+                layout === button.value ? 'active' : ''
+              }
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => changeLayout(button.value)}
+            >
+              {button.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <img
         ref={imageRef}
         src={attrs.src}
@@ -143,7 +273,7 @@ function ResizableImageView({
         className="editor-image"
         style={{
           display: 'block',
-          width: '100%',
+          width: imageElementWidth,
           maxWidth: '100%',
           height: 'auto',
           borderRadius: '0.5rem',
