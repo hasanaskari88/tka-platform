@@ -6,6 +6,7 @@ import type {
   CSSProperties,
 } from 'react'
 import Image from '@tiptap/extension-image'
+import ImageCropDialog from './ImageCropDialog'
 import {
   NodeViewWrapper,
   ReactNodeViewRenderer,
@@ -78,6 +79,7 @@ function ResizableImageView({
   } | null>(null)
 
   const [previewWidth, setPreviewWidth] = useState<number | null>(null)
+  const [cropOpen, setCropOpen] = useState(false)
 
   const attrs = node.attrs
   const imageWidth = attrs.width ? String(attrs.width) : null
@@ -312,7 +314,34 @@ function ResizableImageView({
           >
             ↺
           </button>
+
+          <span className="editor-image-controls-divider" />
+
+          <button
+            type="button"
+            title={rotation === 0 ? 'Potong gambar' : 'Kembalikan rotasi sebelum memotong gambar'}
+            aria-label="Potong gambar"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setCropOpen(true)}
+            disabled={rotation !== 0}
+          >
+            ✂
+          </button>
         </div>
+      )}
+
+      {cropOpen && (
+        <ImageCropDialog
+          src={String(attrs.src || '')}
+          onClose={() => setCropOpen(false)}
+          onCropped={(imageUrl) => {
+            updateAttributes({
+              src: imageUrl,
+              rotation: 0,
+            })
+            setCropOpen(false)
+          }}
+        />
       )}
 
       <img
