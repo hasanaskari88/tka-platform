@@ -60,6 +60,7 @@ interface RichTextEditorProps {
   placeholder?: string
   editable?: boolean
   className?: string
+  minHeight?: number
 }
 
 export default function RichTextEditor({
@@ -68,6 +69,7 @@ export default function RichTextEditor({
   placeholder = 'Tuliskan teks di sini...',
   editable = true,
   className = '',
+  minHeight = 220,
 }: RichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -145,7 +147,8 @@ export default function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          'editor-content min-h-[220px] w-full p-4 outline-none text-slate-800 leading-relaxed',
+          'editor-content w-full p-4 outline-none text-slate-800 leading-relaxed',
+        style: `min-height: ${minHeight}px`,
         'data-placeholder': placeholder,
         spellcheck: 'true',
       },
