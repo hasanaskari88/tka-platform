@@ -263,6 +263,39 @@ Batasan yang ditemukan:
 
 Langkah berikutnya: implementasi integrasi RichTextEditor ke halaman `app/admin/exam/[id]/page.tsx` sebagai perubahan terpisah. Setelah perubahan, build Preview dan uji simpan/buka ulang semua tipe soal sebelum lanjut ke paste gambar dan konversi OMML.
 
+## Implementasi Tahap 1 — RichTextEditor pada halaman editor ujian (7 November 2026)
+
+Status: **kode diterapkan di `editor-test`; menunggu hasil build Vercel Preview dan pengujian pengguna**.
+
+Perubahan:
+- Commit implementasi: `af55782080810ffd4e60f636763b3f60aac250b4`.
+- Commit validasi konten dan penanganan pembahasan kosong: `60a674da9695bfe3b80944926e2fcbc19639c6f6`.
+- File aplikasi yang diubah: `app/admin/exam/[id]/page.tsx`.
+- Menambahkan import dan 5 pemakaian `RichTextEditor`: stimulus/pertanyaan, pilihan A-D (dua cabang UI PG dan PG kompleks), pernyataan matriks, dan pembahasan.
+- Menghapus UI Dual-View/textarea HTML-LaTeX dan helper sisip kode lama dari form pertanyaan.
+- Menambahkan validasi konten rich text untuk pertanyaan, pilihan A-D, dan pernyataan. Konten teks, gambar inline, serta node matematika dihitung sebagai konten.
+- Pembahasan kosong tetap disimpan sebagai `null`, bukan HTML kosong.
+
+Yang sengaja dipertahankan:
+- Nama dan bentuk kolom database `questions`.
+- `question_type`, `max_score`, `image_url`, `explanation`.
+- Bentuk `options` sebagai array objek A-D atau pernyataan matriks.
+- `correct_option` dan `correct_answers` untuk PG tunggal, PG kompleks, matriks, dan essay.
+- Field URL gambar lama pada soal, opsi, dan pernyataan.
+- Alur load/edit, daftar soal, MathRenderer, export Excel, cetak, dan hapus.
+- Tidak ada perubahan skema/database dan tidak ada perubahan pada branch `main`.
+
+Pemeriksaan kode setelah perubahan:
+- Dual-View dan textarea lama pada field pertanyaan/pembahasan sudah tidak ada.
+- Lima instance RichTextEditor ditemukan.
+- Pemeriksaan struktur kode menunjukkan payload opsi dan kunci jawaban lama tetap dipakai.
+- Pemeriksaan ini bukan pengganti TypeScript build dan uji browser.
+
+Hasil build: **belum diketahui** pada saat catatan dibuat.
+Hasil uji pengguna: **belum dilakukan**.
+Masalah baru: belum ada error build yang dikonfirmasi dari perubahan ini.
+Langkah berikutnya: tunggu Preview READY; lalu uji load soal lama, tambah/edit PG, PG kompleks, matriks, essay, simpan, buka ulang, preview/cetak. Jangan lanjut paste Word/OMML sebelum tahap ini lolos.
+
 ## Roadmap berurutan
 
 ### Tahap 0 — Arsip dan inventaris
@@ -273,7 +306,7 @@ Langkah berikutnya: implementasi integrasi RichTextEditor ke halaman `app/admin/
 
 ### Tahap 1 — Integrasi halaman editor ujian
 - [x] Audit alur state, load/save, tipe soal, pilihan, pernyataan benar-salah, pembahasan, renderer, dan validasi; hasil dicatat pada bagian Audit Tahap 1.
-- [ ] Integrasikan RichTextEditor pada field yang sesuai tanpa mengganti struktur data dan penilaian.
+- [x] Integrasikan RichTextEditor pada pertanyaan, opsi, pernyataan matriks, dan pembahasan tanpa mengganti struktur payload; menunggu build dan uji pengguna.
 - [ ] Pertahankan kompatibilitas konten lama HTML/LaTeX.
 - [ ] Cek JSX agar tidak ada prop duplikat sebelum commit.
 - [ ] Deploy Preview; catat commit dan hasil build.
