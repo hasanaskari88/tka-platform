@@ -950,3 +950,35 @@ File yang perlu diperiksa pada tahap perbaikan (belum diubah pada QA ini):
 - `app/exam/[id]/summary/page.tsx` untuk kompatibilitas pembacaan jawaban HTML/rumus bila editor essay diterapkan.
 
 Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` dalam pengujian ini. Catatan ini hanya merekam hasil yang dilaporkan pengguna dan rencana pemeriksaan; belum ada klaim bahwa tiga masalah di atas telah diperbaiki.
+
+
+## Audit awal sistem cetak naskah soal — 7 November 2026
+
+Status: **akar masalah utama telah ditemukan; implementasi perbaikan belum dilakukan**.
+
+File utama yang menghasilkan cetakan:
+- `app/admin/exam/[id]/page.tsx` — SHA saat audit: `46915e67dcb44e20a3fc06ef993e652bad15fa0f`.
+- Fungsi `handleExportPDF` hanya memanggil `window.print()`; tidak ada langkah pengaturan atau pratinjau sebelumnya.
+- Dokumen cetak saat ini berada pada elemen `.print-only` yang disembunyikan pada media layar, sehingga tidak bisa dilihat sebagai pratinjau.
+- CSS cetak mengatur A4 portrait dan naskah dua kolom secara tetap.
+
+Temuan terverifikasi dari kode:
+1. **Logo sekolah:** kop cetak belum memiliki elemen `img`. Aset logo tersedia pada branch ini: `public/logo-sd-getasan.png` (SHA `0144577ff0d7a6d2cc92ba844f652cbbbc953315`). File logo alternatif `public/logo-sd.png` memiliki SHA yang sama. Jadi logo tidak muncul karena belum dipasang pada kop cetak, bukan karena file aset tidak ada.
+2. **HTML tebal pada matriks:** sel pernyataan mencetak `{st.text}` sebagai teks React biasa. Perlu diganti ke `MathRenderer`, agar HTML aman, format tebal, dan rumus mengikuti renderer yang sudah dipakai untuk pertanyaan serta pembahasan.
+3. **Identitas kelas/fase:** teks `KELAS / FASE` saat ini di-hardcode menjadi `SD Negeri Getasan`. Ini salah tempat. Nama sekolah harus tetap di kop; identitas peserta, kelas, dan fase harus menjadi kolom/garis identitas tersendiri.
+4. **Pengaturan/pratinjau:** belum ada state atau UI pengaturan cetak; tombol langsung membuka dialog browser. Rencana alur: tombol membuka panel pratinjau, pengguna mengisi kelas/fase dan memilih opsi cetak, kemudian menekan tombol Cetak untuk memanggil `window.print()`.
+5. **Konten kunci/pembahasan:** halaman kunci dan pembahasan saat ini selalu ikut dicetak. Rencana pengaturan memberi pilihan untuk menyertakan kunci jawaban dan pembahasan secara terpisah.
+6. **Kolom naskah:** dua kolom saat ini selalu aktif. Rencana pengaturan menyediakan pilihan satu atau dua kolom.
+
+Rencana perbaikan yang dibatasi pada halaman cetak:
+- Tambahkan logo sekolah yang sudah ada pada kop cetak.
+- Gunakan `MathRenderer` untuk teks pernyataan matriks.
+- Tambahkan kolom Nama Peserta, Kelas, dan Fase; kelas/fase dapat diisi melalui pengaturan pratinjau, sedangkan nama peserta disediakan garis kosong untuk diisi.
+- Tambahkan pratinjau sebelum cetak, pengaturan kelas/fase, satu/dua kolom, sertakan kunci, dan sertakan pembahasan.
+- Pertahankan data soal, opsi, kunci, bobot, database, dan perhitungan skor. Jangan mengubah branch `main`.
+
+File aplikasi yang diperiksa:
+- `app/admin/exam/[id]/page.tsx`
+- `components/MathRenderer.tsx` — mendukung HTML yang disanitasi, node matematika Tiptap, dan delimiter LaTeX lama.
+
+Belum ada perubahan kode aplikasi pada audit ini. Hasil build dan uji pengguna menunggu implementasi.
