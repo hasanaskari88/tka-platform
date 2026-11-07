@@ -811,7 +811,8 @@ Urutan kerja berikut menggantikan status lama yang tertinggal di bagian roadmap 
 
 ### Tahap 1A — QA editor admin dan toolbar
 - [ ] Uji toolbar lengkap: tombol Lainnya/Tutup, pangkat, indeks bawah, font, alignment, tabel, dan warna.
-- [ ] Uji tombol gambar dan rumus dari toolbar ringkas, termasuk pada posisi kursor/teks terpilih agar selection tidak hilang.
+- [x] Uji awal tombol rumus ringkas: tambah rumus pecahan pada soal yang sudah ada dan simpan — berhasil dikonfirmasi pengguna. (Buka ulang dan uji variasi rumus masih menunggu.)
+- [ ] Uji tombol gambar dan rumus lanjutan dari toolbar ringkas, termasuk pada posisi kursor/teks terpilih agar selection tidak hilang.
 - [ ] Uji simpan, buka ulang, dan edit ulang untuk PG tunggal, PG kompleks, matriks benar-salah, dan essay.
 - [ ] Pastikan gambar inline, node matematika, HTML lama, dan pembahasan tetap tampil pada daftar/pratinjau/cetak.
 - [ ] Pastikan bobot, kunci jawaban, struktur opsi, dan skor tidak berubah.
@@ -849,3 +850,32 @@ Urutan kerja berikut menggantikan status lama yang tertinggal di bagian roadmap 
 - [ ] Arsipkan hasil uji, commit, dan inventaris final.
 - [ ] Minta persetujuan eksplisit sebelum merge/promosi ke `main`.
 
+
+
+## Hasil QA pengguna — uji pertama rumus pecahan (7 November 2026)
+
+Status: **berhasil**.
+
+Pengguna mengonfirmasi telah:
+1. Membuka editor soal pada Preview.
+2. Mengedit soal yang sudah ada.
+3. Menambahkan rumus pecahan melalui editor matematika.
+4. Menyimpan perubahan soal.
+5. Memastikan penyimpanan berhasil.
+
+Cakupan yang sudah terbukti:
+- Dialog rumus dapat digunakan untuk menambahkan rumus pecahan pada soal yang sedang diedit.
+- Perubahan soal berhasil disimpan melalui alur simpan yang ada.
+
+Batas cakupan:
+- Uji ini belum membuktikan bahwa rumus tetap tampil benar setelah halaman dimuat ulang/dibuka kembali.
+- Belum membuktikan semua jenis rumus, semua tipe soal, atau tampilan siswa/koreksi/cetak.
+- Belum menguji tombol gambar atau seluruh toolbar lengkap.
+
+Roadmap Tahap 1A diperbarui:
+- [x] Uji awal menambahkan rumus pecahan pada soal yang sudah ada dan menyimpan perubahan — berhasil dikonfirmasi pengguna.
+- [ ] Buka ulang soal dan pastikan rumus pecahan tetap tampil benar.
+- [ ] Uji rumus pada soal baru dan tipe soal lain.
+- [ ] Lanjutkan QA toolbar lengkap, gambar, dan kompatibilitas tampilan.
+
+Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` pada langkah pengujian ini.
