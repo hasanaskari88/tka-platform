@@ -900,19 +900,21 @@ function QuestionManagerContent() {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  URL Gambar Soal (Opsional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={imageUrl || ''}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                />
-              </div>
+              {imageUrl && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-[11px] font-semibold text-slate-500">
+                    Gambar lama yang tersimpan pada soal
+                  </p>
+                  <img
+                    src={imageUrl}
+                    alt="Gambar soal lama"
+                    className="max-h-40 max-w-full rounded-lg object-contain"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    Gambar ini tetap dipertahankan. Untuk menambahkan gambar baru, gunakan tombol gambar pada editor di atas.
+                  </p>
+                </div>
+              )}
 
               {/* PILIHAN GANDA BIASA */}
               {questionType === 'multiple_choice' && (
@@ -940,16 +942,18 @@ function QuestionManagerContent() {
                           />
                         </div>
                       </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Opsi ${opt.key} (Opsional)`}
-                          value={opt.image_url || ''}
-                          onChange={(e) => handleOptionChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
+                      {opt.image_url && (
+                        <div className="pl-6">
+                          <img
+                            src={opt.image_url}
+                            alt={`Gambar lama opsi ${opt.key}`}
+                            className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
+                          />
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Gambar lama tetap tersimpan. Gunakan tombol gambar pada editor untuk menambahkan gambar.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1042,16 +1046,18 @@ function QuestionManagerContent() {
                           ✕
                         </button>
                       </div>
-                      <div className="pl-8">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Pernyataan ${idx + 1} (Opsional)`}
-                          value={st.image_url || ''}
-                          onChange={(e) => handleStatementChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
+                      {st.image_url && (
+                        <div className="pl-8">
+                          <img
+                            src={st.image_url}
+                            alt={`Gambar lama pernyataan ${idx + 1}`}
+                            className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
+                          />
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Gambar lama tetap tersimpan. Gunakan tombol gambar pada editor untuk menambahkan gambar.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1067,17 +1073,23 @@ function QuestionManagerContent() {
                 </div>
               )}
 
-              <div className="pt-3 border-t space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 uppercase">
-                  💡 Pembahasan Soal / Pedoman Penskoran Guru
-                </label>
-                <RichTextEditor
-                  content={explanation}
-                  onChange={setExplanation}
-                  placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
-                  minHeight={130}
-                />
-              </div>
+              <details className="pt-3 border-t group">
+                <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 hover:bg-amber-100">
+                  <span>💡 Pembahasan Soal / Pedoman Penskoran (Opsional)</span>
+                  <span className="transition-transform group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="pt-3 space-y-2">
+                  <p className="text-[11px] text-slate-500">
+                    Buka bagian ini jika soal memerlukan pembahasan atau pedoman penilaian guru.
+                  </p>
+                  <RichTextEditor
+                    content={explanation}
+                    onChange={setExplanation}
+                    placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
+                    minHeight={130}
+                  />
+                </div>
+              </details>
 
               <button
                 type="submit"
