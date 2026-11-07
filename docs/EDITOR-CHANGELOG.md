@@ -1119,3 +1119,33 @@ Checklist QA:
 - [ ] Pastikan enam informasi tercetak dalam susunan tiga kolom × dua baris.
 - [ ] Pastikan Nama Peserta, Kelas/Fase cukup ruang dan tidak bertabrakan pada ukuran font berbeda.
 - [ ] Uji dokumen satu halaman dan beberapa halaman, satu kolom dan dua kolom.
+
+
+
+## Keputusan akhir footer cetak — footer dihapus (7 November 2026)
+
+Status: **footer dihapus dari tampilan dan hasil cetak pada branch `editor-test`**.
+
+Commit aplikasi:
+- `66ff69699838a5d89c439c3f6c143076fa0557bb` — `Remove unreliable print footer and keep closing message`.
+
+Alasan:
+- Footer yang diletakkan setelah seluruh soal bukan footer halaman yang andal. Pada cetak beberapa halaman, browser dapat memecah alur dokumen dan menempatkannya pada halaman berikutnya atau membuatnya tampak bertabrakan dengan konten.
+- Nomor halaman melalui CSS `counter(page)` pada elemen biasa tidak dapat dijamin konsisten pada seluruh browser.
+
+Perubahan:
+1. Menghapus elemen footer dari dokumen pratinjau/cetak.
+2. Menghapus aturan CSS footer untuk layar dan media cetak.
+3. Menghapus pengaturan ukuran font footer yang tidak lagi digunakan.
+4. Mempertahankan ucapan penutup `☺ Selamat Mengerjakan, Semoga Sukses ☺` sebagai bagian normal di akhir naskah soal, bukan di footer.
+5. Susunan identitas tiga kolom × dua baris tetap dipertahankan.
+
+Batas perubahan:
+- Hanya file halaman cetak dan changelog yang berubah.
+- Tidak mengubah data, database, skema, kunci, bobot, atau logika penilaian.
+- Branch `main` tidak disentuh.
+
+Pemeriksaan sumber:
+- Tidak ada lagi elemen/class/CSS atau pengaturan `print-footer`.
+- Ucapan penutup tetap ada setelah daftar soal.
+- Build Preview dan hasil PDF setelah penghapusan masih menunggu QA.
