@@ -17,6 +17,7 @@ type FormulaType =
 interface MathFormulaDialogProps {
   editor: Editor
   editorId: string
+  compact?: boolean
 }
 
 interface EditMathDetail {
@@ -101,6 +102,7 @@ function parseFormula(latex: string): {
 export default function MathFormulaDialog({
   editor,
   editorId,
+  compact = false,
 }: MathFormulaDialogProps) {
   const [open, setOpen] = useState(false)
   const [formulaType, setFormulaType] = useState<FormulaType>('fraction')
@@ -258,14 +260,21 @@ export default function MathFormulaDialog({
     <>
       <button
         type="button"
+        title="Rumus matematika"
+        aria-label="Rumus matematika"
+        onMouseDown={(event) => {
+          if (compact) event.preventDefault()
+        }}
         onClick={() => {
           setEditTarget(null)
           setUnsupportedFormula(false)
           setOpen(true)
         }}
-        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className={compact
+          ? "inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg font-semibold text-slate-700 hover:bg-slate-100"
+          : "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"}
       >
-        ∑ Rumus Matematika
+        {compact ? "∑" : "∑ Rumus Matematika"}
       </button>
 
       {open && (
