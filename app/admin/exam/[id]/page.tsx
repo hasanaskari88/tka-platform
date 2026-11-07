@@ -131,7 +131,6 @@ function QuestionManagerContent() {
     headerFontSize: 9,
     identityFontSize: 8,
     questionFontSize: 10,
-    footerFontSize: 6,
     lineHeight: 1,
     questionSpacingMm: 3,
     columnGapMm: 5,
@@ -572,19 +571,6 @@ function QuestionManagerContent() {
             break-inside: avoid;
             page-break-inside: avoid;
           }
-          .print-footer {
-            position: static !important;
-            display: flex !important;
-            justify-content: space-between;
-            align-items: center;
-            break-inside: avoid;
-            page-break-inside: avoid;
-            margin-top: 4mm;
-            border-top: 0.2mm solid #777;
-            padding-top: 1mm;
-            color: #333;
-          }
-          .print-footer-page::after { content: "Halaman " counter(page); }
           .page-break-before {
             break-before: page;
             page-break-before: always;
@@ -627,8 +613,6 @@ function QuestionManagerContent() {
             column-count: 1;
           }
           .soal-item-print { break-inside: avoid; page-break-inside: avoid; }
-          .print-footer { display: flex; justify-content: space-between; border-top: 1px solid #cbd5e1; padding-top: 6px; margin-top: 18px; }
-          .print-footer-page::after { content: "Nomor halaman tampil saat dicetak"; }
         }
       `}</style>
 
@@ -678,7 +662,6 @@ function QuestionManagerContent() {
                       ['headerFontSize', 'Font kop (pt)', 7, 16, 0.5],
                       ['identityFontSize', 'Font identitas (pt)', 6, 14, 0.5],
                       ['questionFontSize', 'Font soal (pt)', 8, 16, 0.5],
-                      ['footerFontSize', 'Font footer (pt)', 5, 8, 0.5],
                       ['lineHeight', 'Spasi baris', 1, 1.6, 0.05],
                       ['questionSpacingMm', 'Jarak soal (mm)', 0, 12, 1],
                       ['columnGapMm', 'Jarak kolom (mm)', 3, 15, 1],
@@ -805,10 +788,6 @@ function QuestionManagerContent() {
           ))}
         </div>
         <div className="py-2 text-center font-bold" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>☺ Selamat Mengerjakan, Semoga Sukses ☺</div>
-
-        <div className="print-footer" style={{ fontSize: `${printSettings.footerFontSize}pt` }}>
-          <span>{exam?.title || 'Naskah Ujian'}</span><span className="print-footer-page" />
-        </div>
 
         {/* LEMBAR KUNCI JAWABAN DAN PEMBAHASAN (OPSIONAL) */}
         {printSettings.includeAnswerKey && (
