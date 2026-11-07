@@ -117,23 +117,23 @@ export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) 
         {/* Toolbar ringkas: selalu satu baris, termasuk pada layar HP. */}
         <div className="flex flex-nowrap items-center gap-1 overflow-x-auto px-2 py-2">
           <button type="button" title="Tebal" aria-label="Tebal"
-            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm font-bold text-slate-700 hover:bg-slate-100 \${current?.bold ? activeClass : ''}\`}
+            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm font-bold text-slate-700 hover:bg-slate-100 ${current?.bold ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleBold().run()}>B</button>
           <button type="button" title="Miring" aria-label="Miring"
-            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm italic text-slate-700 hover:bg-slate-100 \${current?.italic ? activeClass : ''}\`}
+            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm italic text-slate-700 hover:bg-slate-100 ${current?.italic ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleItalic().run()}>I</button>
           <button type="button" title="Garis bawah" aria-label="Garis bawah"
-            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm underline text-slate-700 hover:bg-slate-100 \${current?.underline ? activeClass : ''}\`}
+            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm underline text-slate-700 hover:bg-slate-100 ${current?.underline ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
           <button type="button" title="Pangkat" aria-label="Pangkat"
-            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 \${current?.superscript ? activeClass : ''}\`}
+            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 ${current?.superscript ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleSuperscript().run()}>x²</button>
           <button type="button" title="Indeks bawah" aria-label="Indeks bawah"
-            className={\`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 \${current?.subscript ? activeClass : ''}\`}
+            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 ${current?.subscript ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleSubscript().run()}>x₂</button>
           <span className="mx-1 h-6 shrink-0 border-l border-slate-300" />
