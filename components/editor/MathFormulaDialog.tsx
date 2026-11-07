@@ -16,12 +16,14 @@ type FormulaType =
 
 interface MathFormulaDialogProps {
   editor: Editor
+  editorId: string
 }
 
 interface EditMathDetail {
   latex: string
   pos: number
   displayMode: boolean
+  editorId: string
 }
 
 const symbolOptions = [
@@ -98,6 +100,7 @@ function parseFormula(latex: string): {
 
 export default function MathFormulaDialog({
   editor,
+  editorId,
 }: MathFormulaDialogProps) {
   const [open, setOpen] = useState(false)
   const [formulaType, setFormulaType] = useState<FormulaType>('fraction')
@@ -115,7 +118,7 @@ export default function MathFormulaDialog({
     const handleEdit = (event: Event) => {
       const customEvent = event as CustomEvent<EditMathDetail>
       const detail = customEvent.detail
-      if (!detail) return
+      if (!detail || detail.editorId !== editorId) return
 
       const parsed = parseFormula(detail.latex)
 
@@ -144,7 +147,7 @@ export default function MathFormulaDialog({
 
     window.addEventListener('tiptap-math-edit', handleEdit)
     return () => window.removeEventListener('tiptap-math-edit', handleEdit)
-  }, [])
+  }, [editorId])
 
   const buildFormula = () => {
     switch (formulaType) {
