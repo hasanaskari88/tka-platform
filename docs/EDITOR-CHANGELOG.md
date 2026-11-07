@@ -473,3 +473,40 @@ Langkah uji setelah deployment READY:
 Roadmap:
 - Tunggu Preview READY dan uji tampilan ringkas/lengkap pada desktop serta HP.
 - Jika lolos, lanjutkan tahap berikutnya sesuai roadmap editor; jangan merge/promosikan ke `main` tanpa persetujuan eksplisit.
+
+
+## Tombol cepat toolbar: gambar dan rumus matematika — 7 November 2026
+
+Status: **diterapkan pada branch `editor-test`; menunggu Vercel Preview READY dan uji pengguna**.
+
+Commit:
+- `6a0c52a33b9066923ddd785f796faf80e8cfbb3e` — dukungan tombol ringkas pada pemicu dialog rumus.
+- `5a8b1fa93e2dd4a18324540f3fa0d0d1989eb702` — tombol cepat gambar dan rumus menggantikan pangkat/indeks bawah.
+
+File diubah:
+- `components/editor/EditorToolbar.tsx`
+- `components/editor/MathFormulaDialog.tsx`
+
+Perubahan:
+- Baris ringkas kini berisi Tebal, Miring, Garis bawah, Sisipkan gambar, Rumus matematika (∑), dan Lainnya.
+- Tombol gambar membuka dialog gambar yang sudah ada; alur upload, galeri Google Drive, URL, dan crop tidak diubah.
+- Tombol ∑ membuka dialog rumus yang sama dengan semua jenis rumus yang telah tersedia.
+- Tombol pangkat dan indeks bawah tetap tersedia di toolbar lengkap; hanya dipindahkan dari baris ringkas.
+- Pemicu rumus mendukung mode ringkas melalui prop opsional `compact`; penggunaan lama tetap menampilkan label “∑ Rumus Matematika”.
+
+Pemeriksaan kode:
+- Tombol cepat gambar terhubung ke `setImageOpen(true)`.
+- Tombol cepat rumus menggunakan `MathFormulaDialog` yang sama.
+- Pangkat dan indeks bawah tetap ada pada toolbar lengkap.
+- Pemeriksaan struktur file lolos; ini bukan pengganti build Vercel.
+
+Build Vercel Preview: **menunggu**.
+Uji pengguna: **menunggu**.
+Tidak ada perubahan database, konten, autosave, scoring, atau branch `main`.
+
+Langkah uji:
+1. Pastikan baris ringkas menampilkan ikon gambar dan ∑, bukan x²/x₂.
+2. Klik ikon gambar dan uji dialog gambar.
+3. Klik ∑ dan pastikan dialog rumus terbuka serta dapat menyisipkan pecahan/akar/simbol.
+4. Buka Lainnya dan pastikan pangkat serta indeks bawah masih tersedia.
+5. Uji pada layar HP.
