@@ -1281,3 +1281,37 @@ Belum diklaim lulus karena belum ada konfirmasi khusus:
 - [ ] Tidak ada sesi ganda pada pengujian start/reset berulang.
 
 Catatan: dialog peringatan saat keluar browser dan kemampuan resume telah diuji secara langsung oleh pengguna. Keduanya tidak digantikan oleh mekanisme server-side deadline finalizer; finalizer tetap menjadi agenda terpisah untuk menangani sesi yang melewati deadline ketika browser tertutup/offline.
+
+
+## Perbaikan containment gambar pada daftar soal aktif — 8 November 2026
+
+Status: **kode diterapkan pada `editor-test`; menunggu build Preview dan konfirmasi QA pengguna**.
+
+File aplikasi:
+- `app/admin/exams/[id]/questions/page.tsx`.
+
+Masalah:
+- Gambar yang diatur mengalir di kiri/kanan teks menggunakan CSS float.
+- Pada daftar soal aktif, float dapat keluar dari area konten pertanyaan dan berpotensi bertumpuk dengan elemen setelahnya sehingga guru kesulitan membaca soal secara utuh.
+
+Perubahan:
+1. Menambahkan kelas tata letak `flow-root` pada perender pertanyaan, opsi jawaban, dan pembahasan di kartu daftar soal aktif.
+2. Kelas tersebut membuat setiap area konten membentuk konteks tata letak tersendiri sehingga float gambar tetap berada dalam area konten yang benar.
+3. Pengaturan gambar kiri/kanan dan pembungkusan teks tetap dipertahankan; perubahan tidak memaksa gambar menjadi rata tengah atau mengubah susunan konten yang disimpan.
+4. Tidak mengubah `MathRenderer`, `RichTextEditor`, format HTML, URL gambar, data soal, query Supabase, skema database, kunci jawaban, atau penilaian.
+
+Pemeriksaan kode:
+- Keempat pemanggilan `MathRenderer` pada daftar soal aktif diberi `className="flow-root"`: pertanyaan, opsi, pembahasan flashcard, dan pembahasan quiz.
+- Perubahan dibatasi pada halaman daftar soal bank latihan.
+- Pemeriksaan ini belum menggantikan build Preview dan uji visual browser.
+
+Checklist QA Preview:
+- [ ] Buka modul latihan yang memiliki soal dengan gambar di kiri dan teks di kanan.
+- [ ] Pastikan teks di samping gambar terbaca utuh dan tidak tertutup.
+- [ ] Pastikan bagian opsi dan pembahasan tidak naik/menimpa gambar atau teks pertanyaan.
+- [ ] Uji gambar rata kiri, tengah, kanan, wrap-left, dan wrap-right.
+- [ ] Uji soal tanpa gambar dan soal lama; pastikan tampilannya tidak berubah secara merugikan.
+- [ ] Pastikan tombol Edit, Hapus, tambah soal, dan navigasi daftar tetap berfungsi.
+- [ ] Pastikan preview dan hasil cetak yang sebelumnya sudah benar tetap tidak berubah.
+
+Hasil build dan QA pengguna: **menunggu**.
