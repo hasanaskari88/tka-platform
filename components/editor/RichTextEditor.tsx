@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useId } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 
 import StarterKit from '@tiptap/starter-kit'
@@ -71,6 +71,7 @@ export default function RichTextEditor({
   className = '',
   minHeight = 220,
 }: RichTextEditorProps) {
+  const editorId = useId()
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -115,6 +116,7 @@ export default function RichTextEditor({
                   latex: String(node.attrs.latex ?? ''),
                   pos,
                   displayMode: false,
+                  editorId,
                 },
               }),
             )
@@ -128,6 +130,7 @@ export default function RichTextEditor({
                   latex: String(node.attrs.latex ?? ''),
                   pos,
                   displayMode: true,
+                  editorId,
                 },
               }),
             )
