@@ -14,6 +14,141 @@ Terakhir diperbarui: 7 November 2026
 
 ## Status ringkas saat ini
 
+Tahap aktif: **QA integrasi editor pada halaman admin, lalu peningkatan kompatibilitas paste Microsoft Word**.
+
+RichTextEditor sudah diterapkan pada dua halaman admin yang berbeda:
+- `app/admin/exams/[id]/questions/page.tsx` — pengelolaan bank soal/latihan.
+- `app/admin/exam/[id]/page.tsx` — pengelolaan soal pada ujian; editor teks, opsi, pernyataan matriks, dan pembahasan sudah diganti dengan RichTextEditor.
+
+Pengguna telah mengonfirmasi tampilan editor pada halaman ujian dan desain toolbar ringkas terbaru sudah sesuai. Namun, pengujian menyeluruh alur simpan/buka ulang seluruh tipe soal tetap menjadi QA berikutnya.
+
+Copy-paste teks Arab dan Aksara Jawa dari Word telah berhasil. Paste gambar Word dan konversi rumus Office Math/OMML masih menjadi pekerjaan terpisah.
+
+## Milestone yang telah dikonfirmasi pengguna
+
+| Fitur | Status |
+|---|---|
+| Font Arab Noto Naskh dan Aksara Jawa tampil benar | Berhasil diuji |
+| Autosave konten laboratorium `font-test` ke localStorage | Berhasil diuji; hanya penyimpanan lokal browser |
+| Upload gambar komputer ke Google Drive | Berhasil diuji |
+| Galeri gambar Google Drive | Berhasil diuji |
+| Sisipkan gambar dari URL | Berhasil diuji |
+| Ekstraksi URL gambar dari halaman hasil Yahoo Images | Berhasil diuji |
+| Paste gambar langsung dari hasil pencarian Yahoo pada editor | Berhasil diuji |
+| Resize gambar | Berhasil diuji |
+| Alignment kiri/tengah/kanan | Berhasil diuji |
+| Text wrapping kiri/kanan | Berhasil diuji |
+| Rotasi kiri/kanan dan reset | Berhasil diuji |
+| Crop gambar dan simpan hasil ke Google Drive | Berhasil diuji untuk sumber yang mendukung; gambar asli tetap ada |
+| Crop gambar dari galeri Google Drive melalui proxy same-origin | Berhasil diuji pengguna; hasil tampil di editor dan tersimpan sebagai gambar baru |
+| Paste teks Arab dan Aksara Jawa dari Word | Berhasil diuji |
+| Integrasi RichTextEditor pada halaman bank soal/latihan | Sudah terintegrasi; build Preview pernah berhasil; QA alur lengkap masih perlu dipastikan |
+| Integrasi RichTextEditor pada halaman editor ujian | Sudah terintegrasi; pengguna mengonfirmasi tampilan editor; QA simpan/buka ulang semua tipe soal masih perlu dilakukan |
+| Paste gambar langsung dari Microsoft Word | Belum didukung/diuji berhasil |
+| Paste rumus matematika Word (Office Math/OMML) | Belum didukung/diuji berhasil |
+
+## Inventaris kode
+
+| File | Fungsi / status |
+|---|---|
+| `app/font-test/page.tsx` | Laboratorium font dan editor; autosave lokal |
+| `components/editor/RichTextEditor.tsx` | Mesin Tiptap; extension teks, matematika, gambar, tabel, alignment, subscript/superscript, warna/font |
+| `components/editor/EditorToolbar.tsx` | Toolbar ringkas satu baris (B, I, U, gambar, rumus, Lainnya) dan toolbar lengkap yang dapat dibuka; tombol pangkat/indeks tetap tersedia di toolbar lengkap |
+| `components/editor/MathFormulaDialog.tsx` | Dialog rumus; mendukung pemicu ringkas berupa ikon ∑ dan mode tombol lengkap |
+| `components/editor/ImageDialog.tsx` | Upload komputer, galeri Drive, dan URL gambar |
+| `components/editor/ResizableImage.tsx` | Resize, alignment, wrapping, rotasi, dan crop |
+| `components/editor/ImageCropDialog.tsx` | Seleksi area crop, canvas, upload hasil ke Drive |
+| `components/editor/editor.css` | Gaya editor dan kontrol gambar |
+| `components/editor/FontSize.ts` | Extension ukuran font |
+| `components/editor/TableControls.tsx` | Kontrol tabel |
+| `components/MathRenderer.tsx` | Renderer matematika lama yang tetap dipakai di tampilan lain |
+| `app/admin/exams/[id]/questions/page.tsx` | Integrasi RichTextEditor pada pengelolaan bank soal/latihan; build berhasil |
+| `app/admin/exam/[id]/page.tsx` | RichTextEditor sudah terintegrasi untuk pertanyaan, opsi, pernyataan matriks, dan pembahasan; field gambar lama dan struktur payload dipertahankan |
+| `app/api/google-drive/upload/route.ts` | Upload gambar ke Google Drive |
+| `app/api/google-drive/images/route.ts` | Daftar gambar galeri Drive |
+| `app/api/google-drive/image/[id]/route.ts` | Proxy same-origin untuk membaca gambar Drive saat crop |
+| `lib/google-drive/token-encryption.ts` | Enkripsi/dekripsi token Google Drive |
+| `docs/EDITOR-CHANGELOG.md` | Arsip, inventaris, catatan masalah, dan roadmap ini |
+
+## Arsip masalah, percobaan, dan solusi
+
+### A. Crop gambar Google Drive — masalah CORS dan konfigurasi runtime
+
+- Gejala: gambar thumbnail Drive terlihat di editor, tetapi browser canvas tidak dapat membaca gambar karena CORS.
+- Solusi: endpoint `app/api/google-drive/image/[id]/route.ts` mengambil byte gambar dari Google Drive melalui server TKA Platform; dialog crop menggunakan endpoint same-origin untuk sumber Drive.
+- Kesalahan build berulang pada commit `7baf406`, `ae16d30`, `3fcd40b`, dan `59f1db6`: `Route segment config "runtime" is not compatible with nextConfig.cacheComponents`; penyebabnya deklarasi `export const runtime = 'nodejs'`.
+- Pelajaran/perbaikan: pada proyek ini dengan `cacheComponents` aktif, jangan menambahkan deklarasi `runtime` pada Route Handler tersebut. Node.js adalah runtime default. Hapus deklarasi itu; build Preview kemudian berhasil.
+- Status: crop melalui galeri Drive dikonfirmasi berhasil oleh pengguna. Sumber eksternal non-Drive tetap dapat gagal jika host tidak mengizinkan CORS.
+
+### B. Integrasi editor bank soal — JSX duplicate attribute
+
+- Commit `b9bc997` gagal TypeScript: `app/admin/exams/[id]/questions/page.tsx(842,239): TS17001 JSX elements cannot have multiple attributes with the same name`.
+- Penyebab: prop `placeholder` terpasang dua kali pada satu komponen editor.
+- Perbaikan: commit `9623d37` menghapus placeholder duplikat.
+- Hasil: deployment Vercel Preview berikutnya berhasil melewati kompilasi, pemeriksaan TypeScript, pembuatan halaman, dan deployment.
+- Aturan pencegahan: sebelum commit integrasi JSX, periksa komponen yang baru dipasang agar setiap prop hanya muncul sekali. Jangan menganggap compile sukses saja sebagai bukti semua fungsi sudah benar.
+
+### C. Peringatan saat prerender Google Drive API routes
+
+Pada deployment yang berhasil, log menampilkan pesan saat prerender:
+- `/api/google-drive/callback`: penggunaan `request.nextUrl.searchParams) menghasilkan `NEXT_PRERENDER_INTERRUPTED`.
+- `/api/google-drive/connect` dan `/api/google-drive/images`: pesan `cookies()` / `HANGING_PROMISE_REJECTION` ketika prerender selesai.
+
+Build tetap berlanjut, seluruh 27 halaman selesai dibuat, route API tercatat sebagai Dynamic (`ƒ`), dan deployment selesai. Jadi ini **bukan build failure** pada deployment tersebut. Namun catat sebagai peringatan runtime/prerender yang perlu ditinjau bila alur OAuth atau galeri Drive menunjukkan masalah; jangan mengubahnya tanpa reproduksi yang jelas.
+
+### D. Peringatan instalasi npm
+
+Log menampilkan:
+- `Unknown env config "cache-dir"`.
+- `unrs-resolver` install script belum masuk daftar allowScripts.
+
+Pada log yang tersedia, keduanya berupa warning dan tidak menghentikan build. Jangan mengubah konfigurasi dependency hanya untuk menghilangkan warning tanpa memeriksa dampaknya.
+
+## Dokumen uji Microsoft Word
+
+Dokumen yang diserahkan pengguna: **LATIHAN ASSESMENT SUMATIF MATEMATIKA.docx**.
+
+Hasil inspeksi yang dicatat pada sesi sebelumnya:
+- 3 halaman dan 25 nomor soal.
+- 38 objek Office Math (OMML), termasuk 30 struktur pecahan.
+- 5 file gambar tertanam; ditemukan 6 referensi gambar di struktur dokumen.
+- Contoh konten mencakup perkalian/pembagian pecahan dan soal cerita.
+- Teks Arab dan Aksara Jawa sudah dapat disalin ke editor; gambar dan rumus belum.
+- Dokumen ini menjadi fixture/patokan uji utama. Pertahankan rumus dan gambar dari sumber; jangan mengubah atau menyederhanakan isi soal saat menguji konversi.
+
+## Audit Tahap 1 — halaman editor ujian (7 November 2026)
+
+Status: **audit selesai; belum ada perubahan kode aplikasi pada tahap audit ini**.
+
+File utama diperiksa:
+- `app/admin/exam/[id]/page.tsx` — SHA saat audit: `165e159d1932f9e1796b6dfa3bcf406a76c565a6` (1.582 baris).
+- `components/editor/RichTextEditor.tsx` — SHA: `684dafecb9de3caf8ade8c8a4701f09b0a88e895`.
+- `components/MathRenderer.tsx` — SHA: `32a96323ca52fd6fcc0f8544338e15301ddf55db`.
+- `components/editor/EditorToolbar.tsx` — SHA: `f7fe59fa3b0061cb4cd67ab1151748953e562c5e`.
+- `app/admin/exams/[id]/questions/page.tsx` — SHA: `662ab2155d0781b9db3ac28df97c55262b1bddf7` (referensi integrasi editor yang sudah ada).
+
+Temuan alur dan struktur:
+1. Halaman `app/admin/exam/[id]/page.tsx` adalah halaman Kelola Soal untuk ujian pada URL `/admin/exam/[id]`. Komponen utamanya `QuestionManagerContent`; halaman ini memang yang terlihat pada screenshot pengguna dan masih menggunakan Dual-View HTML/LaTeX.
+2. State editor: `questionText`, `explanation`, `options` (4 objek A-D dengan `key`, `text`, `image_url`), `statements` (objek `id`, `text`, `image_url`, `correct_val`), `imageUrl`, `questionType`, `maxScore`, serta kunci jawaban single/complex.
+3. Load edit mengambil `questions` berdasarkan `exam_id`; `handleEditClick` memetakan `question_text`, `explanation`, `options`, `correct_answers`, `correct_option`, `image_url`, dan `max_score` ke state.
+4. Save menulis tabel `questions`: `exam_id`, `question_type`, `question_text`, `image_url`, `max_score`, `explanation`; PG dan PG kompleks menyimpan array opsi dan kunci; matriks menyimpan pernyataan pada `options` serta object kunci per ID; essay menyimpan `options=[]`, `correct_option='ESSAY'`, `correct_answers=null`.
+5. Daftar soal, print/PDF, export Excel, dan pratinjau memakai field database yang sama. Tampilan soal dan opsi memakai `MathRenderer`; integrasi editor harus mempertahankan field dan bentuk payload tersebut.
+6. `RichTextEditor` menerima `content`, `onChange(html)`, `placeholder`, `editable`, `className`, `minHeight`. Editor mengeluarkan HTML Tiptap. `prepareEditorContent` mengonversi delimiter rumus lama `$...# Roadmap, Arsip Perjalanan, dan Inventaris Rich Text Editor
+
+Terakhir diperbarui: 7 November 2026
+
+## Aturan kerja proyek
+
+- Branch kerja sementara: `editor-test`.
+- Branch produksi: `main`; **jangan diubah, di-merge, atau dipromosikan tanpa persetujuan eksplisit pengguna**.
+- Laboratorium editor yang dipertahankan: `app/font-test/page.tsx`. Jangan membuat laboratorium pengganti.
+- Kerjakan satu tahap pada satu waktu. Setiap tahap harus memiliki: tujuan, file yang diperiksa/diubah, hasil build, hasil uji pengguna, masalah yang ditemukan, perbaikan, dan langkah berikutnya.
+- Catat fitur hanya sebagai "berhasil diuji" setelah ada konfirmasi uji pengguna. Build berhasil tidak sama dengan fitur berhasil diuji.
+- Sebelum mengubah file, periksa isi dan SHA terbaru. Jangan mengulang fitur yang sudah berhasil; lanjutkan dari catatan ini.
+- Jangan mengubah database, skema, penilaian, atau alur ujian kecuali memang diperlukan dan disetujui.
+
+## Status ringkas saat ini
+
 Tahap aktif: **integrasi RichTextEditor ke halaman editor ujian `app/admin/exam/[id]/page.tsx`**.
 
 Yang sudah terintegrasi pada branch ini adalah halaman pengelolaan bank soal/latihan `app/admin/exams/[id]/questions/page.tsx`. Halaman editor ujian `app/admin/exam/[id]/page.tsx` masih memakai Dual-View dan editor HTML/LaTeX lama. Keduanya adalah halaman berbeda; jangan menyatakan integrasi editor ujian selesai sebelum halaman kedua diperbarui dan diuji.
@@ -60,6 +195,124 @@ Copy-paste teks Arab dan Aksara Jawa dari Word telah berhasil bagi pengguna. Cop
 | `components/MathRenderer.tsx` | Renderer matematika lama yang tetap dipakai di tampilan lain |
 | `app/admin/exams/[id]/questions/page.tsx` | Integrasi RichTextEditor pada pengelolaan bank soal/latihan; build berhasil |
 | `app/admin/exam/[id]/page.tsx` | Editor ujian; masih Dual-View/editor HTML-LaTeX lama |
+| `app/api/google-drive/upload/route.ts` | Upload gambar ke Google Drive |
+| `app/api/google-drive/images/route.ts` | Daftar gambar galeri Drive |
+| `app/api/google-drive/image/[id]/route.ts` | Proxy same-origin untuk membaca gambar Drive saat crop |
+| `lib/google-drive/token-encryption.ts` | Enkripsi/dekripsi token Google Drive |
+| `docs/EDITOR-CHANGELOG.md` | Arsip, inventaris, catatan masalah, dan roadmap ini |
+
+## Arsip masalah, percobaan, dan solusi
+
+### A. Crop gambar Google Drive — masalah CORS dan konfigurasi runtime
+
+- Gejala: gambar thumbnail Drive terlihat di editor, tetapi browser canvas tidak dapat membaca gambar karena CORS.
+- Solusi: endpoint `app/api/google-drive/image/[id]/route.ts` mengambil byte gambar dari Google Drive melalui server TKA Platform; dialog crop menggunakan endpoint same-origin untuk sumber Drive.
+- Kesalahan build berulang pada commit `7baf406`, `ae16d30`, `3fcd40b`, dan `59f1db6`: `Route segment config "runtime" is not compatible with nextConfig.cacheComponents`; penyebabnya deklarasi `export const runtime = 'nodejs'`.
+- Pelajaran/perbaikan: pada proyek ini dengan `cacheComponents` aktif, jangan menambahkan deklarasi `runtime` pada Route Handler tersebut. Node.js adalah runtime default. Hapus deklarasi itu; build Preview kemudian berhasil.
+- Status: crop melalui galeri Drive dikonfirmasi berhasil oleh pengguna. Sumber eksternal non-Drive tetap dapat gagal jika host tidak mengizinkan CORS.
+
+### B. Integrasi editor bank soal — JSX duplicate attribute
+
+- Commit `b9bc997` gagal TypeScript: `app/admin/exams/[id]/questions/page.tsx(842,239): TS17001 JSX elements cannot have multiple attributes with the same name`.
+- Penyebab: prop `placeholder` terpasang dua kali pada satu komponen editor.
+- Perbaikan: commit `9623d37` menghapus placeholder duplikat.
+- Hasil: deployment Vercel Preview berikutnya berhasil melewati kompilasi, pemeriksaan TypeScript, pembuatan halaman, dan deployment.
+- Aturan pencegahan: sebelum commit integrasi JSX, periksa komponen yang baru dipasang agar setiap prop hanya muncul sekali. Jangan menganggap compile sukses saja sebagai bukti semua fungsi sudah benar.
+
+### C. Peringatan saat prerender Google Drive API routes
+
+Pada deployment yang berhasil, log menampilkan pesan saat prerender:
+- `/api/google-drive/callback`: penggunaan `request.nextUrl.searchParams) menghasilkan `NEXT_PRERENDER_INTERRUPTED`.
+- `/api/google-drive/connect` dan `/api/google-drive/images`: pesan `cookies()` / `HANGING_PROMISE_REJECTION` ketika prerender selesai.
+
+Build tetap berlanjut, seluruh 27 halaman selesai dibuat, route API tercatat sebagai Dynamic (`ƒ`), dan deployment selesai. Jadi ini **bukan build failure** pada deployment tersebut. Namun catat sebagai peringatan runtime/prerender yang perlu ditinjau bila alur OAuth atau galeri Drive menunjukkan masalah; jangan mengubahnya tanpa reproduksi yang jelas.
+
+### D. Peringatan instalasi npm
+
+Log menampilkan:
+- `Unknown env config "cache-dir"`.
+- `unrs-resolver` install script belum masuk daftar allowScripts.
+
+Pada log yang tersedia, keduanya berupa warning dan tidak menghentikan build. Jangan mengubah konfigurasi dependency hanya untuk menghilangkan warning tanpa memeriksa dampaknya.
+
+## Dokumen uji Microsoft Word
+
+Dokumen yang diserahkan pengguna: **LATIHAN ASSESMENT SUMATIF MATEMATIKA.docx**.
+
+Hasil inspeksi yang dicatat pada sesi sebelumnya:
+- 3 halaman dan 25 nomor soal.
+- 38 objek Office Math (OMML), termasuk 30 struktur pecahan.
+- 5 file gambar tertanam; ditemukan 6 referensi gambar di struktur dokumen.
+- Contoh konten mencakup perkalian/pembagian pecahan dan soal cerita.
+- Teks Arab dan Aksara Jawa sudah dapat disalin ke editor; gambar dan rumus belum.
+- Dokumen ini menjadi fixture/patokan uji utama. Pertahankan rumus dan gambar dari sumber; jangan mengubah atau menyederhanakan isi soal saat menguji konversi.
+
+6. `prepareEditorContent` mengonversi delimiter rumus lama `$...# Roadmap, Arsip Perjalanan, dan Inventaris Rich Text Editor
+
+Terakhir diperbarui: 7 November 2026
+
+## Aturan kerja proyek
+
+- Branch kerja sementara: `editor-test`.
+- Branch produksi: `main`; **jangan diubah, di-merge, atau dipromosikan tanpa persetujuan eksplisit pengguna**.
+- Laboratorium editor yang dipertahankan: `app/font-test/page.tsx`. Jangan membuat laboratorium pengganti.
+- Kerjakan satu tahap pada satu waktu. Setiap tahap harus memiliki: tujuan, file yang diperiksa/diubah, hasil build, hasil uji pengguna, masalah yang ditemukan, perbaikan, dan langkah berikutnya.
+- Catat fitur hanya sebagai "berhasil diuji" setelah ada konfirmasi uji pengguna. Build berhasil tidak sama dengan fitur berhasil diuji.
+- Sebelum mengubah file, periksa isi dan SHA terbaru. Jangan mengulang fitur yang sudah berhasil; lanjutkan dari catatan ini.
+- Jangan mengubah database, skema, penilaian, atau alur ujian kecuali memang diperlukan dan disetujui.
+
+## Status ringkas saat ini
+
+Tahap aktif: **QA integrasi editor pada halaman admin, lalu peningkatan kompatibilitas paste Microsoft Word**.
+
+RichTextEditor sudah diterapkan pada dua halaman admin yang berbeda:
+- `app/admin/exams/[id]/questions/page.tsx` — pengelolaan bank soal/latihan.
+- `app/admin/exam/[id]/page.tsx` — pengelolaan soal pada ujian; editor teks, opsi, pernyataan matriks, dan pembahasan sudah diganti dengan RichTextEditor.
+
+Pengguna telah mengonfirmasi tampilan editor pada halaman ujian dan desain toolbar ringkas terbaru sudah sesuai. Namun, pengujian menyeluruh alur simpan/buka ulang seluruh tipe soal tetap menjadi QA berikutnya.
+
+Copy-paste teks Arab dan Aksara Jawa dari Word telah berhasil. Paste gambar Word dan konversi rumus Office Math/OMML masih menjadi pekerjaan terpisah.
+
+## Milestone yang telah dikonfirmasi pengguna
+
+| Fitur | Status |
+|---|---|
+| Font Arab Noto Naskh dan Aksara Jawa tampil benar | Berhasil diuji |
+| Autosave konten laboratorium `font-test` ke localStorage | Berhasil diuji; hanya penyimpanan lokal browser |
+| Upload gambar komputer ke Google Drive | Berhasil diuji |
+| Galeri gambar Google Drive | Berhasil diuji |
+| Sisipkan gambar dari URL | Berhasil diuji |
+| Ekstraksi URL gambar dari halaman hasil Yahoo Images | Berhasil diuji |
+| Paste gambar langsung dari hasil pencarian Yahoo pada editor | Berhasil diuji |
+| Resize gambar | Berhasil diuji |
+| Alignment kiri/tengah/kanan | Berhasil diuji |
+| Text wrapping kiri/kanan | Berhasil diuji |
+| Rotasi kiri/kanan dan reset | Berhasil diuji |
+| Crop gambar dan simpan hasil ke Google Drive | Berhasil diuji untuk sumber yang mendukung; gambar asli tetap ada |
+| Crop gambar dari galeri Google Drive melalui proxy same-origin | Berhasil diuji pengguna; hasil tampil di editor dan tersimpan sebagai gambar baru |
+| Paste teks Arab dan Aksara Jawa dari Word | Berhasil diuji |
+| Integrasi RichTextEditor pada halaman bank soal/latihan | Sudah terintegrasi; build Preview pernah berhasil; QA alur lengkap masih perlu dipastikan |
+| Integrasi RichTextEditor pada halaman editor ujian | Sudah terintegrasi; pengguna mengonfirmasi tampilan editor; QA simpan/buka ulang semua tipe soal masih perlu dilakukan |
+| Paste gambar langsung dari Microsoft Word | Belum didukung/diuji berhasil |
+| Paste rumus matematika Word (Office Math/OMML) | Belum didukung/diuji berhasil |
+
+## Inventaris kode
+
+| File | Fungsi / status |
+|---|---|
+| `app/font-test/page.tsx` | Laboratorium font dan editor; autosave lokal |
+| `components/editor/RichTextEditor.tsx` | Mesin Tiptap; extension teks, matematika, gambar, tabel, alignment, subscript/superscript, warna/font |
+| `components/editor/EditorToolbar.tsx` | Toolbar ringkas satu baris (B, I, U, gambar, rumus, Lainnya) dan toolbar lengkap yang dapat dibuka; tombol pangkat/indeks tetap tersedia di toolbar lengkap |
+| `components/editor/MathFormulaDialog.tsx` | Dialog rumus; mendukung pemicu ringkas berupa ikon ∑ dan mode tombol lengkap |
+| `components/editor/ImageDialog.tsx` | Upload komputer, galeri Drive, dan URL gambar |
+| `components/editor/ResizableImage.tsx` | Resize, alignment, wrapping, rotasi, dan crop |
+| `components/editor/ImageCropDialog.tsx` | Seleksi area crop, canvas, upload hasil ke Drive |
+| `components/editor/editor.css` | Gaya editor dan kontrol gambar |
+| `components/editor/FontSize.ts` | Extension ukuran font |
+| `components/editor/TableControls.tsx` | Kontrol tabel |
+| `components/MathRenderer.tsx` | Renderer matematika lama yang tetap dipakai di tampilan lain |
+| `app/admin/exams/[id]/questions/page.tsx` | Integrasi RichTextEditor pada pengelolaan bank soal/latihan; build berhasil |
+| `app/admin/exam/[id]/page.tsx` | RichTextEditor sudah terintegrasi untuk pertanyaan, opsi, pernyataan matriks, dan pembahasan; field gambar lama dan struktur payload dipertahankan |
 | `app/api/google-drive/upload/route.ts` | Upload gambar ke Google Drive |
 | `app/api/google-drive/images/route.ts` | Daftar gambar galeri Drive |
 | `app/api/google-drive/image/[id]/route.ts` | Proxy same-origin untuk membaca gambar Drive saat crop |
@@ -510,3 +763,89 @@ Langkah uji:
 3. Klik ∑ dan pastikan dialog rumus terbuka serta dapat menyisipkan pecahan/akar/simbol.
 4. Buka Lainnya dan pastikan pangkat serta indeks bawah masih tersedia.
 5. Uji pada layar HP.
+
+
+## Pembaruan status dan hasil uji — toolbar ringkas (7 November 2026)
+
+Status: **berhasil diuji dan disetujui pengguna**.
+
+Pengguna mengonfirmasi bahwa toolbar ringkas terbaru sudah sesuai dengan kebutuhan. Ini memperbarui catatan toolbar sebelumnya.
+
+Desain akhir toolbar:
+- Baris ringkas selalu satu baris dan dapat digeser horizontal pada layar sempit/HP.
+- Tombol cepat: **B** (tebal), **I** (miring), **U** (garis bawah), **▧** (sisipkan gambar), **∑** (rumus matematika), dan **Lainnya**.
+- Tombol **Lainnya** membuka toolbar lengkap yang mempertahankan fitur format lanjutan, termasuk pangkat dan indeks bawah.
+- Tombol gambar membuka `ImageDialog` yang sudah ada; tidak membuat alur upload baru.
+- Tombol rumus memakai `MathFormulaDialog` yang sama dengan toolbar lengkap, hanya pemicunya dibuat ringkas.
+- Toolbar lengkap dapat ditutup kembali melalui tombol **Tutup**.
+
+File dan perubahan:
+- `components/editor/EditorToolbar.tsx`: toolbar ringkas, tombol gambar, tombol Lainnya, serta toolbar lengkap yang dapat dibuka/tutup.
+- `components/editor/MathFormulaDialog.tsx`: prop opsional `compact`; mode ringkas menampilkan ikon ∑ dengan label aksesibilitas dan tetap memakai dialog rumus yang sama.
+- `docs/EDITOR-CHANGELOG.md`: inventaris dan catatan progres.
+- Commit kode toolbar: `5a8b1fa93e2dd4a18324540f3fa0d0d1989eb702`.
+- Commit dukungan pemicu rumus ringkas: `6a0c52a33b9066923ddd785f796faf80e8cfbb3e`.
+- Commit dokumentasi terbaru: `a06d59c309fd27f7a3917c738cca5f3b98061151`.
+
+Pemeriksaan deployment:
+- Vercel Preview untuk commit dokumentasi terbaru `a06d59c309fd27f7a3917c738cca5f3b98061151` berstatus **READY**.
+- URL deployment spesifik: https://grisan-mqkxz7f3l-heins14.vercel.app
+- Deployment untuk commit perantara `5a8b1fa` berstatus CANCELED karena deployment berikutnya berjalan; bukan kegagalan build yang perlu diperbaiki.
+- Deployment commit `6a0c52a` berstatus READY.
+- Pengguna telah menguji hasil terbaru dan menyatakan sudah sesuai.
+- Branch `main`, database, skema, scoring, dan alur penyimpanan soal tidak diubah oleh pekerjaan toolbar ini.
+
+## Inventaris toolbar terkini
+
+| Bagian | Implementasi aktif | Status |
+|---|---|---|
+| Toolbar cepat | B / I / U / ▧ / ∑ / Lainnya | Berhasil diuji pengguna |
+| Sisip gambar | Memanggil `ImageDialog` yang sudah ada | Sudah terhubung; gunakan QA editor sebelumnya untuk uji upload/galeri |
+| Rumus matematika | Memanggil `MathFormulaDialog` dalam mode compact | Berhasil diuji pengguna sebagai bagian toolbar |
+| Toolbar lengkap | Format teks, font, warna, alignment, list, tabel, pangkat, indeks bawah, dan kontrol lanjutan | Tetap tersedia; perlu QA regresi setelah perubahan ringkas |
+| Tampilan HP | Satu baris, horizontal scroll; toolbar lengkap tersembunyi sampai Lainnya ditekan | Berhasil diuji pengguna secara tampilan |
+
+## Roadmap aktif yang telah ditinjau ulang
+
+Urutan kerja berikut menggantikan status lama yang tertinggal di bagian roadmap sebelumnya. Jangan mengulang pekerjaan yang sudah ditandai berhasil.
+
+### Tahap 1A — QA editor admin dan toolbar
+- [ ] Uji toolbar lengkap: tombol Lainnya/Tutup, pangkat, indeks bawah, font, alignment, tabel, dan warna.
+- [ ] Uji tombol gambar dan rumus dari toolbar ringkas, termasuk pada posisi kursor/teks terpilih agar selection tidak hilang.
+- [ ] Uji simpan, buka ulang, dan edit ulang untuk PG tunggal, PG kompleks, matriks benar-salah, dan essay.
+- [ ] Pastikan gambar inline, node matematika, HTML lama, dan pembahasan tetap tampil pada daftar/pratinjau/cetak.
+- [ ] Pastikan bobot, kunci jawaban, struktur opsi, dan skor tidak berubah.
+
+### Tahap 2 — Paste gambar Microsoft Word
+- [ ] Audit event paste dan clipboard yang diterima oleh Tiptap saat ini.
+- [ ] Gunakan dokumen uji `LATIHAN ASSESMENT SUMATIF MATEMATIKA.docx` sebagai fixture.
+- [ ] Uji paste gambar dari Word; tentukan apakah clipboard membawa file gambar, HTML dengan blob, atau referensi internal.
+- [ ] Jika perlu, implementasikan penanganan gambar clipboard yang aman dan unggah hasilnya ke Google Drive melalui alur yang sudah ada.
+- [ ] Pastikan kegagalan upload/paste tidak menghapus teks atau konten yang sudah ada.
+
+### Tahap 3 — Paste rumus Microsoft Word (OMML)
+- [ ] Audit isi clipboard/struktur OMML dari dokumen uji.
+- [ ] Tentukan parser/konverter OMML ke representasi matematika yang diterima Tiptap/KaTeX.
+- [ ] Implementasikan bertahap, mulai pecahan, operasi, pangkat, akar, dan tanda kurung.
+- [ ] Untuk struktur yang belum didukung, tampilkan fallback yang aman; jangan diam-diam membuang rumus.
+- [ ] Bandingkan hasil dengan sumber Word dan tampilan siswa.
+
+### Tahap 4 — QA kompatibilitas lintas aplikasi
+- [ ] Soal lama HTML/LaTeX tetap terbaca dan dapat diedit.
+- [ ] Gambar, rumus, tabel, Arab, Aksara Jawa, dan paste Word.
+- [ ] Simpan, buka ulang, dan edit ulang seluruh tipe soal.
+- [ ] Periksa renderer halaman siswa, ringkasan ujian, hasil/koreksi guru, analisis, export, dan cetak.
+- [ ] Pastikan tidak ada perubahan skema, scoring, bobot, atau penilaian otomatis.
+
+### Tahap 5 — Editor jawaban matematika siswa (rencana terpisah)
+- [ ] Setelah editor admin stabil, tinjau `app/exam/[id]/page.tsx`, `app/admin/exam/[id]/results/page.tsx`, dan `app/exam/[id]/summary/page.tsx`.
+- [ ] Tambahkan opsi editor matematika untuk jawaban essay saja; textarea biasa tetap menjadi default.
+- [ ] Pertahankan autosave, pemulihan localStorage, dan penyimpanan `answers.user_answer`.
+- [ ] Pastikan guru dapat membaca jawaban HTML/rumus pada koreksi dan ringkasan.
+- [ ] Tidak mengubah skema database kecuali benar-benar diperlukan dan disetujui.
+
+### Tahap 6 — Penutupan dan rilis
+- [ ] Uji seluruh perubahan pada Vercel Preview.
+- [ ] Arsipkan hasil uji, commit, dan inventaris final.
+- [ ] Minta persetujuan eksplisit sebelum merge/promosi ke `main`.
+
