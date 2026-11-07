@@ -455,7 +455,13 @@ function BankSoalContent() {
 
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.question_text.trim()) {
+    const questionPlainText = formData.question_text
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;|&#160;/g, ' ')
+      .trim()
+    const questionHasImage = /<img\\b/i.test(formData.question_text)
+
+    if (!questionPlainText && !questionHasImage) {
       alert('Isi pertanyaan / judul level wajib diisi!')
       return
     }
