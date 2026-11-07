@@ -982,3 +982,54 @@ File aplikasi yang diperiksa:
 - `components/MathRenderer.tsx` — mendukung HTML yang disanitasi, node matematika Tiptap, dan delimiter LaTeX lama.
 
 Belum ada perubahan kode aplikasi pada audit ini. Hasil build dan uji pengguna menunggu implementasi.
+
+
+## Implementasi tahap cetak — pengaturan, pratinjau, logo, dan identitas (7 November 2026)
+
+Status: **kode diterapkan pada `editor-test`; menunggu hasil build Preview dan pengujian pengguna**.
+
+Commit aplikasi:
+- `ad3ae4d4b4bf2edc4b26e0af89f0d5066cce7f04` — `Add print preview settings and fix school exam sheet layout`.
+
+File aplikasi diubah:
+- `app/admin/exam/[id]/page.tsx`.
+
+Perubahan yang diterapkan:
+1. Tombol cetak sekarang membuka panel **Pengaturan & Pratinjau Cetak** terlebih dahulu, bukan langsung memanggil dialog browser.
+2. Panel menyediakan input Kelas dan Fase, pilihan tata letak satu/dua kolom, pilihan menyertakan kunci jawaban, dan pilihan menyertakan pembahasan.
+3. Dokumen yang terlihat pada pratinjau adalah elemen dokumen yang sama dengan yang dicetak. Tombol **Cetak / Simpan PDF** baru memanggil `window.print()`.
+4. Logo sekolah `/logo-sd-getasan.png` ditambahkan ke kop; file aset sudah diverifikasi tersedia pada branch ini.
+5. Pernyataan matriks benar-salah kini menggunakan `MathRenderer`, bukan teks React biasa, agar HTML seperti `<b>` dan rumus dirender.
+6. Informasi sekolah tetap berada di kop. Kolom identitas peserta sekarang terpisah: Nama Peserta (garis kosong), Kelas, dan Fase. Kelas/Fase memakai nilai pengaturan pratinjau; bila kosong, tersedia garis kosong.
+7. Kunci jawaban dapat dikeluarkan dari cetakan; pembahasan dapat dimatikan terpisah.
+
+Batas perubahan:
+- Tidak mengubah isi data soal, opsi, kunci, bobot, query Supabase, skema database, atau penilaian.
+- Tidak mengubah `main`.
+- Tidak mengubah halaman hasil siswa, CSS highlight hasil, atau editor jawaban essay; itu tetap menjadi tahap terpisah.
+
+Pemeriksaan sumber setelah commit:
+- Tombol cetak membuka state pratinjau.
+- Logo sekolah ditautkan ke aset yang tersedia.
+- Pernyataan matriks menggunakan `MathRenderer`.
+- Nama peserta, kelas, dan fase memiliki area identitas tersendiri.
+- Pilihan satu/dua kolom serta kunci/pembahasan terhubung ke dokumen pratinjau.
+- Pemeriksaan ini adalah inspeksi kode, bukan hasil build atau uji cetak browser.
+
+Vercel Preview untuk commit aplikasi: **BUILDING saat catatan ini dibuat**.
+Uji pengguna: **menunggu**. Belum boleh dinyatakan berhasil sampai pengguna memeriksa pratinjau dan hasil cetak fisik/PDF.
+
+### Checklist QA setelah Preview READY
+- [ ] Buka tombol Pratinjau & Cetak; pastikan tidak langsung membuka dialog browser.
+- [ ] Pastikan logo sekolah terlihat pada kop.
+- [ ] Pastikan nama sekolah/alamat/email benar dan tidak tertukar dengan kelas/fase.
+- [ ] Pastikan kolom Nama Peserta, Kelas, dan Fase terlihat.
+- [ ] Isi kelas dan fase, lalu pastikan nilainya masuk ke pratinjau.
+- [ ] Pastikan teks tebal pada pernyataan matriks tampil tebal, bukan kode `<b>`.
+- [ ] Pastikan rumus, gambar, dan pemformatan soal tetap tampil.
+- [ ] Uji satu kolom dan dua kolom.
+- [ ] Uji cetak dengan dan tanpa kunci jawaban; dengan dan tanpa pembahasan.
+- [ ] Tekan Cetak / Simpan PDF dan pastikan dialog cetak hanya muncul setelah pratinjau.
+- [ ] Pastikan halaman admin kembali normal setelah dialog cetak dibatalkan/ditutup.
+
+Tahap berikutnya setelah QA cetak: perbaiki kontras halaman hasil siswa; setelah itu integrasi editor jawaban essay siswa secara terpisah.
