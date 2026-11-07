@@ -45,7 +45,7 @@ export default function ImageCropDialog({
     }
   }
 
-  const startSelection = (event: React.PointerEvent<HTMLDivElement>) => {
+  const startSelection = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (saving) return
     const point = getPoint(event)
     if (!point) return
@@ -104,14 +104,31 @@ export default function ImageCropDialog({
 
     try {
       // Muat ulang sumber dengan izin CORS agar dapat diproses oleh canvas.
+      // Gambar Drive diproses melalui endpoint server satu-domain.
+      // Thumbnail Drive tidak selalu mengirim header CORS untuk canvas.
+      let cropSourceUrl = src
+      try {
+        const parsedSource = new URL(src, window.location.origin)
+        const driveFileId =
+          parsedSource.hostname === 'drive.google.com'
+            ? parsedSource.searchParams.get('id')
+            : null
+
+        if (driveFileId) {
+          cropSourceUrl = `/api/google-drive/image/${encodeURIComponent(driveFileId)}`
+        }
+      } catch {
+        // Biarkan URL asli; proses pemuatan di bawah akan menampilkan pesan jika gagal.
+      }
+
       const source = new window.Image()
       source.crossOrigin = 'anonymous'
-      source.src = src
+      source.src = cropSourceUrl
 
       await new Promise<void>((resolve, reject) => {
         source.onload = () => resolve()
         source.onerror = () =>
-          reject(new Error('Gambar tidak dapat diproses. Coba upload gambar ke Google Drive terlebih dahulu.'))
+          reject(new Error('Gambar tidak dapat diproses. Untuk gambar dari situs luar, server gambar harus mengizinkan akses CORS.'))
       })
 
       const scaleX = source.naturalWidth / rect.width
