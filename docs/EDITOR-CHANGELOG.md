@@ -375,3 +375,51 @@ Setiap penyelesaian tahap harus menambahkan:
 7. Masalah yang muncul, penyebab, solusi, dan cara mencegah pengulangan.
 8. Roadmap tahap berikutnya.
 
+
+
+## Penyederhanaan form editor ujian — 7 November 2026
+
+Status: **implementasi tersimpan di `editor-test`; menunggu build Preview dan uji pengguna**.
+
+Commit:
+- `f08e091dccbcb919bcd1b0d1c533f3344fa77309` — penyederhanaan form dan dropdown pembahasan.
+- `9c7c95c46eb4ede5fc97519da90650c7b3a903a6` — menghapus sisa input URL gambar opsi PG kompleks.
+
+File aplikasi diubah:
+- `app/admin/exam/[id]/page.tsx`.
+
+Perubahan:
+- Input URL gambar soal dihilangkan dari form.
+- Input URL gambar pilihan A-D dihilangkan dari kedua cabang UI (PG biasa dan PG kompleks).
+- Input URL gambar pernyataan matriks dihilangkan.
+- Gambar lama yang masih memiliki `image_url` tetap ditampilkan sebagai pratinjau.
+- RichTextEditor pembahasan/pedoman penskoran ditempatkan di dropdown `details/summary`, tertutup secara default.
+- Gambar baru diarahkan melalui tombol gambar pada RichTextEditor.
+
+Kompatibilitas yang dipertahankan:
+- State dan payload `image_url` lama tetap ada.
+- Fungsi normalisasi masih membaca gambar lama pada opsi/pernyataan.
+- Render daftar soal/cetak yang membaca `image_url` tidak diubah.
+- Tidak ada perubahan skema database, tipe soal, kunci, bobot, atau penilaian.
+
+Verifikasi kode setelah perubahan:
+- Input URL gambar soal, opsi, dan pernyataan sudah tidak ada pada form.
+- Dropdown pembahasan ditemukan.
+- Field legacy `image_url` tetap dimuat/disimpan.
+- Build Preview dan uji browser: **menunggu**.
+
+### Rencana editor jawaban siswa (tahap terpisah)
+
+Audit awal menemukan:
+- Halaman siswa: `app/exam/[id]/page.tsx`.
+- Jawaban uraian sekarang menggunakan `textarea`.
+- Handler `handleEssayChange` menyimpan string ke state dan menggunakan mekanisme autosave ke `answers.user_answer`, dengan cadangan localStorage.
+- Skema jawaban yang ada dapat menampung string HTML tanpa kolom baru, tetapi perlu uji kompatibilitas pada halaman rekap dan koreksi.
+- `app/admin/exam/[id]/results/page.tsx` dan `app/exam/[id]/summary/page.tsx` perlu diperiksa untuk memastikan jawaban HTML/rumus dirender sebagai konten, bukan teks mentah.
+- Implementasi yang direncanakan: textarea tetap menjadi mode sederhana; siswa dapat membuka editor matematika saat dibutuhkan. Toolbar siswa harus lebih terbatas daripada toolbar guru, tanpa kontrol admin/galeri gambar.
+- Belum ada perubahan pada halaman siswa; belum ada perubahan database.
+
+Langkah berikutnya:
+1. Tunggu Preview READY untuk commit penyederhanaan form.
+2. Uji form guru: tambah/edit soal, gambar inline, gambar legacy, dan buka/tutup pembahasan.
+3. Setelah tahap form lolos, kerjakan editor jawaban siswa sebagai tahap tersendiri.
