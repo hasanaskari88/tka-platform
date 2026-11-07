@@ -459,7 +459,7 @@ function BankSoalContent() {
       .replace(/<[^>]*>/g, '')
       .replace(/&nbsp;|&#160;/g, ' ')
       .trim()
-    const questionHasImage = /<img\\b/i.test(formData.question_text)
+    const questionHasImage = /<img\b/i.test(formData.question_text)
 
     if (!questionPlainText && !questionHasImage) {
       alert('Isi pertanyaan / judul level wajib diisi!')
