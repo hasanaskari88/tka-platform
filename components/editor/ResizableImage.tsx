@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useRef, useState } from 'react'
@@ -30,6 +29,14 @@ function getLayout(style: string): ImageLayout {
   if (margin.startsWith('0 0 0 auto')) return 'right'
 
   return 'center'
+}
+
+function normalizeRotation(value: unknown): number {
+  const parsed = Number(value)
+
+  if (!Number.isFinite(parsed)) return 0
+
+  return ((Math.round(parsed / 90) * 90) % 360 + 360) % 360
 }
 
 function makeImageStyle(
@@ -76,6 +83,7 @@ function ResizableImageView({
   const imageWidth = attrs.width ? String(attrs.width) : null
   const imageStyle = String(attrs.style || '')
   const layout = getLayout(imageStyle)
+  const rotation = normalizeRotation(attrs.rotation)
 
   const isWrapped =
     layout === 'wrap-left' || layout === 'wrap-right'
@@ -129,6 +137,16 @@ function ResizableImageView({
       width,
       style: makeImageStyle(width, nextLayout),
     })
+  }
+
+  const changeRotation = (direction: -1 | 1) => {
+    updateAttributes({
+      rotation: normalizeRotation(rotation + direction * 90),
+    })
+  }
+
+  const resetRotation = () => {
+    updateAttributes({ rotation: 0 })
   }
 
   const currentWidth = () => {
@@ -261,6 +279,39 @@ function ResizableImageView({
               {button.label}
             </button>
           ))}
+
+          <span className="editor-image-controls-divider" />
+
+          <button
+            type="button"
+            title="Putar 90° ke kiri"
+            aria-label="Putar 90 derajat ke kiri"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => changeRotation(-1)}
+          >
+            ↶
+          </button>
+
+          <button
+            type="button"
+            title="Putar 90° ke kanan"
+            aria-label="Putar 90 derajat ke kanan"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => changeRotation(1)}
+          >
+            ↷
+          </button>
+
+          <button
+            type="button"
+            title="Kembalikan rotasi"
+            aria-label="Kembalikan rotasi ke posisi semula"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={resetRotation}
+            disabled={rotation === 0}
+          >
+            ↺
+          </button>
         </div>
       )}
 
@@ -277,6 +328,9 @@ function ResizableImageView({
           maxWidth: '100%',
           height: 'auto',
           borderRadius: '0.5rem',
+          transform: rotation ? `rotate(${rotation}deg)` : undefined,
+          transformOrigin: 'center center',
+          transition: 'transform 150ms ease',
         }}
       />
 
@@ -322,6 +376,32 @@ const ResizableImage = Image.extend({
           attributes.style
             ? { style: attributes.style }
             : {},
+      },
+
+      rotation: {
+        default: 0,
+        parseHTML: (element) =>
+          normalizeRotation(element.getAttribute('data-rotation')),
+        renderHTML: (attributes) => {
+          const rotation = normalizeRotation(attributes.rotation)
+          const existingStyle = String(attributes.style || '')
+            .replace(/transform:\s*rotate\([^)]*\);?/gi, '')
+            .trim()
+            .replace(/;?\s*$/, '')
+
+          const style = [
+            existingStyle,
+            rotation ? `transform: rotate(${rotation}deg)` : '',
+            rotation ? 'transform-origin: center center' : '',
+          ]
+            .filter(Boolean)
+            .join('; ')
+
+          return {
+            'data-rotation': String(rotation),
+            ...(style ? { style } : {}),
+          }
+        },
       },
     }
   },
