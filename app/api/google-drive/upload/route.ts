@@ -232,7 +232,7 @@ export async function POST(request: NextRequest) {
 
     // 9. Siapkan alamat gambar
     const imageUrl =
-      `https://drive.google.com/uc?export=view&id=${fileId}`
+      `https://drive.google.com/thumbnail?id=${fileId}&sz=w1600`
 
     return NextResponse.json({
       success: true,
