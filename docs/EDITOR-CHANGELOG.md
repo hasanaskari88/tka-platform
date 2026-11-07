@@ -19,6 +19,28 @@ Branch produksi: `main` (tidak diubah selama pengujian)
 | Autosave konten laboratorium editor ke localStorage | Berhasil diuji |
 | Build Vercel Preview untuk endpoint proxy gambar Drive | Berhasil setelah menghapus deklarasi `runtime` yang tidak kompatibel dengan `cacheComponents` |
 | Crop gambar dari Galeri Google Drive melalui proxy same-origin | Berhasil diuji pengguna: hasil tersimpan sebagai gambar baru dan tampil di editor; gambar asli tetap dipertahankan |
+| Integrasi RichTextEditor pada form soal, opsi, dan pembahasan | Sudah diterapkan di `editor-test`; menunggu build dan pengujian Vercel Preview |
+| Konversi rumus lama `$...# Inventaris Pengembangan Rich Text Editor
+
+Branch pengembangan: `editor-test`  
+Branch produksi: `main` (tidak diubah selama pengujian)
+
+## Fitur yang telah diuji pengguna
+
+| Fitur | Status |
+|---|---|
+| Upload gambar dari komputer ke Google Drive | Berhasil diuji |
+| Galeri gambar Google Drive | Berhasil diuji |
+| Sisipkan gambar melalui URL langsung | Berhasil diuji |
+| Ekstraksi URL gambar dari halaman hasil Yahoo Images | Berhasil diuji |
+| Salin-tempel gambar dari pencarian Yahoo ke editor | Berhasil diuji |
+| Ubah ukuran gambar dengan pegangan resize | Berhasil diuji |
+| Posisi kiri, tengah, dan kanan | Berhasil diuji |
+| Bungkus teks di sisi kiri/kanan gambar | Berhasil diuji |
+| Rotasi 90 derajat kiri/kanan dan reset | Berhasil diuji |
+| Autosave konten laboratorium editor ke localStorage | Berhasil diuji |
+| Build Vercel Preview untuk endpoint proxy gambar Drive | Berhasil setelah menghapus deklarasi `runtime` yang tidak kompatibel dengan `cacheComponents` |
+ / `$...$` saat membuka editor | Adapter ditambahkan; perlu verifikasi pada soal lama di Preview |
 
 ## Implementasi terbaru — crop gambar
 
