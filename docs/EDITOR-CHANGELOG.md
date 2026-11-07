@@ -1149,3 +1149,47 @@ Pemeriksaan sumber:
 - Tidak ada lagi elemen/class/CSS atau pengaturan `print-footer`.
 - Ucapan penutup tetap ada setelah daftar soal.
 - Build Preview dan hasil PDF setelah penghapusan masih menunggu QA.
+
+
+
+## Perbaikan kontras halaman hasil ujian siswa — 7 November 2026
+
+Status: **kode diterapkan pada `editor-test`; menunggu build Preview dan QA pengguna**.
+
+Commit aplikasi:
+- `ca84c9593eb3ea7f07b896d0d93fb3605e05ce6e` — `Improve contrast in student exam review`.
+
+File aplikasi:
+- `app/exam/[id]/summary/page.tsx`.
+
+Masalah yang ditangani:
+- Highlight jawaban benar/salah sebelumnya menggunakan latar transparan dan teks hijau/merah muda yang kurang terbaca, terutama ketika kartu berada di atas latar tema yang gelap atau abu-abu.
+- Panel jawaban essay dan pembahasan juga menggunakan warna teks terang/transparan yang kontrasnya tidak konsisten.
+
+Perubahan:
+1. Kartu soal benar/salah memakai latar solid hijau muda/merah muda dengan border yang jelas.
+2. Opsi jawaban benar memakai latar hijau muda dan teks hijau gelap; opsi yang dipilih tetapi salah memakai latar merah muda dan teks merah gelap; opsi netral memakai latar abu-abu muda dan teks gelap.
+3. Badge status benar, salah, dan tidak dijawab memakai warna solid dengan teks gelap.
+4. Tabel matriks memakai latar putih, header abu-abu muda, garis pembatas netral, dan status jawaban dengan warna solid.
+5. Panel jawaban essay memakai latar abu-abu muda dan teks gelap.
+6. Panel pembahasan memakai latar kuning muda dan teks cokelat gelap.
+7. Perubahan hanya pada presentasi/kelas CSS. Fungsi evaluasi jawaban, filter, skor, kunci, dan penyimpanan tidak diubah.
+
+Batas perubahan:
+- Hanya `app/exam/[id]/summary/page.tsx` dan changelog.
+- Tidak mengubah database, skema, scoring, bobot, atau penilaian otomatis.
+- Branch `main` tidak disentuh.
+
+Pemeriksaan sumber:
+- Kelas transparan lama untuk highlight opsi hijau/merah telah diganti.
+- Panel pembahasan dan jawaban essay kini memakai latar solid serta teks gelap.
+- Build Preview dan uji pengguna belum dikonfirmasi.
+
+Checklist QA:
+- [ ] Buka halaman hasil siswa pada tema yang biasa digunakan.
+- [ ] Pastikan kartu soal benar dan salah mudah dibedakan dan teks terbaca.
+- [ ] Pastikan opsi kunci jawaban dan jawaban siswa terlihat jelas.
+- [ ] Pastikan tabel matriks benar/salah terbaca.
+- [ ] Pastikan jawaban essay dan pembahasan terbaca.
+- [ ] Uji filter Semua, Benar, dan Salah; pastikan jumlah dan hasilnya tetap sesuai.
+- [ ] Pastikan skor dan status jawaban tidak berubah.
