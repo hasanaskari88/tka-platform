@@ -4,7 +4,6 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/google-drive/token-encryption'
 
-export const runtime = 'nodejs'
 
 interface RouteContext {
   params: Promise<{ id: string }>
