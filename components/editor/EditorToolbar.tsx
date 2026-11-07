@@ -11,6 +11,7 @@ import TableControls from './TableControls'
 
 interface EditorToolbarProps {
   editor: Editor | null
+  editorId: string
 }
 
 const buttonClass =
@@ -46,7 +47,7 @@ const alignments = [
   { value: 'justify', label: '☰ Rata', title: 'Rata kiri-kanan' },
 ] as const
 
-export default function EditorToolbar({ editor }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
 
   // Memantau perubahan format sesuai posisi kursor atau teks terpilih.
@@ -336,7 +337,7 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
             ▧ Gambar
           </button>
 
-          <MathFormulaDialog editor={editor} />
+          <MathFormulaDialog editor={editor} editorId={editorId} />
         </div>
 
         {/* BARIS 4: RIWAYAT */}
