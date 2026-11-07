@@ -775,7 +775,7 @@ function QuestionManagerContent() {
 
                   {/* PERNYATAAN BENAR/SALAH MATRIKS */}
                   {q.question_type === 'true_false_matrix' && Array.isArray(q.options) && (
-                    <table className="w-full text-[10px] border-collapse border border-black mt-1">
+                    <table className="w-full border-collapse border border-black mt-1" style={{ fontSize: `${printSettings.questionFontSize}pt`, lineHeight: printSettings.lineHeight }}>
                       <thead>
                         <tr className="bg-slate-100">
                           <th className="border border-black p-1 text-left">Pernyataan</th>
