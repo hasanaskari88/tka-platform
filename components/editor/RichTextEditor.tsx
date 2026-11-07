@@ -184,7 +184,7 @@ export default function RichTextEditor({
     <div
       className={`rich-text-editor overflow-hidden rounded-xl border border-slate-300 bg-white ${className}`}
     >
-      {editable && <EditorToolbar editor={editor} />}
+      {editable && <EditorToolbar editor={editor} editorId={editorId} />}
 
       <EditorContent editor={editor} />
     </div>
