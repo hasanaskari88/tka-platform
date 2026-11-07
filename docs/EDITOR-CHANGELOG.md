@@ -1260,3 +1260,24 @@ Perbaikan tambahan:
 Batasan tetap sama: halaman harus dibuka dan dapat terhubung ke Supabase untuk melakukan submit. Penutupan browser/perangkat saat deadline masih memerlukan mekanisme server-side terjadwal.
 
 Build Preview dan uji pengguna masih menunggu.
+
+
+### QA pengguna — editor esai dan alur resume ujian — 7 November 2026
+
+Status: **sebagian QA fungsional dikonfirmasi pengguna pada Preview `editor-test`**.
+
+Hasil yang telah dikonfirmasi:
+- [x] Fungsi ujian yang sudah ada tetap berjalan aman menurut pengujian pengguna.
+- [x] Dialog peringatan muncul ketika siswa mencoba keluar/menutup browser.
+- [x] Setelah browser ditutup lalu halaman ujian dibuka kembali, siswa dapat melanjutkan sesi (resume), bukan memulai sesi baru secara otomatis.
+- [x] Jawaban yang sudah disimpan tetap tersedia ketika sesi dilanjutkan.
+- [x] `RichTextEditor` tampil pada kolom jawaban essay siswa.
+
+Belum diklaim lulus karena belum ada konfirmasi khusus:
+- [ ] Format tebal/miring/garis bawah dan rumus tersimpan serta tampil benar di hasil siswa dan panel koreksi guru.
+- [ ] Pengiriman otomatis tepat saat timer habis dan status sesi berubah menjadi `completed`.
+- [ ] Pemulihan ketika ada kegagalan jaringan/autosave.
+- [ ] Kesesuaian countdown siswa dan Live Proctor ketika pause dan tambahan waktu digunakan.
+- [ ] Tidak ada sesi ganda pada pengujian start/reset berulang.
+
+Catatan: dialog peringatan saat keluar browser dan kemampuan resume telah diuji secara langsung oleh pengguna. Keduanya tidak digantikan oleh mekanisme server-side deadline finalizer; finalizer tetap menjadi agenda terpisah untuk menangani sesi yang melewati deadline ketika browser tertutup/offline.
