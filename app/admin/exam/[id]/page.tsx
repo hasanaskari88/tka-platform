@@ -127,6 +127,14 @@ function QuestionManagerContent() {
     twoColumns: true,
     includeAnswerKey: true,
     includeExplanations: true,
+    logoSizeMm: 14,
+    headerFontSize: 9,
+    identityFontSize: 8,
+    questionFontSize: 10,
+    footerFontSize: 6,
+    lineHeight: 1,
+    questionSpacingMm: 3,
+    columnGapMm: 5,
   })
 
   const loadData = async () => {
@@ -519,7 +527,7 @@ function QuestionManagerContent() {
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 10mm 15mm 10mm;
+            margin: 10mm 10mm 13mm 10mm;
           }
           body {
             background-color: white !important;
@@ -556,7 +564,6 @@ function QuestionManagerContent() {
           }
           .soal-two-columns {
             column-count: 2;
-            column-gap: 20px;
             column-rule: 1px solid #cbd5e1;
           }
           .soal-one-column {
@@ -565,8 +572,13 @@ function QuestionManagerContent() {
           .soal-item-print {
             break-inside: avoid;
             page-break-inside: avoid;
-            margin-bottom: 16px;
           }
+          .print-footer {
+            position: fixed; left: 0; right: 0; bottom: -9mm;
+            display: flex !important; justify-content: space-between;
+            border-top: 0.2mm solid #777; padding-top: 1mm; color: #333;
+          }
+          .print-footer-page::after { content: "Halaman " counter(page); }
           .page-break-before {
             break-before: page;
             page-break-before: always;
@@ -608,11 +620,9 @@ function QuestionManagerContent() {
           .soal-one-column {
             column-count: 1;
           }
-          .soal-item-print {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            margin-bottom: 16px;
-          }
+          .soal-item-print { break-inside: avoid; page-break-inside: avoid; }
+          .print-footer { display: flex; justify-content: space-between; border-top: 1px solid #cbd5e1; padding-top: 6px; margin-top: 18px; }
+          .print-footer-page::after { content: "Nomor halaman tampil saat dicetak"; }
         }
       `}</style>
 
@@ -640,57 +650,43 @@ function QuestionManagerContent() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
-                <label className="space-y-1 text-xs font-semibold text-slate-700">
-                  Kelas
-                  <input
-                    type="text"
-                    value={printSettings.className}
-                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, className: e.target.value }))}
-                    placeholder="Contoh: 2A"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-                  />
-                </label>
-                <label className="space-y-1 text-xs font-semibold text-slate-700">
-                  Fase
-                  <input
-                    type="text"
-                    value={printSettings.phase}
-                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, phase: e.target.value }))}
-                    placeholder="Contoh: A"
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-                  />
-                </label>
-                <label className="space-y-1 text-xs font-semibold text-slate-700">
-                  Tata letak soal
-                  <select
-                    value={printSettings.twoColumns ? '2' : '1'}
-                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, twoColumns: e.target.value === '2' }))}
-                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal"
-                  >
-                    <option value="2">Dua kolom</option>
-                    <option value="1">Satu kolom</option>
-                  </select>
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={printSettings.includeAnswerKey}
-                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, includeAnswerKey: e.target.checked }))}
-                    className="h-4 w-4"
-                  />
-                  Sertakan kunci jawaban
-                </label>
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={printSettings.includeExplanations}
-                    disabled={!printSettings.includeAnswerKey}
-                    onChange={(e) => setPrintSettings((prev) => ({ ...prev, includeExplanations: e.target.checked }))}
-                    className="h-4 w-4"
-                  />
-                  Sertakan pembahasan
-                </label>
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">Kelas
+                    <input type="text" value={printSettings.className} onChange={(e) => setPrintSettings((p) => ({ ...p, className: e.target.value }))} placeholder="Contoh: 2A" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal" />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">Fase
+                    <input type="text" value={printSettings.phase} onChange={(e) => setPrintSettings((p) => ({ ...p, phase: e.target.value }))} placeholder="Contoh: A" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal" />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">Tata letak soal
+                    <select value={printSettings.twoColumns ? '2' : '1'} onChange={(e) => setPrintSettings((p) => ({ ...p, twoColumns: e.target.value === '2' }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                      <option value="2">Dua kolom</option><option value="1">Satu kolom</option>
+                    </select>
+                  </label>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-bold text-slate-700">Ukuran dan kerapatan cetak</p>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {([
+                      ['logoSizeMm', 'Ukuran logo (mm)', 8, 30, 1],
+                      ['headerFontSize', 'Font kop (pt)', 7, 16, 0.5],
+                      ['identityFontSize', 'Font identitas (pt)', 6, 14, 0.5],
+                      ['questionFontSize', 'Font soal (pt)', 8, 16, 0.5],
+                      ['footerFontSize', 'Font footer (pt)', 5, 8, 0.5],
+                      ['lineHeight', 'Spasi baris', 1, 1.6, 0.05],
+                      ['questionSpacingMm', 'Jarak soal (mm)', 0, 12, 1],
+                      ['columnGapMm', 'Jarak kolom (mm)', 3, 15, 1],
+                    ] as const).map(([key, label, min, max, step]) => (
+                      <label key={key} className="space-y-1 text-xs font-semibold text-slate-700">{label}
+                        <input type="number" min={min} max={max} step={step} value={printSettings[key]} onChange={(e) => setPrintSettings((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm font-normal" />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={printSettings.includeAnswerKey} onChange={(e) => setPrintSettings((p) => ({ ...p, includeAnswerKey: e.target.checked }))} className="h-4 w-4" />Sertakan kunci jawaban</label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={printSettings.includeExplanations} disabled={!printSettings.includeAnswerKey} onChange={(e) => setPrintSettings((p) => ({ ...p, includeExplanations: e.target.checked }))} className="h-4 w-4" />Sertakan pembahasan</label>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
@@ -712,49 +708,29 @@ function QuestionManagerContent() {
             </div>
 
             {/* DOKUMEN YANG SAMA DIPAKAI UNTUK PRATINJAU DAN HASIL CETAK */}
-            <div className="print-document text-black p-2 font-serif leading-snug">
-        {/* KOP RAPORT RESMI SEKOLAH */}
-        <div className="border-b-4 border-double border-black pb-3 mb-4 text-center relative">
-          <div className="flex items-center justify-center gap-4">
-            <img
-              src="/logo-sd-getasan.png"
-              alt="Logo SD Negeri Getasan"
-              className="h-20 w-20 shrink-0 object-contain"
-            />
-            <div className="text-center space-y-0.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                PEMERINTAH KABUPATEN SEMARANG
-              </h3>
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                DINAS PENDIDIKAN, KEBUDAYAAN, KEPEMUDAAN DAN OLAHRAGA
-              </h3>
-              <h1 className="text-lg font-black uppercase tracking-wide">
-                SD NEGERI GETASAN
-              </h1>
-              <p className="text-[10px] italic">
-                Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email:
-                sdnegerigetasan@gmail.com
-              </p>
+            <div className="print-document text-black p-1 font-serif" style={{ fontSize: `${printSettings.questionFontSize}pt`, lineHeight: printSettings.lineHeight }}>
+        <div className="border-b-2 border-double border-black pb-1.5 mb-2 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" style={{ width: `${printSettings.logoSizeMm}mm`, height: `${printSettings.logoSizeMm}mm` }} className="shrink-0 object-contain" />
+            <div className="text-center" style={{ fontSize: `${printSettings.headerFontSize}pt`, lineHeight: 1.1 }}>
+              <p className="font-bold uppercase">PEMERINTAH KABUPATEN SEMARANG</p>
+              <p className="font-bold uppercase">DINAS PENDIDIKAN, KEBUDAYAAN, KEPEMUDAAN DAN OLAHRAGA</p>
+              <h1 className="font-black uppercase">SD NEGERI GETASAN</h1>
+              <p className="italic" style={{ fontSize: `${Math.max(6, printSettings.headerFontSize - 1)}pt` }}>Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email: sdnegerigetasan@gmail.com</p>
             </div>
           </div>
         </div>
-
-        {/* INFORMASI UJIAN */}
-        <div className="border border-black p-3 mb-4 bg-white text-xs">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p><b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}</p>
-              <p><b>NAMA UJIAN:</b> {exam?.title}</p>
-            </div>
-            <div>
-              <p><b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit</p>
-              <p><b>JUMLAH SOAL:</b> {questions.length} Butir</p>
-            </div>
+        <div className="mb-2 bg-white" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 border-b border-black pb-1">
+            <p><b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}</p>
+            <p><b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit</p>
+            <p><b>NAMA UJIAN:</b> {exam?.title}</p>
+            <p><b>JUMLAH SOAL:</b> {questions.length} Butir</p>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-3 border-t border-black pt-3">
-            <div><b>NAMA PESERTA:</b><div className="mt-2 border-b border-black min-h-5" /></div>
-            <div><b>KELAS:</b><div className="mt-2 min-h-5">{printSettings.className || '________________'}</div></div>
-            <div><b>FASE:</b><div className="mt-2 min-h-5">{printSettings.phase || '________________'}</div></div>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 pt-1">
+            <span className="inline-flex items-baseline gap-1"><b>NAMA PESERTA:</b><span className="inline-block w-44 border-b border-black">&nbsp;</span></span>
+            <span className="inline-flex items-baseline gap-1"><b>KELAS:</b><span className="inline-block min-w-10 border-b border-black text-center">{printSettings.className || '\u00a0'}</span></span>
+            <span className="inline-flex items-baseline gap-1"><b>FASE:</b><span className="inline-block min-w-8 border-b border-black text-center">{printSettings.phase || '\u00a0'}</span></span>
           </div>
         </div>
 
@@ -764,9 +740,9 @@ function QuestionManagerContent() {
         </p>
 
         {/* NASKAH SOAL 2 KOLOM */}
-        <div className={`${printSettings.twoColumns ? 'soal-two-columns' : 'soal-one-column'} text-xs`}>
+        <div className={`${printSettings.twoColumns ? 'soal-two-columns' : 'soal-one-column'}`} style={{ columnGap: `${printSettings.columnGapMm}mm`, fontSize: `${printSettings.questionFontSize}pt`, lineHeight: printSettings.lineHeight }}>
           {questions.map((q, idx) => (
-            <div key={q.id} className="soal-item-print">
+            <div key={q.id} className="soal-item-print" style={{ marginBottom: `${printSettings.questionSpacingMm}mm` }}>
               <div className="flex items-start space-x-1">
                 <span className="font-bold shrink-0">{idx + 1}.</span>
                 <div className="space-y-1 w-full">
@@ -825,6 +801,7 @@ function QuestionManagerContent() {
             </div>
           ))}
         </div>
+        <div className="py-2 text-center font-bold" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>☺ Selamat Mengerjakan, Semoga Sukses ☺</div>
 
         {/* LEMBAR KUNCI JAWABAN DAN PEMBAHASAN (OPSIONAL) */}
         {printSettings.includeAnswerKey && (
@@ -885,6 +862,9 @@ function QuestionManagerContent() {
           </table>
         </div>
         )}
+              <div className="print-footer" style={{ fontSize: `${printSettings.footerFontSize}pt` }}>
+                <span>{exam?.title || 'Naskah Ujian'}</span><span className="print-footer-page" />
+              </div>
             </div>
           </div>
         </div>
