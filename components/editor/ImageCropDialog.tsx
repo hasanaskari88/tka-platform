@@ -61,7 +61,7 @@ export default function ImageCropDialog({
     })
   }
 
-  const moveSelection = (event: React.PointerEvent<HTMLDivElement>) => {
+  const moveSelection = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current) return
     const point = getPoint(event)
     if (!point) return
@@ -75,7 +75,7 @@ export default function ImageCropDialog({
     })
   }
 
-  const finishSelection = (event: React.PointerEvent<HTMLDivElement>) => {
+  const finishSelection = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!dragRef.current) return
     moveSelection(event)
     dragRef.current = null
