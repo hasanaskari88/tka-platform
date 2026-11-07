@@ -1,117 +1,112 @@
-
 'use client'
 
-import { Suspense } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
+import { useState } from 'react'
+import RichTextEditor from '@/components/editor/RichTextEditor'
+import MathRenderer from '@/components/MathRenderer'
 
-function FontTestContent() {
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: `
-      <h2>Silakan mencoba editor</h2>
-      <p>Ketik teks biasa di sini.</p>
-      <p>Contoh teks Arab: بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
-      <p>Contoh Aksara Jawa: ꦲꦤꦕꦫꦏ ꦢꦠꦱꦮꦭ</p>
-    `,
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class: 'min-h-[220px] p-4 outline-none text-slate-800 leading-relaxed',
-      },
-    },
-  })
-
-  return (
-    <main className="min-h-screen bg-slate-100 p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <h1 className="text-2xl font-bold text-slate-800">
-          Pengujian Font dan Editor Soal
-        </h1>
-
-        <section className="rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-bold">
-            1. Pengujian Font Arab
-          </h2>
-          <div lang="ar" dir="rtl" className="font-arabic text-3xl">
-            بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
-          </div>
-        </section>
-
-        <section className="rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-4 text-lg font-bold">
-            2. Pengujian Aksara Jawa
-          </h2>
-          <div lang="jv" className="font-aksara-jawa text-3xl">
-            ꦲꦤꦕꦫꦏ ꦢꦠꦱꦮꦭ ꦥꦝꦗꦪꦚ
-          </div>
-        </section>
-
-        <section className="rounded-xl bg-white p-6 shadow">
-          <h2 className="mb-3 text-lg font-bold">
-            3. Editor Teks Uji Coba
-          </h2>
-
-          <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3">
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => editor?.chain().focus().toggleBold().run()}
-              className="rounded border px-3 py-2 font-bold"
-            >
-              B
-            </button>
-
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => editor?.chain().focus().toggleItalic().run()}
-              className="rounded border px-3 py-2 italic"
-            >
-              I
-            </button>
-
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => editor?.chain().focus().toggleBulletList().run()}
-              className="rounded border px-3 py-2"
-            >
-              • Daftar
-            </button>
-
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-              className="rounded border px-3 py-2"
-            >
-              1. Daftar
-            </button>
-          </div>
-
-          <EditorContent editor={editor} />
-
-          <p className="mt-3 text-xs text-slate-500">
-            Coba mengetik, menebalkan tulisan, membuat daftar, serta
-            menyalin teks Arab dan Aksara Jawa ke dalam editor.
-          </p>
-        </section>
-      </div>
-    </main>
-  )
-}
+const INITIAL_CONTENT = `
+  <h2>Laboratorium Editor Soal TKA</h2>
+  <p>Ini adalah teks biasa untuk menguji editor.</p>
+  <p>Silakan pilih sebagian teks untuk mencoba format tebal, miring, garis bawah, warna, dan ukuran huruf.</p>
+  <p lang="ar" dir="rtl" class="font-arabic">
+    بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
+  </p>
+  <p lang="jv" class="font-aksara-jawa">
+    ꦲꦤꦕꦫꦏ ꦢꦠꦱꦮꦭ ꦥꦝꦗꦪꦚ
+  </p>
+  <p>Contoh soal: Berapakah hasil dari penjumlahan 125 + 275?</p>
+`
 
 export default function FontTestPage() {
+  const [content, setContent] = useState(INITIAL_CONTENT)
+
+  function resetEditor() {
+    setContent(INITIAL_CONTENT)
+  }
+
   return (
-    <Suspense
-      fallback={
-        <main className="min-h-screen bg-slate-100 p-6">
-          <p className="text-slate-600">Memuat editor...</p>
-        </main>
-      }
-    >
-      <FontTestContent />
-    </Suspense>
+    <main className="min-h-screen bg-slate-100 p-4 md:p-8">
+      <div className="mx-auto max-w-6xl space-y-6">
+
+        <header className="space-y-2">
+          <div className="text-sm font-semibold text-blue-700">
+            TKA PLATFORM · LABORATORIUM
+          </div>
+
+          <h1 className="text-2xl font-bold text-slate-800 md:text-3xl">
+            Pengujian Rich Text Editor
+          </h1>
+
+          <p className="text-sm text-slate-600">
+            Halaman khusus untuk menguji editor sebelum diintegrasikan
+            ke dalam bank soal. Perubahan di sini tidak disimpan ke database.
+          </p>
+        </header>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-slate-800">
+                1. Area Editor
+              </h2>
+              <p className="text-xs text-slate-500">
+                Uji seluruh tombol toolbar dan isi editor.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={resetEditor}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Reset contoh
+            </button>
+          </div>
+
+          <RichTextEditor
+            content={content}
+            onChange={setContent}
+            placeholder="Tuliskan soal atau materi di sini..."
+          />
+
+          <div className="mt-3 flex flex-wrap justify-between gap-2 text-xs text-slate-500">
+            <span>Perubahan hanya tersimpan sementara di halaman ini.</span>
+            <span>{content.length.toLocaleString('id-ID')} karakter HTML</span>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
+          <div className="mb-4">
+            <h2 className="font-bold text-slate-800">
+              2. Pratinjau Hasil
+            </h2>
+            <p className="text-xs text-slate-500">
+              Gambaran hasil konten setelah dibaca oleh komponen MathRenderer.
+            </p>
+          </div>
+
+          <div className="min-h-40 rounded-lg border border-slate-200 bg-white p-4">
+            <MathRenderer content={content} />
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+          <h2 className="mb-2 font-bold text-slate-800">
+            3. Daftar Pengujian
+          </h2>
+
+          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+            <li>Format teks, jenis huruf, ukuran, dan warna.</li>
+            <li>Perataan paragraf dan daftar berpoin/bernomor.</li>
+            <li>Pangkat, indeks bawah, serta rumus matematika.</li>
+            <li>Tabel dan gambar.</li>
+            <li>Penulisan Arab beserta harakat dan arah RTL.</li>
+            <li>Aksara Jawa beserta sandhangan.</li>
+            <li>Kesesuaian hasil editor dengan pratinjau.</li>
+          </ul>
+        </section>
+
+      </div>
+    </main>
   )
 }
