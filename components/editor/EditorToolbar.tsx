@@ -128,14 +128,11 @@ export default function EditorToolbar({ editor, editorId }: EditorToolbarProps) 
             className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm underline text-slate-700 hover:bg-slate-100 ${current?.underline ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
-          <button type="button" title="Pangkat" aria-label="Pangkat"
-            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 ${current?.superscript ? activeClass : ''}`}
+          <button type="button" title="Sisipkan gambar" aria-label="Sisipkan gambar"
+            className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg text-slate-700 hover:bg-slate-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().toggleSuperscript().run()}>x²</button>
-          <button type="button" title="Indeks bawah" aria-label="Indeks bawah"
-            className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 hover:bg-slate-100 ${current?.subscript ? activeClass : ''}`}
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().toggleSubscript().run()}>x₂</button>
+            onClick={() => setImageOpen(true)}>▧</button>
+          <MathFormulaDialog editor={editor} editorId={editorId} compact />
           <span className="mx-1 h-6 shrink-0 border-l border-slate-300" />
           <button type="button"
             title={toolbarOpen ? "Tutup toolbar lengkap" : "Buka toolbar lengkap"}
