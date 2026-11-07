@@ -17,17 +17,20 @@ Branch produksi: `main` (tidak diubah selama pengujian)
 | Bungkus teks di sisi kiri/kanan gambar | Berhasil diuji |
 | Rotasi 90 derajat kiri/kanan dan reset | Berhasil diuji |
 | Autosave konten laboratorium editor ke localStorage | Berhasil diuji |
+| Build Vercel Preview untuk endpoint proxy gambar Drive | Berhasil setelah menghapus deklarasi `runtime` yang tidak kompatibel dengan `cacheComponents` |
 
 ## Implementasi terbaru — crop gambar
 
 ### Perbaikan CORS untuk gambar Google Drive
 - Ditemukan bahwa thumbnail `drive.google.com` dapat ditampilkan tetapi tidak selalu dapat dibaca oleh browser canvas karena header CORS.
 - Ditambahkan `app/api/google-drive/image/[id]/route.ts` sebagai proxy same-origin yang mengambil file gambar melalui Google Drive API setelah memeriksa hak admin.
+- Build awal gagal karena deklarasi `export const runtime = 'nodejs'` tidak kompatibel dengan `nextConfig.cacheComponents`. Deklarasi tersebut dihapus; Node.js Runtime merupakan default Route Handler. Setelah perubahan ini, deployment Preview berhasil.
 - `ImageCropDialog.tsx` mengenali URL thumbnail Drive dan mengambil byte gambar melalui endpoint proxy tersebut sebelum memotong.
 - URL gambar eksternal non-Drive tetap diproses langsung dan tetap bergantung pada izin CORS dari situs asal.
 
 File baru:
 - `components/editor/ImageCropDialog.tsx`: dialog pemilihan area crop, pratinjau, pemrosesan canvas, dan upload hasil PNG ke endpoint Google Drive.
+- `app/api/google-drive/image/[id]/route.ts`: endpoint proxy gambar Drive yang memeriksa admin, membaca token terenkripsi, lalu mengambil byte gambar dari Drive API. Sudah lolos build Preview; fungsi crop melalui endpoint ini masih menunggu uji pengguna.
 
 File diperbarui:
 - `components/editor/ResizableImage.tsx`: tombol crop pada toolbar gambar; hasil crop mengganti sumber gambar di dokumen dan mereset rotasi.
@@ -42,7 +45,7 @@ Alur crop:
 Batasan yang perlu diuji:
 - Crop dinonaktifkan ketika gambar masih berotasi. Reset rotasi terlebih dahulu.
 - Beberapa host gambar eksternal tidak mengizinkan pemrosesan canvas lintas domain (CORS). Jika gagal, upload gambar ke Google Drive terlebih dahulu, lalu crop dari galeri.
-- Implementasi crop baru ditambahkan dan belum mendapat konfirmasi uji pengguna.
+- Alur crop dasar sebelumnya berhasil pada sebagian gambar eksternal yang mengizinkan CORS. Perbaikan proxy untuk gambar Google Drive sudah lolos build Preview, tetapi belum dikonfirmasi melalui uji crop langsung di Preview.
 
 ## Inventaris file editor
 
