@@ -61,13 +61,13 @@ function getNormalizedStatements(rawOptions: any, correctAnswers: any) {
 function hasRichContent(value: string) {
   const html = String(value || '')
   const text = html
-    .replace(/<br\\s*\\/?\\s*>/gi, ' ')
-    .replace(/<\\/(p|div|li|h[1-6])>/gi, ' ')
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, ' ')
     .replace(/<[^>]*>/g, '')
     .replace(/&nbsp;|&#160;/gi, ' ')
     .trim()
 
-  return text.length > 0 || /<img\\b/i.test(html) || /data-type=["'](?:inline|block)-math["']/i.test(html)
+  return text.length > 0 || /<img\b/i.test(html) || /data-type=["'](?:inline|block)-math["']/i.test(html)
 }
 
 function QuestionManagerContent() {
@@ -416,7 +416,7 @@ function QuestionManagerContent() {
       question_text: questionText,
       image_url: imageUrl.trim() || null,
       max_score: Number(maxScore),
-      explanation: explanation.trim() || null,
+      explanation: hasRichContent(explanation) ? explanation : null,
     }
 
     if (questionType === 'multiple_choice') {
