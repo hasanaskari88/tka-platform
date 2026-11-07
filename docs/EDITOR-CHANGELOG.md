@@ -916,3 +916,37 @@ Roadmap Tahap 1A:
 - [ ] Pastikan bobot, kunci jawaban, struktur opsi, dan skor tidak berubah.
 
 Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` pada pengujian ini.
+
+
+## Hasil QA pengguna — tampilan siswa, hasil ujian, cetak, dan kebutuhan editor essay (7 November 2026)
+
+Status: **sebagian besar kompatibilitas tampilan berhasil; tiga tindak lanjut ditemukan**.
+
+Pengguna menguji hasil pengeditan melalui halaman siswa dan melaporkan:
+- Soal yang baru diedit tampil sesuai perubahan, termasuk rumus, gambar, dan pemformatan.
+- Soal-soal lain yang tidak diedit tetap tidak berubah.
+- Hasil ujian tetap baik dan tidak mengalami perubahan yang tidak diharapkan.
+- Pada halaman hasil siswa, bagian highlight jawaban dan pembahasan sulit dibaca karena warna highlight hijau/merah transparan, warna teks putih hingga abu-abu, dan latar belakang abu-abu.
+- Pada tampilan cetak, pernyataan di tipe soal matriks benar-salah yang diformat tebal masih menampilkan kode HTML mentah seperti `<b>...</b>`, bukan teks tebal.
+- RichTextEditor belum muncul saat siswa menulis jawaban essay.
+
+### Kesimpulan dan batas cakupan
+- Tampilan siswa untuk soal yang diedit: **berhasil diuji** untuk rumus, gambar, dan pemformatan yang dicoba.
+- Regresi pada soal lain: **tidak ditemukan** pada pengujian pengguna.
+- Hasil ujian/penilaian: pengguna melaporkan tetap baik dan tidak berubah secara tidak diharapkan. Ini bukan klaim bahwa seluruh variasi penilaian sudah diuji.
+- Cetak matriks benar-salah: **masalah ditemukan**, HTML tebal tampil sebagai teks mentah.
+- Kontras halaman hasil siswa: **perlu perbaikan visual**; jangan mengubah logika penilaian.
+- Editor jawaban essay siswa: **belum terintegrasi**; halaman siswa masih perlu implementasi terpisah dari editor soal guru.
+
+### Urutan tindak lanjut
+1. Audit jalur render/print untuk pernyataan matriks dan tentukan mengapa HTML `<b>` tidak diproses. Perbaiki hanya renderer cetak yang relevan; pertahankan kompatibilitas soal lama dan jangan mengubah isi atau penilaian.
+2. Audit kelas CSS/komponen highlight jawaban dan pembahasan pada halaman hasil siswa. Tingkatkan kontras teks, latar, dan status benar/salah agar jelas pada tema yang digunakan, tanpa mengubah penentuan benar/salah.
+3. Audit `app/exam/[id]/page.tsx` dan handler jawaban essay. Rencanakan RichTextEditor khusus jawaban essay dengan toolbar terbatas; pertahankan autosave, pemulihan localStorage, dan penyimpanan `answers.user_answer`. Periksa juga tampilan jawaban pada ringkasan/koreksi sebelum implementasi.
+
+File yang perlu diperiksa pada tahap perbaikan (belum diubah pada QA ini):
+- File halaman cetak/komponen print yang dipakai untuk soal matriks benar-salah (perlu ditelusuri dari pemanggil print).
+- `app/admin/exam/[id]/results/page.tsx` dan komponen/style terkait tampilan hasil siswa.
+- `app/exam/[id]/page.tsx` untuk area jawaban essay.
+- `app/exam/[id]/summary/page.tsx` untuk kompatibilitas pembacaan jawaban HTML/rumus bila editor essay diterapkan.
+
+Tidak ada perubahan kode aplikasi, database, skema, scoring, atau branch `main` dalam pengujian ini. Catatan ini hanya merekam hasil yang dilaporkan pengguna dan rencana pemeriksaan; belum ada klaim bahwa tiga masalah di atas telah diperbaiki.
