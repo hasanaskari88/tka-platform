@@ -1246,3 +1246,17 @@ QA checklist:
 
 Open follow-up:
 - Consider a server-side deadline finalizer for sessions whose browser is closed/offline at expiry. This requires an explicitly approved server-side design and must preserve saved answers before changing session status.
+
+
+### Follow-up timeout saat membuka kembali halaman ujian — 7 November 2026
+
+Pemeriksaan lanjutan menemukan kasus penting: bila siswa membuka kembali halaman setelah deadline, timer dapat langsung dimuat sebagai `00:00`. Efek countdown sebelumnya tidak berjalan pada nilai nol sehingga submit otomatis tidak selalu terpanggil.
+
+Perbaikan tambahan:
+- Halaman siswa kini memanggil proses submit otomatis saat sesi aktif dipulihkan dengan `timeLeft === 0`.
+- Proses tersebut memakai mekanisme flush/retry autosave dan snapshot gabungan ref terbaru serta localStorage yang sudah ditambahkan pada commit sebelumnya.
+- Submit ganda tetap dicegah oleh `isSubmittingRef`.
+
+Batasan tetap sama: halaman harus dibuka dan dapat terhubung ke Supabase untuk melakukan submit. Penutupan browser/perangkat saat deadline masih memerlukan mekanisme server-side terjadwal.
+
+Build Preview dan uji pengguna masih menunggu.

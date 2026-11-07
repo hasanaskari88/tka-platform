@@ -923,6 +923,13 @@ const { data: existingSession, error: sessionError } = await supabase
 
   }
 
+  // Jika halaman dibuka kembali setelah batas waktu, kirim sesi yang masih aktif
+  // menggunakan jawaban hasil pemulihan Supabase + localStorage.
+  useEffect(() => {
+    if (loading || timeLeft !== 0 || sessionStatus !== 'ongoing' || !sessionId) return
+    handleFinishExam(true)
+  }, [loading, timeLeft, sessionStatus, sessionId])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
