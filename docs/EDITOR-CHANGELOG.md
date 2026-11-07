@@ -296,6 +296,30 @@ Hasil uji pengguna: **belum dilakukan**.
 Masalah baru: belum ada error build yang dikonfirmasi dari perubahan ini.
 Langkah berikutnya: tunggu Preview READY; lalu uji load soal lama, tambah/edit PG, PG kompleks, matriks, essay, simpan, buka ulang, preview/cetak. Jangan lanjut paste Word/OMML sebelum tahap ini lolos.
 
+## Catatan deployment integrasi editor ujian — 7 November 2026
+
+### Deployment gagal: commit `af55782080810ffd4e60f636763b3f60aac250b4`
+- Status: **ERROR saat parsing source**, sebelum TypeScript.
+- File: `app/admin/exam/[id]/page.tsx`, baris 64.
+- Pesan: `Expected unicode escape`.
+- Akar masalah: regex pada helper `hasRichContent` tersimpan dengan jumlah backslash berlebih, sehingga pola regex menjadi sintaks JavaScript tidak valid.
+- Ini adalah kesalahan penulisan kode saat membangun helper validasi, bukan masalah Tiptap atau data database.
+- Pencegahan: setelah menulis regex melalui GitHub API/serialisasi string, periksa isi file mentah yang tersimpan (jumlah backslash) sebelum menunggu deployment. Untuk pola HTML sederhana, gunakan regex yang lebih sederhana atau hindari escaping berlapis.
+
+### Deployment berhasil: commit `14569617419b67681d9ce9f05dc6aae8d3d60a03`
+- Status: **READY / Deployment completed** berdasarkan log yang diberikan pengguna.
+- Build berhasil: Turbopack compile, TypeScript selesai, static pages selesai, dan output berhasil di-deploy.
+- Route `/admin/exam/[id]` terdaftar sebagai Partial Prerender.
+- Route API Google Drive terdaftar sebagai Dynamic (`ƒ`).
+- Log saat static generation menampilkan pesan `NEXT_PRERENDER_INTERRUPTED` pada callback dan pesan cookies/prerender pada connect/images. Meskipun demikian, proses build berlanjut sampai selesai dan deployment sukses. Catat sebagai pesan saat prerender, bukan kegagalan build; tetap pantau fungsi OAuth/galeri saat diuji langsung.
+- Peringatan npm `Unknown env config "cache-dir"` dan `unrs-resolver install-scripts` bukan penyebab kegagalan pada dua log ini.
+
+### Pelajaran yang harus dipakai untuk langkah berikutnya
+1. Bedakan error yang menghentikan build dari warning/pesan prerender yang tidak menghentikan build.
+2. Jangan menyebut sebuah perubahan sukses hanya karena commit ada; cek status deployment READY.
+3. Catat commit gagal dan penyebab spesifiknya agar tidak mengulang diagnosis.
+4. Commit `1456961` hanya membuktikan build/deployment sukses, belum membuktikan semua interaksi editor dan penyimpanan soal berfungsi. Uji browser tetap wajib.
+
 ## Roadmap berurutan
 
 ### Tahap 0 — Arsip dan inventaris
@@ -306,7 +330,7 @@ Langkah berikutnya: tunggu Preview READY; lalu uji load soal lama, tambah/edit P
 
 ### Tahap 1 — Integrasi halaman editor ujian
 - [x] Audit alur state, load/save, tipe soal, pilihan, pernyataan benar-salah, pembahasan, renderer, dan validasi; hasil dicatat pada bagian Audit Tahap 1.
-- [x] Integrasikan RichTextEditor pada pertanyaan, opsi, pernyataan matriks, dan pembahasan tanpa mengganti struktur payload; menunggu build dan uji pengguna.
+- [x] Integrasikan RichTextEditor pada pertanyaan, opsi, pernyataan matriks, dan pembahasan tanpa mengganti struktur payload; Preview build READY pada commit `1456961`, uji browser masih menunggu.
 - [ ] Pertahankan kompatibilitas konten lama HTML/LaTeX.
 - [ ] Cek JSX agar tidak ada prop duplikat sebelum commit.
 - [ ] Deploy Preview; catat commit dan hasil build.
