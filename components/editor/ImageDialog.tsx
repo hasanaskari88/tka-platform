@@ -198,12 +198,39 @@ export default function ImageDialog({
         setError('Alamat gambar harus menggunakan HTTP atau HTTPS.')
         return
       }
-    } catch {
-      setError('Alamat gambar tidak valid.')
-      return
-    }
 
-    insertImage(trimmedSrc)
+      // Beberapa situs pencarian gambar (termasuk Yahoo Images)
+      // menyimpan URL file gambar di dalam parameter, bukan pada URL halaman.
+      const embeddedImageUrl =
+        parsedUrl.searchParams.get('imgurl') ||
+        parsedUrl.searchParams.get('mediaurl') ||
+        parsedUrl.searchParams.get('image_url')
+
+      let imageUrl = trimmedSrc
+
+      if (embeddedImageUrl) {
+        const candidateUrl = new URL(embeddedImageUrl)
+
+        if (!['http:', 'https:'].includes(candidateUrl.protocol)) {
+          setError('Tautan gambar yang ditemukan tidak menggunakan HTTP atau HTTPS.')
+          return
+        }
+
+        imageUrl = candidateUrl.href
+      } else if (
+        parsedUrl.hostname.includes('images.search.yahoo.com') ||
+        parsedUrl.pathname.includes('/search/images')
+      ) {
+        setError(
+          'Ini tautan halaman hasil pencarian, bukan tautan file gambar. Salin alamat gambar langsung atau gunakan tautan hasil gambar yang memuat parameter imgurl.'
+        )
+        return
+      }
+
+      insertImage(imageUrl)
+    } catch {
+      setError('Alamat URL atau tautan gambar di dalamnya tidak valid.')
+    }
   }
 
   const loadMoreImages = async () => {
