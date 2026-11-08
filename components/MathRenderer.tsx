@@ -1,6 +1,7 @@
 
 'use client'
 
+import { useEffect, useRef } from 'react'
 import katex from 'katex'
 import DOMPurify from 'isomorphic-dompurify'
 import 'katex/dist/katex.min.css'
@@ -8,6 +9,7 @@ import 'katex/dist/katex.min.css'
 interface MathRendererProps {
   content: string
   className?: string
+  normalizeRotatedImages?: boolean
 }
 
 /**
@@ -139,7 +141,9 @@ function renderLegacyMath(html: string): string {
 export default function MathRenderer({
   content,
   className = '',
+  normalizeRotatedImages = false,
 }: MathRendererProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   if (!content) return null
 
   let htmlContent = ''
@@ -166,6 +170,7 @@ export default function MathRenderer({
           'style',
           'data-type',
           'data-latex',
+          'data-rotation',
         ],
       })
     )
@@ -175,8 +180,102 @@ export default function MathRenderer({
     htmlContent = String(DOMPurify.sanitize(content))
   }
 
+
+  useEffect(() => {
+    if (!normalizeRotatedImages) return
+
+    const container = containerRef.current
+    if (!container) return
+
+    const normalizeImages = () => {
+      const images = Array.from(
+        container.querySelectorAll<HTMLImageElement>('img')
+      )
+
+      images.forEach((image) => {
+        const existingWrapper = image.parentElement
+        if (existingWrapper?.dataset.rotatedImageWrapper === 'true') {
+          existingWrapper.replaceWith(image)
+        }
+
+        const styleAttribute = image.getAttribute('style') || ''
+        const rotationAttribute = image.getAttribute('data-rotation')
+        const rotationMatch = styleAttribute.match(
+          /transform:\s*rotate\(\s*(-?\d+(?:\.\d+)?)deg\s*\)/i
+        )
+        const rotation = Number(
+          rotationAttribute ?? rotationMatch?.[1] ?? 0
+        )
+        const normalizedRotation =
+          ((Math.round(rotation / 90) * 90) % 360 + 360) % 360
+
+        if (
+          !Number.isFinite(normalizedRotation) ||
+          (normalizedRotation !== 90 && normalizedRotation !== 270)
+        ) {
+          return
+        }
+
+        const unrotatedStyle = styleAttribute
+          .replace(/transform:\s*rotate\([^)]*\);?/gi, '')
+          .replace(/transform-origin:\s*[^;]+;?/gi, '')
+        image.setAttribute('style', unrotatedStyle)
+
+        const rect = image.getBoundingClientRect()
+        const width = rect.width
+        const height = rect.height
+
+        if (!width || !height) {
+          image.setAttribute('style', styleAttribute)
+          return
+        }
+
+        const computed = window.getComputedStyle(image)
+        const wrapper = document.createElement('span')
+        wrapper.dataset.rotatedImageWrapper = 'true'
+        wrapper.setAttribute('aria-label', image.alt || 'Gambar diputar')
+        wrapper.style.display = 'block'
+        wrapper.style.position = 'relative'
+        wrapper.style.width = String(height) + 'px'
+        wrapper.style.height = String(width) + 'px'
+        wrapper.style.maxWidth = '100%'
+        wrapper.style.boxSizing = 'content-box'
+        wrapper.style.float = computed.float
+        wrapper.style.clear = computed.clear
+        wrapper.style.marginTop = computed.marginTop
+        wrapper.style.marginRight = computed.marginRight
+        wrapper.style.marginBottom = computed.marginBottom
+        wrapper.style.marginLeft = computed.marginLeft
+        wrapper.style.verticalAlign = computed.verticalAlign
+
+        image.style.position = 'absolute'
+        image.style.display = 'block'
+        image.style.left = '50%'
+        image.style.top = '50%'
+        image.style.width = String(width) + 'px'
+        image.style.height = String(height) + 'px'
+        image.style.maxWidth = 'none'
+        image.style.margin = '0'
+        image.style.float = 'none'
+        image.style.transform =
+          'translate(-50%, -50%) rotate(' + normalizedRotation + 'deg)'
+        image.style.transformOrigin = 'center center'
+
+        image.parentNode?.insertBefore(wrapper, image)
+        wrapper.appendChild(image)
+      })
+    }
+
+    normalizeImages()
+    const observer = new ResizeObserver(() => normalizeImages())
+    observer.observe(container)
+
+    return () => observer.disconnect()
+  }, [content, normalizeRotatedImages])
+
   return (
     <div
+      ref={containerRef}
       dir="auto"
       className={`math-renderer w-full max-w-full break-words ${className}`}
       style={{
