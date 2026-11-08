@@ -1543,3 +1543,32 @@ Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum a
 - Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, atau penilaian.
 - Commit kode: `ad075e03a613909bcdabea3ec99af525204240a8`.
 - Status: menunggu build Preview dan QA pengguna.
+
+
+## 2026-11-08 — Performa paste Word dan ukuran gambar rumus
+
+Status: **kode diterapkan pada branch `editor-test`; menunggu build Preview dan QA pengguna**.
+
+Perubahan pada `components/editor/RichTextEditor.tsx`:
+1. Menghapus popup diagnostik clipboard sementara setelah format Word berhasil diidentifikasi. Ini juga menghindari pekerjaan diagnostik tambahan saat setiap paste.
+2. Upload gambar dari clipboard Word dijalankan bersamaan (`Promise.all`) alih-alih satu per satu, sehingga beberapa gambar tidak perlu menunggu antrean upload berurutan.
+3. Gambar PNG fallback objek Equation Word dibatasi menjadi lebar 140 px (tetap responsif maksimal 100% area editor), agar rumus tidak tampil selebar halaman.
+4. Jika terdapat file gambar tambahan yang tidak memiliki placeholder HTML, gambar juga ditambahkan dengan ukuran awal 140 px agar tidak memenuhi editor.
+5. Kegagalan upload tetap ditangani per gambar; teks dan gambar lain tidak dibatalkan hanya karena satu upload gagal.
+6. Menonaktifkan opsi underline bawaan StarterKit karena ekstensi Underline sudah tidak ditambahkan terpisah. Ini menghilangkan sumber peringatan nama ekstensi duplikat.
+
+Batas perubahan:
+- Pembatasan 140 px diterapkan pada PNG fallback rumus Word dan gambar tambahan hasil ekstraksi RTF. Gambar normal yang sudah memiliki URL HTTP/HTTPS tidak diubah ukurannya.
+- Belum mengubah parser RTF untuk mengonversi struktur rumus menjadi node matematika Tiptap yang dapat diedit; saat ini gambar fallback rumus tetap berupa gambar.
+- Tidak mengubah database, API Google Drive, format HTML soal, kunci jawaban, atau penilaian.
+
+Checklist QA Preview:
+- [ ] Paste dokumen Word yang sama; teks harus tetap muncul.
+- [ ] Empat gambar fallback rumus tampil kecil dan tidak memenuhi lebar editor.
+- [ ] Waktu paste beberapa gambar lebih singkat dibanding upload berurutan.
+- [ ] Diagram soal (jika berhasil diekstrak) tetap dapat diperbesar melalui kontrol editor.
+- [ ] Simpan dan buka ulang soal; gambar tetap tampil dari Google Drive.
+- [ ] Peringatan Tiptap duplicate extension `underline` tidak muncul lagi.
+- [ ] Paste teks biasa, tabel, Arab, Aksara Jawa, dan rumus yang sebelumnya sudah bekerja tetap normal.
+
+Hasil build Preview dan QA pengguna: **menunggu**.
