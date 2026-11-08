@@ -2007,3 +2007,10 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Pemeriksaan URL avatar diganti dengan `startsWith('http://')` / `startsWith('https://')` agar sintaks lebih sederhana dan aman.
 - Tidak ada perubahan perilaku data avatar; perbaikan hanya menyentuh deteksi URL gambar.
 - Menunggu deployment ulang dan pemeriksaan build Vercel.
+
+
+### Kendala deployment Preview
+- Setelah perbaikan sintaks avatar dikirim, deployment otomatis untuk commit terbaru belum muncul pada daftar Vercel.
+- Percobaan membuat Preview dari Git commit terbaru ditolak Vercel dengan status 402: batas penggunaan `api-deployments-free-per-day` tercapai (lebih dari 100 deployment dalam satu hari); Vercel menyarankan mencoba kembali setelah 1 hari.
+- Tidak mengubah paket, billing, pengaturan tim, atau deployment Production.
+- Status visual: kode dan changelog sudah berada di branch; build setelah perbaikan sintaks belum dapat diverifikasi karena batas deployment Vercel. Preview READY terakhir masih commit lama, jadi belum boleh dipakai untuk QA perubahan visual ini.
