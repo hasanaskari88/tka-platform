@@ -1599,9 +1599,18 @@ Hasil build Preview dan QA pengguna: **menunggu**.
 
 - Menambahkan ekstraksi grup `\\wmetafile8` dari RTF clipboard Word, dengan pemeriksaan header WMF standar atau placeable WMF sebelum data diterima.
 - Ekstraksi melewati fallback WMF yang berada di dalam konteks `\\mmath` / `\\mmathPict`, agar representasi cadangan Equation tidak ikut diperlakukan sebagai diagram.
-- Menambahkan pustaka browser `emf-converter` versi `4.24.0` melalui entry `emf-converter/lite`. Konversi dilakukan di browser menjadi PNG, lalu memakai endpoint upload Google Drive yang sudah tersedia.
+- Menambahkan pustaka browser `emf-converter` versi `4.24.0` melalui entry browser paket utama `emf-converter` (dipilih otomatis oleh bundler). Konversi dilakukan di browser menjadi PNG, lalu memakai endpoint upload Google Drive yang sudah tersedia.
 - Jika satu WMF gagal diekstrak, dikonversi, atau diunggah, proses paste teks dan gambar lainnya tetap berjalan.
 - PNG fallback Equation yang sudah ada tidak diubah; ukuran tampilannya bukan sasaran tahap ini.
 - Pengujian perlu memastikan diagram asli dokumen Word dua soal dapat dipasangkan ke placeholder gambar yang benar, tampil dengan proporsi wajar, tersimpan, dan tetap ada setelah soal dibuka ulang.
 - Perubahan hanya pada branch `editor-test`; tidak mengubah Production, skema/database, endpoint upload, format soal, kunci jawaban, atau penilaian.
 - Status: **implementasi awal; menunggu build Preview dan QA pengguna**.
+
+
+## 2026-11-08 — Koreksi integrasi konverter WMF pada Preview
+
+- Build Preview pertama menunjukkan bahwa versi npm `4.24.0` tidak menyediakan deklarasi subpath `emf-converter/lite` yang dapat ditemukan TypeScript pada konfigurasi proyek ini.
+- Impor dinamis diarahkan ke entry paket utama `emf-converter`, yang menyediakan fungsi `convertMetafileToDataUrl` dan entry browser melalui resolusi bundler.
+- Memperbaiki satu sisa nama variabel ukuran gambar pada cabang paste yang menggunakan placeholder tanpa `src`.
+- Perbaikan ini menindaklanjuti dua kesalahan TypeScript yang tercatat di log Vercel. Build Preview berikutnya masih harus diverifikasi.
+- Tidak ada perubahan database, endpoint upload, Production, atau mekanisme penilaian.

@@ -600,7 +600,7 @@ export default function RichTextEditor({
             let convertedWmfImages: ExtractedRtfImage[] = []
             if (rtfWmfImages.length > 0) {
               try {
-                const { convertMetafileToDataUrl } = await import('emf-converter/lite')
+                const { convertMetafileToDataUrl } = await import('emf-converter')
                 convertedWmfImages = (await Promise.all(
                   rtfWmfImages.map(async (image, index) => {
                     try {
@@ -656,7 +656,7 @@ export default function RichTextEditor({
                   } else if (!src && remainingFiles.length) {
                     const nextImage = remainingFiles.shift()
                     file = nextImage?.file
-                    formulaWidthPx = nextImage?.widthPx ?? null
+                    imageWidthPx = nextImage?.widthPx ?? null
                   }
 
                   if (file) {
