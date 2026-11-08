@@ -2194,3 +2194,15 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Menambahkan halaman `app/admin/pengaturan-dokumen/page.tsx` untuk mengatur nama/alamat sekolah, guru/admin dan NIP, kepala sekolah dan NIP, tempat terbit, serta KKM.
 - Dashboard admin menyediakan tautan ke pengaturan dokumen. Pembuat raport/sertifikat membaca pengaturan tersimpan melalui RPC dan tetap menyediakan penyesuaian untuk dokumen yang sedang dibuat.
 - Migration ini **belum diterapkan** ke database aktif; sebelum dapat digunakan, perlu diuji pada lingkungan pengembangan, termasuk ketersediaan fungsi RPC melalui Data API dan policy admin.
+
+
+## 2026-11-08 — Arsip penandatangan guru dan kepala sekolah
+
+- Menambahkan migration staged `20261108000300_teacher_signatories.sql` untuk tabel `teacher_signatories`: nama lengkap, jabatan (`class_teacher` / `principal`), kode kelas, NIP, status aktif, dan timestamp.
+- Kebijakan RLS: admin dapat mengelola seluruh daftar; pengguna terautentikasi hanya dapat membaca penandatangan aktif yang relevan dengan profilnya (guru untuk kode kelas sendiri dan kepala sekolah). Tidak ada akses untuk anon/public.
+- Memperbarui `app/admin/pengaturan-dokumen/page.tsx`: form tambah/edit/hapus guru dan kepala sekolah; pilihan kelas diambil dari `profiles.class_code` milik siswa, bukan input bebas. Identitas sekolah/KKM tetap tersedia.
+- Memperbarui `app/admin/raport/page.tsx`: saat memilih siswa, guru kelas dan kepala sekolah terisi dari daftar penandatangan; admin dapat memilih ulang dari opsi yang sesuai kelas. NIP mengikuti entri terpilih.
+- Memperbarui `app/history/page.tsx`: pada modal cetak sertifikat mandiri, siswa mendapat pilihan guru pengampu sesuai `profile.class_code` dan pilihan kepala sekolah. Nama dan NIP yang dipilih tampil pada blok tanda tangan sertifikat.
+- Catatan: daftar penandatangan tersimpan di tabel terpisah dari akun/profil login; tidak membuat atau mengubah akun guru.
+- Migration masih staged pada branch `homepage-arcade-catalog`; **belum diterapkan ke database aktif/Production**. Sampai migration diterapkan di database pengembangan, daftar tidak akan tersedia dan UI dapat menampilkan daftar kosong.
+- Build Vercel Preview, pemeriksaan TypeScript, dan uji cetak siswa/admin belum diverifikasi. Deployment tidak dilakukan; tidak ada merge ke `main` atau perubahan Production.
