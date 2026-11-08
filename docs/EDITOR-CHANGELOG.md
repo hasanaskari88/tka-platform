@@ -2124,3 +2124,28 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Migration harus ditinjau dan diuji pada lingkungan pengembangan sebelum diterapkan ke database aktif.
 - Tidak mengubah leaderboard selain pengecualian role student yang sudah diimplementasikan pada tahap sebelumnya; tidak mengubah login, CBT, skema soal, atau rumus penilaian soal.
 - Belum di-merge ke `main` dan belum mengubah Production.
+
+
+## 2026-11-08 — Riwayat terkelola, aturan XP pengulangan, dan dashboard admin tahap awal
+
+### Aturan XP Practice yang disepakati
+- Setiap jawaban benar memberikan +10 XP pada setiap percobaan latihan; mengulang satu set latihan tetap menghasilkan XP.
+- Percobaan pertama yang berhasil diselesaikan memberikan bonus penyelesaian +20 XP. Percobaan yang hanya dimulai lalu ditinggalkan tidak menghabiskan hak bonus pertama.
+- Peningkatan nilai terbaik memberikan +5 XP untuk setiap kenaikan penuh 10 poin dibandingkan nilai terbaik sebelumnya. Contoh: 60 ke 80 memberikan +10 XP; 80 ke 90 memberikan +5 XP.
+- XP yang sudah dikreditkan dalam satu sesi tidak dikreditkan lagi ketika sesi disimpan, dilanjutkan, atau difinalisasi. Pengaman ini hanya mencegah duplikasi dalam satu sesi, bukan membatasi pengulangan latihan.
+- Flashcard tetap tidak memperoleh bonus peningkatan nilai; bonus penyelesaian pertama adalah bonus terpisah untuk penyelesaian satu set.
+
+### Implementasi kode pada branch pengembangan
+- Migration `20261108000100_practice_attempt_progress.sql` diperbarui dengan kolom `completion_bonus_xp`, perhitungan bonus penyelesaian pertama berdasarkan jumlah attempt yang sudah selesai, serta penyertaan bonus tersebut dalam total XP dan hasil RPC.
+- Logika peningkatan nilai tetap membandingkan nilai terbaru dengan nilai terbaik dari percobaan selesai sebelumnya. Percobaan yang belum selesai tidak menghabiskan bonus pertama.
+- Halaman `app/history/page.tsx` kini memiliki pencarian judul, filter status, pengurutan tanggal/nilai, dan pilihan 10/25/50/100 riwayat per halaman untuk riwayat latihan maupun ujian.
+- Riwayat latihan menampilkan nomor percobaan, status, progres jawaban, skor, bonus penyelesaian pertama, bonus peningkatan, dan XP yang telah diperoleh. Untuk sesi yang belum selesai, tampilan XP menggunakan `credited_xp` agar XP bertahap terlihat.
+- Halaman pengelolaan admin lama dipindahkan salinannya ke `app/admin/bank-soal/page.tsx`, dengan fungsi kelola paket ujian/latihan, subtes, pengumuman, dan materi tetap dipertahankan.
+- `app/admin/page.tsx` sekarang menjadi dashboard ringkasan awal: jumlah siswa, paket, soal, materi, pengumuman, latihan/ujian selesai; daftar siswa; filter kelas global/per kelas; pencarian; sorting; pagination; peringkat XP latihan dan rata-rata ujian.
+- Dashboard hanya mengambil profil dengan role `student` untuk daftar dan peringkat. Peringkat latihan dihitung dari XP attempt; peringkat ujian dari rata-rata sesi ujian berstatus completed.
+
+### Batas verifikasi dan langkah berikutnya
+- Perubahan dilakukan di branch `homepage-arcade-catalog`; belum merge ke `main`, belum deploy, dan tidak mengubah database aktif.
+- Migration masih berupa file SQL di repository. Kolom `completion_bonus_xp` dan fungsi RPC baru akan tersedia setelah migration diuji dan diterapkan pada lingkungan yang disetujui.
+- Build, akses RLS dashboard, kecocokan nilai status ujian, tampilan, dan alur cetak belum diverifikasi karena Preview Vercel masih terkendala kuota deployment.
+- Tahap berikutnya: verifikasi data dashboard dan riwayat, kemudian bangun pengelolaan raport/sertifikat terpusat dengan pilihan peserta, percobaan nilai, pengaturan tanda tangan, preview, dan cetak.
