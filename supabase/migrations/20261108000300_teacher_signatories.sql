@@ -42,3 +42,6 @@ create policy "Admins manage signatories"
 on public.teacher_signatories for all to authenticated
 using (exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role::text = 'admin'))
 with check (exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role::text = 'admin'));
+
+-- Refresh PostgREST so newly created tables/functions are immediately visible to the Data API.
+notify pgrst, 'reload schema';
