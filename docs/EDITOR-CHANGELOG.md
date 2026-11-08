@@ -1574,3 +1574,12 @@ Checklist QA Preview:
 Hasil build Preview dan QA pengguna: **menunggu**.
 
 - Penyempurnaan: ukuran awal gambar rumus disimpan sebagai `style.width: 140px` (bukan atribut HTML `width` numerik), agar parser node gambar membaca satuan CSS dengan benar.
+
+## 2026-11-08 — Ukuran gambar rumus mengikuti ukuran asli Word
+
+- Ekstraksi PNG dari RTF kini membaca `\\picwgoal` (ukuran target gambar dalam twips) pada grup gambar, lalu mengonversinya ke piksel CSS (96 dpi: twips ÷ 15). Contoh ukuran target 470 twips menjadi sekitar 31 px, dan 270 twips menjadi sekitar 18 px.
+- PNG fallback Equation tidak lagi diberi lebar tetap 140 px; ukuran tampil mengikuti ukuran yang direkam Word. Ukuran dibatasi dalam rentang 16–80 px untuk mencegah nilai ekstrim.
+- Node view gambar kini menghormati `width` dari atribut CSS inline, bukan hanya atribut `width` tersendiri. Ini memastikan ukuran yang dibaca dari clipboard tetap terlihat setelah masuk ke Tiptap.
+- Belum menangani diagram WMF-only. Diagnostik sebelumnya menunjukkan ada grup `\\wmetafile8` tanpa fallback PNG; browser tidak dapat menampilkan WMF secara langsung. Perlu konverter WMF ke PNG/SVG untuk mengambil diagram tersebut.
+- Tidak mengubah skema database, API upload, konten lama, atau penilaian.
+- Status: kode pada `editor-test`; menunggu build Preview dan QA pengguna.
