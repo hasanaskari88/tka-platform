@@ -39,7 +39,7 @@ export default function AdminDashboardPage() {
         const [p, pr, ex, ec, qc, mc, ac] = await Promise.all([
           db.from('profiles').select('id,full_name,username,class_code,role,xp,level').eq('role', 'student').order('full_name'),
           db.from('practice_attempts').select('id,user_id,status,score,total_xp,credited_xp'),
-          db.from('exam_sessions').select('id,user_id,status,score'),
+          db.from('exam_sessions').select('id,user_id,status,score,score_override'),
           db.from('exams').select('id', { count: 'exact', head: true }),
           db.from('questions').select('id', { count: 'exact', head: true }),
           db.from('study_materials').select('id', { count: 'exact', head: true }),
@@ -65,7 +65,7 @@ export default function AdminDashboardPage() {
         const byExam = new Map<string, { sum: number; count: number }>()
         exams.filter((r: any) => r.status === 'completed').forEach((r: any) => {
           const old = byExam.get(r.user_id) || { sum: 0, count: 0 }
-          byExam.set(r.user_id, { sum: old.sum + Number(r.score || 0), count: old.count + 1 })
+          byExam.set(r.user_id, { sum: old.sum + Number(r.score_override ?? r.score ?? 0), count: old.count + 1 })
         })
         setStudents((p.data || []).map((r: any) => {
           const a = byPractice.get(r.id) || { xp: 0, count: 0, best: 0 }
