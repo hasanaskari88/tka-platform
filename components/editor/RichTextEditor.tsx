@@ -619,8 +619,11 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
         const cropBottom = Number(pictureHeader.match(/\\piccropb(-?\d+)/i)?.[1] || 0)
         const widthGoal = Number(widthMatch?.[1] || 0)
         const heightGoal = Number(heightMatch?.[1] || 0)
+        // Ukuran target WMF dari clipboard Word terukur sekitar 4x lebih besar
+        // daripada ukuran tampil yang diharapkan; koreksi hanya untuk lebar tampilan.
+        // widthGoal mentah tetap disimpan pada crop agar hasil potongan tidak berubah.
         frame.widthPx = widthGoal > 0
-          ? Math.max(24, Math.min(1600, Math.round(widthGoal / 15)))
+          ? Math.max(24, Math.min(400, Math.round(widthGoal / 60)))
           : null
         frame.crop = widthGoal > 0 && heightGoal > 0 &&
           (cropLeft > 0 || cropRight > 0 || cropTop > 0 || cropBottom > 0)
