@@ -1859,3 +1859,16 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Efek 3D dibuat dengan CSS transforms, perspective, layered shadows, dan keyframes; tidak menambah library 3D atau beban WebGL.
 - Tidak mengubah sistem XP, scoring, database, autentikasi, CBT, atau alur ujian.
 - QA visual dan interaksi desktop/mobile belum dikonfirmasi. Build Preview harus READY terlebih dahulu.
+
+
+## 2026-11-08 — Penyatuan profil pemain dan papan peringkat Arcade Game Hub
+
+- Identitas pada hero Gaming kini menampilkan avatar, nama lengkap, username, dan kelas dari profil siswa. Label kecil Arcade Game Hub juga menampilkan username ketika tersedia; pengguna tamu diarahkan untuk masuk.
+- Status gamifikasi yang sebelumnya berada pada kartu terpisah di bawah hero dipindahkan ke hero: total XP, level, gelar level, dan hingga empat badge yang tersimpan pada profil.
+- Ditambahkan gelar visual berdasarkan level yang sudah tersimpan: Petualang Pemula, Penjelajah Cerdas, Ksatria Pengetahuan, Master Ilmu, dan Legenda Getasan. Gelar hanya untuk presentasi; tidak mengubah perhitungan XP atau level.
+- Ditambahkan pratinjau tiga besar papan peringkat dengan pilihan Global dan Kelas. Data menggunakan tabel `profiles`, urutan XP menurun, dan pengecualian akun kelas Guru, mengikuti pendekatan query leaderboard pada halaman latihan.
+- Pesan penyemangat berubah sesuai kondisi: pemain yang masuk tiga besar mendapat apresiasi; pemain lain mendapat dorongan sesuai gelar level. Papan peringkat lengkap tetap dapat dibuka melalui halaman latihan.
+- Kartu status gamifikasi lama tetap ditampilkan pada tema non-Gaming; pada tema Gaming kartu tersebut disatukan dengan hero agar tidak berulang.
+- Tidak mengubah skema/database, sistem pemberian XP, formula level, badge, scoring, RPC, login, atau CBT.
+- Commit kode: `be9952b68065122f30d2c41cf9298fb5b9f6722f`.
+- Status: implementasi pada branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Angka peringkat ditampilkan sebagai tiga besar yang benar-benar dikembalikan query; tidak mengarang posisi siswa di luar daftar tersebut.
