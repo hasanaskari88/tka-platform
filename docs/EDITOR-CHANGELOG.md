@@ -1,3 +1,11 @@
+
+## 2026-11-08 — Penyelarasan latar dotted dan hero seluruh tema
+- Mengembalikan pola titik-titik sebagai ciri latar seluruh tema non-Gaming, dengan warna dasar dan titik yang berbeda untuk tiap tema.
+- Menggunakan kembali prinsip visual Gaming untuk pola latar, serta mempertahankan kombinasi kartu/tombol Cartoon 3D sebagai acuan kedalaman dan kontras.
+- Menambahkan hero bergaya ilustratif untuk Space, Jungle, Ocean, Disney, dan School; hero Cartoon 3D serta Arcade Gaming dipertahankan.
+- Hero tema umum kini memiliki tombol ajakan belajar dan ornamen ringan berbasis emoji/CSS; tanpa gambar eksternal, library, WebGL, atau animasi latar.
+- Perubahan hanya pada homepage CSS/JSX; tidak mengubah skema database, penilaian, CBT, API, atau Production. Menunggu Preview build dan QA pengguna.
+
 # Roadmap, Arsip Perjalanan, dan Inventaris Rich Text Editor
 
 Terakhir diperbarui: 7 November 2026
