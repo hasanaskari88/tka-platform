@@ -350,3 +350,67 @@ video {
 }
 
 
+
+
+/* =========================================================
+   THEME STORY HERO — 3D motion for Space, Jungle, Ocean,
+   Disney and School. Separate from the Gaming/Cartoon3D heroes.
+   ========================================================= */
+.theme-story-hero {
+  min-height: 220px;
+  perspective: 1100px;
+  transform-style: preserve-3d;
+}
+.theme-story-art {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+  animation: theme-story-art-float 4.2s ease-in-out infinite;
+  transition: filter .3s ease;
+  filter: drop-shadow(0 18px 13px rgba(15,23,42,.18));
+}
+.theme-story-art > span:first-child {
+  display: inline-block;
+  transform: translateZ(28px);
+  animation: theme-story-mascot-bob 2.6s ease-in-out infinite;
+}
+.theme-story-art > span:nth-child(2) {
+  transform: translateZ(42px);
+  transform-origin: center;
+  animation: theme-story-star-spin 5s ease-in-out infinite;
+}
+.theme-story-art > span:nth-child(3) {
+  transform: translateZ(24px);
+  animation: theme-story-accent-bob 3.1s ease-in-out infinite;
+}
+.theme-story-hero:hover .theme-story-art {
+  filter: drop-shadow(0 24px 18px rgba(15,23,42,.26)) brightness(1.06);
+  animation-play-state: paused;
+}
+.theme-story-hero:hover .theme-story-art > span:first-child,
+.theme-story-hero:hover .theme-story-art > span:nth-child(2),
+.theme-story-hero:hover .theme-story-art > span:nth-child(3) {
+  animation-play-state: paused;
+}
+@keyframes theme-story-art-float {
+  0%, 100% { transform: perspective(900px) translateY(0) rotateY(-12deg) rotateX(7deg); }
+  50% { transform: perspective(900px) translateY(-9px) rotateY(9deg) rotateX(-3deg); }
+}
+@keyframes theme-story-mascot-bob {
+  0%, 100% { transform: translateZ(28px) translateY(0) scale(1); }
+  50% { transform: translateZ(38px) translateY(-7px) scale(1.06); }
+}
+@keyframes theme-story-star-spin {
+  0%, 100% { transform: translateZ(42px) rotate(0deg) scale(1); }
+  50% { transform: translateZ(48px) rotate(18deg) scale(1.22); }
+}
+@keyframes theme-story-accent-bob {
+  0%, 100% { transform: translateZ(24px) translateY(0) rotate(-8deg); }
+  50% { transform: translateZ(34px) translateY(-8px) rotate(8deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-story-art, .theme-story-art > span:first-child,
+  .theme-story-art > span:nth-child(2), .theme-story-art > span:nth-child(3) {
+    animation: none !important;
+    transition: none !important;
+  }
+}
