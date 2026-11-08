@@ -195,6 +195,8 @@ export default function MathRenderer({
       images.forEach((image) => {
         const existingWrapper = image.parentElement
         if (existingWrapper?.dataset.rotatedImageWrapper === 'true') {
+          const originalStyle = image.dataset.originalRotatedStyle ?? ''
+          image.setAttribute('style', originalStyle)
           existingWrapper.replaceWith(image)
         }
 
@@ -216,6 +218,13 @@ export default function MathRenderer({
           return
         }
 
+        // Tunggu gambar selesai dimuat agar ukuran intrinsiknya tersedia.
+        if (!image.complete || !image.naturalWidth || !image.naturalHeight) {
+          image.addEventListener('load', normalizeImages, { once: true })
+          return
+        }
+
+        image.dataset.originalRotatedStyle = styleAttribute
         const unrotatedStyle = styleAttribute
           .replace(/transform:\s*rotate\([^)]*\);?/gi, '')
           .replace(/transform-origin:\s*[^;]+;?/gi, '')
@@ -231,13 +240,23 @@ export default function MathRenderer({
         }
 
         const computed = window.getComputedStyle(image)
+        const marginLeft = Number.parseFloat(computed.marginLeft) || 0
+        const marginRight = Number.parseFloat(computed.marginRight) || 0
+        const availableWidth = Math.max(
+          40,
+          container.clientWidth - marginLeft - marginRight
+        )
+        const scale = Math.min(1, availableWidth / height)
+        const rotatedWidth = height * scale
+        const rotatedHeight = width * scale
+
         const wrapper = document.createElement('span')
         wrapper.dataset.rotatedImageWrapper = 'true'
         wrapper.setAttribute('aria-label', image.alt || 'Gambar diputar')
         wrapper.style.display = 'block'
         wrapper.style.position = 'relative'
-        wrapper.style.width = String(height) + 'px'
-        wrapper.style.height = String(width) + 'px'
+        wrapper.style.width = String(rotatedWidth) + 'px'
+        wrapper.style.height = String(rotatedHeight) + 'px'
         wrapper.style.maxWidth = '100%'
         wrapper.style.boxSizing = 'content-box'
         wrapper.style.float = computed.float
@@ -252,8 +271,8 @@ export default function MathRenderer({
         image.style.display = 'block'
         image.style.left = '50%'
         image.style.top = '50%'
-        image.style.width = String(width) + 'px'
-        image.style.height = String(height) + 'px'
+        image.style.width = String(width * scale) + 'px'
+        image.style.height = String(height * scale) + 'px'
         image.style.maxWidth = 'none'
         image.style.margin = '0'
         image.style.float = 'none'
@@ -265,7 +284,6 @@ export default function MathRenderer({
         wrapper.appendChild(image)
       })
     }
-
     normalizeImages()
     const observer = new ResizeObserver(() => normalizeImages())
     observer.observe(container)
