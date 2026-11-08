@@ -2635,8 +2635,8 @@ const handleSaveAllQuestionScores = async () => {
                     <div className="p-3 bg-white rounded-xl border border-slate-200 font-semibold text-slate-800">
                       <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Jawaban Siswa:</span>
                       {isEssay ? (
-                        <div className="whitespace-pre-wrap text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm leading-relaxed font-mono min-h-[60px]">
-                          {evalRes.displayVal}
+                        <div className="text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm leading-relaxed min-h-[60px]">
+                          <MathRenderer content={evalRes.displayVal} />
                         </div>
                       ) : (
                         <span>{evalRes.displayVal}</span>

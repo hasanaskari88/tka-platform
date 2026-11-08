@@ -1,0 +1,226 @@
+.rich-text-editor .editor-content {
+  min-height: 220px;
+  background: #ffffff;
+}
+
+.rich-text-editor .editor-content:focus {
+  outline: none;
+}
+
+.rich-text-editor .editor-content p.is-editor-empty:first-child::before {
+  color: #94a3b8;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.rich-text-editor .editor-content h2 {
+  margin: 1rem 0 0.5rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.rich-text-editor .editor-content h3 {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.rich-text-editor .editor-content p {
+  margin: 0.35rem 0;
+}
+
+.rich-text-editor .editor-content ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor .editor-content ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+}
+
+.rich-text-editor .editor-content li {
+  margin: 0.2rem 0;
+}
+
+.rich-text-editor .editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  table-layout: fixed;
+  overflow: hidden;
+}
+
+.rich-text-editor .editor-content th,
+.rich-text-editor .editor-content td {
+  min-width: 60px;
+  border: 1px solid #cbd5e1;
+  padding: 8px;
+  vertical-align: top;
+}
+
+.rich-text-editor .editor-content th {
+  background: #f1f5f9;
+  font-weight: 700;
+}
+
+.rich-text-editor .editor-content .selectedCell {
+  background: #dbeafe;
+}
+
+.rich-text-editor .editor-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+.rich-text-editor .editor-content [data-type='inline-math'] {
+  display: inline-block;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.rich-text-editor .editor-content [data-type='block-math'] {
+  display: block;
+  margin: 1rem 0;
+  padding: 0.75rem;
+  overflow-x: auto;
+  text-align: center;
+  cursor: pointer;
+}
+
+.rich-text-editor .editor-content .ProseMirror-selectednode {
+  outline: 2px solid #93c5fd;
+  border-radius: 4px;
+}
+
+.rich-text-editor .editor-content [lang='ar'],
+.rich-text-editor .editor-content .font-arabic {
+  font-family: 'Noto Naskh Arabic', serif;
+  direction: rtl;
+  text-align: right;
+  line-height: 2;
+}
+
+.rich-text-editor .editor-content [lang='jv'],
+.rich-text-editor .editor-content .font-aksara-jawa {
+  font-family: 'Noto Sans Javanese', sans-serif;
+  line-height: 2.2;
+}
+
+/* Gambar yang dapat diubah ukurannya */
+.rich-text-editor .editor-image-wrapper {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  line-height: 0;
+}
+
+.rich-text-editor .editor-image-wrapper .editor-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  user-select: none;
+}
+
+.rich-text-editor .editor-image-wrapper.is-selected {
+  outline: 2px solid #60a5fa;
+  outline-offset: 3px;
+  border-radius: 0.5rem;
+}
+
+/* Pegangan di sudut kanan bawah */
+.rich-text-editor .editor-image-resize-handle {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  z-index: 20;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ffffff;
+  border-radius: 4px;
+  background: #2563eb;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  cursor: nwse-resize;
+  touch-action: none;
+  padding: 0;
+}
+
+.rich-text-editor .editor-image-resize-handle:hover {
+  background: #1d4ed8;
+  transform: scale(1.12);
+}
+
+
+
+/* Tombol pengaturan posisi gambar */
+.rich-text-editor .editor-image-controls {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: -42px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  line-height: normal;
+  white-space: nowrap;
+}
+
+.rich-text-editor .editor-image-controls button {
+  min-width: 30px;
+  height: 28px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.rich-text-editor .editor-image-controls button:hover {
+  background: #dbeafe;
+}
+
+.rich-text-editor .editor-image-controls button.active {
+  border-color: #60a5fa;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-weight: 700;
+}
+
+/* Area gambar yang mengalir bersama teks */
+.rich-text-editor .editor-image-wrapped {
+  line-height: 0;
+}
+
+/* Pastikan gambar tetap responsif */
+.rich-text-editor .editor-image-wrapper .editor-image {
+  max-width: 100%;
+  height: auto;
+}
+
+
+/* Pemisah kontrol posisi dan rotasi gambar */
+.rich-text-editor .editor-image-controls-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 3px;
+  background: #cbd5e1;
+  flex: 0 0 1px;
+}
+
+.rich-text-editor .editor-image-controls button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

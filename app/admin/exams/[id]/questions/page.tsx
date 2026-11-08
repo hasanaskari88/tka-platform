@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
+import RichTextEditor from '@/components/editor/RichTextEditor'
 import Link from 'next/link'
 
 function BankSoalContent() {
@@ -454,7 +455,13 @@ function BankSoalContent() {
 
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.question_text.trim()) {
+    const questionPlainText = formData.question_text
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;|&#160;/g, ' ')
+      .trim()
+    const questionHasImage = /<img\b/i.test(formData.question_text)
+
+    if (!questionPlainText && !questionHasImage) {
       alert('Isi pertanyaan / judul level wajib diisi!')
       return
     }
@@ -661,7 +668,7 @@ function BankSoalContent() {
                       {actType === 'FLASHCARD' ? 'Kartu Sisi Depan (Pertanyaan/Rumus)' : 'Deskripsi Soal / Instruksi Misi:'}
                     </span>
                     <div className="text-sm font-semibold text-white leading-relaxed">
-                      <MathRenderer content={q.question_text || ''} />
+                      <MathRenderer content={q.question_text || ''} className="flow-root" normalizeRotatedImages />
                     </div>
                   </div>
 
@@ -688,7 +695,7 @@ function BankSoalContent() {
                               {String.fromCharCode(65 + oIdx)}
                             </span>
                             <div className="flex-1">
-                              <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} />
+                              <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} className="flow-root" normalizeRotatedImages />
                             </div>
                             {isCorrect && <span className="text-[10px] bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded font-black">KUNCI</span>}
                           </div>
@@ -701,7 +708,7 @@ function BankSoalContent() {
                     <div className="bg-amber-500/10 p-3.5 rounded-xl border border-amber-500/30 text-xs space-y-1">
                       <span className="font-bold text-amber-300 block">💡 Kartu Sisi Belakang (Pembahasan / Solusi):</span>
                       <div className="text-slate-200 leading-relaxed">
-                        <MathRenderer content={q.explanation || q.pembahasan || 'Belum ada penjelasan.'} />
+                        <MathRenderer content={q.explanation || q.pembahasan || 'Belum ada penjelasan.'} className="flow-root" normalizeRotatedImages />
                       </div>
                     </div>
                   )}
@@ -717,7 +724,7 @@ function BankSoalContent() {
                     <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1">
                       <span className="font-bold text-indigo-300 block">💡 Pembahasan / Solusi:</span>
                       <div className="text-slate-300 leading-relaxed">
-                        <MathRenderer content={q.explanation || q.pembahasan} />
+                        <MathRenderer content={q.explanation || q.pembahasan} className="flow-root" normalizeRotatedImages />
                       </div>
                     </div>
                   )}
@@ -824,24 +831,22 @@ function BankSoalContent() {
               {actType === 'QUIZ' && (
                 <>
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">Teks Pertanyaan (Mendukung Formula KaTeX)</label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={formData.question_text}
-                      onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                      placeholder="Contoh: Berapakah hasil dari $25 \times 4 + 50$?"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-indigo-500"
+                    <label className="block text-xs font-bold text-slate-300 mb-2">Teks Pertanyaan</label>
+                    <RichTextEditor
+                      content={formData.question_text}
+                      onChange={(html) => setFormData({ ...formData, question_text: html })}
+                      placeholder="Tuliskan pertanyaan. Gunakan toolbar untuk rumus, gambar, format teks, Arab, dan Aksara Jawa."
+                      minHeight={150}
                     />
                   </div>
 
                   <div className="space-y-2 pt-1 border-t border-slate-800">
                     <span className="block text-xs font-bold text-slate-300">Pilihan Jawaban (Tunggal A-D):</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      <input type="text" value={formData.option_a} onChange={(e) => setFormData({ ...formData, option_a: e.target.value })} placeholder="Opsi A" className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
-                      <input type="text" value={formData.option_b} onChange={(e) => setFormData({ ...formData, option_b: e.target.value })} placeholder="Opsi B" className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
-                      <input type="text" value={formData.option_c} onChange={(e) => setFormData({ ...formData, option_c: e.target.value })} placeholder="Opsi C" className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
-                      <input type="text" value={formData.option_d} onChange={(e) => setFormData({ ...formData, option_d: e.target.value })} placeholder="Opsi D" className="px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
+                    <div className="grid grid-cols-1 gap-3">
+                      <div><label className="block text-xs text-slate-400 mb-1">Pilihan A</label><RichTextEditor content={formData.option_a} onChange={(html) => setFormData({ ...formData, option_a: html })} placeholder="Isi pilihan A..." minHeight={100} /></div>
+                      <div><label className="block text-xs text-slate-400 mb-1">Pilihan B</label><RichTextEditor content={formData.option_b} onChange={(html) => setFormData({ ...formData, option_b: html })} placeholder="Isi pilihan B..." minHeight={100} /></div>
+                      <div><label className="block text-xs text-slate-400 mb-1">Pilihan C</label><RichTextEditor content={formData.option_c} onChange={(html) => setFormData({ ...formData, option_c: html })} placeholder="Isi pilihan C..." minHeight={100} /></div>
+                      <div><label className="block text-xs text-slate-400 mb-1">Pilihan D</label><RichTextEditor content={formData.option_d} onChange={(html) => setFormData({ ...formData, option_d: html })} placeholder="Isi pilihan D..." minHeight={100} /></div>
                     </div>
                   </div>
 
@@ -857,7 +862,7 @@ function BankSoalContent() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1">Pembahasan / Solusi</label>
-                    <textarea rows={2} value={formData.explanation} onChange={(e) => setFormData({ ...formData, explanation: e.target.value })} placeholder="Pembahasan langkah demi langkah..." className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
+                    <RichTextEditor content={formData.explanation} onChange={(html) => setFormData({ ...formData, explanation: html })} placeholder="Tuliskan pembahasan langkah demi langkah..." minHeight={130} />
                   </div>
                 </>
               )}
@@ -866,26 +871,12 @@ function BankSoalContent() {
                 <>
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1">Sisi Depan Kartu (Pertanyaan / Rumus)</label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={formData.question_text}
-                      onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                      placeholder="Contoh: Berapakah Rumus Luas Lingkaran?"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
+                    <RichTextEditor content={formData.question_text} onChange={(html) => setFormData({ ...formData, question_text: html })} placeholder="Tuliskan sisi depan kartu..." minHeight={150} />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1">Sisi Belakang Kartu (Jawaban & Rumus Lengkap)</label>
-                    <textarea
-                      rows={3}
-                      required
-                      value={formData.explanation}
-                      onChange={(e) => setFormData({ ...formData, explanation: e.target.value })}
-                      placeholder="Contoh: $L = \pi \times r^2$ (dengan $\pi = 3.14$ atau $22/7$)."
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-amber-500"
-                    />
+                    <RichTextEditor content={formData.explanation} onChange={(html) => setFormData({ ...formData, explanation: html })} placeholder="Tuliskan jawaban, rumus, atau penjelasan..." minHeight={150} />
                   </div>
                 </>
               )}
@@ -894,14 +885,7 @@ function BankSoalContent() {
                 <>
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1">Instruksi Misi Labirin</label>
-                    <textarea
-                      rows={2}
-                      required
-                      value={formData.question_text}
-                      onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                      placeholder="Contoh: Bantu Robot Maskot mencapai Bintang di titik (3, 3) pada Papan Grid!"
-                      className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500"
-                    />
+                    <RichTextEditor content={formData.question_text} onChange={(html) => setFormData({ ...formData, question_text: html })} placeholder="Tuliskan instruksi misi..." minHeight={130} />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -917,7 +901,7 @@ function BankSoalContent() {
 
                   <div>
                     <label className="block text-xs font-bold text-slate-300 mb-1">Petunjuk Perintah (Hint)</label>
-                    <textarea rows={2} value={formData.explanation} onChange={(e) => setFormData({ ...formData, explanation: e.target.value })} placeholder="Gunakan perintah Maju 3x dan Belok Kanan..." className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
+                    <RichTextEditor content={formData.explanation} onChange={(html) => setFormData({ ...formData, explanation: html })} placeholder="Tuliskan petunjuk perintah..." minHeight={120} />
                   </div>
                 </>
               )}

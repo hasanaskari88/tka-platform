@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import MathRenderer from '@/components/MathRenderer'
+import RichTextEditor from '@/components/editor/RichTextEditor'
 import BulkUploadModal from '@/components/BulkUploadModal'
 import Link from 'next/link'
 
@@ -57,6 +58,18 @@ function getNormalizedStatements(rawOptions: any, correctAnswers: any) {
   })
 }
 
+function hasRichContent(value: string) {
+  const html = String(value || '')
+  const text = html
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .trim()
+
+  return text.length > 0 || /<img\b/i.test(html) || /data-type=["'](?:inline|block)-math["']/i.test(html)
+}
+
 function QuestionManagerContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -67,9 +80,6 @@ function QuestionManagerContent() {
 
   // Mode Navigasi Tab: 'form' (Input/Edit) atau 'list' (Daftar Soal)
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('form')
-
-  // Mode Tampilan Dual-View Editor ('split' | 'preview' | 'code')
-  const [editorViewMode, setEditorViewMode] = useState<'split' | 'preview' | 'code'>('split')
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null)
@@ -108,6 +118,23 @@ function QuestionManagerContent() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+
+  // Pengaturan dan pratinjau dokumen cetak.
+  const [showPrintPreview, setShowPrintPreview] = useState(false)
+  const [printSettings, setPrintSettings] = useState({
+    className: '',
+    phase: '',
+    twoColumns: true,
+    includeAnswerKey: true,
+    includeExplanations: true,
+    logoSizeMm: 14,
+    headerFontSize: 9,
+    identityFontSize: 8,
+    questionFontSize: 10,
+    lineHeight: 1,
+    questionSpacingMm: 3,
+    columnGapMm: 5,
+  })
 
   const loadData = async () => {
     if (!examId) return
@@ -188,6 +215,10 @@ function QuestionManagerContent() {
       alert('Belum ada soal untuk dicetak!')
       return
     }
+    setShowPrintPreview(true)
+  }
+
+  const handlePrintNow = () => {
     window.print()
   }
 
@@ -272,46 +303,6 @@ function QuestionManagerContent() {
       }
       return 0
     })
-
-  // Helper Sisip Teks Toolbar LaTeX / HTML
-  const insertFormatText = (
-    before: string,
-    after: string = '',
-    targetId: string = 'questionTextarea'
-  ) => {
-    const textarea = document.getElementById(targetId) as HTMLTextAreaElement
-    if (!textarea) {
-      if (targetId === 'questionTextarea') {
-        setQuestionText((prev) => prev + before + after)
-      } else if (targetId === 'explanationTextarea') {
-        setExplanation((prev) => prev + before + after)
-      }
-      return
-    }
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const currentVal = targetId === 'questionTextarea' ? questionText : explanation
-    const selected = currentVal.substring(start, end)
-    const replacement = before + (selected || '') + after
-
-    const newText =
-      currentVal.substring(0, start) + replacement + currentVal.substring(end)
-
-    if (targetId === 'questionTextarea') {
-      setQuestionText(newText)
-    } else {
-      setExplanation(newText)
-    }
-
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(
-        start + before.length,
-        start + before.length + (selected ? selected.length : 0)
-      )
-    }, 0)
-  }
 
   const handleOptionChange = (
     idx: number,
@@ -414,9 +405,30 @@ function QuestionManagerContent() {
 
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
     setMsg(null)
 
+    if (!hasRichContent(questionText)) {
+      setMsg('Error: Teks soal wajib diisi.')
+      return
+    }
+
+    if (
+      (questionType === 'multiple_choice' || questionType === 'complex_multiple_choice') &&
+      options.some((option) => !hasRichContent(option.text))
+    ) {
+      setMsg('Error: Teks semua pilihan jawaban A–D wajib diisi.')
+      return
+    }
+
+    if (
+      questionType === 'true_false_matrix' &&
+      statements.some((statement) => !hasRichContent(statement.text))
+    ) {
+      setMsg('Error: Teks setiap pernyataan wajib diisi.')
+      return
+    }
+
+    setIsSubmitting(true)
     const supabase = createClient()
 
     let payload: any = {
@@ -425,7 +437,7 @@ function QuestionManagerContent() {
       question_text: questionText,
       image_url: imageUrl.trim() || null,
       max_score: Number(maxScore),
-      explanation: explanation.trim() || null,
+      explanation: hasRichContent(explanation) ? explanation : null,
     }
 
     if (questionType === 'multiple_choice') {
@@ -484,8 +496,7 @@ function QuestionManagerContent() {
       resetForm()
       loadData()
       setActiveTab('list')
-    }
-    setIsSubmitting(false)
+    }    setIsSubmitting(false)
   }
 
   const handleDeleteQuestion = async (qId: string) => {
@@ -514,7 +525,7 @@ function QuestionManagerContent() {
         @media print {
           @page {
             size: A4 portrait;
-            margin: 12mm 10mm 15mm 10mm;
+            margin: 10mm 10mm 13mm 10mm;
           }
           body {
             background-color: white !important;
@@ -523,24 +534,43 @@ function QuestionManagerContent() {
           }
           nav,
           header,
-          .no-print {
+          .no-print,
+          .print-preview-controls {
             display: none !important;
           }
-          .print-only {
+          .print-preview-overlay {
+            position: static !important;
             display: block !important;
+            padding: 0 !important;
+            background: transparent !important;
           }
-          /* FORMAT 2 KOLOM NASKAH SOAL */
+          .print-preview-panel {
+            width: auto !important;
+            max-width: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+          }
+          .print-document {
+            display: block !important;
+            color: black !important;
+            background: white !important;
+            padding: 0 !important;
+          }
           .soal-two-columns {
             column-count: 2;
-            column-gap: 20px;
             column-rule: 1px solid #cbd5e1;
+          }
+          .soal-one-column {
+            column-count: 1;
           }
           .soal-item-print {
             break-inside: avoid;
             page-break-inside: avoid;
-            margin-bottom: 16px;
           }
-          /* HALAMAN TERPISAH KUNCI & PEMBAHASAN */
           .page-break-before {
             break-before: page;
             page-break-before: always;
@@ -548,9 +578,41 @@ function QuestionManagerContent() {
           }
         }
         @media screen {
-          .print-only {
-            display: none !important;
+          .print-preview-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            overflow-y: auto;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.78);
           }
+          .print-preview-panel {
+            width: min(1180px, 100%);
+            max-height: calc(100vh - 48px);
+            overflow: auto;
+            padding: 24px;
+            border-radius: 16px;
+            background: white;
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
+          }
+          .print-document {
+            display: block;
+            color: black;
+            background: white;
+            padding: 8px;
+          }
+          .soal-two-columns {
+            column-count: 2;
+            column-gap: 20px;
+            column-rule: 1px solid #cbd5e1;
+          }
+          .soal-one-column {
+            column-count: 1;
+          }
+          .soal-item-print { break-inside: avoid; page-break-inside: avoid; }
         }
       `}</style>
 
@@ -559,46 +621,102 @@ function QuestionManagerContent() {
         <Navbar />
       </div>
 
-      {/* 🖨️ DOKUMEN CETAK/PDF (HANYA MUNCUL SAAT CETAK / WINDOW.PRINT) */}
-      <div className="print-only text-black p-2 font-serif leading-snug">
-        {/* KOP RAPORT RESMI SEKOLAH */}
-        <div className="border-b-4 border-double border-black pb-3 mb-4 text-center relative">
-          <div className="flex items-center justify-center space-x-4">
-            <div className="text-left space-y-0.5">
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                PEMERINTAH KABUPATEN SEMARANG
-              </h3>
-              <h3 className="text-xs font-bold uppercase tracking-wider">
-                DINAS PENDIDIKAN, KEBUDAYAAN, KEPEMUDAAN DAN OLAHRAGA
-              </h3>
-              <h1 className="text-lg font-black uppercase tracking-wide">
-                SD NEGERI GETASAN
-              </h1>
-              <p className="text-[10px] italic">
-                Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email:
-                sdnegerigetasan@gmail.com
-              </p>
+      {/* PENGATURAN DAN PRATINJAU CETAK */}
+      {showPrintPreview && (
+        <div className="print-preview-overlay">
+          <div className="print-preview-panel">
+            <div className="print-preview-controls no-print mb-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800">Pengaturan & Pratinjau Cetak</h2>
+                  <p className="text-xs text-slate-500">Periksa tampilan naskah sebelum mencetak atau menyimpan sebagai PDF.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPrintPreview(false)}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Tutup Pratinjau
+                </button>
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">Kelas
+                    <input type="text" value={printSettings.className} onChange={(e) => setPrintSettings((p) => ({ ...p, className: e.target.value }))} placeholder="Contoh: 2A" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal" />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">Fase
+                    <input type="text" value={printSettings.phase} onChange={(e) => setPrintSettings((p) => ({ ...p, phase: e.target.value }))} placeholder="Contoh: A" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal" />
+                  </label>
+                  <label className="space-y-1 text-xs font-semibold text-slate-700">Tata letak soal
+                    <select value={printSettings.twoColumns ? '2' : '1'} onChange={(e) => setPrintSettings((p) => ({ ...p, twoColumns: e.target.value === '2' }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+                      <option value="2">Dua kolom</option><option value="1">Satu kolom</option>
+                    </select>
+                  </label>
+                </div>
+                <div>
+                  <p className="mb-2 text-xs font-bold text-slate-700">Ukuran dan kerapatan cetak</p>
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    {([
+                      ['logoSizeMm', 'Ukuran logo (mm)', 8, 30, 1],
+                      ['headerFontSize', 'Font kop (pt)', 7, 16, 0.5],
+                      ['identityFontSize', 'Font identitas (pt)', 6, 14, 0.5],
+                      ['questionFontSize', 'Font soal (pt)', 8, 16, 0.5],
+                      ['lineHeight', 'Spasi baris', 1, 1.6, 0.05],
+                      ['questionSpacingMm', 'Jarak soal (mm)', 0, 12, 1],
+                      ['columnGapMm', 'Jarak kolom (mm)', 3, 15, 1],
+                    ] as const).map(([key, label, min, max, step]) => (
+                      <label key={key} className="space-y-1 text-xs font-semibold text-slate-700">{label}
+                        <input type="number" min={min} max={max} step={step} value={printSettings[key]} onChange={(e) => setPrintSettings((p) => ({ ...p, [key]: Number(e.target.value) }))} className="w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm font-normal" />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-200 pt-3">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={printSettings.includeAnswerKey} onChange={(e) => setPrintSettings((p) => ({ ...p, includeAnswerKey: e.target.checked }))} className="h-4 w-4" />Sertakan kunci jawaban</label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700"><input type="checkbox" checked={printSettings.includeExplanations} disabled={!printSettings.includeAnswerKey} onChange={(e) => setPrintSettings((p) => ({ ...p, includeExplanations: e.target.checked }))} className="h-4 w-4" />Sertakan pembahasan</label>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPrintPreview(false)}
+                  className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintNow}
+                  className="rounded-lg bg-rose-600 px-5 py-2 text-xs font-bold text-white hover:bg-rose-700"
+                >
+                  Cetak / Simpan PDF
+                </button>
+              </div>
+            </div>
+
+            {/* DOKUMEN YANG SAMA DIPAKAI UNTUK PRATINJAU DAN HASIL CETAK */}
+            <div className="print-document text-black p-1 font-serif" style={{ fontSize: `${printSettings.questionFontSize}pt`, lineHeight: printSettings.lineHeight }}>
+        <div className="border-b-2 border-double border-black pb-1.5 mb-2 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" style={{ width: `${printSettings.logoSizeMm}mm`, height: `${printSettings.logoSizeMm}mm` }} className="shrink-0 object-contain" />
+            <div className="text-center" style={{ fontSize: `${printSettings.headerFontSize}pt`, lineHeight: 1.1 }}>
+              <p className="font-bold uppercase">PEMERINTAH KABUPATEN SEMARANG</p>
+              <p className="font-bold uppercase">DINAS PENDIDIKAN, KEBUDAYAAN, KEPEMUDAAN DAN OLAHRAGA</p>
+              <h1 className="font-black uppercase">SD NEGERI GETASAN</h1>
+              <p className="italic" style={{ fontSize: `${Math.max(6, printSettings.headerFontSize - 1)}pt` }}>Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email: sdnegerigetasan@gmail.com</p>
             </div>
           </div>
         </div>
-
-        {/* INFORMASI UJIAN */}
-        <div className="border border-black p-3 mb-4 text-xs grid grid-cols-2 gap-2 bg-slate-50">
-          <div>
-            <p>
-              <b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}
-            </p>
-            <p>
-              <b>NAMA UJIAN:</b> {exam?.title}
-            </p>
-          </div>
-          <div>
-            <p>
-              <b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit
-            </p>
-            <p>
-              <b>KELAS / FASE:</b> SD Negeri Getasan
-            </p>
+        <div className="mb-2 bg-white border-b border-black pb-1" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>
+          <div className="grid grid-cols-3 gap-x-3 gap-y-1">
+            <p><b>MATA PELAJARAN:</b> {exam?.subtest || 'MATEMATIKA'}</p>
+            <p><b>NAMA UJIAN:</b> {exam?.title}</p>
+            <p><b>ALOKASI WAKTU:</b> {exam?.duration_minutes} Menit</p>
+            <p><b>JUMLAH SOAL:</b> {questions.length} Butir</p>
+            <p className="whitespace-nowrap"><b>NAMA:</b> <span className="inline-block w-24 border-b border-black">&nbsp;</span></p>
+            <p className="whitespace-nowrap"><b>KELAS/FASE:</b> <span className="inline-block min-w-12 border-b border-black text-center">{[printSettings.className, printSettings.phase].filter(Boolean).join(' / ') || '\u00a0'}</span></p>
           </div>
         </div>
 
@@ -608,9 +726,9 @@ function QuestionManagerContent() {
         </p>
 
         {/* NASKAH SOAL 2 KOLOM */}
-        <div className="soal-two-columns text-xs">
+        <div className={`${printSettings.twoColumns ? 'soal-two-columns' : 'soal-one-column'}`} style={{ columnGap: `${printSettings.columnGapMm}mm`, fontSize: `${printSettings.questionFontSize}pt`, lineHeight: printSettings.lineHeight }}>
           {questions.map((q, idx) => (
-            <div key={q.id} className="soal-item-print">
+            <div key={q.id} className="soal-item-print" style={{ marginBottom: `${printSettings.questionSpacingMm}mm` }}>
               <div className="flex items-start space-x-1">
                 <span className="font-bold shrink-0">{idx + 1}.</span>
                 <div className="space-y-1 w-full">
@@ -643,7 +761,7 @@ function QuestionManagerContent() {
 
                   {/* PERNYATAAN BENAR/SALAH MATRIKS */}
                   {q.question_type === 'true_false_matrix' && Array.isArray(q.options) && (
-                    <table className="w-full text-[10px] border-collapse border border-black mt-1">
+                    <table className="w-full border-collapse border border-black mt-1" style={{ fontSize: `${printSettings.questionFontSize}pt`, lineHeight: printSettings.lineHeight }}>
                       <thead>
                         <tr className="bg-slate-100">
                           <th className="border border-black p-1 text-left">Pernyataan</th>
@@ -654,7 +772,9 @@ function QuestionManagerContent() {
                       <tbody>
                         {q.options.map((st: any) => (
                           <tr key={st.id}>
-                            <td className="border border-black p-1">{st.text}</td>
+                            <td className="border border-black p-1">
+                              <MathRenderer content={st.text || ''} />
+                            </td>
                             <td className="border border-black p-1 text-center">◯</td>
                             <td className="border border-black p-1 text-center">◯</td>
                           </tr>
@@ -667,8 +787,10 @@ function QuestionManagerContent() {
             </div>
           ))}
         </div>
+        <div className="py-2 text-center font-bold" style={{ fontSize: `${printSettings.identityFontSize}pt` }}>☺ Selamat Mengerjakan, Semoga Sukses ☺</div>
 
-        {/* 📄 LEMBAR TERPISAH: KUNCI JAWABAN & PEMBAHASAN */}
+        {/* LEMBAR KUNCI JAWABAN DAN PEMBAHASAN (OPSIONAL) */}
+        {printSettings.includeAnswerKey && (
         <div className="page-break-before pt-4">
           <div className="text-center border-b-2 border-black pb-2 mb-4">
             <h2 className="text-base font-bold uppercase">
@@ -684,7 +806,9 @@ function QuestionManagerContent() {
               <tr className="bg-slate-200">
                 <th className="border border-black p-2 w-12 text-center">No</th>
                 <th className="border border-black p-2 w-28 text-center">Kunci Jawaban</th>
-                <th className="border border-black p-2 text-left">Pembahasan & Solusi</th>
+                {printSettings.includeExplanations && (
+                  <th className="border border-black p-2 text-left">Pembahasan & Solusi</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -708,20 +832,26 @@ function QuestionManagerContent() {
                     <td className="border border-black p-2 text-center font-bold text-indigo-900">
                       {kunciStr}
                     </td>
-                    <td className="border border-black p-2 leading-relaxed">
-                      {q.explanation ? (
-                        <MathRenderer content={q.explanation} />
-                      ) : (
-                        <span className="italic text-slate-500">Tidak ada pembahasan.</span>
-                      )}
-                    </td>
+                    {printSettings.includeExplanations && (
+                      <td className="border border-black p-2 leading-relaxed">
+                        {q.explanation ? (
+                          <MathRenderer content={q.explanation} />
+                        ) : (
+                          <span className="italic text-slate-500">Tidak ada pembahasan.</span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 )
               })}
             </tbody>
           </table>
         </div>
-      </div>
+        )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Halaman Interaktif Web Admin */}
       <main className="no-print p-8 max-w-6xl mx-auto space-y-6">
@@ -777,7 +907,7 @@ function QuestionManagerContent() {
               suppressHydrationWarning
             >
               <span>🖨️</span>
-              <span>Export PDF (Cetak A4)</span>
+              <span>Pratinjau & Cetak</span>
             </button>
 
             {/* IMPORT BULK */}
@@ -850,8 +980,7 @@ function QuestionManagerContent() {
 
             {msg && (
               <div
-                className={`p-3 rounded-xl text-xs font-medium ${
-                  msg.startsWith('Error')
+                className={`p-3 rounded-xl text-xs font-medium ${                  msg.startsWith('Error')
                     ? 'bg-red-50 text-red-600 border border-red-200'
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 }`}
@@ -896,248 +1025,34 @@ function QuestionManagerContent() {
                 </div>
               </div>
 
-              {/* DUAL-VIEW EDITOR MODERN */}
+              {/* EDITOR TEKS SOAL RICH TEXT */}
               <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Stimulus / Teks Soal
-                  </label>
-
-                  {/* Toggle Mode Tampilan Editor */}
-                  <div className="flex items-center space-x-1 bg-slate-200 p-1 rounded-lg text-[11px] font-bold self-start">
-                    <button
-                      type="button"
-                      onClick={() => setEditorViewMode('split')}
-                      className={`px-2.5 py-1 rounded-md transition-all ${
-                        editorViewMode === 'split'
-                          ? 'bg-white text-indigo-700 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      📑 Dual-View (Split)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditorViewMode('preview')}
-                      className={`px-2.5 py-1 rounded-md transition-all ${
-                        editorViewMode === 'preview'
-                          ? 'bg-white text-indigo-700 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      👁️ Tampilan Visual UI
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditorViewMode('code')}
-                      className={`px-2.5 py-1 rounded-md transition-all ${
-                        editorViewMode === 'code'
-                          ? 'bg-white text-indigo-700 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      💻 Editor Kode Mentah
-                    </button>
-                  </div>
-                </div>
-
-                <div className="border border-slate-300 rounded-2xl overflow-hidden bg-white shadow-sm focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 transition-all">
-                  {/* BILAH ALAT FORMAT (TOOLBAR LENGKAP MODERN) */}
-                  <div className="p-2 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center gap-1.5 text-xs select-none">
-                    <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<b>', '</b>')}
-                        className="w-7 h-7 flex items-center justify-center font-black text-slate-700 hover:bg-slate-100 rounded"
-                        title="Cetak Tebal (Bold)"
-                      >
-                        B
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<i>', '</i>')}
-                        className="w-7 h-7 flex items-center justify-center italic font-serif text-slate-700 hover:bg-slate-100 rounded"
-                        title="Cetak Miring (Italic)"
-                      >
-                        I
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<u>', '</u>')}
-                        className="w-7 h-7 flex items-center justify-center underline text-slate-700 hover:bg-slate-100 rounded"
-                        title="Garis Bawah (Underline)"
-                      >
-                        U
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<s>', '</s>')}
-                        className="w-7 h-7 flex items-center justify-center line-through text-slate-700 hover:bg-slate-100 rounded"
-                        title="Coret (Strikethrough)"
-                      >
-                        S
-                      </button>
-                    </div>
-
-                    <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<div style="text-align: left">', '</div>')}
-                        className="px-2 h-7 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 rounded text-[10px]"
-                        title="Rata Kiri"
-                      >
-                        ⬅️ Kiri
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<div style="text-align: center">', '</div>')}
-                        className="px-2 h-7 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 rounded text-[10px]"
-                        title="Rata Tengah"
-                      >
-                        ↔️ Tengah
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<div style="text-align: right">', '</div>')}
-                        className="px-2 h-7 flex items-center justify-center font-bold text-slate-700 hover:bg-slate-100 rounded text-[10px]"
-                        title="Rata Kanan"
-                      >
-                        ➡️ Kanan
-                      </button>
-                    </div>
-
-                    <div className="flex items-center space-x-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('<blockquote>', '</blockquote>')}
-                        className="px-2 h-7 flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 rounded text-[11px]"
-                        title="Kutipan (Quote)"
-                      >
-                        💬 Kutipan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          insertFormatText(
-                            '\n<table border="1" style="width:100%; border-collapse:collapse;" className="my-2">\n  <thead>\n    <tr className="bg-slate-100">\n      <th className="p-2 border">Kolom 1</th>\n      <th className="p-2 border">Kolom 2</th>\n    </tr>\n  </thead>\n  <tbody>\n    <tr>\n      <td className="p-2 border">Data 1</td>\n      <td className="p-2 border">Data 2</td>\n    </tr>\n  </tbody>\n</table>\n'
-                          )
-                        }
-                        className="px-2 h-7 flex items-center justify-center font-medium text-slate-700 hover:bg-slate-100 rounded text-[11px]"
-                        title="Tabel HTML"
-                      >
-                        📊 Tabel
-                      </button>
-                    </div>
-
-                    <div className="flex items-center space-x-1 bg-indigo-50 border border-indigo-200 rounded-lg p-0.5 shadow-sm">
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('$\\frac{', '}{b}$')}
-                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
-                        title="Pecahan"
-                      >
-                        {"$\\frac{a}{b}$"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('$\\sqrt{', '}$') }
-                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
-                        title="Akar Matematika"
-                      >
-                        {"$\\sqrt{x}$"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('$x^{', '}$') }
-                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
-                        title="Pangkat (Superscript)"
-                      >
-                        {"$x^n$"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertFormatText('$x_{', '}$') }
-                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
-                        title="Indeks Bawah (Subscript)"
-                      >
-                        {"$x_n$"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          insertFormatText(
-                            '$\\begin{pmatrix} a & b \\\\ c & d \\end{pmatrix}$'
-                          )
-                        }
-                        className="px-2 h-7 flex items-center justify-center font-bold text-indigo-700 hover:bg-indigo-100 rounded text-[11px]"
-                        title="Matriks 2x2"
-                      >
-                        Matriks
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* KOTAK ATAS: LIVE VISUAL PREVIEW */}
-                  {(editorViewMode === 'split' || editorViewMode === 'preview') && (
-                    <div className="p-4 bg-slate-50 border-b border-slate-200 min-h-[120px] max-h-[260px] overflow-y-auto">
-                      <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 mb-2">
-                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest flex items-center space-x-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                          <span>Tampilan Visual UI (Live Preview)</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Tampilan visual nyata siswa saat ujian
-                        </span>
-                      </div>
-
-                      {questionText.trim() ? (
-                        <div className="prose prose-sm max-w-none text-slate-800 leading-relaxed bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
-                          <MathRenderer content={questionText} />
-                        </div>
-                      ) : (
-                        <p className="text-xs text-slate-400 italic">
-                          Hasil visual UI akan langsung ditampilkan di sini secara real-time saat Anda mengetik kode di bawah...
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* KOTAK BAWAH: EDITOR CODE TEXTAREA */}
-                  {(editorViewMode === 'split' || editorViewMode === 'code') && (
-                    <div className="relative">
-                      <div className="bg-slate-900 px-3 py-1 flex justify-between items-center text-[10px] font-mono text-slate-400 border-b border-slate-800">
-                        <span>💻 EDITOR BARIS KODE (HTML / LATEX)</span>
-                        <span className="text-slate-500">UTF-8</span>
-                      </div>
-                      <textarea
-                        id="questionTextarea"
-                        rows={5}
-                        required
-                        value={questionText || ''}
-                        onChange={(e) => setQuestionText(e.target.value)}
-                        placeholder="Ketik teks soal, tag HTML, atau rumus KaTeX di sini..."
-                        className="w-full p-3.5 font-mono text-xs bg-slate-950 text-emerald-400 focus:outline-none focus:ring-0 resize-y leading-relaxed"
-                        spellCheck={false}
-                        suppressHydrationWarning
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  URL Gambar Soal (Opsional)
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                  Stimulus / Teks Soal
                 </label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={imageUrl || ''}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
+                <RichTextEditor
+                  content={questionText}
+                  onChange={setQuestionText}
+                  placeholder="Tuliskan stimulus atau pertanyaan. Gunakan toolbar untuk format teks, rumus, gambar, Arab, dan Aksara Jawa."
+                  minHeight={180}
                 />
               </div>
+
+              {imageUrl && (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="mb-2 text-[11px] font-semibold text-slate-500">
+                    Gambar lama yang tersimpan pada soal
+                  </p>
+                  <img
+                    src={imageUrl}
+                    alt="Gambar soal lama"
+                    className="max-h-40 max-w-full rounded-lg object-contain"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-500">
+                    Gambar ini tetap dipertahankan. Untuk menambahkan gambar baru, gunakan tombol gambar pada editor di atas.
+                  </p>
+                </div>
+              )}
 
               {/* PILIHAN GANDA BIASA */}
               {questionType === 'multiple_choice' && (
@@ -1156,26 +1071,27 @@ function QuestionManagerContent() {
                           suppressHydrationWarning
                         />
                         <span className="font-bold text-xs">{opt.key}.</span>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Teks Jawaban Opsi ${opt.key}`}
-                          value={opt.text || ''}
-                          onChange={(e) => handleOptionChange(idx, 'text', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-white"
-                          suppressHydrationWarning
-                        />
+                        <div className="flex-1 min-w-0">
+                          <RichTextEditor
+                            content={opt.text || ''}
+                            onChange={(html) => handleOptionChange(idx, 'text', html)}
+                            placeholder={`Teks Jawaban Opsi ${opt.key}`}
+                            minHeight={90}
+                          />
+                        </div>
                       </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Opsi ${opt.key} (Opsional)`}
-                          value={opt.image_url || ''}
-                          onChange={(e) => handleOptionChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
+                      {opt.image_url && (
+                        <div className="pl-6">
+                          <img
+                            src={opt.image_url}
+                            alt={`Gambar lama opsi ${opt.key}`}
+                            className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
+                          />
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Gambar lama tetap tersimpan. Gunakan tombol gambar pada editor untuk menambahkan gambar.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1197,26 +1113,27 @@ function QuestionManagerContent() {
                           suppressHydrationWarning
                         />
                         <span className="font-bold text-xs">{opt.key}.</span>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Teks Jawaban Opsi ${opt.key}`}
-                          value={opt.text || ''}
-                          onChange={(e) => handleOptionChange(idx, 'text', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-white"
-                          suppressHydrationWarning
-                        />
+                        <div className="flex-1 min-w-0">
+                          <RichTextEditor
+                            content={opt.text || ''}
+                            onChange={(html) => handleOptionChange(idx, 'text', html)}
+                            placeholder={`Teks Jawaban Opsi ${opt.key}`}
+                            minHeight={90}
+                          />
+                        </div>
                       </div>
-                      <div className="pl-6">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Opsi ${opt.key} (Opsional)`}
-                          value={opt.image_url || ''}
-                          onChange={(e) => handleOptionChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
+                      {opt.image_url && (
+                        <div className="pl-6">
+                          <img
+                            src={opt.image_url}
+                            alt={`Gambar lama opsi ${opt.key}`}
+                            className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
+                          />
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Gambar lama tetap tersimpan. Gunakan tombol gambar pada editor untuk menambahkan gambar.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1243,15 +1160,14 @@ function QuestionManagerContent() {
                     <div key={st.id || idx} className="space-y-1 p-3 border rounded-xl bg-slate-50">
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-xs w-6 text-center">{idx + 1}.</span>
-                        <input
-                          type="text"
-                          required
-                          placeholder={`Pernyataan ${idx + 1}`}
-                          value={st.text || ''}
-                          onChange={(e) => handleStatementChange(idx, 'text', e.target.value)}
-                          className="flex-1 px-3 py-1.5 rounded-lg border text-xs bg-white"
-                          suppressHydrationWarning
-                        />
+                        <div className="flex-1 min-w-0">
+                          <RichTextEditor
+                            content={st.text || ''}
+                            onChange={(html) => handleStatementChange(idx, 'text', html)}
+                            placeholder={`Pernyataan ${idx + 1}`}
+                            minHeight={90}
+                          />
+                        </div>
                         <select
                           value={st.correct_val}
                           onChange={(e) => handleStatementChange(idx, 'correct_val', e.target.value)}
@@ -1270,16 +1186,18 @@ function QuestionManagerContent() {
                           ✕
                         </button>
                       </div>
-                      <div className="pl-8">
-                        <input
-                          type="text"
-                          placeholder={`URL Gambar Pernyataan ${idx + 1} (Opsional)`}
-                          value={st.image_url || ''}
-                          onChange={(e) => handleStatementChange(idx, 'image_url', e.target.value)}
-                          className="w-full px-2.5 py-1 rounded-lg border text-[11px] bg-white text-slate-500"
-                          suppressHydrationWarning
-                        />
-                      </div>
+                      {st.image_url && (
+                        <div className="pl-8">
+                          <img
+                            src={st.image_url}
+                            alt={`Gambar lama pernyataan ${idx + 1}`}
+                            className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
+                          />
+                          <p className="mt-1 text-[10px] text-slate-500">
+                            Gambar lama tetap tersimpan. Gunakan tombol gambar pada editor untuk menambahkan gambar.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1295,20 +1213,23 @@ function QuestionManagerContent() {
                 </div>
               )}
 
-              <div className="pt-3 border-t space-y-1">
-                <label className="block text-xs font-semibold text-slate-700 uppercase">
-                  💡 Pembahasan Soal / Pedoman Penskoran Guru
-                </label>
-                <textarea
-                  id="explanationTextarea"
-                  rows={3}
-                  placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
-                  value={explanation || ''}
-                  onChange={(e) => setExplanation(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs"
-                  suppressHydrationWarning
-                />
-              </div>
+              <details className="pt-3 border-t group">
+                <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900 hover:bg-amber-100">
+                  <span>💡 Pembahasan Soal / Pedoman Penskoran (Opsional)</span>
+                  <span className="transition-transform group-open:rotate-180">⌄</span>
+                </summary>
+                <div className="pt-3 space-y-2">
+                  <p className="text-[11px] text-slate-500">
+                    Buka bagian ini jika soal memerlukan pembahasan atau pedoman penilaian guru.
+                  </p>
+                  <RichTextEditor
+                    content={explanation}
+                    onChange={setExplanation}
+                    placeholder="Tuliskan pembahasan atau kata kunci rubrik penilaian di sini..."
+                    minHeight={130}
+                  />
+                </div>
+              </details>
 
               <button
                 type="submit"
@@ -1558,8 +1479,7 @@ function QuestionManagerContent() {
       </main>
 
       <BulkUploadModal
-        examId={examId}
-        isOpen={isBulkModalOpen}
+        examId={examId}        isOpen={isBulkModalOpen}
         onClose={() => setIsBulkModalOpen(false)}
         onSuccess={loadData}
       />
