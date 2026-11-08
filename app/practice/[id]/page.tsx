@@ -397,7 +397,7 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
     setTotalXpEarned(nextTotalXp)
 
     if (isUserRight) {
-      checkAndUnlockBadges(nextTotalXp, newStreak)
+      checkAndUnlockBadges(totalXpEarned + 10, newStreak)
     }
 
     const nextProgress = {
