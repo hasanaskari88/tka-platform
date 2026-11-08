@@ -1725,3 +1725,11 @@ Pengguna mengonfirmasi ketiga masalah yang sebelumnya dilaporkan telah selesai d
 Status ketiga item: **berhasil diuji dan dikonfirmasi pengguna** pada 8 November 2026.
 
 Catatan: ini merupakan konfirmasi QA pengguna, bukan perubahan kode aplikasi. Tidak ada perubahan pada Production, database, skema, API, atau mekanisme penilaian.
+
+
+## 2026-11-08 — QA pengguna: kompatibilitas soal lama
+
+- Pengguna mengonfirmasi soal-soal yang dibuat sebelum RichTextEditor diterapkan tetap tampil normal saat dibuka pada editor baru.
+- Status kompatibilitas tampilan soal lama: **berhasil diuji dan dikonfirmasi pengguna**.
+- Catatan ini hanya mencakup tampilan saat dibuka; pengujian simpan/buka ulang untuk setiap tipe soal tetap dicatat terpisah pada roadmap QA.
+- Tidak ada perubahan kode aplikasi, database, skema, API, penilaian, atau Production.
