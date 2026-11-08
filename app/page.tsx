@@ -448,32 +448,36 @@ const filteredExams = useMemo(() => {
     }, {})
   }, [filteredExams])
 
-  // Gelar Arcade bersifat dinamis: ditentukan oleh posisi relatif XP di antara
-  // seluruh siswa, sehingga otomatis menyesuaikan jumlah dan perkembangan peserta.
+  // Gelar Arcade mengikuti peringkat XP global. Peringkat pertama selalu
+  // mendapat Legenda Arena, berapa pun jumlah siswa; siswa dengan XP seri
+  // memperoleh peringkat dan gelar yang sama.
   const arcadeLevel = Math.max(1, Number(userProfile?.level) || 1)
   const arcadeStudentCount = globalStudentScores.length
-  const arcadeRankIndex = userProfile
-    ? globalStudentScores.findIndex((student) => student.id === userProfile.id)
-    : -1
-  const arcadePercentile = arcadeRankIndex >= 0 && arcadeStudentCount > 0
-    ? ((arcadeRankIndex + 1) / arcadeStudentCount) * 100
+  const arcadePlayerScore = userProfile
+    ? globalStudentScores.find((student) => student.id === userProfile.id)
+    : null
+  const arcadeRank = arcadePlayerScore
+    ? globalStudentScores.filter(
+        (student) => Number(student.xp || 0) > Number(arcadePlayerScore.xp || 0)
+      ).length + 1
+    : null
+  const arcadePercentile = arcadeRank !== null && arcadeStudentCount > 0
+    ? (arcadeRank / arcadeStudentCount) * 100
     : null
 
-  const arcadeTier = arcadePercentile === null
+  const arcadeTier = arcadeRank === null
     ? { name: 'Petualang Baru', icon: '🌱', message: 'Setiap perjalanan hebat dimulai dari satu langkah. Mulai misi pertamamu dan kumpulkan pengalaman!' }
-    : arcadeStudentCount <= 1
-      ? { name: 'Perintis Arena', icon: '🚀', message: 'Kamu sedang membuka jejak pertama di arena belajar. Terus ajak teman bertumbuh bersama!' }
-      : arcadePercentile <= 1
-        ? { name: 'Legenda Arena', icon: '👑', message: 'Luar biasa! Kamu berada di jajaran paling atas arena. Jadilah inspirasi dan tetap rendah hati!' }
-        : arcadePercentile <= 5
-          ? { name: 'Grandmaster', icon: '💎', message: 'Prestasi yang luar biasa! Kamu termasuk kelompok teratas. Pertahankan konsistensi belajarmu!' }
-          : arcadePercentile <= 15
-            ? { name: 'Master Pengetahuan', icon: '🏆', message: 'Kamu sudah melangkah jauh dan bersaing di kelompok unggulan. Terus tingkatkan kemampuan!' }
-            : arcadePercentile <= 35
-              ? { name: 'Ksatria Cendekia', icon: '⚔️', message: 'Perkembanganmu sangat baik. Terus berlatih, karena peluang naik ke kelompok teratas selalu terbuka!' }
-              : arcadePercentile <= 65
-                ? { name: 'Penjelajah Tangguh', icon: '🧭', message: 'Kamu terus bertumbuh. Satu latihan bermakna setiap hari akan membawamu lebih jauh!' }
-                : { name: 'Calon Juara', icon: '🌟', message: 'Perjalananmu masih panjang dan penuh peluang. Tetap semangat, setiap XP adalah kemajuan!' }
+    : arcadeRank === 1
+      ? { name: 'Legenda Arena', icon: '👑', message: 'Luar biasa! Kamu berada di peringkat pertama arena. Jadilah inspirasi dan tetap rendah hati!' }
+      : arcadePercentile !== null && arcadePercentile <= 5
+        ? { name: 'Grandmaster', icon: '💎', message: 'Prestasi yang luar biasa! Kamu termasuk kelompok teratas. Pertahankan konsistensi belajarmu!' }
+        : arcadePercentile !== null && arcadePercentile <= 15
+          ? { name: 'Master Pengetahuan', icon: '🏆', message: 'Kamu sudah melangkah jauh dan bersaing di kelompok unggulan. Terus tingkatkan kemampuan!' }
+          : arcadePercentile !== null && arcadePercentile <= 35
+            ? { name: 'Ksatria Cendekia', icon: '⚔️', message: 'Perkembanganmu sangat baik. Terus berlatih, karena peluang naik ke kelompok teratas selalu terbuka!' }
+            : arcadePercentile !== null && arcadePercentile <= 65
+              ? { name: 'Penjelajah Tangguh', icon: '🧭', message: 'Kamu terus bertumbuh. Satu latihan bermakna setiap hari akan membawamu lebih jauh!' }
+              : { name: 'Calon Juara', icon: '🌟', message: 'Perjalananmu masih panjang dan penuh peluang. Tetap semangat, setiap XP adalah kemajuan!' }
 
   const arcadeBadges = Array.isArray(userProfile?.badges)
     ? userProfile.badges
