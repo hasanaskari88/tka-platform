@@ -66,6 +66,9 @@ function HistoryContent() {
   // 🖨️ State Modal Cetak
   const [showRaporModal, setShowRaporModal] = useState(false)
   const [selectedCertSession, setSelectedCertSession] = useState<any | null>(null)
+  const [signatories, setSignatories] = useState<any[]>([])
+  const [selectedTeacherId, setSelectedTeacherId] = useState('')
+  const [selectedPrincipalId, setSelectedPrincipalId] = useState('')
 
   // ⚙️ Pengaturan Standar Dokumen Cetak (Diseragamkan dengan Admin)
   const docSettings = {
@@ -117,6 +120,20 @@ function HistoryContent() {
       .single()
 
     if (profileData) setProfile(profileData)
+
+    // Ambil daftar penandatangan aktif. Siswa hanya memilih guru untuk kelasnya dan kepala sekolah.
+    const { data: signatoryData, error: signatoryError } = await supabase
+      .from('teacher_signatories')
+      .select('id,full_name,position,class_code,nip')
+      .eq('is_active', true)
+    if (signatoryError) console.error('Daftar penandatangan belum tersedia:', signatoryError)
+    if (signatoryData) {
+      setSignatories(signatoryData)
+      const classTeacher = signatoryData.find((item: any) => item.position === 'class_teacher' && item.class_code === profileData?.class_code)
+      const principal = signatoryData.find((item: any) => item.position === 'principal')
+      if (classTeacher) setSelectedTeacherId(classTeacher.id)
+      if (principal) setSelectedPrincipalId(principal.id)
+    }
 
     const { data: sessionData } = await supabase
       .from('exam_sessions')
@@ -272,6 +289,11 @@ function HistoryContent() {
       : 0
   const overallHighest = totalCompleted > 0 ? Math.max(...totalAllScores) : 0
 
+  const classTeachers = signatories.filter((item) => item.position === 'class_teacher' && item.class_code === profile?.class_code)
+  const principals = signatories.filter((item) => item.position === 'principal')
+  const selectedTeacher = classTeachers.find((item) => item.id === selectedTeacherId) || classTeachers[0]
+  const selectedPrincipal = principals.find((item) => item.id === selectedPrincipalId) || principals[0]
+
   // 🟢 KOMPONEN BLOK TANDA TANGAN KEKINIAN & ADAPTIF
   const DynamicSignatureBlock = ({ studentClass }: { studentClass?: string }) => {
     return (
@@ -288,10 +310,10 @@ function HistoryContent() {
           <p className="text-slate-500 font-medium">Guru / Wali Kelas {studentClass || ''},</p>
           <div className="h-16"></div>
           <p className="font-bold text-slate-900 underline decoration-indigo-600 decoration-2">
-            {docSettings.teacherName}
+            {selectedTeacher?.full_name || '....................................'}
           </p>
           <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-            NIP. {docSettings.teacherNip}
+            NIP. {selectedTeacher?.nip || '-'}
           </p>
         </div>
 
@@ -304,10 +326,10 @@ function HistoryContent() {
           </p>
           <div className="h-14"></div>
           <p className="font-bold text-slate-900 underline decoration-amber-600 decoration-2">
-            {docSettings.principalName}
+            {selectedPrincipal?.full_name || '....................................'}
           </p>
           <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-            NIP. {docSettings.principalNip}
+            NIP. {selectedPrincipal?.nip || '-'}
           </p>
         </div>
       </div>
@@ -897,6 +919,12 @@ function HistoryContent() {
                   Tutup
                 </button>
               </div>
+            </div>
+
+            <div className="no-print grid gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-slate-700">Guru pengampu kelas {profile?.class_code || ''}<select value={selectedTeacher?.id || ''} onChange={e => setSelectedTeacherId(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Pilih guru pengampu</option>{classTeachers.map((item: any) => <option key={item.id} value={item.id}>{item.full_name} {item.nip ? '· NIP '+item.nip : ''}</option>)}</select></label>
+              <label className="text-xs font-semibold text-slate-700">Kepala sekolah<select value={selectedPrincipal?.id || ''} onChange={e => setSelectedPrincipalId(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Pilih kepala sekolah</option>{principals.map((item: any) => <option key={item.id} value={item.id}>{item.full_name} {item.nip ? '· NIP '+item.nip : ''}</option>)}</select></label>
+              {(!classTeachers.length || !principals.length) && <p className="text-xs text-amber-700 sm:col-span-2">Daftar guru kelas atau kepala sekolah belum lengkap. Hubungi admin untuk melengkapi Pengelolaan Dokumen.</p>}
             </div>
 
             {/* AREA CETAK SERTIFIKAT DESAIN ELEGANT DAN KEKINIAN */}
