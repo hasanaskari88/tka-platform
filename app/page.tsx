@@ -646,11 +646,19 @@ const filteredExams = useMemo(() => {
             </div>
           </section>
         ) : (
-          <section className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 backdrop-blur-xl shadow-2xl transition-all duration-300 ${themeDetails.heroBg}`}>
-            <div className="relative z-10 space-y-2">
-              <span className={`inline-block rounded-full border px-3 py-1 text-xs font-extrabold uppercase tracking-wider ${themeDetails.badgeColor}`}>{themeDetails.badge}</span>
-              <h1 className="text-2xl font-black leading-snug tracking-tight sm:text-3xl">{themeDetails.title}</h1>
-              <p className="text-xs leading-relaxed opacity-95 sm:text-sm">{themeDetails.subtitle}</p>
+          <section className={`theme-story-hero relative isolate overflow-hidden rounded-3xl border p-6 sm:p-8 shadow-2xl transition-all duration-300 ${themeDetails.heroBg}`}>
+            <div className="relative z-10 grid items-center gap-5 sm:grid-cols-[1fr_auto]">
+              <div className="max-w-2xl space-y-3">
+                <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-extrabold uppercase tracking-wider ${themeDetails.badgeColor}`}>{themeDetails.badge}</span>
+                <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-3xl lg:text-4xl">{themeDetails.title}</h1>
+                <p className={`max-w-xl text-sm leading-relaxed sm:text-base ${themeDetails.textMuted}`}>{themeDetails.subtitle}</p>
+                <Link href="/practice" className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-xs font-black transition hover:-translate-y-1 active:translate-y-0.5 ${themeDetails.btnBg}`}>🚀 MULAI PETUALANGAN</Link>
+              </div>
+              <div className={`theme-story-art relative mx-auto flex h-36 w-36 items-center justify-center rounded-[2rem] border-4 text-7xl sm:h-44 sm:w-44 sm:text-8xl ${theme === 'space' ? 'border-indigo-950/30 bg-indigo-300/25 shadow-[0_10px_0_rgba(30,41,59,.3)]' : theme === 'jungle' ? 'border-emerald-950/30 bg-lime-300/30 shadow-[0_10px_0_rgba(20,83,45,.3)]' : theme === 'ocean' ? 'border-sky-950/30 bg-cyan-200/30 shadow-[0_10px_0_rgba(7,89,133,.3)]' : theme === 'disney' ? 'border-amber-200/50 bg-pink-300/20 shadow-[0_10px_0_rgba(88,28,135,.3)]' : 'border-sky-900/20 bg-sky-200/40 shadow-[0_10px_0_rgba(30,64,175,.2)]'}`}>
+                <span className="relative z-10 drop-shadow-[0_8px_5px_rgba(15,23,42,.2)]">{theme === 'space' ? '🚀' : theme === 'jungle' ? '🦁' : theme === 'ocean' ? '🐬' : theme === 'disney' ? '🏰' : '📚'}</span>
+                <span className="absolute -right-3 -top-3 text-3xl">⭐</span>
+                <span className="absolute -bottom-3 -left-3 text-3xl">{theme === 'space' ? '🪐' : theme === 'jungle' ? '🌿' : theme === 'ocean' ? '🐠' : theme === 'disney' ? '✨' : '✏️'}</span>
+              </div>
             </div>
           </section>
         )}
