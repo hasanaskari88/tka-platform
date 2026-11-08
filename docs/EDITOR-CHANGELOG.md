@@ -1971,3 +1971,12 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Perubahan hanya pada katalog frontend Practice; tidak mengubah database, API, RPC, XP, level, badge, scoring, mesin soal, Maze, atau Flashcard.
 - Status: implementasi dikirim ke branch `homepage-arcade-catalog`; menunggu hasil Vercel Preview dan QA pengguna. Belum di-merge ke `main` dan bukan rilis Production.
 - Urutan lanjutan: (1) verifikasi Preview dan QA Tahap 1; (2) perbaiki berdasarkan temuan QA; (3) setelah disetujui, lanjut audit/desain pengerjaan soal; (4) baru setelah itu penyempurnaan Maze/Flashcard dan audit XP/attempt.
+
+
+## 2026-11-08 — Verifikasi commit Practice dan Preview
+
+- Menindaklanjuti pengecekan pengguna bahwa commit terbaru belum terlihat pada tampilan GitHub.
+- Memastikan isi `app/practice/page.tsx` pada branch `homepage-arcade-catalog` sudah memuat katalog Practice dengan pencarian, filter aktivitas/subtes, pengurutan, dan empty state.
+- Memastikan catatan implementasi Practice Tahap 1 juga sudah ada pada changelog.
+- Memperbarui catatan verifikasi ini agar menghasilkan commit GitHub baru yang mudah dikenali dan memicu pemeriksaan deployment Preview dari branch yang sama.
+- Belum melakukan merge ke `main`; belum mengubah database, API, RPC, XP, scoring, atau mesin soal.
