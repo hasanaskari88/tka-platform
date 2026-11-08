@@ -45,7 +45,7 @@ on conflict (id) do nothing;
 create or replace function public.get_school_document_settings()
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $function$
 declare
