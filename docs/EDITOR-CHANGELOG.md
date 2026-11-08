@@ -1695,3 +1695,12 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Batas minimum ukuran tampilan diturunkan dari 24 px menjadi 12 px agar batas bawah tidak menghalangi pengecilan diagram kecil. Batas maksimum 400 px tetap dipertahankan.
 - Metadata crop mentah (widthGoal / heightGoal) tidak diubah; algoritme crop, wrap kiri/kanan, PNG fallback rumus, gambar clipboard biasa, penyimpanan, dan penilaian tidak diubah.
 - Status: perubahan kode pada branch editor-test; menunggu build Preview dan QA pengguna. Target verifikasi: tinggi diagram sekitar 6 baris teks, sebanding dengan Word.
+
+
+## 2026-11-08 — QA pengguna: ukuran awal diagram Word sesuai
+
+- Pengguna mengonfirmasi penyesuaian skala terbaru sudah menghasilkan ukuran gambar sesuai harapan berdasarkan perbandingan tinggi terhadap teks di Word.
+- Tahap penyesuaian ukuran awal diagram WMF dinyatakan **lulus QA pengguna**.
+- Crop dan wrap yang sebelumnya telah diuji tetap dipertahankan.
+- Tidak ada perubahan kode pada catatan QA ini; tidak mengubah Production, database, API, atau penilaian.
+
