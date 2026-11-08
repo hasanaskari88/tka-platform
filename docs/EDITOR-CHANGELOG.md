@@ -1520,3 +1520,15 @@ Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum a
 - Ekstraksi tetap hanya menerima payload dengan signature PNG valid; WMF belum diproses.
 - Tujuan pengujian berikutnya: untuk dokumen berisi satu rumus pecahan dan satu gambar bentuk, jumlah PNG non-rumus yang terbaca seharusnya mendekati satu. Hasil akhir tetap harus dikonfirmasi lewat Preview dan tampilan editor.
 - Commit kode: `2847ea28fe4b571a02c43c8ff6eddb332d7bbe7b`.
+
+
+## 2026-11-08 — Memulihkan gambar fallback Equation Word pada paste
+
+- Pengujian pengguna mengonfirmasi empat PNG yang sebelumnya berhasil diekstrak merupakan representasi visual objek Equation Word: `10:1/5`, `50`, `20`, dan `2`; bukan empat diagram tambahan.
+- Filter yang mengecualikan seluruh grup di bawah `\\mmathPict` membuat hasil ekstraksi menjadi nol dan menyebabkan placeholder rumus kembali kosong.
+- Filter tersebut dihapus. Ekstraksi PNG RTF kembali menerima gambar fallback Equation Word, dengan validasi signature PNG dan deduplikasi payload tetap dipertahankan.
+- PNG dipasangkan ke placeholder gambar HTML sesuai urutan clipboard seperti pada build sebelumnya. Ini memulihkan tampilan visual rumus sementara; konversi ke rumus Tiptap yang dapat diedit belum selesai.
+- Diagram yang menggunakan format non-PNG (misalnya WMF) belum ditangani pada tahap ini.
+- Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, atau penilaian.
+- Commit kode: `f21d0a9cbaa2dc346afcaf3008596181e752c73b`.
+- Status: menunggu build Preview dan QA pengguna.
