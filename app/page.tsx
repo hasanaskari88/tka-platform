@@ -33,6 +33,7 @@ function HomePageContent() {
   
   const [selectedExam, setSelectedExam] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedArcadeMission, setSelectedArcadeMission] = useState(0)
 
   useEffect(() => {
     async function fetchData() {
@@ -434,27 +435,126 @@ const filteredExams = useMemo(() => {
 
 
       <main className="mx-auto w-full max-w-6xl flex-grow space-y-8 p-4 sm:p-8 relative z-10">
-        {/* Banner utama */}
-        <section
-          className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 backdrop-blur-xl shadow-2xl transition-all duration-300 ${themeDetails.heroBg}`}
-        >
-          <div className="relative z-10 space-y-2">
-            <span
-              className={`inline-block rounded-full border px-3 py-1 text-xs font-extrabold uppercase tracking-wider ${themeDetails.badgeColor}`}
-            >
-              {themeDetails.badge}
-            </span>
+        {/* Hero tema: 3D Cartoon dan Arcade Game Hub */}
+        {theme === 'gaming' ? (
+          <section className="arcade-hero relative isolate overflow-hidden rounded-[2rem] border-2 border-cyan-300/50 bg-gradient-to-br from-[#251044] via-[#171c49] to-[#0b2638] p-5 text-white shadow-[0_24px_0_-10px_rgba(4,8,25,0.75),0_30px_70px_-25px_rgba(34,211,238,0.65)] sm:p-8 lg:p-10">
+            <div className="arcade-scanlines pointer-events-none absolute inset-0 opacity-20" />
+            <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-fuchsia-500/25 blur-[90px]" />
+            <div className="absolute -bottom-24 right-1/4 h-72 w-72 rounded-full bg-cyan-400/20 blur-[100px]" />
+            <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
+              <div className="max-w-xl space-y-4">
+                <span className="inline-flex items-center gap-2 rounded-full border border-lime-300/50 bg-lime-300/10 px-3 py-1.5 text-[10px] font-black tracking-[0.18em] text-lime-200 shadow-[0_0_24px_rgba(190,242,100,0.18)]">
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-lime-300" /> ARCADE GAME HUB • PLAYER 1
+                </span>
+                <h1 className="text-3xl font-black leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
+                  Pilih Misi.<br /><span className="bg-gradient-to-r from-yellow-200 via-orange-300 to-pink-300 bg-clip-text text-transparent">Jadilah Juara!</span>
+                </h1>
+                <p className="max-w-lg text-sm leading-relaxed text-blue-100/85 sm:text-base">
+                  Arena belajar penuh tantangan. Kumpulkan XP dari aktivitas belajar, naikkan level, dan buka pencapaian baru!
+                </p>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <a href="#arcade-missions" className="arcade-3d-button rounded-xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-5 py-3 text-sm font-black text-[#32133d] shadow-[0_6px_0_#9a421b,0_10px_24px_rgba(249,115,22,.28)] transition hover:-translate-y-1 hover:shadow-[0_9px_0_#9a421b,0_16px_28px_rgba(249,115,22,.35)] active:translate-y-1 active:shadow-[0_2px_0_#9a421b]">
+                    ▶ MULAI PETUALANGAN
+                  </a>
+                  <span className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-cyan-100 backdrop-blur">
+                    ⭐ {userProfile?.xp || 0} XP <span className="mx-1 text-white/30">|</span> LEVEL {userProfile?.level || 1}
+                  </span>
+                </div>
+              </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight leading-snug">
-              {themeDetails.title}
-            </h1>
+              <div className="arcade-stage relative mx-auto flex h-[250px] w-full max-w-[430px] items-center justify-center sm:h-[310px]" aria-label="Ilustrasi mesin arcade tiga dimensi">
+                <div className="arcade-platform absolute bottom-5 h-8 w-[82%] rounded-[50%] bg-cyan-300/25 blur-md" />
+                <div className="arcade-pixel absolute left-[8%] top-[16%] text-3xl text-yellow-200">✦</div>
+                <div className="arcade-pixel absolute right-[8%] top-[25%] text-2xl text-pink-300">◆</div>
+                <div className="arcade-cabinet relative z-10 h-[220px] w-[150px] rounded-[25px_25px_18px_18px] border-[5px] border-[#11152f] bg-gradient-to-br from-fuchsia-500 via-violet-600 to-indigo-800 p-2 shadow-[18px_22px_0_rgba(5,8,28,.55),0_25px_50px_rgba(0,0,0,.45)] sm:h-[255px] sm:w-[180px]">
+                  <div className="absolute -left-3 top-8 h-12 w-2 rounded-l-full bg-cyan-300 shadow-[0_0_16px_#67e8f9]" />
+                  <div className="absolute -right-3 top-8 h-12 w-2 rounded-r-full bg-pink-400 shadow-[0_0_16px_#f472b6]" />
+                  <div className="rounded-xl border-2 border-cyan-200/70 bg-[#07172d] p-2 shadow-[inset_0_0_22px_rgba(34,211,238,.25)]">
+                    <div className="flex items-center justify-between text-[8px] font-black tracking-[.2em] text-cyan-200"><span>GETASAN</span><span>★ 01</span></div>
+                    <div className="arcade-screen mt-2 flex h-[88px] flex-col items-center justify-center rounded-lg border border-cyan-300/60 bg-gradient-to-b from-[#102e55] to-[#111033] text-center shadow-[0_0_20px_rgba(34,211,238,.25)] sm:h-[105px]">
+                      <span className="arcade-mascot text-4xl drop-shadow-[0_6px_0_rgba(0,0,0,.3)] sm:text-5xl">👾</span>
+                      <span className="mt-1 text-[9px] font-black tracking-[.25em] text-yellow-200">LET'S PLAY!</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-center gap-5">
+                    <div className="relative h-8 w-8 rounded-full border-4 border-[#11152f] bg-gradient-to-br from-red-300 to-red-600 shadow-[0_4px_0_#7f1d1d]" />
+                    <div className="relative h-8 w-8 rounded-full border-4 border-[#11152f] bg-gradient-to-br from-yellow-200 to-orange-500 shadow-[0_4px_0_#9a3412]" />
+                    <div className="relative h-8 w-8 rounded-full border-4 border-[#11152f] bg-gradient-to-br from-lime-200 to-emerald-500 shadow-[0_4px_0_#166534]" />
+                  </div>
+                  <div className="absolute -bottom-3 left-1/2 h-3 w-24 -translate-x-1/2 rounded-b-xl bg-[#090d24] shadow-[0_7px_0_rgba(0,0,0,.3)]" />
+                </div>
+                <div className="arcade-coin absolute right-[13%] top-[13%] flex h-12 w-12 items-center justify-center rounded-full border-4 border-yellow-100 bg-gradient-to-br from-yellow-200 to-amber-500 text-xl font-black text-amber-900 shadow-[0_8px_0_#9a5b12,0_12px_25px_rgba(250,204,21,.35)]">★</div>
+                <div className="arcade-coin arcade-coin-delay absolute bottom-[20%] left-[10%] flex h-10 w-10 items-center justify-center rounded-full border-4 border-cyan-100 bg-gradient-to-br from-cyan-200 to-blue-500 text-lg font-black text-blue-950 shadow-[0_7px_0_#164e63]">XP</div>
+              </div>
+            </div>
+            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-cyan-300 to-transparent opacity-80" />
+          </section>
+        ) : theme === 'cartoon3d' ? (
+          <section className="cartoon3d-hero relative isolate overflow-hidden rounded-[2rem] border-[4px] border-slate-900 bg-gradient-to-br from-amber-300 via-orange-400 to-yellow-300 p-6 text-slate-950 shadow-[0_12px_0_#172033,0_22px_35px_rgba(15,23,42,.18)] sm:p-9">
+            <div className="absolute -right-10 -top-14 h-52 w-52 rounded-full bg-white/35 blur-2xl" />
+            <div className="relative z-10 grid items-center gap-5 sm:grid-cols-[1fr_auto]">
+              <div className="max-w-2xl space-y-3">
+                <span className="inline-flex rounded-full border-2 border-slate-900 bg-white/75 px-3 py-1 text-[10px] font-black tracking-widest">🎨 DUNIA CARTOON 3D PLAYFUL</span>
+                <h1 className="text-3xl font-black leading-tight sm:text-4xl">Petualangan Seru Belajar 3D TKA!</h1>
+                <p className="max-w-xl text-sm font-semibold leading-relaxed text-slate-800">Ayo belajar dengan gembira! Jelajahi materi, selesaikan tantangan, dan raih bintang prestasi.</p>
+                <Link href="/practice" className="cartoon3d-button inline-flex rounded-xl border-2 border-slate-900 bg-white px-4 py-2.5 text-xs font-black shadow-[0_5px_0_#172033] transition hover:-translate-y-1 hover:shadow-[0_8px_0_#172033] active:translate-y-1 active:shadow-[0_2px_0_#172033]">🚀 MULAI BELAJAR</Link>
+              </div>
+              <div className="cartoon3d-stage relative mx-auto flex h-40 w-48 items-center justify-center sm:h-52 sm:w-60">
+                <div className="cartoon3d-cloud absolute right-1 top-1 text-5xl">☁️</div>
+                <div className="cartoon3d-star absolute left-3 top-3 text-3xl">⭐</div>
+                <div className="cartoon3d-mascot relative z-10 flex h-28 w-28 items-center justify-center rounded-[2rem] border-[5px] border-slate-900 bg-gradient-to-br from-cyan-200 to-blue-400 text-6xl shadow-[0_12px_0_#172033,0_18px_25px_rgba(15,23,42,.2)] sm:h-36 sm:w-36 sm:text-7xl">🤖</div>
+                <div className="absolute bottom-1 h-5 w-40 rounded-[50%] bg-slate-900/20 blur-sm" />
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className={`relative overflow-hidden rounded-3xl border p-6 sm:p-8 backdrop-blur-xl shadow-2xl transition-all duration-300 ${themeDetails.heroBg}`}>
+            <div className="relative z-10 space-y-2">
+              <span className={`inline-block rounded-full border px-3 py-1 text-xs font-extrabold uppercase tracking-wider ${themeDetails.badgeColor}`}>{themeDetails.badge}</span>
+              <h1 className="text-2xl font-black leading-snug tracking-tight sm:text-3xl">{themeDetails.title}</h1>
+              <p className="text-xs leading-relaxed opacity-95 sm:text-sm">{themeDetails.subtitle}</p>
+            </div>
+          </section>
+        )}
 
-            <p className="text-xs sm:text-sm leading-relaxed opacity-95">
-              {themeDetails.subtitle}
-            </p>
-          </div>
-        </section>
-
+        {theme === 'gaming' && (
+          <section id="arcade-missions" className="space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black tracking-[.22em] text-cyan-300">PLAYER DASHBOARD</span>
+                <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">Pilih Misi Hari Ini</h2>
+                <p className="mt-1 text-xs text-blue-100/70">Pilih kartu untuk melihat tantangan dan mulai bermain.</p>
+              </div>
+              <div className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-400/10 px-3 py-2 text-xs font-black text-fuchsia-100">🏅 LEVEL {userProfile?.level || 1}</div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {[
+                { icon: '🧠', title: 'Latihan Otak', tag: 'PUZZLE RUN', desc: 'Asah kemampuan lewat latihan mandiri dan kumpulkan XP dari jawabanmu.', href: '/practice', color: 'from-cyan-400 to-blue-600', shadow: '#075985' },
+                { icon: '📚', title: 'Jelajah Buku', tag: 'KNOWLEDGE QUEST', desc: 'Temukan sumber belajar baru dan siapkan strategi sebelum ujian.', href: '/materi', color: 'from-lime-300 to-emerald-600', shadow: '#166534' },
+                { icon: '🏆', title: 'Tantangan TKA', tag: 'CHAMPION STAGE', desc: 'Pilih ujian yang tersedia dan buktikan kemampuan terbaikmu.', href: '#ujian', color: 'from-amber-300 to-orange-600', shadow: '#9a3412' },
+              ].map((mission, index) => (
+                <button key={mission.tag} type="button" onClick={() => setSelectedArcadeMission(index)} className={`arcade-mission-card group relative overflow-hidden rounded-2xl border-2 p-4 text-left transition-all duration-300 ${selectedArcadeMission === index ? 'border-yellow-200 bg-white/15 ring-2 ring-yellow-200/40' : 'border-white/15 bg-white/[0.06] hover:border-cyan-200/60 hover:bg-white/10'}`}>
+                  <div className={`absolute -right-7 -top-8 h-28 w-28 rounded-full bg-gradient-to-br ${mission.color} opacity-20 blur-xl transition group-hover:opacity-40`} />
+                  <div className="relative flex items-start justify-between gap-3">
+                    <span className={`flex h-14 w-14 items-center justify-center rounded-2xl border-2 border-white/30 bg-gradient-to-br text-3xl shadow-[0_6px_0_rgba(0,0,0,.25)] ${mission.color}`}>{mission.icon}</span>
+                    <span className="rounded-full border border-white/15 bg-black/20 px-2 py-1 text-[9px] font-black tracking-wider text-cyan-100">{mission.tag}</span>
+                  </div>
+                  <h3 className="relative mt-4 text-base font-black text-white">{mission.title}</h3>
+                  <p className="relative mt-1 text-xs leading-relaxed text-blue-100/70">{mission.desc}</p>
+                  <div className="relative mt-4 flex items-center justify-between text-[10px] font-black text-yellow-200"><span>{selectedArcadeMission === index ? '✓ DIPILIH' : 'PILIH MISI'}</span><span>➜</span></div>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3 rounded-2xl border border-cyan-300/30 bg-gradient-to-r from-[#14234a]/95 to-[#251443]/95 p-4 shadow-[0_12px_30px_rgba(0,0,0,.22)] sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-[10px] font-black tracking-widest text-cyan-200">MISI TERPILIH</p>
+                <p className="mt-1 text-sm font-black text-white">{['Latihan Otak','Jelajah Buku','Tantangan TKA'][selectedArcadeMission]}</p>
+                <p className="mt-1 text-xs text-blue-100/70">{['Masuk ke ruang latihan untuk mencoba tantangan dan memperoleh XP.','Buka koleksi sumber belajar dan pilih bahan yang ingin kamu pelajari.','Lihat daftar ujian, pilih subtes, lalu kerjakan tantangan TKA.'][selectedArcadeMission]}</p>
+              </div>
+              <Link href={['/practice','/materi','#ujian'][selectedArcadeMission]} className="arcade-3d-button shrink-0 rounded-xl border-2 border-cyan-100 bg-gradient-to-b from-cyan-300 to-blue-500 px-5 py-3 text-center text-xs font-black text-[#07172d] shadow-[0_5px_0_#075985] transition hover:-translate-y-1 hover:shadow-[0_8px_0_#075985] active:translate-y-1">MULAI MISI TERPILIH →</Link>
+            </div>
+          </section>
+        )}
         {/* Pesan error */}
         {error && (
           <div
