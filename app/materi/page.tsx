@@ -126,7 +126,7 @@ export default function MateriCatalogPage() {
             <div className="divide-y divide-slate-100">
               {visibleMaterials.map((item, index) => (
                 <article key={item.id} className="flex items-start gap-3 py-4 first:pt-1">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 bg-amber-50 text-2xl">{['📕', '📘', '📗', '📙', '📚'][(page - 1) * PAGE_SIZE + index % 5]}</span>
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-2 border-slate-200 bg-amber-50 text-2xl">{['📕', '📘', '📗', '📙', '📚'][((page - 1) * PAGE_SIZE + index) % 5]}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h3 className="text-sm font-black text-slate-900">{item.title || 'Tanpa judul'}</h3>
