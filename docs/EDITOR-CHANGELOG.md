@@ -1445,3 +1445,32 @@ Status: **perubahan kode pada `editor-test`; menunggu build Preview dan QA langs
 - Diagnostik ini bersifat sementara untuk mengidentifikasi format yang benar-benar dikirim Word/browser. Setelah penyebab diketahui, diagnostik akan dihapus dan diganti penanganan clipboard yang sesuai.
 - Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, atau mekanisme penilaian.
 - Build Preview dan hasil diagnostik pengguna: **menunggu**.
+
+
+### Hasil diagnostik clipboard Word dan pemeriksaan lanjutan — 8 November 2026
+
+Pengguna mengonfirmasi pengujian dilakukan pada alias Preview aktif:
+- `https://grisan-git-editor-test-heins14.vercel.app`
+- Deployment alias tersebut berada pada branch `editor-test`; pemeriksaan Vercel menunjukkan deployment READY.
+
+Hasil diagnostik pertama dari paste langsung Microsoft Word:
+- Clipboard menyediakan `text/plain`, `text/html`, dan `text/rtf`.
+- HTML berukuran 61.914 karakter; teks biasa 130 karakter.
+- OMML = 0 dan MathML = 0.
+- HTML berisi 5 elemen `img`.
+- Tidak ditemukan VML `imagedata` maupun DrawingML `blip`.
+- Tidak ada file gambar pada `DataTransfer.items` atau `DataTransfer.files`; item yang tersedia semuanya berupa string.
+
+Interpretasi:
+- Handler saat ini tidak dapat mengonversi rumus karena hanya mencari OMML di HTML; data rumus mungkin disediakan melalui RTF atau bentuk markup HTML lain.
+- Lima elemen gambar memang ada di HTML, tetapi belum diketahui apakah sumbernya berupa data URI, URL, referensi lokal, atau kosong.
+- Karena tidak ada byte gambar pada clipboard, editor belum dapat mengunggah gambar ke Google Drive. Keberadaan elemen `img` saja tidak membuktikan bahwa data gambar ikut disediakan browser.
+
+Tindak lanjut diagnostik:
+1. Menambahkan pemeriksaan kategori sumber `src` pada kelima elemen gambar tanpa menampilkan isi dokumen.
+2. Menambahkan pemeriksaan jumlah token RTF yang umum untuk matematika Word (`mmath`, `mfrac`, `msup`, `msub`, `mrad`) dan objek gambar (`pict`, `shppict`, `nonshppict`, `objdata`).
+3. Diagnostik tetap hanya menampilkan jumlah/kategori, bukan isi teks atau data clipboard mentah.
+
+Tahap ini belum mengubah algoritme konversi rumus maupun upload gambar. Setelah hasil diagnostik kedua diterima, implementasi akan diarahkan berdasarkan format yang benar-benar tersedia.
+
+Status: **diagnostik lanjutan diterapkan pada `editor-test`; menunggu build Preview dan hasil paste pengguna**.
