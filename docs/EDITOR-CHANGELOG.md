@@ -1936,3 +1936,15 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Mempertahankan efek hover kartu, hero glow yang sudah ada, dan dukungan `prefers-reduced-motion`.
 - Ruang lingkup hanya CSS latar belakang homepage; tidak mengubah fitur, konten, navigasi, database, skema, API, login, XP, leaderboard, ujian, CBT, maupun scoring.
 - Status implementasi: perubahan dikirim ke branch `homepage-arcade-catalog`; menunggu build Vercel Preview dan QA pengguna. Belum di-merge ke `main` dan belum mengubah Production.
+
+
+## 2026-11-08 — Perbaikan animasi maskot hero tema non-Gaming
+
+- Audit menemukan aturan CSS sebelumnya menghentikan seluruh animasi maskot ketika pointer berada di atas hero. Kondisi ini membuat maskot terlihat diam saat pengguna mengarahkan kursor ke area tersebut.
+- Menghapus perilaku jeda animasi saat hover; hover kini hanya memperkuat pencahayaan/bayangan tanpa menghentikan gerakan.
+- Memperjelas gerakan karakter utama dengan siklus naik-turun, sedikit rotasi, dan perubahan skala; ornamen bintang dan aksen tetap bergerak terpisah.
+- Mempertahankan maskot/emoji, warna tema, bentuk kartu, latar belakang, konten, dan navigasi yang telah disepakati.
+- Tetap menghormati preferensi aksesibilitas `prefers-reduced-motion`.
+- Perubahan hanya pada CSS homepage; tidak mengubah database, skema, API, XP, leaderboard, login, ujian, CBT, atau scoring.
+- Commit CSS: aa0ff3747474d94c8ecf5eec33e3507ec9b195ba.
+- Status: menunggu build Vercel Preview dan QA pengguna; belum di-merge ke `main` dan belum mengubah Production.
