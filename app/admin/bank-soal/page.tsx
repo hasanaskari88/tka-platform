@@ -14,7 +14,6 @@ function BankSoalManagementContent() {
   const [loading, setLoading] = useState(true)
 
   // 🟢 STATE FILTER & SORTING DAFTAR UJIAN (DEFAULT TAB UTAMA: 'EXAM' / Ujian Resmi CBT)
-  const [activeTabMode, setActiveTabMode] = useState<'EXAM'>('EXAM')
   const [selectedSubtestFilter, setSelectedSubtestFilter] = useState<string>('ALL')
   const [sortBy, setSortBy] = useState<string>('newest')
 
@@ -137,7 +136,7 @@ function BankSoalManagementContent() {
   // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
   const filteredAndSortedExams = exams
     .filter((exam) => {
-      // 1. Filter Kategori Tab (Ujian Resmi vs Aktivitas Latihan)
+      // Bank Soal hanya menampilkan paket yang dapat digunakan untuk ujian resmi.
       if (exam.target_mode === 'PRACTICE_ONLY') return false
 
       // 2. Filter Subtes
