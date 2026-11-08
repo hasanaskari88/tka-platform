@@ -518,6 +518,7 @@ function HistoryContent() {
           <th className="p-3 text-center">Jawaban</th>
           <th className="p-3 text-center">Benar</th>
           <th className="p-3 text-center">Skor</th>
+          <th className="p-3 text-center">Bonus</th>
           <th className="p-3 text-center">Total XP</th>
         </tr>
       </thead>
@@ -566,14 +567,18 @@ function HistoryContent() {
               <td className="p-3 text-center font-bold text-indigo-600">
                 {Number(item.score || 0)}
               </td>
+              <td className="p-3 text-center text-[10px] text-slate-600">
+                <div className="font-semibold text-emerald-700">Pertama: +{item.completion_bonus_xp || 0}</div>
+                <div className="font-semibold text-indigo-700">Peningkatan: +{item.improvement_xp || 0}</div>
+              </td>
               <td className="p-3 text-center font-bold text-amber-600">
-                ⭐ {item.total_xp || 0}
+                ⭐ {item.status === 'completed' ? (item.total_xp || 0) : (item.credited_xp || 0)}
               </td>
             </tr>
           ))
         ) : (
           <tr>
-            <td colSpan={8} className="p-8 text-center text-slate-400">
+            <td colSpan={9} className="p-8 text-center text-slate-400">
               Anda belum memiliki riwayat latihan.
             </td>
           </tr>
