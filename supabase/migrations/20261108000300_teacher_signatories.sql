@@ -25,8 +25,17 @@ drop policy if exists "Authenticated users read active signatories" on public.te
 create policy "Authenticated users read active signatories"
 on public.teacher_signatories for select to authenticated
 using (
-  is_active = true
-  or exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role::text = 'admin')
+  exists (select 1 from public.profiles p where p.id = (select auth.uid()) and p.role::text = 'admin')
+  or (
+    is_active = true
+    and (
+      position = 'principal'
+      or (
+        position = 'class_teacher'
+        and class_code = (select p.class_code from public.profiles p where p.id = (select auth.uid()))
+      )
+    )
+  )
 );
 drop policy if exists "Admins manage signatories" on public.teacher_signatories;
 create policy "Admins manage signatories"
