@@ -220,8 +220,8 @@ function HomePageContent() {
     gaming: {
       heroBg:
         'bg-gradient-to-br from-[#10102d]/95 via-[#111735]/95 to-[#080b1d]/95 border-2 border-cyan-400/50 text-white shadow-[0_0_35px_rgba(34,211,238,0.18)]',
-      badge: '🎮 SPACE ADVENTURE • GAMING MODE',
-      title: 'Siap Menaklukkan Misi Pengetahuan?',
+      badge: '🕹️ ARCADE GAME HUB • MODE PETUALANGAN',
+      title: 'Pilih Misi, Kumpulkan XP, Jadi Juara!',
       subtitle:
         'Jelajahi galaksi ilmu, selesaikan tantangan, kumpulkan XP, dan naikkan levelmu!',
       cardBg:
@@ -409,7 +409,7 @@ const filteredExams = useMemo(() => {
       <div
         className={`min-h-screen flex flex-col font-sans relative isolate ${
           theme === 'gaming'
-            ? 'bg-[#070b1b] text-white'
+            ? 'bg-[#17102b] text-white'
             : ''
         }`}
       >
@@ -418,27 +418,15 @@ const filteredExams = useMemo(() => {
             aria-hidden="true"
             className="pointer-events-none fixed inset-0 z-[-1] overflow-hidden"
           >
-            {/* Latar galaksi */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(91,33,182,0.45),_transparent_55%),radial-gradient(ellipse_at_bottom,_rgba(14,165,233,0.2),_transparent_50%),linear-gradient(135deg,#070b1b_0%,#100b32_50%,#080d20_100%)]" />
-
-            {/* Grid futuristik */}
-            <div className="absolute inset-0 opacity-20 bg-[linear-gradient(rgba(34,211,238,0.25)_1px,transparent_1px),linear-gradient(90deg,rgba(34,211,238,0.25)_1px,transparent_1px)] [background-size:40px_40px]" />
-
-            {/* Cahaya neon */}
-            <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-fuchsia-600/20 blur-[100px]" />
-            <div className="absolute top-1/3 -right-24 h-96 w-96 rounded-full bg-cyan-500/20 blur-[110px]" />
-            <div className="absolute -bottom-32 left-1/4 h-80 w-80 rounded-full bg-violet-600/20 blur-[110px]" />
-
-            {/* Dekorasi game */}
-            <div className="absolute right-6 top-28 text-5xl opacity-20 sm:right-12 sm:text-7xl">
-              🎮
-            </div>
-            <div className="absolute bottom-24 left-5 text-4xl opacity-20 sm:left-10 sm:text-6xl">
-              👾
-            </div>
-            <div className="absolute left-1/4 top-1/2 text-3xl opacity-20 sm:text-5xl">
-              ⚡
-            </div>
+            {/* Arena arcade: warna cerah, pola pixel, dan elemen permainan */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(249,115,22,0.28),_transparent_42%),radial-gradient(ellipse_at_bottom_right,_rgba(16,185,129,0.22),_transparent_42%),linear-gradient(135deg,#17102b_0%,#24133e_52%,#101b35_100%)]" />
+            <div className="absolute inset-0 opacity-[0.12] bg-[linear-gradient(90deg,rgba(255,255,255,0.22)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.22)_1px,transparent_1px)] [background-size:24px_24px]" />
+            <div className="absolute -left-24 top-1/4 h-80 w-80 rounded-full bg-orange-500/20 blur-[100px]" />
+            <div className="absolute -right-20 top-1/3 h-96 w-96 rounded-full bg-emerald-400/15 blur-[110px]" />
+            <div className="absolute bottom-10 left-1/3 h-72 w-72 rounded-full bg-violet-500/20 blur-[100px]" />
+            <div className="absolute right-8 top-28 rotate-12 text-5xl opacity-20 sm:right-16 sm:text-7xl">🕹️</div>
+            <div className="absolute bottom-24 left-5 -rotate-12 text-4xl opacity-20 sm:left-10 sm:text-6xl">🏆</div>
+            <div className="absolute left-1/4 top-1/2 text-3xl opacity-20 sm:text-5xl">⭐</div>
           </div>
         )}
 
@@ -661,200 +649,100 @@ const filteredExams = useMemo(() => {
           </section>
         )}
 
-        {/* Materi & Modul Belajar - Cartoon 3D Modern */}
+        {/* Pusat Sumber Belajar — pratinjau ringkas */}
         {materials.length > 0 && (
-          <section className="space-y-5">
+          <section className="space-y-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className={`flex items-center gap-2 text-lg sm:text-xl ${themeDetails.sectionTitle}`}>
                   <span>📚</span>
-                  <span>Materi & Modul Belajar</span>
+                  <span>Pusat Sumber Belajar</span>
                 </h2>
                 <p className={`mt-1 text-xs ${themeDetails.textMuted}`}>
-                  Temukan materi dan pelajari hal baru setiap hari!
+                  Materi dan bahan belajar pilihan untuk menemani kegiatanmu.
                 </p>
               </div>
               <span className={`rounded-full border px-3 py-1.5 text-xs font-extrabold ${themeDetails.badgeColor}`}>
-                {filteredMaterials.length} dari {materials.length} materi
+                {materials.length} sumber
               </span>
             </div>
-          
-            <div className={`overflow-hidden rounded-2xl border ${themeDetails.boxBg}`}>
-              <button
-                type="button"
-                onClick={() => setShowMaterialFilters((prev) => !prev)}
-                aria-expanded={showMaterialFilters}
-                className="flex w-full items-center justify-between gap-3 p-3 text-left transition hover:bg-black/5 sm:p-4"
-              >
-                <span className="flex min-w-0 items-center gap-2">
-                  <span className="text-lg">🔎</span>
-                  <span className="text-xs font-extrabold sm:text-sm">
-                    Cari dan sortir materi
-                  </span>
+
+            <div className={`space-y-3 rounded-2xl border p-3 sm:p-4 ${themeDetails.boxBg}`}>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="search"
+                  value={materialSearch}
+                  onChange={(e) => setMaterialSearch(e.target.value)}
+                  placeholder="Cari judul atau mata pelajaran..."
+                  aria-label="Cari sumber belajar"
+                  className="min-w-0 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+                <select
+                  value={selectedSubject}
+                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  aria-label="Filter mata pelajaran"
+                  className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                >
+                  <option value="Semua">Semua mata pelajaran</option>
+                  {materialSubjects.map((subject) => (
+                    <option key={subject} value={subject}>{subject}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/10 pt-2">
+                <span className="text-[11px] font-semibold opacity-80">
+                  Menampilkan {Math.min(filteredMaterials.length, 3)} dari {filteredMaterials.length} hasil
                 </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <span className="text-[10px] font-bold opacity-70">
-                    {showMaterialFilters ? 'Tutup' : 'Buka filter'}
-                  </span>
-                  <span
-                    className={`text-lg transition-transform duration-200 ${
-                      showMaterialFilters ? 'rotate-180' : ''
-                    }`}
+                <label className="flex items-center gap-2 text-[11px] font-semibold">
+                  <span>Urutkan</span>
+                  <select
+                    value={materialSort}
+                    onChange={(e) => setMaterialSort(e.target.value)}
+                    className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-800"
                   >
-                    ▾
-                  </span>
-                </span>
-              </button>
-            
-              {showMaterialFilters && (
-                <div className="space-y-3 border-t border-current/10 p-3 sm:p-4">
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base">
-                      🔎
-                    </span>
-                    <input
-                      type="search"
-                      value={materialSearch}
-                      onChange={(e) => setMaterialSearch(e.target.value)}
-                      placeholder="Cari judul, deskripsi, atau mata pelajaran..."
-                      aria-label="Cari materi"
-                      className="w-full rounded-xl border-2 border-slate-200 bg-white py-2.5 pl-10 pr-3 text-xs font-medium text-slate-800 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                    />
-                  </div>
-            
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide">
-                      Mata Pelajaran
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSubject('Semua')}
-                        aria-pressed={selectedSubject === 'Semua'}
-                        className={`rounded-lg border-2 px-3 py-1.5 text-[11px] font-bold transition ${
-                          selectedSubject === 'Semua'
-                            ? themeDetails.btnBg
-                            : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'
-                        }`}
-                      >
-                        🌟 Semua
-                      </button>
-            
-                      {materialSubjects.map((subject) => (
-                        <button
-                          key={subject}
-                          type="button"
-                          onClick={() => setSelectedSubject(subject)}
-                          aria-pressed={selectedSubject === subject}
-                          className={`rounded-lg border-2 px-3 py-1.5 text-[11px] font-bold transition ${
-                            selectedSubject === subject
-                              ? themeDetails.btnBg
-                              : 'border-current/20 bg-white text-slate-700 hover:bg-amber-50'
-                          }`}
-                        >
-                          {subject}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-            
-                  <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/10 pt-3">
-                    <p className="text-[11px] font-semibold">
-                      Menampilkan {filteredMaterials.length} materi
-                    </p>
-            
-                    <label className="flex items-center gap-2 text-[11px] font-semibold">
-                      <span>Urutkan:</span>
-                      <select
-                        value={materialSort}
-                        onChange={(e) => setMaterialSort(e.target.value)}
-                        className="rounded-lg border-2 border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-800 outline-none focus:border-amber-400"
-                      >
-                        <option value="Terbaru">Terbaru</option>
-                        <option value="Terlama">Terlama</option>
-                        <option value="Nama A-Z">Nama A–Z</option>
-                        <option value="Nama Z-A">Nama Z–A</option>
-                        <option value="Penulis A-Z">Penulis A–Z</option>
-                      </select>
-                    </label>
-                  </div>
-                </div>
-              )}
-            </div>
+                    <option value="Terbaru">Terbaru</option>
+                    <option value="Terlama">Terlama</option>
+                    <option value="Nama A-Z">Nama A–Z</option>
+                    <option value="Penulis A-Z">Penulis A–Z</option>
+                  </select>
+                </label>
+              </div>
 
-
-            {filteredMaterials.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {filteredMaterials.map((mat, index) => (
-                  <article
-                    key={mat.id}
-                    className={`group relative flex min-w-0 flex-col justify-between overflow-hidden rounded-2xl border-2 p-4 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${themeDetails.cardBg}`}
-                  >
-                    <div aria-hidden="true" className="pointer-events-none absolute -right-5 -top-5 h-20 w-20 rounded-full bg-amber-400/15 transition-transform duration-300 group-hover:scale-150" />
-                    <div className="relative space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-2xl shadow-sm">
-                            {['📕', '📘', '📗', '📙', '📚'][index % 5]}
-                          </span>
-                        
-                          <div className="flex min-w-0 flex-col items-end gap-1">
-                            <span className={`max-w-full truncate rounded-full border px-2.5 py-1 text-[10px] font-extrabold uppercase ${themeDetails.badgeColor}`}>
-                              {mat.subject || 'Modul'}
-                            </span>
-                            <span className={`max-w-full truncate text-[10px] font-semibold ${themeDetails.textMuted}`}>
-                              ✍️  {mat.author_display_name || mat.author?.full_name || 'Tim Penyusun'}
-                            </span>
-                          </div>
-                        </div>
-
-                      <div className="space-y-2">
-                        <h3 className={`text-sm font-black leading-snug ${themeDetails.cardTitle}`}>
-                          {mat.title}
-                        </h3>
-                        <div className={`line-clamp-3 text-xs leading-relaxed ${themeDetails.textMuted}`}>
-                          <MathRenderer content={mat.description || 'Pelajari materi ini untuk menambah pengetahuanmu.'} />
-                        </div>
+              {filteredMaterials.length > 0 ? (
+                <div className="divide-y divide-current/10">
+                  {filteredMaterials.slice(0, 3).map((mat, index) => (
+                    <article key={mat.id} className="flex items-center gap-3 py-3 first:pt-1 last:pb-1">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-xl">
+                        {['📕', '📘', '📗'][index % 3]}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className={`truncate text-xs font-black ${themeDetails.cardTitle}`}>{mat.title}</h3>
+                        <p className={`mt-0.5 truncate text-[10px] ${themeDetails.textMuted}`}>
+                          {mat.subject || 'Umum'} · {mat.author_display_name || mat.author?.full_name || 'Tim Penyusun'}
+                        </p>
                       </div>
-                    </div>
-                    <div className="relative mt-4 border-t border-current/10 pt-3">
                       {mat.file_url ? (
-                        <a
-                          href={mat.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={`block w-full rounded-xl px-3 py-2.5 text-center text-xs font-black transition hover:-translate-y-0.5 active:scale-[0.98] ${themeDetails.btnBg}`}
-                        >
-                          📖 Buka Materi →
+                        <a href={mat.file_url} target="_blank" rel="noopener noreferrer"
+                          className={`shrink-0 rounded-lg px-3 py-2 text-[10px] font-black ${themeDetails.btnBg}`}>
+                          Buka <span aria-hidden="true">↗</span>
                         </a>
                       ) : (
-                        <span className="block w-full rounded-xl bg-slate-200 px-3 py-2.5 text-center text-xs font-bold text-slate-500">
-                          Materi belum tersedia
-                        </span>
+                        <span className="shrink-0 text-[10px] text-slate-400">Belum tersedia</span>
                       )}
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <p className="py-5 text-center text-xs font-semibold opacity-70">Sumber belajar tidak ditemukan. Coba kata kunci lain.</p>
+              )}
+
+              <div className="flex justify-end border-t border-current/10 pt-3">
+                <Link href="/materi" className={`rounded-xl px-4 py-2.5 text-xs font-black transition hover:-translate-y-0.5 ${themeDetails.btnBg}`}>
+                  Lihat semua sumber belajar ({materials.length}) →
+                </Link>
               </div>
-            ) : (
-              <div className={`rounded-2xl border-2 border-dashed p-8 text-center ${themeDetails.boxBg}`}>
-                <div className="mb-3 text-4xl">🔍</div>
-                <h3 className="text-sm font-black">Materi Tidak Ditemukan</h3>
-                <p className={`mt-1 text-xs ${themeDetails.textMuted}`}>
-                  Coba gunakan kata kunci atau kategori lainnya.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMaterialSearch('')
-                    setSelectedSubject('Semua')
-                    setMaterialSort('Terbaru')
-                  }}
-                  className={`mt-4 rounded-xl px-4 py-2 text-xs font-bold ${themeDetails.btnBg}`}
-                >
-                  Reset Filter
-                </button>
-              </div>
-            )}
+            </div>
           </section>
         )}
 
