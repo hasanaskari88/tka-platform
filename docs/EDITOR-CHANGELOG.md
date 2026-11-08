@@ -1980,3 +1980,23 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Memastikan catatan implementasi Practice Tahap 1 juga sudah ada pada changelog.
 - Memperbarui catatan verifikasi ini agar menghasilkan commit GitHub baru yang mudah dikenali dan memicu pemeriksaan deployment Preview dari branch yang sama.
 - Belum melakukan merge ke `main`; belum mengubah database, API, RPC, XP, scoring, atau mesin soal.
+
+
+## 2026-11-08 — QA Practice Tahap 1: penyegaran visual Arcade
+
+### Masukan QA pengguna
+- Katalog sudah tampil, tetapi kartu dalam jenis aktivitas yang sama perlu variasi visual agar tidak monoton.
+- Tiga peringkat teratas leaderboard membutuhkan latar yang lebih kuat dan kontras teks putih yang terbaca.
+- Identitas pemain dan koleksi badge belum terasa seperti kartu karakter/arcade; badge statis dan belum menonjol.
+- Seluruh halaman Practice perlu lebih konsisten dengan bahasa visual Arcade Game Hub di homepage.
+
+### Perbaikan yang diterapkan
+- Menambahkan empat variasi gradasi dan ornamen untuk setiap jenis aktivitas (Kuis, Game Labirin, Flashcard). Warna dasar tiap jenis tetap dalam keluarga warna yang sama.
+- Mengubah tiga baris teratas leaderboard menjadi podium gold, silver, dan bronze dengan latar lebih gelap/saturasi tinggi serta teks putih berkontras.
+- Mempertegas profil sebagai Player Card: ID username, avatar, nama, kelas, XP, level, dan koleksi pencapaian.
+- Mengubah badge menjadi medali visual berbentuk kartu kecil dengan animasi mengambang dan respons hover; keadaan belum memiliki badge juga diberi tampilan khusus.
+- Menambahkan ornamen pixel, kedalaman, dan aksen gerak ringan pada profil serta footer agar halaman lebih konsisten dengan Arcade Game Hub.
+- Animasi mengikuti `prefers-reduced-motion`.
+- Tidak mengubah query leaderboard, data profil, XP, level, badge yang tersimpan, scoring, mesin latihan, database, skema, API, atau RPC.
+
+Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menunggu Vercel Preview build dan QA ulang pengguna. Belum di-merge ke `main` dan belum mengubah Production.
