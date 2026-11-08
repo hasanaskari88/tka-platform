@@ -130,3 +130,6 @@ revoke all on function public.get_school_document_settings() from public, anon;
 revoke all on function public.save_school_document_settings(jsonb) from public, anon;
 grant execute on function public.get_school_document_settings() to authenticated;
 grant execute on function public.save_school_document_settings(jsonb) to authenticated;
+
+-- Refresh PostgREST so newly created tables/functions are immediately visible to the Data API.
+notify pgrst, 'reload schema';
