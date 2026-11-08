@@ -2215,3 +2215,37 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Build Next.js selesai dalam sekitar 2 menit; 31/31 halaman statis berhasil dibuat. Route `/admin/pengaturan-dokumen`, `/admin/raport`, dan `/history` tercantum pada output build.
 - Log build tetap menampilkan warning/error non-fatal `HANGING_PROMISE_REJECTION` terkait `cookies()` ketika prerender route API `/api/google-drive/images` dan `/api/google-drive/connect`; meskipun deployment mencapai READY. Perlu audit terpisah, tidak diubah dalam tugas build ini.
 - Build ini hanya Preview. Tidak ada deployment Production, merge ke `main`, atau penerapan migration Supabase.
+
+
+## 2026-11-09 — Perbaikan dashboard, raport massal, navigasi, dan pemisahan konten
+
+### Diagnosis Supabase
+- Read-only audit pada project Supabase aktif memastikan tabel `teacher_signatories` dan `school_document_settings` belum ada, serta RPC pengaturan dokumen belum terpasang. Karena objeknya memang belum dibuat, pesan schema cache bukan sekadar cache usang.
+- Kolom `progress`, `credited_xp`, dan `completion_bonus_xp` juga belum ada di `practice_attempts`.
+- Kebijakan SELECT admin pada `practice_attempts` sudah ada. Peringatan dashboard sebelumnya dipicu query yang secara eksplisit meminta kolom `credited_xp` yang belum tersedia, bukan bukti bahwa izin admin pasti salah.
+- Migration pengaturan sekolah dan penandatangan diperbarui untuk mengirim `NOTIFY pgrst, 'reload schema'` setelah objek dibuat. Migration tetap staged; tidak diterapkan ke project aktif.
+- Tidak ada Supabase development branch. Pembuatan branch terpisah memerlukan konfirmasi biaya; belum dibuat dan belum ada SQL DDL yang dijalankan.
+
+### Raport dan sertifikat
+- Mengganti builder raport awal dengan dua alur: cetak per siswa dan cetak massal.
+- Cetak massal mendukung cakupan semua kelas atau kelas tertentu, pemilihan siswa, serta checklist tiap rekaman nilai.
+- Rekaman diringkas menjadi nilai terbaik per siswa, per paket soal, dan per jenis sesi (latihan/ujian). Nilai ujian menggunakan `score_override` bila tersedia, sama seperti prinsip nilai terbaik di Live Monitoring.
+- Menambahkan pilihan format raport/sertifikat, penandatangan guru+kepala sekolah, hanya kepala sekolah, atau hanya guru/wali kelas, serta opsi tanda tangan orang tua/wali.
+- Guru untuk cetak massal dipilih otomatis berdasarkan kelas masing-masing siswa; satu kepala sekolah dipakai lintas kelas. Pada cetak per siswa, guru kelas dapat dipilih ulang.
+- Preview dan print menggunakan area dokumen khusus dengan page break per siswa.
+
+### Dashboard dan peringkat
+- Query riwayat latihan di dashboard menggunakan `select('*')` agar kompatibel sebelum/sesudah migration `credited_xp`; pembacaan XP bertahap memakai properti tersebut jika sudah ada.
+- Peringkat latihan menghitung XP dari attempt; peringkat ujian memakai nilai terbaik per siswa pada setiap paket, bukan menjumlahkan pengulangan.
+- Menambahkan filter global/per paket soal, kelas, dan tipe tes, serta grafik batang untuk 10 peringkat teratas latihan dan ujian.
+
+### Navigasi dan pemisahan menu
+- Membuat halaman baru `/admin/konten` untuk CRUD pengumuman dan materi.
+- Bank Soal kini fokus pada paket ujian resmi, dengan tautan Dashboard Admin dan Pengelolaan Konten. Tab paket latihan dikeluarkan dari Bank Soal; pengelolaan latihan tetap di `/admin/practice`.
+- Memperbaiki judul/deskripsi halaman Bank Soal dan mengganti tautan beranda yang membingungkan dengan Dashboard Admin.
+
+### Batas verifikasi
+- Semua perubahan kode disimpan pada branch `homepage-arcade-catalog`.
+- Build Preview belum dijalankan untuk commit perubahan ini; TypeScript, tampilan print, filter ranking, dan CRUD konten belum QA.
+- Migration belum diterapkan ke database aktif; fitur daftar penandatangan dan settings masih menunggu database pengembangan.
+- Tidak ada merge ke `main`, deployment Production, atau perubahan data Production.
