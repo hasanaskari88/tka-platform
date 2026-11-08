@@ -307,7 +307,7 @@ export default function RichTextEditor({
         const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
         const hasClipboardImageRefs = imageElements.some((img) => {
           const src = img.getAttribute('src') || ''
-          return Boolean(src) && !src.startsWith('data:image/') && !/^https?:\\/\\//i.test(src)
+          return Boolean(src) && !src.startsWith('data:image/') && !src.startsWith('http://') && !src.startsWith('https://')
         })
         const hasMath = converted.converted > 0
         if (!hasMath && !hasDataImages && !hasClipboardImageRefs && imageFiles.length === 0) return false
