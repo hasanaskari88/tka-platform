@@ -1686,3 +1686,12 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - PNG fallback rumus Word serta gambar clipboard biasa tidak terkena penyesuaian ini.
 - Tidak mengubah database, API Google Drive, format soal, kunci jawaban, penilaian, atau Production.
 - Status: perubahan kode pada branch `editor-test`; menunggu build Preview dan QA pengguna. Jika ukuran diagram menjadi terlalu kecil/besar, skala dapat disetel berdasarkan hasil uji visual.
+
+
+## 2026-11-08 — Penyesuaian lanjutan ukuran awal diagram Word (WMF)
+
+- Pengukuran pengguna berdasarkan tinggi relatif terhadap teks: di Word gambar setinggi sekitar 6 baris teks, sedangkan di editor menjadi sekitar 11 baris.
+- Skala lebar tampilan WMF disesuaikan dari pembagi 60 menjadi 110. Faktor ini menargetkan tinggi tampilan sekitar 6/11 dari ukuran Preview sebelumnya, dengan rasio gambar tetap otomatis.
+- Batas minimum ukuran tampilan diturunkan dari 24 px menjadi 12 px agar batas bawah tidak menghalangi pengecilan diagram kecil. Batas maksimum 400 px tetap dipertahankan.
+- Metadata crop mentah (widthGoal / heightGoal) tidak diubah; algoritme crop, wrap kiri/kanan, PNG fallback rumus, gambar clipboard biasa, penyimpanan, dan penilaian tidak diubah.
+- Status: perubahan kode pada branch editor-test; menunggu build Preview dan QA pengguna. Target verifikasi: tinggi diagram sekitar 6 baris teks, sebanding dengan Word.
