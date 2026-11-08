@@ -288,6 +288,24 @@ function rtfMathToLatex(node: RtfMathNode): string {
     }
     case 'mphant':
       return childLatex('me')
+
+    // Word embeds a visual Equation fallback (PNG/WMF) inside the math group.
+    // Its shape metadata and image payload must never become part of LaTeX.
+    case 'mmathPict':
+    case 'pict':
+    case 'shppict':
+    case 'nonshppict':
+    case 'sp':
+    case 'sn':
+    case 'sv':
+    case 'shp':
+    case 'shpinst':
+    case 'shprslt':
+    case 'shptxt':
+    case 'objdata':
+    case 'blipuid':
+      return ''
+
     case 'mfPr': case 'msSupPr': case 'msSubPr': case 'msSubSupPr': case 'msPrePr':
     case 'mradPr': case 'mnaryPr': case 'mdPr': case 'maccPr': case 'mbarPr':
     case 'mfuncPr': case 'mgroupChrPr': case 'margPr': case 'mctrlPr':
