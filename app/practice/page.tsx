@@ -177,6 +177,7 @@ export default function PracticeHubPage() {
         const { data: classData } = await supabase
           .from('profiles')
           .select('class_code')
+          .eq('role', 'student')
           .not('class_code', 'is', null)
 
         if (classData) {
