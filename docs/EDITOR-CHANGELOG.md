@@ -1583,3 +1583,14 @@ Hasil build Preview dan QA pengguna: **menunggu**.
 - Belum menangani diagram WMF-only. Diagnostik sebelumnya menunjukkan ada grup `\\wmetafile8` tanpa fallback PNG; browser tidak dapat menampilkan WMF secara langsung. Perlu konverter WMF ke PNG/SVG untuk mengambil diagram tersebut.
 - Tidak mengubah skema database, API upload, konten lama, atau penilaian.
 - Status: kode pada `editor-test`; menunggu build Preview dan QA pengguna.
+
+## 2026-11-08 — Perbaikan tipe data clipboard setelah audit build
+
+- Empat deployment Preview gagal pada pemeriksaan TypeScript karena fungsi `getClipboardImageFiles` mendeklarasikan array sebagai `ExtractedRtfImage[]`, padahal fungsi tersebut mengumpulkan file clipboard biasa bertipe `File`.
+- Tipe array dikoreksi menjadi `File[]`. Objek hasil ekstraksi RTF tetap memakai tipe `ExtractedRtfImage` yang menyimpan pasangan `file` dan `widthPx`.
+- Perubahan ini memperbaiki ketidakcocokan tipe yang ditunjukkan log Vercel; hasil build ulang masih harus diperiksa.
+- Gambar diagram Word yang hanya tersedia sebagai WMF belum dapat dikonversi oleh parser saat ini. Ekstraksi PNG yang tersedia saat ini terutama mencakup fallback rumus, sehingga diagram soal kedua belum boleh dianggap teratasi.
+- Ukuran fallback rumus menggunakan nilai target dari RTF (twips ÷ 15) dengan batas 16–80 px; perlu QA tampilan karena nilai aktual harus dibandingkan dengan ukuran teks pada editor.
+- Tidak ada perubahan pada Production, database, endpoint upload, skema soal, atau penilaian.
+- Commit perbaikan tipe: `511f6bc5df317099b91679c4e568b479f8a10225`.
+- Status: menunggu deployment Preview dan pengujian pengguna.
