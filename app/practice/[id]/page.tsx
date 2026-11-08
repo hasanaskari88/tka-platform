@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
-import Link from 'next/link'
 import MazeGameEngine from '@/components/games/MazeGameEngine'
 import FlashcardEngine from '@/components/games/FlashcardEngine'
 
