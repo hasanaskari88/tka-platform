@@ -1367,3 +1367,9 @@ Penyempurnaan implementasi:
 - Pengukuran ulang saat resize mengembalikan gaya asli terlebih dahulu sehingga tidak mengukur ukuran hasil transform sebelumnya.
 
 Catatan: penyimpanan gaya asli hanya berupa atribut sementara pada elemen DOM; tidak mengubah HTML/data yang tersimpan di database.
+
+
+### Pemeriksaan urutan hook dan sanitasi atribut rotasi
+
+- Atribut `data-rotation` kini diizinkan pada tahap sanitasi pertama dan terakhir agar nilai rotasi tidak hilang sebelum proses layout.
+- `useEffect` selalu dipanggil sebelum kondisi konten kosong mengembalikan `null`, sehingga jumlah hook konsisten antar-render.
