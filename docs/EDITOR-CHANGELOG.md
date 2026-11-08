@@ -2037,3 +2037,12 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Tidak mengubah data, navigasi, filter, pengurutan, leaderboard, XP, level, badge, database, skema, API, RPC, scoring, atau mesin latihan.
 - Perubahan kode disimpan melalui commit `e45cc4f3779eed1627676a8de691b6fd138ea78b` pada branch `homepage-arcade-catalog`.
 - Status verifikasi: tersimpan di GitHub; belum dibuild dan belum diuji secara visual karena kendala kuota deployment Vercel.
+
+## 2026-11-08 — Practice Tahap 1A: pemisahan error leaderboard dari katalog
+
+- Audit alur pemuatan menemukan bahwa kegagalan query leaderboard dapat ikut menghentikan pemuatan seluruh halaman Practice, padahal daftar misi dapat tetap digunakan secara mandiri.
+- Menambahkan penanganan error khusus pada pemuatan leaderboard; ketika gagal, daftar peringkat dikosongkan dan pesan informasi ditampilkan pada area leaderboard.
+- Kegagalan leaderboard tidak lagi dilempar ke penanganan error utama katalog, sehingga siswa tetap dapat mencari dan membuka latihan ketika layanan peringkat sedang bermasalah.
+- Query, filter kelas, urutan XP, dan batas 15 pemain tetap sama; tidak mengubah data atau mekanisme XP/leaderboard di database.
+- Perubahan disimpan melalui commit `dd79b10329f8b66eb726a0388ff04e8c45ef6046` pada branch `homepage-arcade-catalog`.
+- Status verifikasi: kode tersimpan di GitHub; build dan QA visual belum dilakukan karena kendala deployment Vercel.
