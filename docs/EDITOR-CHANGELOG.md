@@ -2077,3 +2077,48 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Seluruh perubahan dicatat pada branch `homepage-arcade-catalog`.
 - Belum menjalankan build maupun Preview Vercel karena kendala kuota deployment. Tidak ada klaim bahwa Maze V2/Flashcard sudah lulus QA.
 - Tidak mengubah database, skema, RLS, RPC, sistem login, CBT, penilaian, atau mekanisme XP selain perbaikan pemetaan field import.
+
+
+## 2026-11-08 — Practice: simpan, lanjutkan sesi, dan XP bertahap
+
+### Keputusan pengguna
+- Admin/guru tetap boleh membuka Practice untuk memeriksa materi, mencoba permainan, dan menguji aturan XP.
+- Admin/guru boleh memperoleh XP dari aktivitas Practice, tetapi hanya profil dengan role `student` yang ditampilkan di leaderboard.
+- Setiap layar soal/permainan perlu menyediakan tindakan **Simpan & Keluar**; sesi yang belum selesai dapat dilanjutkan kembali.
+- Soal yang dilewati tetap disimpan dalam antrean dan dapat dikerjakan setelah soal lain.
+
+### Perubahan frontend pada branch pengembangan
+- Kuis biasa:
+  - Menambahkan tombol **Simpan & Keluar** di header dan area navigasi soal.
+  - Menyimpan posisi soal, antrean soal terlewat, status jawaban saat ini, jawaban yang sudah dinilai, jumlah benar/dijawab, streak, XP jawaban, dan bonus combo.
+  - Saat masuk kembali ke modul yang sama, sesi `in_progress` terakhir dipulihkan alih-alih membuat sesi baru.
+  - Setelah jawaban dinilai, progres dikirim ke RPC penyimpanan sehingga XP jawaban benar dan bonus combo dapat dikreditkan tanpa menunggu set soal selesai.
+  - Penyimpanan berurutan untuk mencegah request autosave yang datang belakangan menimpa progres yang lebih baru.
+  - Finalisasi menghitung selisih XP agar XP yang telah dikreditkan selama sesi tidak diberikan dua kali.
+- Maze lama:
+  - Menyimpan daftar misi yang berhasil dan indeks misi berikutnya.
+  - Menyediakan tombol **Simpan & Keluar** dan memulihkan misi yang belum selesai ketika sesi dibuka kembali.
+  - XP misi dikreditkan saat progres disimpan; finalisasi hanya memberikan selisih/bonus yang belum dikreditkan.
+- Flashcard:
+  - Mengganti pemberian XP langsung yang tidak terikat sesi dengan penyimpanan progres attempt.
+  - Kartu yang ditandai sudah dipahami disimpan bersama posisi kartu; sesi dapat dilanjutkan.
+  - XP tetap +10 per kartu dan tidak menambahkan bonus peningkatan nilai baru.
+  - Jika finalisasi gagal setelah seluruh kartu dipelajari, layar menyediakan tindakan coba simpan lagi.
+
+### Perubahan database yang disiapkan
+- Menambahkan migration `supabase/migrations/20261108000100_practice_attempt_progress.sql`:
+  - Kolom `practice_attempts.progress` untuk data progres JSON.
+  - Kolom `practice_attempts.credited_xp` untuk mencegah pemberian XP ganda.
+  - Memperbarui `start_practice_attempt` agar mengizinkan akun terautentikasi dan memulihkan sesi aktif terakhir.
+  - Menambahkan `save_practice_attempt_progress` untuk menyimpan progres dan hanya mengkreditkan selisih XP baru.
+  - Memperbarui `finish_practice_attempt` agar hanya memberikan XP yang belum dikreditkan, tanpa membatasi role ke student.
+  - Rumus XP dasar kuis, bonus combo, bonus peningkatan nilai, dan XP Maze dipertahankan. Flashcard tetap +10 per kartu tanpa bonus peningkatan nilai.
+- Migration **belum diterapkan ke database aktif**. Tidak ada perubahan langsung pada database/Production dalam tahap ini.
+
+### Batasan dan status verifikasi
+- Implementasi ini baru mencakup kuis biasa, Maze lama, dan Flashcard. Coding Maze V2 masih memerlukan engine dan editor end-to-end tersendiri.
+- Perlu pengujian terhadap akun student, guru, dan admin; sesi baru, sesi yang disimpan, resume, soal terlewat, finalisasi, dan pencegahan XP ganda.
+- Build belum dijalankan dan Preview belum diverifikasi karena kendala kuota deployment Vercel yang sebelumnya tercatat. Tidak mengklaim build atau QA lulus.
+- Migration harus ditinjau dan diuji pada lingkungan pengembangan sebelum diterapkan ke database aktif.
+- Tidak mengubah leaderboard selain pengecualian role student yang sudah diimplementasikan pada tahap sebelumnya; tidak mengubah login, CBT, skema soal, atau rumus penilaian soal.
+- Belum di-merge ke `main` dan belum mengubah Production.
