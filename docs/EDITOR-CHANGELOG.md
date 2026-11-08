@@ -1594,3 +1594,14 @@ Hasil build Preview dan QA pengguna: **menunggu**.
 - Tidak ada perubahan pada Production, database, endpoint upload, skema soal, atau penilaian.
 - Commit perbaikan tipe: `511f6bc5df317099b91679c4e568b479f8a10225`.
 - Status: menunggu deployment Preview dan pengujian pengguna.
+
+## 2026-11-08 — Tahap awal ekstraksi dan konversi diagram WMF Word
+
+- Menambahkan ekstraksi grup `\\wmetafile8` dari RTF clipboard Word, dengan pemeriksaan header WMF standar atau placeable WMF sebelum data diterima.
+- Ekstraksi melewati fallback WMF yang berada di dalam konteks `\\mmath` / `\\mmathPict`, agar representasi cadangan Equation tidak ikut diperlakukan sebagai diagram.
+- Menambahkan pustaka browser `emf-converter` versi `4.24.0` melalui entry `emf-converter/lite`. Konversi dilakukan di browser menjadi PNG, lalu memakai endpoint upload Google Drive yang sudah tersedia.
+- Jika satu WMF gagal diekstrak, dikonversi, atau diunggah, proses paste teks dan gambar lainnya tetap berjalan.
+- PNG fallback Equation yang sudah ada tidak diubah; ukuran tampilannya bukan sasaran tahap ini.
+- Pengujian perlu memastikan diagram asli dokumen Word dua soal dapat dipasangkan ke placeholder gambar yang benar, tampil dengan proporsi wajar, tersimpan, dan tetap ada setelah soal dibuka ulang.
+- Perubahan hanya pada branch `editor-test`; tidak mengubah Production, skema/database, endpoint upload, format soal, kunci jawaban, atau penilaian.
+- Status: **implementasi awal; menunggu build Preview dan QA pengguna**.

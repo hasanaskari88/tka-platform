@@ -269,6 +269,169 @@ function extractRtfPngImages(rtf: string): ExtractedRtfImage[] {
   return files
 }
 
+
+type ExtractedRtfWmfImage = { file: File; widthPx: number | null }
+
+/**
+ * Ambil WMF dari RTF Word. Fallback WMF yang berada di dalam grup matematika
+ * sengaja dilewati karena empat gambar Equation sementara sudah diambil dari PNG.
+ */
+function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
+  if (!rtf) return []
+
+  type GroupFrame = {
+    start: number
+    mathContext: boolean
+    isPicture: boolean
+    isWmfPayload: boolean
+    markerEnd: number
+    widthPx: number | null
+  }
+
+  const stack: GroupFrame[] = []
+  const payloads: Array<{ start: number; end: number; markerEnd: number; widthPx: number | null }> = []
+
+  for (let i = 0; i < rtf.length; i += 1) {
+    const char = rtf[i]
+    if (char === '{') {
+      stack.push({
+        start: i,
+        mathContext: stack.some((frame) => frame.mathContext),
+        isPicture: false,
+        isWmfPayload: false,
+        markerEnd: 0,
+        widthPx: null,
+      })
+      continue
+    }
+
+    if (char === '}') {
+      const frame = stack.pop()
+      if (frame?.isWmfPayload && !frame.mathContext && frame.markerEnd > 0) {
+        payloads.push({
+          start: frame.start,
+          end: i + 1,
+          markerEnd: frame.markerEnd,
+          widthPx: frame.widthPx,
+        })
+      }
+      continue
+    }
+
+    if (char !== '\\') continue
+    const next = rtf[i + 1]
+    if (!next) continue
+
+    if (/[{}\\]/.test(next) || next === "'" || next === '*' || next === '~' || next === '-') {
+      i += next === "'" ? 3 : 1
+      continue
+    }
+    if (!/[a-zA-Z]/.test(next)) {
+      i += 1
+      continue
+    }
+
+    let end = i + 1
+    while (end < rtf.length && /[a-zA-Z]/.test(rtf[end])) end += 1
+    const word = rtf.slice(i + 1, end).toLowerCase()
+    let numberEnd = end
+    if (rtf[numberEnd] === '-') numberEnd += 1
+    while (numberEnd < rtf.length && /[0-9]/.test(rtf[numberEnd])) numberEnd += 1
+    if (rtf[numberEnd] === ' ') numberEnd += 1
+
+    const frame = stack[stack.length - 1]
+    if (frame && (word === 'mmath' || word === 'mmathpict')) {
+      frame.mathContext = true
+    }
+    if (frame && word === 'pict') frame.isPicture = true
+
+    // \wmetafile8: angka 8 adalah jenis gambar WMF pada RTF.
+    if (word === 'wmetafile' && frame) {
+      const pictureFrame = [...stack].reverse().find((item) => item.isPicture)
+      if (pictureFrame) {
+        frame.isWmfPayload = true
+        frame.markerEnd = numberEnd
+        frame.mathContext = stack.some((item) => item.mathContext)
+        const pictureHeader = rtf.slice(pictureFrame.start, numberEnd)
+        const widthMatch = pictureHeader.match(/\\picwgoal(-?\d+)/i)
+        frame.widthPx = widthMatch
+          ? Math.max(24, Math.min(1600, Math.round(Number(widthMatch[1]) / 15)))
+          : null
+      }
+    }
+
+    i = numberEnd - 1
+  }
+
+  const files: ExtractedRtfWmfImage[] = []
+  const seenPayloads = new Set<string>()
+
+  payloads.forEach((payload, index) => {
+    let hex = ''
+    let depth = 0
+
+    for (let i = payload.markerEnd; i < payload.end - 1; i += 1) {
+      const char = rtf[i]
+      if (char === '{') {
+        depth += 1
+        continue
+      }
+      if (char === '}') {
+        if (depth > 0) depth -= 1
+        continue
+      }
+      if (depth > 0) continue
+
+      if (char === '\\') {
+        const next = rtf[i + 1]
+        if (next === "'") i += 3
+        else if (next && /[a-zA-Z]/.test(next)) {
+          i += 1
+          while (i + 1 < payload.end && /[a-zA-Z]/.test(rtf[i + 1])) i += 1
+          if (rtf[i + 1] === '-') i += 1
+          while (i + 1 < payload.end && /[0-9]/.test(rtf[i + 1])) i += 1
+          if (rtf[i + 1] === ' ') i += 1
+        } else i += 1
+        continue
+      }
+
+      if (/[0-9a-fA-F]/.test(char)) hex += char
+    }
+
+    if (hex.length < 40 || hex.length % 2 !== 0 || hex.length > 32 * 1024 * 1024) return
+    if (seenPayloads.has(hex)) return
+
+    const bytes = new Uint8Array(hex.length / 2)
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+    }
+
+    // WMF dapat memakai header placeable 22 byte atau METAHEADER standar 18 byte.
+    const placeable = bytes.length > 40 &&
+      bytes[0] === 0xd7 && bytes[1] === 0xcd && bytes[2] === 0xc6 && bytes[3] === 0x9a
+    const headerOffset = placeable ? 22 : 0
+    const metafileType = bytes[headerOffset] | (bytes[headerOffset + 1] << 8)
+    const headerWords = bytes[headerOffset + 2] | (bytes[headerOffset + 3] << 8)
+    const version = bytes[headerOffset + 4] | (bytes[headerOffset + 5] << 8)
+    const validHeader =
+      (metafileType === 1 || metafileType === 2) &&
+      headerWords === 9 &&
+      (version === 0x0100 || version === 0x0300)
+
+    if (!validHeader) return
+
+    seenPayloads.add(hex)
+    files.push({
+      file: new File([bytes], 'gambar-word-wmf-' + (files.length + 1) + '.wmf', {
+        type: 'application/x-msmetafile',
+      }),
+      widthPx: payload.widthPx,
+    })
+  })
+
+  return files
+}
+
 function convertWordDrawingImages(document: Document): void {
   const officeImages = Array.from(document.body.querySelectorAll('*')).filter((node) => {
     const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
@@ -417,19 +580,52 @@ export default function RichTextEditor({
         const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
         const rtf = clipboard.getData('text/rtf')
         const rtfPngImages = extractRtfPngImages(rtf)
+        const rtfWmfImages = extractRtfWmfImages(rtf)
         const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
         const hasClipboardImageRefs = imageElements.some((img) => {
           const src = img.getAttribute('src') || ''
           return Boolean(src) && !src.startsWith('data:image/') && !src.startsWith('http://') && !src.startsWith('https://')
         })
         const hasMath = converted.converted > 0
-        if (!hasMath && !hasDataImages && !hasClipboardImageRefs && imageFiles.length === 0) return false
+        if (!hasMath && !hasDataImages && !hasClipboardImageRefs && imageFiles.length === 0 && rtfPngImages.length === 0 && rtfWmfImages.length === 0) return false
 
         event.preventDefault()
         const bookmark = view.state.selection.getBookmark()
         void (async () => {
           try {
             let html = ''
+
+            // Konversi WMF non-matematika ke PNG di browser. Fallback WMF
+            // dari Equation Word dilewati saat ekstraksi agar tidak diduplikasi.
+            let convertedWmfImages: ExtractedRtfImage[] = []
+            if (rtfWmfImages.length > 0) {
+              try {
+                const { convertMetafileToDataUrl } = await import('emf-converter/lite')
+                convertedWmfImages = (await Promise.all(
+                  rtfWmfImages.map(async (image, index) => {
+                    try {
+                      const pngDataUrl = await convertMetafileToDataUrl(
+                        await image.file.arrayBuffer(),
+                        { maxWidth: 1600, maxHeight: 1600 },
+                      )
+                      if (!pngDataUrl) throw new Error('Konverter tidak dapat membaca WMF.')
+                      const response = await fetch(pngDataUrl)
+                      if (!response.ok) throw new Error('Hasil konversi WMF tidak dapat dibaca.')
+                      const blob = await response.blob()
+                      return {
+                        file: new File([blob], 'gambar-word-wmf-' + (index + 1) + '.png', { type: 'image/png' }),
+                        widthPx: image.widthPx ?? 0,
+                      }
+                    } catch (wmfError) {
+                      console.warn('Diagram WMF Word dilewati karena gagal dikonversi:', wmfError)
+                      return null
+                    }
+                  }),
+                )).filter((image): image is ExtractedRtfImage => image !== null)
+              } catch (converterError) {
+                console.warn('Konverter WMF tidak dapat dimuat:', converterError)
+              }
+            }
             if (!parsedDocument && rawText) {
               const textWrapper = document.createElement('div')
               textWrapper.textContent = rawText
@@ -439,12 +635,13 @@ export default function RichTextEditor({
               const remainingFiles: Array<{ file: File; widthPx: number | null }> = [
                 ...imageFiles.map((file) => ({ file, widthPx: null })),
                 ...rtfPngImages.map((image) => ({ file: image.file, widthPx: image.widthPx })),
+                ...convertedWmfImages.map((image) => ({ file: image.file, widthPx: image.widthPx || null })),
               ]
               const uploadTasks = imageElements.map(async (img) => {
                 const src = img.getAttribute('src') || ''
                 try {
                   let file: File | undefined
-                  let formulaWidthPx: number | null = null
+                  let imageWidthPx: number | null = null
                   if (src.startsWith('data:image/')) {
                     const blob = await fetch(src).then((response) => {
                       if (!response.ok) throw new Error('Data gambar clipboard tidak dapat dibaca.')
@@ -455,7 +652,7 @@ export default function RichTextEditor({
                     // Referensi file lokal Word dipasangkan dengan gambar yang berhasil diekstrak dari clipboard RTF.
                     const nextImage = remainingFiles.shift()
                     file = nextImage?.file
-                    formulaWidthPx = nextImage?.widthPx ?? null
+                    imageWidthPx = nextImage?.widthPx ?? null
                   } else if (!src && remainingFiles.length) {
                     const nextImage = remainingFiles.shift()
                     file = nextImage?.file
@@ -466,9 +663,9 @@ export default function RichTextEditor({
                     const imageUrl = await uploadPastedImage(file)
                     img.setAttribute('src', imageUrl)
                     // PNG fallback Equation Word mengikuti ukuran target asli yang tercatat di RTF Word.
-                    if (formulaWidthPx && file.type === 'image/png') {
+                    if (imageWidthPx && file.type === 'image/png') {
                       img.removeAttribute('width')
-                      img.style.width = String(formulaWidthPx) + 'px'
+                      img.style.width = String(imageWidthPx) + 'px'
                       img.style.maxWidth = '100%'
                       img.style.height = 'auto'
                     }
@@ -501,10 +698,11 @@ export default function RichTextEditor({
               })
               html = parsedDocument.body.innerHTML
             }
-            if (!imageElements.length && (imageFiles.length || rtfPngImages.length)) {
+            if (!imageElements.length && (imageFiles.length || rtfPngImages.length || convertedWmfImages.length)) {
               const uploaded = await Promise.all([
                 ...imageFiles.map(async (file) => ({ src: await uploadPastedImage(file), widthPx: null as number | null })),
                 ...rtfPngImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx })),
+                ...convertedWmfImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx: widthPx || null })),
               ])
               html += uploaded.map(({ src, widthPx }) => '<img src="' + src + '" alt="Gambar dari Microsoft Word" style="' + (widthPx ? 'width: ' + widthPx + 'px; ' : '') + 'max-width: 100%; height: auto;" />').join('')
             }
