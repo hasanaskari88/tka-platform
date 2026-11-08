@@ -312,13 +312,38 @@ export default function RichTextEditor({
           : 0
         const clipboardItemSummary = Array.from(clipboard.items || []).map((item) => `${item.kind}:${item.type || 'tanpa tipe'}`)
         const imageFileSummary = imageFiles.map((file) => `${file.type || 'tanpa tipe'} (${file.size} byte)`)
+        const rtf = clipboard.getData('text/rtf')
+        const rtfControls = [
+          ['\mmath', /\\\\mmath\\b/gi],
+          ['\mfrac', /\\\\mfrac\\b/gi],
+          ['\msup', /\\\\msup\\b/gi],
+          ['\msub', /\\\\msub\\b/gi],
+          ['\mrad', /\\\\mrad\\b/gi],
+          ['\\pict', /\\\\pict\\b/gi],
+          ['\\shppict', /\\\\shppict\\b/gi],
+          ['\\nonshppict', /\\\\nonshppict\\b/gi],
+          ['\\objdata', /\\\\objdata\\b/gi],
+        ].map(([label, pattern]) => `${label}: ${(rtf.match(pattern as RegExp) || []).length}`)
+        const imageSrcKinds = (originalDocument ? Array.from(originalDocument.body.querySelectorAll('img')) : [])
+          .map((img) => {
+            const src = img.getAttribute('src') || ''
+            if (!src) return 'kosong'
+            if (src.startsWith('data:image/')) return 'data-uri'
+            if (src.startsWith('file:')) return 'file-url'
+            if (src.startsWith('cid:')) return 'cid'
+            if (src.startsWith('blob:')) return 'blob'
+            if (src.startsWith('http://') || src.startsWith('https://')) return 'http-url'
+            return 'referensi-lokal/lain'
+          })
         const diagnostic = [
           'Diagnostik paste sementara:',
           `Format clipboard: ${Array.from(clipboard.types || []).join(', ') || 'tidak terbaca'}`,
-          `HTML: ${rawHtml.length} karakter; teks biasa: ${rawText.length} karakter`,
+          `HTML: ${rawHtml.length} karakter; teks biasa: ${rawText.length} karakter; RTF: ${rtf.length} karakter`,
           `OMML: ${countOfficeNodes(['omath', 'omathpara'])}; MathML: ${originalDocument?.body.querySelectorAll('math').length || 0}`,
-          `IMG: ${originalDocument?.body.querySelectorAll('img').length || 0}; VML imagedata: ${countOfficeNodes(['imagedata'])}; DrawingML blip: ${countOfficeNodes(['blip'])}`,
+          `IMG: ${originalDocument?.body.querySelectorAll('img').length || 0}; sumber IMG: ${imageSrcKinds.join(', ') || 'tidak ada'}`,
+          `VML imagedata: ${countOfficeNodes(['imagedata'])}; DrawingML blip: ${countOfficeNodes(['blip'])}`,
           `File gambar: ${imageFiles.length}${imageFileSummary.length ? ' (' + imageFileSummary.join('; ') + ')' : ''}`,
+          `RTF: ${rtfControls.join('; ')}`,
           `Item clipboard: ${clipboardItemSummary.join(', ') || 'tidak ada'}`,
         ].join('\\n')
         console.info('[Word paste diagnostics]', diagnostic)
