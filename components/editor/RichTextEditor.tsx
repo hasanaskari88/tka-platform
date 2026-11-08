@@ -159,19 +159,31 @@ function getClipboardImageFiles(clipboard: DataTransfer): File[] {
 
 function extractRtfPngImages(rtf: string): File[] {
   if (!rtf) return []
-  type GroupFrame = { start: number; isPicture: boolean; format: string; markerEnd: number }
+  type GroupFrame = {
+    start: number
+    isPicture: boolean
+    format: string
+    markerEnd: number
+    insideMathPicture: boolean
+  }
   const stack: GroupFrame[] = []
   const pictures: Array<{ start: number; end: number; markerEnd: number }> = []
 
   for (let i = 0; i < rtf.length; i += 1) {
     const char = rtf[i]
     if (char === '{') {
-      stack.push({ start: i, isPicture: false, format: '', markerEnd: 0 })
+      stack.push({
+        start: i,
+        isPicture: false,
+        format: '',
+        markerEnd: 0,
+        insideMathPicture: stack.some((frame) => frame.insideMathPicture),
+      })
       continue
     }
     if (char === '}') {
       const frame = stack.pop()
-      if (frame?.isPicture && frame.format === 'png' && frame.markerEnd > 0) {
+      if (frame?.isPicture && !frame.insideMathPicture && frame.format === 'png' && frame.markerEnd > 0) {
         pictures.push({ start: frame.start, end: i + 1, markerEnd: frame.markerEnd })
       }
       continue
@@ -198,6 +210,7 @@ function extractRtfPngImages(rtf: string): File[] {
     if (rtf[numberEnd] === ' ') numberEnd += 1
 
     const frame = stack[stack.length - 1]
+    if (frame && word === 'mmathpict') frame.insideMathPicture = true
     if (frame && word === 'pict') frame.isPicture = true
     if (frame && word === 'pngblip') {
       frame.format = 'png'
@@ -210,7 +223,8 @@ function extractRtfPngImages(rtf: string): File[] {
   }
 
   const files: File[] = []
-  pictures.forEach((picture, index) => {
+  const seenPayloads = new Set<string>()
+  pictures.forEach((picture) => {
     let hex = ''
     let depth = 0
     for (let i = picture.markerEnd; i < picture.end - 1; i += 1) {
@@ -226,7 +240,7 @@ function extractRtfPngImages(rtf: string): File[] {
       if (depth > 0) continue
       if (char === '\\') {
         const next = rtf[i + 1]
-        if (next === "'" ) i += 3
+        if (next === "'") i += 3
         else if (next && /[a-zA-Z]/.test(next)) {
           i += 1
           while (i + 1 < picture.end && /[a-zA-Z]/.test(rtf[i + 1])) i += 1
@@ -247,7 +261,9 @@ function extractRtfPngImages(rtf: string): File[] {
     const isPng = bytes.length >= 8 &&
       bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71 &&
       bytes[4] === 13 && bytes[5] === 10 && bytes[6] === 26 && bytes[7] === 10
-    if (isPng) files.push(new File([bytes], 'gambar-word-' + (files.length + 1) + '.png', { type: 'image/png' }))
+    if (!isPng || seenPayloads.has(hex)) return
+    seenPayloads.add(hex)
+    files.push(new File([bytes], 'gambar-word-' + (files.length + 1) + '.png', { type: 'image/png' }))
   })
   return files
 }
