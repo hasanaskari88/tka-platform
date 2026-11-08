@@ -1474,3 +1474,20 @@ Tindak lanjut diagnostik:
 Tahap ini belum mengubah algoritme konversi rumus maupun upload gambar. Setelah hasil diagnostik kedua diterima, implementasi akan diarahkan berdasarkan format yang benar-benar tersedia.
 
 Status: **diagnostik lanjutan diterapkan pada `editor-test`; menunggu build Preview dan hasil paste pengguna**.
+
+
+### Temuan diagnostik RTF tahap kedua — 8 November 2026
+
+Hasil paste terbaru dari pengguna:
+- Format clipboard: `text/plain`, `text/html`, `text/rtf`.
+- RTF berukuran 4.883.286 karakter.
+- RTF memuat 10 penanda `\\mmath`.
+- RTF memuat 10 penanda `\\pict`, 4 `\\shppict`, dan 4 `\\nonshppict`.
+- Penanda `\\mfrac`, `\\msup`, `\\msub`, `\\mrad`, serta `\\objdata` tidak ditemukan.
+- Kelima elemen gambar pada HTML memakai sumber `file://`; clipboard tidak menyertakan file gambar.
+
+Kesimpulan sementara: data matematika dan gambar tampaknya tersedia dalam RTF, tetapi struktur grup internalnya belum diketahui. Belum aman untuk menulis konverter berdasarkan hitungan penanda saja.
+
+Tindak lanjut: diagnostik tambahan mengumpulkan **nama control word RTF saja** di sekitar maksimal 3 grup `\\mmath` dan 5 grup `\\pict`. Isi teks soal dan payload gambar tidak ditampilkan. Hasil ini diperlukan untuk memastikan struktur matematika Word dan jenis payload gambar (misalnya PNG/JPEG/metafile) sebelum parser dibuat.
+
+Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum ada perubahan konversi atau penyimpanan gambar.
