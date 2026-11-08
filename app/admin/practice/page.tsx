@@ -459,8 +459,10 @@ function AdminPracticeContent() {
       const questionsToInsert = parsedData.map((item: any, idx: number) => {
         const payload: any = {
           exam_id: activeExamForBulk.id,
-          question_text: item.question_text || `Item #${idx + 1}`,
-          explanation: item.explanation || item.pembahasan || '',
+          question_text:
+            item.question_text || item.front || item.term || `Item #${idx + 1}`,
+          explanation:
+            item.explanation || item.pembahasan || item.answer || item.back || item.correct_answer || '',
           image_url: item.image_url || null,
         }
 
