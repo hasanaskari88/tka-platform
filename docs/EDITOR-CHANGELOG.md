@@ -1636,3 +1636,14 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Tujuan perubahan: hanya struktur matematika yang masuk ke `data-latex`; fallback gambar Equation tidak menjadi bagian dari rumus. Gambar diagram non-matematika tetap diproses oleh alur paste yang ada.
 - Belum diverifikasi pengguna. Menunggu build Preview dan pengujian ulang rumus serta diagram.
 - Commit: `229fd39a23486655c7cb8a6647c99ec84000cc65`.
+
+## 2026-11-08 — Tata letak gambar hasil paste Word (wrap text)
+
+- Menindaklanjuti QA pengguna: gambar diagram berhasil muncul, tetapi berada di atas teks dengan ukuran terlalu besar; posisi kiri/kanan dari Word belum dipertahankan.
+- Saat paste, editor sekarang mencoba membaca petunjuk posisi dari style, atribut alignment, dan metadata elemen pembungkus gambar Word untuk menentukan sisi kiri atau kanan.
+- Gambar diagram hasil ekstraksi RTF/WMF kini memakai tata letak mengambang (*float*) dengan teks mengalir di sampingnya, bukan otomatis memenuhi satu baris penuh.
+- Jika clipboard Word tidak memberikan petunjuk sisi yang dapat dikenali, posisi default adalah kanan. Pengguna tetap dapat memilih tata letak kiri/kanan melalui kontrol gambar editor.
+- Lebar awal gambar dibatasi maksimum 360 px dan 42% area editor, dengan tinggi otomatis agar rasio gambar tetap terjaga. Pengguna masih dapat mengubah ukuran melalui pegangan gambar.
+- Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, format soal, kunci jawaban, atau penilaian.
+- Commit kode: `cb9678d596ab1101be258007b6bbceeacdaca06a`.
+- Status: menunggu build Preview dan QA pengguna. Perlu diuji apakah teks benar-benar mengalir di samping gambar pada paragraf yang sama; jika HTML clipboard Word memisahkan gambar dan teks ke paragraf berbeda, tahap lanjutan mungkin perlu menyatukan struktur paragraf secara selektif.
