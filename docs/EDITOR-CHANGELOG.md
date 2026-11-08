@@ -1837,3 +1837,25 @@ Branch kerja: `homepage-arcade-catalog` (berbasis `main`). Branch produksi `main
 - Build Vercel Preview: menunggu hasil.
 - QA tampilan desktop/mobile, pencarian, filter, pagination, tautan file, dan tema Gaming: belum dikonfirmasi pengguna.
 - Belum di-merge ke `main`.
+
+
+## Pendalaman tema 3D Cartoon dan Arcade Game Hub (8 November 2026)
+
+Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
+
+### Tema Cartoon 3D
+- Hero homepage dibuat lebih ekspresif dengan maskot 3D bergaya kartun, bayangan berlapis, perspektif, dan animasi mengambang.
+- Tombol utama memiliki efek tekan/timbul agar terasa seperti objek fisik.
+
+### Tema Gaming — Arcade Game Hub
+- Hero diganti menjadi dashboard arcade dengan mesin permainan 3D berbasis CSS, layar bercahaya, tombol mesin, koin XP mengambang, dan animasi maskot.
+- Menambahkan panel pemilihan tiga misi yang benar-benar interaktif: Latihan Otak, Jelajah Buku, dan Tantangan TKA.
+- Kartu misi dapat dipilih; panel konfirmasi berubah mengikuti pilihan, lalu tombol membawa pengguna ke halaman latihan, katalog sumber belajar, atau bagian ujian.
+- Menampilkan XP dan level dari profil yang sudah dimuat; tidak menambahkan sistem hadiah atau klaim XP palsu.
+- Menambahkan kedalaman perspektif/hover pada kartu di tema Gaming.
+- Animasi menghormati pengaturan `prefers-reduced-motion`.
+
+### Implementasi teknis dan batasan
+- Efek 3D dibuat dengan CSS transforms, perspective, layered shadows, dan keyframes; tidak menambah library 3D atau beban WebGL.
+- Tidak mengubah sistem XP, scoring, database, autentikasi, CBT, atau alur ujian.
+- QA visual dan interaksi desktop/mobile belum dikonfirmasi. Build Preview harus READY terlebih dahulu.
