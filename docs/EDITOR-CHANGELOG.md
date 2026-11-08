@@ -1,3 +1,9 @@
+## 2026-11-08 — Animasi 3D hero tema non-Gaming
+- Menambahkan animasi melayang dengan rotasi perspektif 3D pada ilustrasi hero Space, Jungle, Ocean, Disney, dan School.
+- Ikon utama, bintang, dan ornamen pendamping bergerak dengan animasi terpisah untuk memberi kedalaman seperti hero Cartoon3D dan Gaming.
+- Efek visual meningkat saat pointer diarahkan; animasi menghormati preferensi reduced motion.
+- Tidak mengubah isi hero, tautan, data, skema, maupun alur aplikasi. Menunggu Preview dan QA pengguna.
+
 
 ## 2026-11-08 — Latar tema transparan, tidak mengganti latar asli
 - Menindaklanjuti persetujuan pengguna: latar dasar tema non-Gaming tidak lagi diberi warna solid atau gradasi pengganti.
