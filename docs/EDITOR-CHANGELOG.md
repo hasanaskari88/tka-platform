@@ -1892,3 +1892,14 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Perubahan hanya menyentuh perhitungan gelar di homepage. XP, level, papan peringkat, database, skema, scoring, RPC, RLS, login, dan CBT tidak diubah.
 - Commit kode: `6a393245b395b69bf0048064d0385ef9ce49b324`.
 - Status: menunggu build Vercel Preview dan QA pengguna; belum di-merge ke `main` dan belum mengubah Production.
+
+
+## 2026-11-08 — Penyegaran visual homepage untuk tema non-Gaming
+
+- Menambahkan kelas tema pada pembungkus homepage agar styling tiap tema dapat ditargetkan secara terpisah.
+- Menyegarkan latar halaman Space, Jungle, Ocean, Disney, Cartoon 3D, dan School dengan gradasi lembut sesuai warna identitas tema.
+- Memperkuat hero tema standar dengan lapisan cahaya dan bayangan yang lebih halus.
+- Menambahkan umpan balik hover ringan pada kartu dan penyesuaian ruang vertikal untuk layar kecil.
+- Tema Gaming sengaja dikecualikan agar identitas Arcade Game Hub tetap utuh.
+- Tidak mengubah konten/data, navigasi, login, leaderboard, XP, filter, pencarian, katalog, ujian, CBT, database, skema, API, atau scoring.
+- Status: perubahan berada di branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Belum di-merge ke `main` dan belum mengubah Production.
