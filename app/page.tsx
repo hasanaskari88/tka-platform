@@ -847,7 +847,7 @@ const filteredExams = useMemo(() => {
         )}
 
                 {/* Pusat Ujian & Asesmen */}
-        <section className="space-y-5">
+        <section id="ujian" className="space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className={`flex items-center gap-2 text-lg sm:text-xl ${themeDetails.sectionTitle}`}>
