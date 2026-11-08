@@ -138,7 +138,7 @@ async function uploadPastedImage(file: File): Promise<string> {
 }
 
 function getClipboardImageFiles(clipboard: DataTransfer): File[] {
-  const files: ExtractedRtfImage[] = []
+  const files: File[] = []
   const seen = new Set<string>()
   const add = (file: File | null | undefined) => {
     if (!file || !file.type.startsWith('image/')) return
