@@ -110,6 +110,10 @@ export default function PracticeHubPage() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activityFilter, setActivityFilter] = useState<string>('ALL')
+  const [subtestFilter, setSubtestFilter] = useState<string>('ALL')
+  const [sortOrder, setSortOrder] = useState<string>('NEWEST')
 
   const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
     const supabase = createClient()
@@ -246,6 +250,64 @@ export default function PracticeHubPage() {
     },
   ]
 
+  const availableSubtests = Array.from(
+    new Set(
+      exams
+        .map((exam) => String(exam.subtest || '').trim())
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b, 'id'))
+
+  const filteredExams = exams
+    .filter((exam) => {
+      const activityType = String(exam.activity_type || 'QUIZ').toUpperCase()
+      const matchesActivity =
+        activityFilter === 'ALL' || activityType === activityFilter
+      const matchesSubtest =
+        subtestFilter === 'ALL' || String(exam.subtest || '').trim() === subtestFilter
+      const searchValue = [
+        exam.title,
+        exam.description,
+        exam.subtest,
+        activityType,
+      ].join(' ').toLowerCase()
+      return matchesActivity && matchesSubtest && searchValue.includes(searchTerm.trim().toLowerCase())
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'TITLE') return String(a.title || '').localeCompare(String(b.title || ''), 'id')
+      if (sortOrder === 'OLDEST') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    })
+
+  const getMissionStyle = (activityType: string) => {
+    const type = String(activityType || 'QUIZ').toUpperCase()
+    if (type === 'FLASHCARD') {
+      return {
+        ...missionStyles[2],
+        icon: '🃏',
+        art: '✨',
+        label: 'FLASHCARD',
+        action: 'BUKA KARTU',
+      }
+    }
+    if (type === 'MAZE_GAME') {
+      return {
+        ...missionStyles[1],
+        icon: '🤖',
+        art: '⭐',
+        label: 'GAME LABIRIN',
+        action: 'MAIN SEKARANG',
+      }
+    }
+    return {
+      ...missionStyles[0],
+      icon: '🧠',
+      art: '⚡',
+      label: 'KUIS LATIHAN',
+      action: 'MULAI LATIHAN',
+    }
+  }
+
   return (
     <div className={`min-h-screen overflow-hidden bg-transparent font-sans ${visual.page}`}>
       <Navbar />
@@ -327,23 +389,98 @@ export default function PracticeHubPage() {
               </span>
             </div>
 
-            {exams.length > 0 ? (
+            <div className={`rounded-3xl border p-4 shadow-sm ${visual.miniSurface}`}>
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_190px_170px]">
+                <label className="block">
+                  <span className={`mb-1.5 block text-[10px] font-black uppercase tracking-wider ${visual.muted}`}>Cari latihan</span>
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Cari judul, mata pelajaran, atau deskripsi..."
+                    className={`w-full rounded-xl border px-3 py-3 text-xs font-semibold outline-none focus:ring-4 ${visual.filter}`}
+                  />
+                </label>
+                <label className="block">
+                  <span className={`mb-1.5 block text-[10px] font-black uppercase tracking-wider ${visual.muted}`}>Mata pelajaran / subtes</span>
+                  <select
+                    value={subtestFilter}
+                    onChange={(event) => setSubtestFilter(event.target.value)}
+                    className={`w-full rounded-xl border px-3 py-3 text-xs font-semibold outline-none focus:ring-4 ${visual.filter}`}
+                  >
+                    <option value="ALL">Semua mata pelajaran</option>
+                    {availableSubtests.map((subtest) => <option key={subtest} value={subtest}>{subtest}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className={`mb-1.5 block text-[10px] font-black uppercase tracking-wider ${visual.muted}`}>Urutkan</span>
+                  <select
+                    value={sortOrder}
+                    onChange={(event) => setSortOrder(event.target.value)}
+                    className={`w-full rounded-xl border px-3 py-3 text-xs font-semibold outline-none focus:ring-4 ${visual.filter}`}
+                  >
+                    <option value="NEWEST">Terbaru</option>
+                    <option value="OLDEST">Terlama</option>
+                    <option value="TITLE">Nama A–Z</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {[
+                  { value: 'ALL', label: 'Semua', icon: '🌈' },
+                  { value: 'QUIZ', label: 'Kuis', icon: '🧠' },
+                  { value: 'FLASHCARD', label: 'Flashcard', icon: '🃏' },
+                  { value: 'MAZE_GAME', label: 'Game Labirin', icon: '🤖' },
+                ].map((filter) => {
+                  const active = activityFilter === filter.value
+                  return (
+                    <button
+                      key={filter.value}
+                      type="button"
+                      onClick={() => setActivityFilter(filter.value)}
+                      aria-pressed={active}
+                      className={`rounded-full border px-3 py-2 text-[11px] font-extrabold transition ${active ? 'border-indigo-600 bg-indigo-600 text-white shadow-md' : `${visual.surfaceBorder} ${visual.surface} ${visual.heading} hover:border-indigo-400`}`}
+                    >
+                      {filter.icon} {filter.label}
+                    </button>
+                  )
+                })}
+                <span className={`ml-auto text-[10px] font-bold ${visual.muted}`}>
+                  Menampilkan {filteredExams.length} dari {exams.length} latihan
+                </span>
+              </div>
+            </div>
+
+            {exams.length === 0 ? (
+              <div className={`rounded-3xl border-2 border-dashed ${visual.surfaceBorder} ${visual.surface} px-6 py-12 text-center shadow-xl`}>
+                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${visual.badge} text-3xl`}>🗺️</div>
+                <h3 className={`mt-4 text-lg font-black ${visual.heading}`}>Misi sedang disiapkan!</h3>
+                <p className={`mx-auto mt-2 max-w-sm text-sm leading-6 ${visual.muted}`}>
+                  Belum ada modul latihan mandiri yang dipublikasikan. Coba cek kembali nanti, ya!
+                </p>
+              </div>
+            ) : filteredExams.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {exams.map((exam, index) => {
-                  const style = missionStyles[index % missionStyles.length]
+                {filteredExams.map((exam) => {
+                  const style = getMissionStyle(exam.activity_type)
                   return (
                     <article
                       key={exam.id}
-                      className={`group relative flex min-h-[280px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-gradient-to-br ${style.card} p-5 text-white shadow-lg shadow-indigo-950/10 transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                      className={`group relative flex min-h-[270px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-gradient-to-br ${style.card} p-5 text-white shadow-lg shadow-indigo-950/10 transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
                     >
                       <div className="absolute -right-5 -top-7 text-8xl opacity-15 transition duration-300 group-hover:rotate-12 group-hover:scale-110">
                         {style.art}
                       </div>
                       <div className="absolute -bottom-10 -right-4 text-8xl opacity-15">{style.icon}</div>
                       <div className="relative">
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur ${style.pill}`}>
-                          {exam.subtest || 'MISI UMUM'}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur ${style.pill}`}>
+                            {style.label}
+                          </span>
+                          <span className="inline-flex rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-bold text-white/95">
+                            {exam.subtest || 'Misi Umum'}
+                          </span>
+                        </div>
                         <h3 className="mt-4 text-xl font-black leading-snug">{exam.title}</h3>
                         <p className="mt-2 line-clamp-3 text-sm leading-5 text-white/90">
                           {exam.description || 'Latihan interaktif dengan jawaban dan pembahasan instan.'}
@@ -359,7 +496,7 @@ export default function PracticeHubPage() {
                           href={`/practice/${exam.id}`}
                           className={`flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-4 py-3 text-center text-xs font-black shadow-lg transition hover:scale-[1.02] active:scale-[0.98] ${style.button}`}
                         >
-                          🚀 MULAI MISI <span aria-hidden="true">→</span>
+                          {style.icon} {style.action} <span aria-hidden="true">→</span>
                         </Link>
                       </div>
                     </article>
@@ -367,12 +504,17 @@ export default function PracticeHubPage() {
                 })}
               </div>
             ) : (
-              <div className={`rounded-3xl border-2 border-dashed ${visual.surfaceBorder} ${visual.surface} px-6 py-12 text-center shadow-xl`}>
-                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${visual.badge} text-3xl`}>🗺️</div>
-                <h3 className={`mt-4 text-lg font-black ${visual.heading}`}>Misi sedang disiapkan!</h3>
-                <p className={`mx-auto mt-2 max-w-sm text-sm leading-6 ${visual.muted}`}>
-                  Belum ada modul latihan mandiri yang dipublikasikan. Coba cek kembali nanti, ya!
-                </p>
+              <div className={`rounded-3xl border-2 border-dashed ${visual.surfaceBorder} ${visual.surface} px-6 py-10 text-center shadow-sm`}>
+                <div className="text-4xl">🔎</div>
+                <h3 className={`mt-3 text-base font-black ${visual.heading}`}>Latihan belum ditemukan</h3>
+                <p className={`mx-auto mt-1 max-w-sm text-xs leading-5 ${visual.muted}`}>Coba ubah kata pencarian atau filter yang dipilih.</p>
+                <button
+                  type="button"
+                  onClick={() => { setSearchTerm(''); setActivityFilter('ALL'); setSubtestFilter('ALL'); setSortOrder('NEWEST') }}
+                  className="mt-4 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-extrabold text-white shadow-md hover:bg-indigo-500"
+                >
+                  Reset Filter
+                </button>
               </div>
             )}
 
