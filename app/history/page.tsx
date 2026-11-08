@@ -52,6 +52,16 @@ function HistoryContent() {
   const [practiceHistoryList, setPracticeHistoryList] = useState<any[]>([])
   const [subtestStats, setSubtestStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [practiceSearch, setPracticeSearch] = useState('')
+  const [practiceStatus, setPracticeStatus] = useState('all')
+  const [practiceSort, setPracticeSort] = useState('newest')
+  const [practicePageSize, setPracticePageSize] = useState(10)
+  const [practicePage, setPracticePage] = useState(1)
+  const [examSearch, setExamSearch] = useState('')
+  const [examStatus, setExamStatus] = useState('all')
+  const [examSort, setExamSort] = useState('newest')
+  const [examPageSize, setExamPageSize] = useState(10)
+  const [examPage, setExamPage] = useState(1)
 
   // 🖨️ State Modal Cetak
   const [showRaporModal, setShowRaporModal] = useState(false)
@@ -216,6 +226,42 @@ function HistoryContent() {
   const handlePrint = () => {
     window.print()
   }
+
+  const filteredPracticeHistory = practiceHistoryList
+    .filter((item) => {
+      const matchesSearch = String(item.exam_title || '').toLowerCase().includes(practiceSearch.toLowerCase())
+      const matchesStatus = practiceStatus === 'all' || item.status === practiceStatus
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      if (practiceSort === 'oldest') return new Date(a.started_at || a.created_at).getTime() - new Date(b.started_at || b.created_at).getTime()
+      if (practiceSort === 'score-high') return Number(b.score || 0) - Number(a.score || 0)
+      if (practiceSort === 'score-low') return Number(a.score || 0) - Number(b.score || 0)
+      return new Date(b.started_at || b.created_at).getTime() - new Date(a.started_at || a.created_at).getTime()
+    })
+  const practicePageCount = Math.max(1, Math.ceil(filteredPracticeHistory.length / practicePageSize))
+  const visiblePracticeHistory = filteredPracticeHistory.slice(
+    (Math.min(practicePage, practicePageCount) - 1) * practicePageSize,
+    Math.min(practicePage, practicePageCount) * practicePageSize
+  )
+
+  const filteredExamHistory = historyList
+    .filter((item) => {
+      const matchesSearch = String(item.exam_title || '').toLowerCase().includes(examSearch.toLowerCase())
+      const matchesStatus = examStatus === 'all' || item.status === examStatus
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      if (examSort === 'oldest') return new Date(a.completed_at || 0).getTime() - new Date(b.completed_at || 0).getTime()
+      if (examSort === 'score-high') return Number(b.score || 0) - Number(a.score || 0)
+      if (examSort === 'score-low') return Number(a.score || 0) - Number(b.score || 0)
+      return new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
+    })
+  const examPageCount = Math.max(1, Math.ceil(filteredExamHistory.length / examPageSize))
+  const visibleExamHistory = filteredExamHistory.slice(
+    (Math.min(examPage, examPageCount) - 1) * examPageSize,
+    Math.min(examPage, examPageCount) * examPageSize
+  )
 
   const completedHistory = historyList.filter((h) => h.status === 'completed')
   const totalCompleted = completedHistory.length
@@ -448,6 +494,19 @@ function HistoryContent() {
     </p>
   </div>
 
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2">
+    <input value={practiceSearch} onChange={(e) => { setPracticeSearch(e.target.value); setPracticePage(1) }} placeholder="Cari nama latihan..." className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
+    <select value={practiceStatus} onChange={(e) => { setPracticeStatus(e.target.value); setPracticePage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+      <option value="all">Semua status</option><option value="completed">Selesai</option><option value="in_progress">Sedang dikerjakan</option><option value="abandoned">Dihentikan</option>
+    </select>
+    <select value={practiceSort} onChange={(e) => { setPracticeSort(e.target.value); setPracticePage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+      <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
+    </select>
+    <select value={practicePageSize} onChange={(e) => { setPracticePageSize(Number(e.target.value)); setPracticePage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+      <option value={10}>10 riwayat / halaman</option><option value={25}>25 riwayat / halaman</option><option value={50}>50 riwayat / halaman</option><option value={100}>100 riwayat / halaman</option>
+    </select>
+  </div>
+
   <div className="overflow-x-auto pt-1">
     <table className="w-full text-left border-collapse text-xs">
       <thead className="bg-slate-100 text-slate-700 font-bold border-b">
@@ -463,11 +522,11 @@ function HistoryContent() {
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {practiceHistoryList.length > 0 ? (
-          practiceHistoryList.map((item, idx) => (
+        {visiblePracticeHistory.length > 0 ? (
+          visiblePracticeHistory.map((item, idx) => (
             <tr key={item.id} className="hover:bg-slate-50">
               <td className="p-3 text-center font-bold text-slate-400">
-                {idx + 1}
+                {(Math.min(practicePage, practicePageCount) - 1) * practicePageSize + idx + 1}
               </td>
               <td className="p-3 font-bold text-slate-800">
                 {item.exam_title}
@@ -508,7 +567,7 @@ function HistoryContent() {
                 {Number(item.score || 0)}
               </td>
               <td className="p-3 text-center font-bold text-amber-600">
-                ⭐ {item.total_xp}
+                ⭐ {item.total_xp || 0}
               </td>
             </tr>
           ))
@@ -521,6 +580,14 @@ function HistoryContent() {
         )}
       </tbody>
     </table>
+  </div>
+  <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+    <span>Menampilkan {filteredPracticeHistory.length ? (Math.min(practicePage, practicePageCount) - 1) * practicePageSize + 1 : 0}–{Math.min(practicePage, practicePageCount) * practicePageSize} dari {filteredPracticeHistory.length} riwayat</span>
+    <div className="flex gap-2">
+      <button type="button" disabled={practicePage <= 1} onClick={() => setPracticePage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Sebelumnya</button>
+      <span className="px-2 py-1.5">Halaman {Math.min(practicePage, practicePageCount)} / {practicePageCount}</span>
+      <button type="button" disabled={practicePage >= practicePageCount} onClick={() => setPracticePage((p) => Math.min(practicePageCount, p + 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Berikutnya</button>
+    </div>
   </div>
 </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
@@ -537,6 +604,18 @@ function HistoryContent() {
             </Link>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2">
+            <input value={examSearch} onChange={(e) => { setExamSearch(e.target.value); setExamPage(1) }} placeholder="Cari judul ujian..." className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
+            <select value={examStatus} onChange={(e) => { setExamStatus(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+              <option value="all">Semua status</option><option value="completed">Selesai</option><option value="ongoing">Sedang dikerjakan</option>
+            </select>
+            <select value={examSort} onChange={(e) => { setExamSort(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+              <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
+            </select>
+            <select value={examPageSize} onChange={(e) => { setExamPageSize(Number(e.target.value)); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+              <option value={10}>10 riwayat / halaman</option><option value={25}>25 riwayat / halaman</option><option value={50}>50 riwayat / halaman</option><option value={100}>100 riwayat / halaman</option>
+            </select>
+          </div>
           <div className="overflow-x-auto pt-1">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-slate-100 text-slate-700 font-bold border-b">
@@ -550,14 +629,14 @@ function HistoryContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {historyList.length > 0 ? (
-                  historyList.map((item, idx) => {
+                {visibleExamHistory.length > 0 ? (
+                  visibleExamHistory.map((item, idx) => {
                     const isOngoing = item.status === 'ongoing'
 
                     return (
                       <tr key={item.session_id} className="hover:bg-slate-50 transition-colors">
                         <td className="p-3 text-center font-bold text-slate-400">
-                          {idx + 1}
+                          {(Math.min(examPage, examPageCount) - 1) * examPageSize + idx + 1}
                         </td>
                         <td className="p-3">
                           <div className="font-bold text-slate-800">{item.exam_title}</div>
@@ -655,6 +734,14 @@ function HistoryContent() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+            <span>Menampilkan {filteredExamHistory.length ? (Math.min(examPage, examPageCount) - 1) * examPageSize + 1 : 0}–{Math.min(examPage, examPageCount) * examPageSize} dari {filteredExamHistory.length} riwayat</span>
+            <div className="flex gap-2">
+              <button type="button" disabled={examPage <= 1} onClick={() => setExamPage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Sebelumnya</button>
+              <span className="px-2 py-1.5">Halaman {Math.min(examPage, examPageCount)} / {examPageCount}</span>
+              <button type="button" disabled={examPage >= examPageCount} onClick={() => setExamPage((p) => Math.min(examPageCount, p + 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Berikutnya</button>
+            </div>
           </div>
         </div>
       </main>
