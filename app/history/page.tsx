@@ -165,7 +165,7 @@ function HistoryContent() {
         exam_id: session.exam_id,
         exam_title: exam.title,
         subtest: exam.subtest || 'UMUM',
-        score: Math.round(Number(session.score) || 0),
+        score: Math.round(Number(session.score_override ?? session.score) || 0),
         status: session.status || 'completed',
         completed_at: finishDate,
         show_results: exam.show_results ?? true,
