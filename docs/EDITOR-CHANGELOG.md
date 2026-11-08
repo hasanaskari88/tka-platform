@@ -2028,3 +2028,12 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Tidak mengubah query/filter bisnis, data profil, leaderboard, XP, level, badge, database, skema, API, RPC, scoring, mesin soal, Maze, atau Flashcard.
 - Perubahan disimpan pada branch `homepage-arcade-catalog` melalui commit `a7e476c333e061575c834c373ec9caacc7cdd8a1`.
 - Status verifikasi: perubahan kode tersimpan di GitHub. Build belum dijalankan dan Preview Vercel belum tersedia karena kendala kuota deployment; belum ada klaim QA visual atau build berhasil.
+
+## 2026-11-08 — Practice Tahap 1A: kestabilan variasi kartu misi
+
+- Audit katalog menemukan variasi warna/ornamen kartu sebelumnya ditentukan dari urutan hasil yang sedang tampil. Akibatnya, satu misi dapat berganti variasi ketika pengguna mengubah pencarian, filter, atau pengurutan.
+- Mengubah penentuan variasi kartu menjadi deterministik berdasarkan ID misi (dengan judul/urutan sebagai fallback), sehingga tampilan setiap misi tetap konsisten saat daftar difilter atau diurutkan.
+- Warna dasar tiap jenis aktivitas dan empat variasi visual yang telah disepakati tetap dipertahankan.
+- Tidak mengubah data, navigasi, filter, pengurutan, leaderboard, XP, level, badge, database, skema, API, RPC, scoring, atau mesin latihan.
+- Perubahan kode disimpan melalui commit `e45cc4f3779eed1627676a8de691b6fd138ea78b` pada branch `homepage-arcade-catalog`.
+- Status verifikasi: tersimpan di GitHub; belum dibuild dan belum diuji secara visual karena kendala kuota deployment Vercel.
