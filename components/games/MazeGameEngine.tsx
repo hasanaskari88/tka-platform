@@ -494,7 +494,7 @@ export default function MazeGameEngine({
           const saved = await persistMazeProgress(
             newCount,
             completedIds,
-            missionIndex
+            Math.min(missionIndex + 1, missions.length - 1)
           )
           if (!saved) {
             setFeedback('Misi berhasil, tetapi progres belum tersinkron. Tekan Simpan & Keluar untuk mencoba menyimpan lagi.')
