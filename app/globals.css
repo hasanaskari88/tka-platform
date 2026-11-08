@@ -417,3 +417,57 @@ video {
     will-change: auto;
   }
 }
+
+
+/* =========================================================
+   PRACTICE ARCADE POLISH — visual identity, badge & card motion
+   ========================================================= */
+.arcade-player-avatar {
+  transform-style: preserve-3d;
+  animation: arcade-player-float 3s ease-in-out infinite;
+  transition: transform .3s ease, filter .3s ease;
+}
+.arcade-player-avatar:hover {
+  transform: perspective(500px) rotateY(12deg) rotateX(-8deg) scale(1.07);
+  filter: drop-shadow(0 8px 12px rgba(34,211,238,.28));
+}
+.arcade-player-badge {
+  transform: translateY(0) rotate(-1deg);
+  box-shadow: 0 4px 0 rgba(10,15,35,.55), 0 8px 14px rgba(0,0,0,.18);
+  animation: arcade-badge-bob 2.8s ease-in-out infinite;
+  transition: transform .25s ease, filter .25s ease;
+}
+.arcade-player-badge:nth-child(2n) { animation-delay: -.8s; }
+.arcade-player-badge:nth-child(3n) { animation-delay: -1.5s; }
+.arcade-player-badge:hover {
+  transform: translateY(-5px) rotate(3deg) scale(1.06);
+  filter: brightness(1.2);
+}
+.arcade-mission-card {
+  isolation: isolate;
+}
+.arcade-mission-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .25;
+  background-image: radial-gradient(circle at 15% 20%, white 0 1px, transparent 2px), radial-gradient(circle at 80% 75%, white 0 1.5px, transparent 2.5px);
+  background-size: 34px 34px, 48px 48px;
+}
+.arcade-mission-variant-1 { box-shadow: 0 9px 0 rgba(5,8,28,.45), 8px 15px 30px rgba(34,211,238,.12); }
+.arcade-mission-variant-2 { background-blend-mode: screen; }
+.arcade-mission-variant-3 { box-shadow: 0 9px 0 rgba(5,8,28,.45), -8px 15px 30px rgba(236,72,153,.14); }
+@keyframes arcade-player-float {
+  0%, 100% { transform: translateY(0) rotateY(-7deg) rotateX(3deg); }
+  50% { transform: translateY(-5px) rotateY(7deg) rotateX(-2deg); }
+}
+@keyframes arcade-badge-bob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-3px) rotate(1.5deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-player-avatar, .arcade-player-badge { animation: none !important; }
+  .arcade-player-avatar:hover, .arcade-player-badge:hover { transform: none !important; }
+}
