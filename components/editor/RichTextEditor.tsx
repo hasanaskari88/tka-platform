@@ -122,7 +122,8 @@ function convertWordMath(html: string): { html: string; converted: number } {
     const block = (node.localName || node.tagName).toLowerCase().includes('omathpara')
     const replacement = document.createElement(block ? 'div' : 'span')
     replacement.setAttribute('data-type', block ? 'block-math' : 'inline-math')
-    replacement.setAttribute('data-latex', escapeLatexAttribute(latex))
+    // setAttribute menerima nilai mentah; browser akan meng-escape saat serialisasi HTML.
+    replacement.setAttribute('data-latex', latex)
     replacement.textContent = latex
     node.parentNode.replaceChild(replacement, node)
     converted += 1
@@ -139,6 +140,58 @@ async function uploadPastedImage(file: File): Promise<string> {
     throw new Error(result.error || 'Gagal menyimpan gambar hasil paste ke Google Drive.')
   }
   return result.file.imageUrl as string
+}
+
+function getClipboardImageFiles(clipboard: DataTransfer): File[] {
+  const files: File[] = []
+  const seen = new Set<string>()
+  const add = (file: File | null | undefined) => {
+    if (!file || !file.type.startsWith('image/')) return
+    const key = [file.name, file.size, file.type, file.lastModified].join(':')
+    if (seen.has(key)) return
+    seen.add(key)
+    files.push(file)
+  }
+
+  // Word/browser tidak selalu menandai gambar sebagai item; periksa items dan files.
+  Array.from(clipboard.items || []).forEach((item) => {
+    if (item.kind === 'file' && item.type.startsWith('image/')) add(item.getAsFile())
+  })
+  Array.from(clipboard.files || []).forEach(add)
+  return files
+}
+
+function convertWordDrawingImages(document: Document): void {
+  const officeImages = Array.from(document.body.querySelectorAll('*')).filter((node) => {
+    const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
+    return name === 'imagedata' || name === 'blip'
+  })
+
+  officeImages.forEach((officeImage, index) => {
+    if (!officeImage.parentNode) return
+    const name = (officeImage.localName || officeImage.tagName).toLowerCase().split(':').pop() || ''
+    const source = officeImage.getAttribute('src') ||
+      officeImage.getAttribute('href') ||
+      officeImage.getAttribute('r:embed') ||
+      officeImage.getAttribute('embed') || ''
+    const image = document.createElement('img')
+    image.setAttribute('src', source || `office-clipboard-image-${index + 1}`)
+    image.setAttribute('alt', 'Gambar dari Microsoft Word')
+
+    // Ganti pembungkus gambar Office (VML/DrawingML), bukan hanya node metadata-nya.
+    let wrapper: Element | null = officeImage
+    while (wrapper?.parentElement && wrapper.parentElement !== document.body) {
+      const parentName = (wrapper.parentElement.localName || wrapper.parentElement.tagName).toLowerCase().split(':').pop() || ''
+      if (['shape', 'pict', 'pic', 'drawing', 'inline', 'anchor'].includes(parentName)) {
+        wrapper = wrapper.parentElement
+        break
+      }
+      if (parentName === 'p' || parentName === 'span') break
+      wrapper = wrapper.parentElement
+    }
+    if (wrapper?.parentNode) wrapper.parentNode.replaceChild(image, wrapper)
+    else if (officeImage.parentNode) officeImage.parentNode.replaceChild(image, officeImage)
+  })
 }
 
 interface RichTextEditorProps {
@@ -249,18 +302,17 @@ export default function RichTextEditor({
         if (!clipboard) return false
         const rawHtml = clipboard.getData('text/html')
         const rawText = clipboard.getData('text/plain')
-        const imageItems = Array.from(clipboard.items).filter((item) =>
-          item.kind === 'file' && item.type.startsWith('image/')
-        )
+        const imageFiles = getClipboardImageFiles(clipboard)
         const converted = rawHtml ? convertWordMath(rawHtml) : { html: '', converted: 0 }
         const parsedDocument = rawHtml
           ? new window.DOMParser().parseFromString(converted.html, 'text/html')
           : null
+        if (parsedDocument) convertWordDrawingImages(parsedDocument)
         const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
         const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
         const hasLocalImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('file:'))
         const hasMath = converted.converted > 0
-        if (!hasMath && !hasDataImages && !hasLocalImages && imageItems.length === 0) return false
+        if (!hasMath && !hasDataImages && !hasLocalImages && imageFiles.length === 0) return false
 
         event.preventDefault()
         const bookmark = view.state.selection.getBookmark()
@@ -273,38 +325,28 @@ export default function RichTextEditor({
               html = textWrapper.innerHTML.replace(/\\n/g, '<br>')
             }
             if (parsedDocument) {
-              let usedClipboardFile = false
+              const remainingFiles = [...imageFiles]
               for (const img of imageElements) {
                 const src = img.getAttribute('src') || ''
                 if (src.startsWith('data:image/')) {
                   const blob = await fetch(src).then((response) => response.blob())
                   const file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
                   img.setAttribute('src', await uploadPastedImage(file))
-                } else if ((src.startsWith('file:') || (!src.startsWith('http:') && !src.startsWith('https:'))) && imageItems.length) {
-                  const item = imageItems.shift()
-                  const file = item?.getAsFile()
-                  if (file) {
-                    img.setAttribute('src', await uploadPastedImage(file))
-                    usedClipboardFile = true
-                  }
-                }
-              }
-              if (imageElements.length && imageItems.length && !usedClipboardFile && !hasDataImages && !hasLocalImages) {
-                for (const img of imageElements) {
-                  const item = imageItems.shift()
-                  const file = item?.getAsFile()
-                  if (!file) break
-                  img.setAttribute('src', await uploadPastedImage(file))
+                } else if (src && !/^https?:\\/\\//i.test(src)) {
+                  // Termasuk file://, cid:, blob:, path relatif, VML, dan referensi DrawingML.
+                  const file = remainingFiles.shift()
+                  if (file) img.setAttribute('src', await uploadPastedImage(file))
+                  else img.remove()
+                } else if (!src && remainingFiles.length) {
+                  const file = remainingFiles.shift()
+                  if (file) img.setAttribute('src', await uploadPastedImage(file))
                 }
               }
               html = parsedDocument.body.innerHTML
             }
-            if (!imageElements.length && imageItems.length) {
+            if (!imageElements.length && imageFiles.length) {
               const uploaded: string[] = []
-              for (const item of imageItems) {
-                const file = item.getAsFile()
-                if (file) uploaded.push(await uploadPastedImage(file))
-              }
+              for (const file of imageFiles) uploaded.push(await uploadPastedImage(file))
               html += uploaded.map((src) => `<img src="${src}" alt="Gambar dari Microsoft Word" />`).join('')
             }
             const wrapper = document.createElement('div')
