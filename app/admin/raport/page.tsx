@@ -1,194 +1,123 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
-type DocConfig = {
-  schoolName: string
-  schoolAddress: string
-  teacherName: string
-  teacherNip: string
-  principalName: string
-  principalNip: string
-  issuePlace: string
-  issueDate: string
-  kkm: number
-}
+type Student={id:string;full_name:string|null;username:string|null;class_code:string|null}
+type ResultRow={key:string;user_id:string;exam_id:string;title:string;subtest:string;kind:'Latihan'|'Ujian';score:number;date:string;xp:number;attempt:number}
+type Signatory={id:string;full_name:string;position:'class_teacher'|'principal';class_code:string|null;nip:string}
+type Settings={schoolName:string;schoolAddress:string;issuePlace:string;issueDate:string;kkm:number}
+const defaults:Settings={schoolName:'SD NEGERI GETASAN',schoolAddress:'Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang',issuePlace:'Getasan',issueDate:new Date().toISOString().slice(0,10),kkm:70}
 
-export default function AdminReportPage() {
-  const [students, setStudents] = useState<any[]>([])
-  const [adminProfiles, setAdminProfiles] = useState<any[]>([])
-  const [signatories, setSignatories] = useState<any[]>([])
-  const [exams, setExams] = useState<any[]>([])
-  const [practice, setPractice] = useState<any[]>([])
-  const [examSessions, setExamSessions] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [warning, setWarning] = useState('')
-  const [classFilter, setClassFilter] = useState('ALL')
-  const [search, setSearch] = useState('')
-  const [selectedStudentId, setSelectedStudentId] = useState('')
-  const [selectedPracticeIds, setSelectedPracticeIds] = useState<string[]>([])
-  const [selectedExamIds, setSelectedExamIds] = useState<string[]>([])
-  const [mode, setMode] = useState<'report' | 'certificate'>('report')
-  const [previewOpen, setPreviewOpen] = useState(false)
-  const [certificateSessionId, setCertificateSessionId] = useState('')
-  const [config, setConfig] = useState<DocConfig>({
-    schoolName: 'SD NEGERI GETASAN',
-    schoolAddress: 'Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang',
-    teacherName: '',
-    teacherNip: '',
-    principalName: 'GIYANTO, S.Pd.',
-    principalNip: '19670715 199903 1 006',
-    issuePlace: 'Getasan',
-    issueDate: new Date().toISOString().slice(0, 10),
-    kkm: 70,
-  })
+export default function AdminReportPage(){
+ const [students,setStudents]=useState<Student[]>([])
+ const [records,setRecords]=useState<ResultRow[]>([])
+ const [signatories,setSignatories]=useState<Signatory[]>([])
+ const [loading,setLoading]=useState(true)
+ const [warning,setWarning]=useState('')
+ const [mode,setMode]=useState<'single'|'bulk'>('single')
+ const [docType,setDocType]=useState<'raport'|'certificate'>('raport')
+ const [classFilter,setClassFilter]=useState('ALL')
+ const [search,setSearch]=useState('')
+ const [studentId,setStudentId]=useState('')
+ const [bulkStudentIds,setBulkStudentIds]=useState<string[]>([])
+ const [selectedRecordKeys,setSelectedRecordKeys]=useState<string[]>([])
+ const [signatoryType,setSignatoryType]=useState<'both'|'principal_only'|'teacher_only'>('both')
+ const [includeParentSign,setIncludeParentSign]=useState(true)
+ const [teacherId,setTeacherId]=useState('')
+ const [principalId,setPrincipalId]=useState('')
+ const [settings,setSettings]=useState<Settings>(defaults)
+ const [previewOpen,setPreviewOpen]=useState(false)
 
-  useEffect(() => {
-    let active = true
-    async function load() {
-      const db = createClient()
-      try {
-        const [p, e, pr, es] = await Promise.all([
-          db.from('profiles').select('id,full_name,username,class_code,role').eq('role', 'student').order('full_name'),
-          db.from('exams').select('id,title,subtest,activity_type'),
-          db.from('practice_attempts').select('*').eq('status', 'completed').order('completed_at', { ascending: false }),
-          db.from('exam_sessions').select('*').eq('status', 'completed').order('completed_at', { ascending: false }),
-        ])
-        if (!active) return
-        if (p.error) throw p.error
-        if (pr.error || es.error) setWarning('Sebagian riwayat tidak dapat dimuat. Periksa izin baca data admin di Supabase.')
-        setStudents(p.data || [])
-        setExams(e.data || [])
-        setPractice(pr.data || [])
-        setExamSessions(es.data || [])
-        const [admin, savedSettings, people] = await Promise.all([
-          db.from('profiles').select('full_name').eq('role', 'admin').order('full_name'),
-          db.rpc('get_school_document_settings'),
-          db.from('teacher_signatories').select('id,full_name,position,class_code,nip').eq('is_active', true),
-        ])
-        setAdminProfiles(admin.data || [])
-        setSignatories(people.data || [])
-        if (savedSettings.data) {
-          const s = savedSettings.data
-          setConfig(current => ({ ...current, schoolName: s.school_name || current.schoolName, schoolAddress: s.school_address || current.schoolAddress, teacherName: s.teacher_name || admin.data?.[0]?.full_name || current.teacherName, teacherNip: s.teacher_nip || current.teacherNip, principalName: s.principal_name || current.principalName, principalNip: s.principal_nip || current.principalNip, issuePlace: s.issue_place || current.issuePlace, kkm: Number(s.kkm ?? current.kkm) }))
-        } else if (admin.data?.[0]?.full_name) {
-          setConfig(current => ({ ...current, teacherName: admin.data[0].full_name }))
-        }
-      } catch (error: any) {
-        if (active) setWarning(error?.message || 'Gagal memuat data raport.')
-      } finally {
-        if (active) setLoading(false)
-      }
+ useEffect(()=>{
+  let active=true
+  async function load(){
+   const db=createClient()
+   try{
+    const [p,e,pr,es,people,doc]=await Promise.all([
+     db.from('profiles').select('id,full_name,username,class_code').eq('role','student').order('full_name'),
+     db.from('exams').select('id,title,subtest,target_mode,activity_type'),
+     db.from('practice_attempts').select('*').eq('status','completed').order('completed_at',{ascending:false}),
+     db.from('exam_sessions').select('*').eq('status','completed').order('completed_at',{ascending:false}),
+     db.from('teacher_signatories').select('id,full_name,position,class_code,nip').eq('is_active',true),
+     db.rpc('get_school_document_settings')
+    ])
+    if(!active)return
+    if(p.error)throw p.error
+    if(pr.error||es.error)setWarning('Sebagian riwayat belum dapat dimuat. Periksa detail akses dan kolom tabel di Supabase.')
+    if(people.error)setWarning(old=>old?old+' Daftar penandatangan menunggu migration Supabase.':'Daftar penandatangan belum tersedia. Migration tabel guru/kepala sekolah perlu diterapkan.')
+    const studentRows=(p.data||[]) as Student[]
+    const examMap=new Map((e.data||[]).map((x:any)=>[x.id,x]))
+    const best=new Map<string,ResultRow>()
+    const add=(row:ResultRow)=>{
+     const old=best.get(row.key)
+     if(!old||row.score>old.score||(row.score===old.score&&new Date(row.date).getTime()>new Date(old.date).getTime()))best.set(row.key,row)
     }
-    load()
-    return () => { active = false }
-  }, [])
-
-  const selectedStudent = students.find(s => s.id === selectedStudentId)
-  const examMap = useMemo(() => new Map(exams.map(e => [e.id, e])), [exams])
-  const classes = [...new Set(students.map(s => s.class_code).filter(Boolean) as string[])].sort()
-  const filteredStudents = students.filter(s => {
-    const classMatch = classFilter === 'ALL' || s.class_code === classFilter
-    const q = search.trim().toLowerCase()
-    return classMatch && (!q || String(s.full_name || '').toLowerCase().includes(q) || String(s.username || '').toLowerCase().includes(q))
-  })
-  const studentPractice = practice.filter(a => a.user_id === selectedStudentId)
-  const studentExams = examSessions.filter(s => s.user_id === selectedStudentId)
-  const chosenPractice = studentPractice.filter(a => selectedPracticeIds.includes(a.id))
-  const chosenExams = studentExams.filter(s => selectedExamIds.includes(s.id))
-  const certificateSession = studentExams.find(s => s.id === certificateSessionId)
-  const dateLabel = new Date(config.issueDate + 'T00:00:00').toLocaleDateString('id-ID', { dateStyle: 'long' })
-
-  const updateConfig = (key: keyof DocConfig, value: string | number) => setConfig(old => ({ ...old, [key]: value }))
-  const togglePractice = (id: string) => setSelectedPracticeIds(old => old.includes(id) ? old.filter(x => x !== id) : [...old, id])
-  const toggleExam = (id: string) => setSelectedExamIds(old => old.includes(id) ? old.filter(x => x !== id) : [...old, id])
-
-  const printDocument = () => {
-    if (!selectedStudent) return
-    setPreviewOpen(true)
-    window.setTimeout(() => window.print(), 250)
+    ;(pr.data||[]).forEach((r:any)=>{
+     const exam=examMap.get(r.exam_id) as any
+     add({key:'practice:'+r.user_id+':'+r.exam_id,user_id:r.user_id,exam_id:r.exam_id,title:exam?.title||'Paket latihan',subtest:exam?.subtest||'Umum',kind:'Latihan',score:Number(r.score||0),date:r.completed_at||r.created_at||'',xp:Number(r.total_xp||0),attempt:Number(r.attempt_number||1)})
+    })
+    ;(es.data||[]).forEach((r:any)=>{
+     const exam=examMap.get(r.exam_id) as any
+     add({key:'exam:'+r.user_id+':'+r.exam_id,user_id:r.user_id,exam_id:r.exam_id,title:exam?.title||'Paket ujian',subtest:exam?.subtest||'Umum',kind:'Ujian',score:Number(r.score_override??r.score??0),date:r.completed_at||r.submitted_at||r.created_at||'',xp:0,attempt:0})
+    })
+    setStudents(studentRows)
+    setRecords([...best.values()].sort((a,b)=>a.subtest.localeCompare(b.subtest,'id')||a.title.localeCompare(b.title,'id')))
+    setSignatories((people.data||[]) as Signatory[])
+    if(doc.data){const d=doc.data;setSettings(s=>({...s,schoolName:d.school_name||s.schoolName,schoolAddress:d.school_address||s.schoolAddress,issuePlace:d.issue_place||s.issuePlace,kkm:Number(d.kkm??s.kkm)}))}
+   }catch(err:any){if(active)setWarning(err?.message||'Gagal memuat data raport.')}
+   finally{if(active)setLoading(false)}
   }
+  void load();return()=>{active=false}
+ },[])
 
-  return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8">
-      <style>{`@media print { body * { visibility: hidden !important; } #document-preview, #document-preview * { visibility: visible !important; } #document-preview { position: absolute !important; inset: 0 auto auto 0 !important; width: 100% !important; background: white !important; padding: 24px !important; } .no-print { display: none !important; } }`}</style>
-      <div className="no-print mx-auto max-w-7xl space-y-6">
-        <header><p className="text-xs font-black uppercase tracking-widest text-indigo-600">Administrasi Sekolah</p><h1 className="mt-1 text-3xl font-black text-slate-900">Raport & Sertifikat Peserta</h1><p className="mt-1 text-sm text-slate-500">Pilih peserta dan riwayat nilai yang akan dimasukkan ke dokumen, lalu periksa pratinjau sebelum mencetak.</p></header>
-        {warning && <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{warning}</div>}
-
-        <section className="grid gap-5 lg:grid-cols-[320px_1fr]">
-          <aside className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="font-black text-slate-900">1. Pilih Peserta</h2>
-            <div className="mt-3 space-y-2">
-              <select value={classFilter} onChange={e => setClassFilter(e.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"><option value="ALL">Semua kelas</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama peserta..." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
-            </div>
-            <div className="mt-3 max-h-[560px] space-y-1 overflow-y-auto">
-              {filteredStudents.map(s => <button key={s.id} type="button" onClick={() => {
-                setSelectedStudentId(s.id); setSelectedPracticeIds([]); setSelectedExamIds([]); setCertificateSessionId('')
-                const teacher = signatories.find(item => item.position === 'class_teacher' && item.class_code === s.class_code)
-                const principal = signatories.find(item => item.position === 'principal')
-                if (teacher) setConfig(old => ({ ...old, teacherName: teacher.full_name, teacherNip: teacher.nip || '' }))
-                if (principal) setConfig(old => ({ ...old, principalName: principal.full_name, principalNip: principal.nip || '' }))
-              }} className={`w-full rounded-xl border p-3 text-left ${selectedStudentId === s.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}><div className="text-xs font-bold text-slate-900">{s.full_name || 'Tanpa nama'}</div><div className="mt-0.5 text-[10px] text-slate-500">Kelas {s.class_code || '-'} · @{s.username || '-'}</div></button>)}
-              {!loading && filteredStudents.length === 0 && <p className="py-6 text-center text-xs text-slate-400">Peserta tidak ditemukan.</p>}
-            </div>
-          </aside>
-
-          <div className="space-y-5">
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="font-black text-slate-900">2. Pilih Isi Dokumen</h2>
-              {!selectedStudent ? <p className="mt-3 rounded-xl bg-slate-50 p-6 text-center text-sm text-slate-500">Pilih seorang peserta dari daftar di sebelah kiri.</p> : <>
-                <div className="mt-3 rounded-xl bg-indigo-50 p-3"><div className="font-bold text-indigo-950">{selectedStudent.full_name}</div><div className="text-xs text-indigo-700">Kelas {selectedStudent.class_code || '-'} · @{selectedStudent.username || '-'}</div></div>
-                <div className="mt-4 grid gap-4 xl:grid-cols-2">
-                  <div><div className="flex items-center justify-between gap-2"><h3 className="text-sm font-bold text-slate-800">Riwayat latihan ({studentPractice.length})</h3><button type="button" onClick={() => setSelectedPracticeIds(studentPractice.map(a => a.id))} className="text-[11px] font-bold text-indigo-600">Pilih semua</button></div><div className="mt-2 max-h-72 space-y-2 overflow-y-auto">{studentPractice.map(a => <label key={a.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 p-2.5 hover:bg-slate-50"><input type="checkbox" checked={selectedPracticeIds.includes(a.id)} onChange={() => togglePractice(a.id)} className="mt-0.5"/><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-800">{examMap.get(a.exam_id)?.title || 'Latihan'}</span><span className="block text-[10px] text-slate-500">Percobaan ke-{a.attempt_number} · {new Date(a.completed_at || a.created_at).toLocaleDateString('id-ID')}</span><span className="block text-[10px] text-emerald-700">Nilai {Number(a.score || 0)} · XP {a.total_xp || 0} · Bonus pertama {a.completion_bonus_xp || 0} · Peningkatan {a.improvement_xp || 0}</span></span></label>)}{!studentPractice.length && <p className="text-xs text-slate-400">Belum ada latihan selesai.</p>}</div></div>
-                  <div><div className="flex items-center justify-between gap-2"><h3 className="text-sm font-bold text-slate-800">Riwayat ujian ({studentExams.length})</h3><button type="button" onClick={() => setSelectedExamIds(studentExams.map(s => s.id))} className="text-[11px] font-bold text-indigo-600">Pilih semua</button></div><div className="mt-2 max-h-72 space-y-2 overflow-y-auto">{studentExams.map(s => <label key={s.id} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-100 p-2.5 hover:bg-slate-50"><input type="checkbox" checked={selectedExamIds.includes(s.id)} onChange={() => toggleExam(s.id)} className="mt-0.5"/><span className="min-w-0 flex-1"><span className="block text-xs font-bold text-slate-800">{examMap.get(s.exam_id)?.title || 'Ujian'}</span><span className="block text-[10px] text-slate-500">{examMap.get(s.exam_id)?.subtest || 'UMUM'} · {new Date(s.completed_at || s.created_at).toLocaleDateString('id-ID')}</span><span className="block text-[10px] font-bold text-indigo-700">Nilai {Number(s.score_override ?? s.score ?? 0)} / 100</span></span></label>)}{!studentExams.length && <p className="text-xs text-slate-400">Belum ada ujian selesai.</p>}</div></div>
-                </div>
-              </>}
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-2"><h2 className="font-black text-slate-900">3. Pengaturan Identitas Dokumen</h2><Link href="/admin/pengaturan-dokumen" className="text-xs font-bold text-indigo-600 hover:underline">Pengaturan terpusat →</Link></div>
-              <p className="mt-1 text-xs text-slate-500">Pilih atau sesuaikan nama penandatangan untuk pratinjau dokumen.</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <label className="text-xs font-semibold text-slate-600">Nama sekolah<input value={config.schoolName} onChange={e => updateConfig('schoolName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">Alamat sekolah<input value={config.schoolAddress} onChange={e => updateConfig('schoolAddress', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">Guru pengampu kelas {selectedStudent?.class_code || ''}<select value={signatories.find(item => item.position === 'class_teacher' && item.class_code === selectedStudent?.class_code && item.full_name === config.teacherName)?.id || ''} onChange={e => { const item = signatories.find(x => x.id === e.target.value); if (item) setConfig(old => ({ ...old, teacherName: item.full_name, teacherNip: item.nip || '' })) }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"><option value="">Pilih guru kelas</option>{signatories.filter(item => item.position === 'class_teacher' && item.class_code === selectedStudent?.class_code).map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}</select><span className="mt-1 block text-[10px] text-slate-500">NIP: {config.teacherNip || '—'}</span></label>
-                <label className="text-xs font-semibold text-slate-600">Kepala Sekolah<select value={signatories.find(item => item.position === 'principal' && item.full_name === config.principalName)?.id || ''} onChange={e => { const item = signatories.find(x => x.id === e.target.value); if (item) setConfig(old => ({ ...old, principalName: item.full_name, principalNip: item.nip || '' })) }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"><option value="">Pilih kepala sekolah</option>{signatories.filter(item => item.position === 'principal').map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}</select><span className="mt-1 block text-[10px] text-slate-500">NIP: {config.principalNip || '—'}</span></label>
-                <label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={config.issuePlace} onChange={e => updateConfig('issuePlace', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">Tanggal dokumen<input type="date" value={config.issueDate} onChange={e => updateConfig('issueDate', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">KKM / batas ketuntasan<input type="number" min="0" max="100" value={config.kkm} onChange={e => updateConfig('kkm', Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="font-black text-slate-900">4. Pratinjau & Cetak</h2>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <button type="button" onClick={() => setMode('report')} className={`rounded-lg px-4 py-2 text-xs font-bold ${mode === 'report' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}>Raport</button>
-                <button type="button" onClick={() => setMode('certificate')} className={`rounded-lg px-4 py-2 text-xs font-bold ${mode === 'certificate' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}>Sertifikat</button>
-                {mode === 'certificate' && <select value={certificateSessionId} onChange={e => setCertificateSessionId(e.target.value)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"><option value="">Pilih hasil ujian untuk sertifikat</option>{studentExams.map(s => <option key={s.id} value={s.id}>{examMap.get(s.exam_id)?.title || 'Ujian'} · {s.score}</option>)}</select>}
-                <button type="button" disabled={!selectedStudent || (mode === 'report' ? selectedPracticeIds.length + selectedExamIds.length === 0 : !certificateSessionId)} onClick={printDocument} className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">Pratinjau & Cetak</button>
-              </div>
-              <p className="mt-2 text-xs text-slate-500">Mode raport mencetak hanya riwayat yang dicentang. Mode sertifikat menggunakan satu hasil ujian yang dipilih.</p>
-            </section>
-          </div>
-        </section>
-      </div>
-
-      {previewOpen && selectedStudent && (
-        <section id="document-preview" className="mx-auto mt-6 max-w-4xl bg-white p-8 text-slate-900">
-          <div className="border-b-2 border-slate-800 pb-4 text-center"><h1 className="text-xl font-black">{config.schoolName}</h1><p className="text-xs">{config.schoolAddress}</p><h2 className="mt-4 text-lg font-black uppercase">{mode === 'report' ? 'RAPOR HASIL BELAJAR & LATIHAN' : 'SERTIFIKAT CAPAIAN AKADEMIK'}</h2></div>
-          <div className="my-5 grid grid-cols-2 gap-3 text-sm"><div><span className="text-xs text-slate-500">Nama Peserta</span><p className="font-bold">{selectedStudent.full_name}</p></div><div><span className="text-xs text-slate-500">Kelas</span><p className="font-bold">{selectedStudent.class_code || '-'}</p></div><div><span className="text-xs text-slate-500">Username</span><p className="font-bold">{selectedStudent.username || '-'}</p></div><div><span className="text-xs text-slate-500">Tanggal Cetak</span><p className="font-bold">{dateLabel}</p></div></div>
-          {mode === 'report' ? <>
-            <h3 className="mb-2 font-bold">Rekap Latihan</h3><table className="mb-5 w-full border-collapse text-xs"><thead><tr className="bg-slate-100"><th className="border p-2 text-left">Latihan</th><th className="border p-2">Percobaan</th><th className="border p-2">Nilai</th><th className="border p-2">XP</th><th className="border p-2">Bonus</th></tr></thead><tbody>{chosenPractice.map(a => <tr key={a.id}><td className="border p-2">{examMap.get(a.exam_id)?.title || 'Latihan'}</td><td className="border p-2 text-center">{a.attempt_number}</td><td className="border p-2 text-center">{Number(a.score || 0)}</td><td className="border p-2 text-center">{a.total_xp || 0}</td><td className="border p-2 text-center">{Number(a.completion_bonus_xp || 0) + Number(a.improvement_xp || 0)}</td></tr>)}</tbody></table>
-            <h3 className="mb-2 font-bold">Rekap Ujian</h3><table className="w-full border-collapse text-xs"><thead><tr className="bg-slate-100"><th className="border p-2 text-left">Ujian</th><th className="border p-2">Subtes</th><th className="border p-2">Nilai</th><th className="border p-2">Ketuntasan</th></tr></thead><tbody>{chosenExams.map(s => <tr key={s.id}><td className="border p-2">{examMap.get(s.exam_id)?.title || 'Ujian'}</td><td className="border p-2 text-center">{examMap.get(s.exam_id)?.subtest || 'UMUM'}</td><td className="border p-2 text-center">{Number(s.score || 0)}</td><td className="border p-2 text-center">{Number(s.score || 0) >= config.kkm ? 'Tuntas' : 'Belum tuntas'}</td></tr>)}</tbody></table>
-          </> : <div className="py-14 text-center"><p className="text-sm">Diberikan kepada</p><h2 className="my-4 text-3xl font-black uppercase">{selectedStudent.full_name}</h2><p className="mx-auto max-w-xl text-sm">Telah menyelesaikan ujian <strong>{examMap.get(certificateSession?.exam_id)?.title || 'Ujian'}</strong> dengan nilai</p><p className="my-5 text-5xl font-black text-indigo-800">{certificateSession?.score_override ?? certificateSession?.score ?? 0}<span className="text-lg"> / 100</span></p></div>}
-          <div className="mt-12 grid grid-cols-2 gap-8 text-center text-xs"><div><p>Guru / Admin,</p><div className="h-16"/><p className="font-bold underline">{config.teacherName || '................................'}</p><p>NIP. {config.teacherNip || '-'}</p></div><div><p>{config.issuePlace}, {dateLabel}</p><p>Kepala Sekolah,</p><div className="h-16"/><p className="font-bold underline">{config.principalName}</p><p>NIP. {config.principalNip}</p></div></div>
-          <div className="no-print mt-6 flex justify-end gap-2"><button type="button" onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700">Tutup Pratinjau</button><button type="button" onClick={() => window.print()} className="rounded-lg bg-emerald-600 px-4 py-2 text-xs font-bold text-white">Cetak / Simpan PDF</button></div>
-        </section>
-      )}
-    </main>
-  )
+ const classes=useMemo(()=>[...new Set(students.map(s=>s.class_code).filter(Boolean) as string[])].sort(),[students])
+ const filteredStudents=useMemo(()=>students.filter(s=>(classFilter==='ALL'||s.class_code===classFilter)&&(!search.trim()||String(s.full_name||'').toLowerCase().includes(search.toLowerCase())||String(s.username||'').toLowerCase().includes(search.toLowerCase()))),[students,classFilter,search])
+ const selectedStudents=useMemo(()=>mode==='single'?students.filter(s=>s.id===studentId):students.filter(s=>bulkStudentIds.includes(s.id)),[mode,students,studentId,bulkStudentIds])
+ const selectedIds=selectedStudents.map(s=>s.id)
+ const candidateRecords=records.filter(r=>selectedIds.includes(r.user_id))
+ const selectedRecords=candidateRecords.filter(r=>selectedRecordKeys.includes(r.key))
+ const teacherOptions=signatories.filter(s=>s.position==='class_teacher')
+ const principalOptions=signatories.filter(s=>s.position==='principal')
+ const singleStudent=mode==='single'?students.find(s=>s.id===studentId):undefined
+ const classTeacherFor=(classCode:string|null)=>teacherOptions.find(t=>t.class_code===classCode)
+ const principal=principalOptions.find(p=>p.id===principalId)||principalOptions[0]
+ const chosenTeacher=teacherOptions.find(t=>t.id===teacherId)||(singleStudent?classTeacherFor(singleStudent.class_code):undefined)
+ const dateLabel=new Date(settings.issueDate+'T00:00:00').toLocaleDateString('id-ID',{dateStyle:'long'})
+ const toggleStudent=(id:string)=>setBulkStudentIds(old=>old.includes(id)?old.filter(x=>x!==id):[...old,id])
+ const setStudentsAndRecords=(ids:string[])=>{setBulkStudentIds(ids);setSelectedRecordKeys(records.filter(r=>ids.includes(r.user_id)).map(r=>r.key))}
+ const selectSingle=(id:string)=>{setStudentId(id);setSelectedRecordKeys(records.filter(r=>r.user_id===id).map(r=>r.key));const s=students.find(x=>x.id===id);setTeacherId(signatories.find(t=>t.position==='class_teacher'&&t.class_code===s?.class_code)?.id||'')}
+ const toggleRecord=(key:string)=>setSelectedRecordKeys(old=>old.includes(key)?old.filter(x=>x!==key):[...old,key])
+ const updateIssueDate=(value:string)=>setSettings(old=>({...old,issueDate:value}))
+ const printNow=()=>{setPreviewOpen(true);window.setTimeout(()=>window.print(),300)}
+ const signatureBlock=(student:Student)=>{
+  const teacher=mode==='single'&&student.id===studentId?chosenTeacher:classTeacherFor(student.class_code)
+  return <div className={`mt-10 grid gap-5 text-center text-xs ${includeParentSign&&signatoryType==='both'?'grid-cols-3':includeParentSign||signatoryType!=='both'?'grid-cols-2':'grid-cols-2'}`}>
+   {includeParentSign&&<div><p>Orang Tua / Wali Murid,</p><div className="h-20"/><p className="font-semibold">( .................................... )</p></div>}
+   {(signatoryType==='both'||signatoryType==='teacher_only')&&<div><p>Guru / Wali Kelas {student.class_code||''},</p><div className="h-20"/><p className="font-bold underline">{teacher?.full_name||'....................................'}</p><p>NIP. {teacher?.nip||'-'}</p></div>}
+   {(signatoryType==='both'||signatoryType==='principal_only')&&<div><p>{settings.issuePlace}, {dateLabel}</p><p>Kepala Sekolah,</p><div className="h-20"/><p className="font-bold underline">{principal?.full_name||'....................................'}</p><p>NIP. {principal?.nip||'-'}</p></div>}
+  </div>
+ }
+ const field='mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800'
+ return <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8">
+  <style>{`@media print{body *{visibility:hidden!important}#print-area,#print-area *{visibility:visible!important}#print-area{position:absolute!important;inset:0 auto auto 0!important;width:100%!important;background:#fff!important;padding:10mm!important}.no-print{display:none!important}.print-student{break-after:page;page-break-after:always}.print-student:last-child{break-after:auto;page-break-after:auto}}`}</style>
+  <div className="no-print mx-auto max-w-7xl space-y-5">
+   <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-widest text-indigo-600">Administrasi Sekolah</p><h1 className="mt-1 text-3xl font-black text-slate-900">Raport & Sertifikat</h1><p className="mt-1 text-sm text-slate-500">Cetak per siswa atau kolektif, menggunakan nilai terbaik setiap paket soal.</p></div><Link href="/admin" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700">← Kembali ke Dashboard Admin</Link></header>
+   {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{warning}</div>}
+   <section className="rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">1. Pilih cara pencetakan</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><button onClick={()=>{setMode('single');setBulkStudentIds([]);setSelectedRecordKeys(studentId?records.filter(r=>r.user_id===studentId).map(r=>r.key):[])}} className={`rounded-xl border-2 p-4 text-left ${mode==='single'?'border-indigo-600 bg-indigo-50':'border-slate-200'}`}><b>👤 Per siswa</b><p className="mt-1 text-xs text-slate-500">Pilih satu siswa, lalu pilih nilai yang ingin dicetak.</p></button><button onClick={()=>{setMode('bulk');setStudentId('');setBulkStudentIds([]);setSelectedRecordKeys([])}} className={`rounded-xl border-2 p-4 text-left ${mode==='bulk'?'border-indigo-600 bg-indigo-50':'border-slate-200'}`}><b>👥 Cetak massal</b><p className="mt-1 text-xs text-slate-500">Pilih semua siswa atau siswa tertentu per kelas, lalu cetak beberapa dokumen sekaligus.</p></button></div></section>
+   <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
+    <aside className="space-y-4 rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">2. Pilih peserta</h2><label className="block text-xs font-semibold text-slate-600">Kelas<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className={field}><option value="ALL">Semua kelas</option>{classes.map(c=><option key={c} value={c}>{c}</option>)}</select></label><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari nama / username" className={field}/>
+     {mode==='single'?<div className="max-h-[440px] space-y-1 overflow-y-auto">{filteredStudents.map(s=><button key={s.id} onClick={()=>selectSingle(s.id)} className={`w-full rounded-lg border p-3 text-left ${studentId===s.id?'border-indigo-500 bg-indigo-50':'border-transparent hover:bg-slate-50'}`}><b className="block text-sm text-slate-800">{s.full_name||s.username||'Tanpa nama'}</b><span className="text-xs text-slate-500">{s.class_code||'Tanpa kelas'}</span></button>)}</div>:<><div className="flex flex-wrap gap-2"><button onClick={()=>setStudentsAndRecords(filteredStudents.map(s=>s.id))} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Pilih semua hasil filter</button><button onClick={()=>setStudentsAndRecords([])} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Kosongkan</button></div><div className="max-h-[440px] space-y-2 overflow-y-auto">{filteredStudents.map(s=><label key={s.id} className="flex items-center gap-2 rounded-lg border border-slate-100 p-2 text-sm"><input type="checkbox" checked={bulkStudentIds.includes(s.id)} onChange={()=>{const next=bulkStudentIds.includes(s.id)?bulkStudentIds.filter(x=>x!==s.id):[...bulkStudentIds,s.id];setStudentsAndRecords(next)}}/><span><b>{s.full_name||s.username||'Tanpa nama'}</b><small className="ml-2 text-slate-500">{s.class_code||'—'}</small></span></label>)}</div><p className="text-xs text-slate-500">{bulkStudentIds.length} siswa dipilih</p></>}
+    </aside>
+    <div className="space-y-4 rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">3. Pilih format dan nilai</h2><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Format dokumen<select value={docType} onChange={e=>setDocType(e.target.value as 'raport'|'certificate')} className={field}><option value="raport">Raport / Rekap capaian</option><option value="certificate">Sertifikat capaian</option></select></label><label className="text-xs font-semibold text-slate-600">Tanggal dokumen<input type="date" value={settings.issueDate} onChange={e=>updateIssueDate(e.target.value)} className={field}/></label></div>
+     <div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-700">Nilai terbaik yang akan dicetak ({selectedRecords.length})</b><div className="flex gap-2"><button onClick={()=>setSelectedRecordKeys(candidateRecords.map(r=>r.key))} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Pilih semua nilai</button><button onClick={()=>setSelectedRecordKeys([])} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold">Kosongkan nilai</button></div></div>
+     <div className="max-h-[390px] overflow-y-auto rounded-xl border"><table className="w-full min-w-[650px] text-left text-xs"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="p-3">Pilih</th><th className="p-3">Siswa</th><th className="p-3">Paket / Subtes</th><th className="p-3">Jenis</th><th className="p-3 text-right">Nilai terbaik</th><th className="p-3">Tanggal</th></tr></thead><tbody className="divide-y">{candidateRecords.map(r=>{const s=students.find(x=>x.id===r.user_id);return <tr key={r.key}><td className="p-3"><input type="checkbox" checked={selectedRecordKeys.includes(r.key)} onChange={()=>toggleRecord(r.key)}/></td><td className="p-3">{s?.full_name||s?.username||'Siswa'}<div className="text-[10px] text-slate-400">{s?.class_code}</div></td><td className="p-3"><b>{r.title}</b><div className="text-[10px] text-slate-400">{r.subtest}</div></td><td className="p-3">{r.kind}</td><td className="p-3 text-right font-black text-indigo-700">{r.score}/100</td><td className="p-3">{r.date?new Date(r.date).toLocaleDateString('id-ID'):'—'}</td></tr>})}{!candidateRecords.length&&<tr><td colSpan={6} className="p-8 text-center text-slate-400">{loading?'Memuat riwayat...':'Pilih siswa untuk menampilkan nilai terbaik.'}</td></tr>}</tbody></table></div>
+    </div>
+   </section>
+   <section className="rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">4. Pengaturan penandatangan</h2><div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><label className="text-xs font-semibold text-slate-600">Tanda tangan<select value={signatoryType} onChange={e=>setSignatoryType(e.target.value as any)} className={field}><option value="both">Guru / Wali Kelas dan Kepala Sekolah</option><option value="principal_only">Hanya Kepala Sekolah</option><option value="teacher_only">Hanya Guru / Wali Kelas</option></select></label><label className="text-xs font-semibold text-slate-600">Kepala sekolah<select value={principalId} onChange={e=>setPrincipalId(e.target.value)} className={field}><option value="">Pilih kepala sekolah</option>{principalOptions.map(p=><option key={p.id} value={p.id}>{p.full_name} · {p.nip||'Tanpa NIP'}</option>)}</select></label>{mode==='single'&&<label className="text-xs font-semibold text-slate-600">Guru / Wali Kelas<select value={teacherId} onChange={e=>setTeacherId(e.target.value)} className={field}><option value="">Otomatis sesuai kelas</option>{teacherOptions.filter(t=>!singleStudent||t.class_code===singleStudent.class_code).map(t=><option key={t.id} value={t.id}>{t.full_name} · {t.class_code}</option>)}</select></label>}<label className="flex items-center gap-2 self-end rounded-lg border p-3 text-xs font-semibold text-slate-700"><input type="checkbox" checked={includeParentSign} onChange={e=>setIncludeParentSign(e.target.checked)}/> Sertakan kolom tanda tangan orang tua / wali</label></div><div className="mt-3 grid gap-3 sm:grid-cols-3"><label className="text-xs font-semibold text-slate-600">Nama sekolah<input value={settings.schoolName} onChange={e=>setSettings(s=>({...s,schoolName:e.target.value}))} className={field}/></label><label className="text-xs font-semibold text-slate-600">Alamat sekolah<input value={settings.schoolAddress} onChange={e=>setSettings(s=>({...s,schoolAddress:e.target.value}))} className={field}/></label><label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={settings.issuePlace} onChange={e=>setSettings(s=>({...s,issuePlace:e.target.value}))} className={field}/></label></div></section>
+   <div className="flex flex-wrap justify-end gap-2"><button disabled={!selectedStudents.length||!selectedRecords.length} onClick={()=>setPreviewOpen(true)} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-40">👁️ Pratinjau Dokumen</button><button disabled={!selectedStudents.length||!selectedRecords.length} onClick={printNow} className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-40">🖨️ Cetak / Simpan PDF</button></div>
+  </div>
+  {previewOpen&&<section className="mx-auto mt-6 max-w-5xl rounded-xl border bg-white p-5 shadow-sm"><div className="no-print mb-4 flex justify-end"><button onClick={()=>setPreviewOpen(false)} className="rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold">Tutup Pratinjau</button></div><div id="print-area" className="space-y-10 text-slate-900">{selectedStudents.map(student=>{const rows=selectedRecords.filter(r=>r.user_id===student.id);return <article key={student.id} className="print-student min-h-[250mm] bg-white p-2 font-sans"><header className="border-b-4 border-double border-slate-800 pb-4 text-center"><p className="text-xs font-bold uppercase tracking-widest">Pemerintah Kabupaten Semarang</p><h2 className="mt-1 text-xl font-black uppercase">{settings.schoolName}</h2><p className="text-xs">{settings.schoolAddress}</p></header><div className="py-5 text-center"><h3 className="text-xl font-black uppercase">{docType==='raport'?'Laporan Capaian Belajar':'Sertifikat Capaian Akademik'}</h3><p className="mt-1 text-xs">Tahun pelajaran / periode pembelajaran</p></div><div className="mb-5 grid grid-cols-2 gap-2 text-sm"><p>Nama: <b>{student.full_name||student.username||'—'}</b></p><p>Kelas: <b>{student.class_code||'—'}</b></p></div>{docType==='raport'?<table className="w-full border-collapse text-xs"><thead><tr className="bg-slate-100"><th className="border p-2">No.</th><th className="border p-2 text-left">Paket / Mata Pelajaran</th><th className="border p-2">Jenis</th><th className="border p-2">Nilai Terbaik</th><th className="border p-2">Keterangan</th></tr></thead><tbody>{rows.map((r,i)=><tr key={r.key}><td className="border p-2 text-center">{i+1}</td><td className="border p-2">{r.title}<div className="text-[10px] text-slate-500">{r.subtest}</div></td><td className="border p-2 text-center">{r.kind}</td><td className="border p-2 text-center font-bold">{r.score}</td><td className="border p-2 text-center">{r.score>=settings.kkm?'Tuntas':'Perlu bimbingan'}</td></tr>)}</tbody></table>:<div className="py-8 text-center"><p className="text-sm">Diberikan kepada</p><h4 className="my-3 text-2xl font-black">{student.full_name||student.username}</h4><p className="text-sm">Atas capaian akademik pada paket pembelajaran berikut:</p><div className="mx-auto mt-5 max-w-xl space-y-2">{rows.map(r=><div key={r.key} className="flex justify-between border-b py-2 text-sm"><span>{r.title} · {r.subtest}</span><b>{r.score}/100</b></div>)}</div></div>}{signatureBlock(student)}</article>})}</div></section>}
+ </main>
 }
