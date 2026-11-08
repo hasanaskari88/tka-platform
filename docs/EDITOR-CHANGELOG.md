@@ -1408,3 +1408,22 @@ Checklist QA Preview:
 - [ ] Pastikan kegagalan upload menampilkan pesan dan tidak menghapus konten soal yang sudah ada.
 
 Hasil build dan QA pengguna: **menunggu**.
+
+
+### Tindak lanjut penanganan clipboard Word — 8 November 2026
+
+Perbaikan setelah pengujian pengguna melaporkan gambar tidak muncul dan pecahan tidak terkonversi:
+
+1. Nilai LaTeX sekarang diberikan langsung ke atribut DOM `data-latex`; escaping dilakukan oleh DOM saat serialisasi HTML, bukan sebelum `setAttribute`.
+2. Pengambilan file gambar clipboard memeriksa `DataTransfer.items` sekaligus `DataTransfer.files`, serta menghindari file duplikat.
+3. Parser clipboard mengenali referensi gambar Office VML (`imagedata`) dan DrawingML (`blip`), lalu mengganti pembungkus Office dengan elemen gambar yang dapat diproses editor.
+4. Referensi gambar non-HTTP seperti `file:`, `cid:`, `blob:`, dan path relatif dipasangkan dengan byte gambar clipboard dan diunggah melalui endpoint Google Drive yang sudah ada.
+5. File gambar clipboard yang tersisa tetap ditambahkan ke konten, bukan diabaikan.
+6. Jika Word hanya memberikan referensi gambar tanpa byte gambar, editor menampilkan pesan yang menjelaskan keterbatasan clipboard alih-alih menyimpan URL lokal yang rusak.
+
+Batas pemeriksaan:
+- Arsip dokumen contoh tersedia sebagai hasil ekstraksi teks dan render halaman; akses raw OOXML/DOCX tidak tersedia melalui arsip ini. Karena itu, perubahan ini memperkuat penanganan variasi clipboard Word, tetapi belum membuktikan struktur clipboard dari semua objek pada dokumen contoh.
+- Konversi OMML masih mencakup struktur matematika umum; hasil harus diverifikasi melalui paste langsung dari Word pada Preview.
+- Tidak ada perubahan database, API upload, skema soal, format penyimpanan jawaban, kunci jawaban, atau penilaian.
+
+Status: **perubahan kode pada `editor-test`; menunggu build Preview dan QA langsung pengguna**.
