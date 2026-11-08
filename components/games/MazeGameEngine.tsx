@@ -69,6 +69,8 @@ export default function MazeGameEngine({
   const [attemptRetryKey, setAttemptRetryKey] = useState(0)
   const [isSavingAndExit, setIsSavingAndExit] = useState(false)
   const [isResumedSession, setIsResumedSession] = useState(false)
+  const [progressRestoreKey, setProgressRestoreKey] = useState(0)
+  const pendingProgressRef = useRef<any>(null)
 
   // Satu Promise untuk mencegah pembuatan attempt ganda
   // ketika React Strict Mode menjalankan effect dua kali.
@@ -204,6 +206,8 @@ export default function MazeGameEngine({
 
           completedMissionIdsRef.current = new Set(restoredIds)
           setCompletedCount(restoredIds.length)
+          pendingProgressRef.current = saved
+          setProgressRestoreKey((previous) => previous + 1)
           setMissionIndex(
             Math.min(
               Number(saved.missionIndex || 0),
@@ -248,18 +252,48 @@ export default function MazeGameEngine({
   // ==========================================
 
   useEffect(() => {
-    setCommands([])
+    const saved = pendingProgressRef.current
 
+    if (saved && Number(saved.missionIndex || 0) === missionIndex) {
+      setCommands(
+        Array.isArray(saved.commands)
+          ? saved.commands.filter((item: any) =>
+              ['FORWARD', 'LEFT', 'RIGHT'].includes(item)
+            )
+          : []
+      )
+      setRobot(
+        saved.robot &&
+          Number.isFinite(Number(saved.robot.x)) &&
+          Number.isFinite(Number(saved.robot.y))
+          ? { x: Number(saved.robot.x), y: Number(saved.robot.y) }
+          : {
+              x: Number(currentMission?.start_x ?? 0),
+              y: Number(currentMission?.start_y ?? 0),
+            }
+      )
+      setDirection(
+        [0, 1, 2, 3].includes(Number(saved.direction))
+          ? Number(saved.direction) as Direction
+          : 1
+      )
+      setIsRunning(false)
+      setIsComplete(Boolean(saved.isComplete))
+      setFeedback(saved.feedback || 'Misi dipulihkan. Lanjutkan algoritmamu.')
+      pendingProgressRef.current = null
+      return
+    }
+
+    setCommands([])
     setRobot({
       x: Number(currentMission?.start_x ?? 0),
       y: Number(currentMission?.start_y ?? 0),
     })
-
     setDirection(1)
     setIsRunning(false)
     setIsComplete(false)
     setFeedback('Misi siap! Susun algoritmamu.')
-  }, [missionIndex, currentMission])
+  }, [missionIndex, currentMission, progressRestoreKey])
 
   // ==========================================
   // 3. INFORMASI KESULITAN
@@ -305,14 +339,26 @@ export default function MazeGameEngine({
   const persistMazeProgress = async (
     nextCompletedCount: number,
     completedIds: string[],
-    nextMissionIndex = missionIndex
+    nextMissionIndex = missionIndex,
+    includeDraft = false
   ) => {
     if (!attemptId) return false
 
+    const nextMission = missions[nextMissionIndex]
     const progress = {
       missionIndex: nextMissionIndex,
       completedMissionIds: completedIds,
       completedCount: nextCompletedCount,
+      commands: includeDraft ? commands : [],
+      robot: includeDraft
+        ? robot
+        : {
+            x: Number(nextMission?.start_x ?? 0),
+            y: Number(nextMission?.start_y ?? 0),
+          },
+      direction: includeDraft ? direction : 1,
+      isComplete: includeDraft ? isComplete : false,
+      feedback: includeDraft ? feedback : 'Misi siap! Susun algoritmamu.',
     }
 
     const { error } = await createClient().rpc(
@@ -561,7 +607,8 @@ export default function MazeGameEngine({
     const saved = await persistMazeProgress(
       completedIds.length,
       completedIds,
-      missionIndex
+      missionIndex,
+      true
     )
     setIsSavingAndExit(false)
 
