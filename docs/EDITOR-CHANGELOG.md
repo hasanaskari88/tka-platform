@@ -1511,3 +1511,12 @@ Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum a
 - Format WMF/JPEG dan konversi rumus RTF belum diaktifkan. Jika PNG tidak lolos validasi, mekanisme lama tetap berlaku.
 - Perlu pengujian Preview menggunakan dokumen Word yang sama untuk memastikan hasil ekstraksi, jumlah gambar, dan upload.
 - Commit kode: `76f097f15646dd2927c2dfc5186ae7fec4afc1b6`.
+
+
+## 2026-11-08 — Memisahkan gambar soal dari fallback rumus Word
+
+- Memperbaiki ekstraksi RTF agar gambar yang berada di dalam grup `\\mmathPict` (gambar cadangan visual rumus) tidak dianggap sebagai gambar soal.
+- Menambahkan deduplikasi berdasarkan payload PNG identik, sehingga representasi cadangan yang sama tidak diunggah berulang.
+- Ekstraksi tetap hanya menerima payload dengan signature PNG valid; WMF belum diproses.
+- Tujuan pengujian berikutnya: untuk dokumen berisi satu rumus pecahan dan satu gambar bentuk, jumlah PNG non-rumus yang terbaca seharusnya mendekati satu. Hasil akhir tetap harus dikonfirmasi lewat Preview dan tampilan editor.
+- Commit kode: `2847ea28fe4b571a02c43c8ff6eddb332d7bbe7b`.
