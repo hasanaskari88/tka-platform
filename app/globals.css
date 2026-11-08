@@ -471,3 +471,41 @@ video {
   .arcade-player-avatar, .arcade-player-badge { animation: none !important; }
   .arcade-player-avatar:hover, .arcade-player-badge:hover { transform: none !important; }
 }
+
+
+/* PRACTICE ARCADE POLISH V2 — animated player medals and readable podium */
+.arcade-player-card { isolation: isolate; transform-style: preserve-3d; }
+.arcade-player-card::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: .18;
+  background-image: radial-gradient(circle, rgba(103,232,249,.65) 1px, transparent 1.5px);
+  background-size: 18px 18px; mask-image: linear-gradient(135deg, black, transparent 78%);
+}
+.arcade-badge-medal {
+  display: inline-block; transform-origin: 50% 75%;
+  animation: arcade-badge-medal-bob 2.5s ease-in-out infinite;
+  filter: drop-shadow(0 5px 5px rgba(0,0,0,.25));
+}
+.arcade-player-badge:nth-child(2) .arcade-badge-medal { animation-delay: -.45s; }
+.arcade-player-badge:nth-child(3) .arcade-badge-medal { animation-delay: -.9s; }
+.arcade-player-badge:nth-child(4) .arcade-badge-medal { animation-delay: -1.35s; }
+.arcade-player-badge:hover {
+  transform: translateY(-4px) rotate(-1deg);
+  border-color: rgba(253,224,71,.75);
+  background: linear-gradient(160deg, rgba(250,204,21,.2), rgba(217,119,6,.12));
+}
+.arcade-mission-variant-1 { background-image: radial-gradient(circle at 12% 18%, rgba(255,255,255,.18) 0 2px, transparent 3px), linear-gradient(135deg, rgba(255,255,255,.06), transparent 58%); }
+.arcade-mission-variant-2 { background-image: radial-gradient(circle at 88% 20%, rgba(255,255,255,.2) 0 3px, transparent 4px), linear-gradient(35deg, rgba(15,23,42,.12), transparent 60%); }
+.arcade-mission-variant-3 { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.045) 0 7px, transparent 7px 15px), linear-gradient(120deg, rgba(255,255,255,.08), transparent 55%); }
+.arcade-rank-gold, .arcade-rank-silver, .arcade-rank-bronze { color: #fff !important; border-width: 2px; }
+.arcade-rank-gold p, .arcade-rank-silver p, .arcade-rank-bronze p { color: #fff !important; text-shadow: 0 1px 3px rgba(0,0,0,.45); }
+.arcade-practice-footer::after {
+  content: "✦"; position: absolute; right: 12%; top: -18px; color: rgba(103,232,249,.2);
+  font-size: 9rem; line-height: 1; animation: arcade-pixel-pulse 3s ease-in-out infinite; pointer-events: none;
+}
+@keyframes arcade-badge-medal-bob {
+  0%, 100% { transform: translateY(0) rotate(-5deg) scale(1); }
+  50% { transform: translateY(-5px) rotate(6deg) scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-badge-medal, .arcade-practice-footer::after { animation: none !important; }
+}
