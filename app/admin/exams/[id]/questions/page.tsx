@@ -668,7 +668,7 @@ function BankSoalContent() {
                       {actType === 'FLASHCARD' ? 'Kartu Sisi Depan (Pertanyaan/Rumus)' : 'Deskripsi Soal / Instruksi Misi:'}
                     </span>
                     <div className="text-sm font-semibold text-white leading-relaxed">
-                      <MathRenderer content={q.question_text || ''} className="flow-root" />
+                      <MathRenderer content={q.question_text || ''} className="flow-root" normalizeRotatedImages />
                     </div>
                   </div>
 
@@ -695,7 +695,7 @@ function BankSoalContent() {
                               {String.fromCharCode(65 + oIdx)}
                             </span>
                             <div className="flex-1">
-                              <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} className="flow-root" />
+                              <MathRenderer content={typeof opt === 'string' ? opt : (opt.text || opt.title || '')} className="flow-root" normalizeRotatedImages />
                             </div>
                             {isCorrect && <span className="text-[10px] bg-emerald-500 text-slate-950 px-1.5 py-0.5 rounded font-black">KUNCI</span>}
                           </div>
@@ -708,7 +708,7 @@ function BankSoalContent() {
                     <div className="bg-amber-500/10 p-3.5 rounded-xl border border-amber-500/30 text-xs space-y-1">
                       <span className="font-bold text-amber-300 block">💡 Kartu Sisi Belakang (Pembahasan / Solusi):</span>
                       <div className="text-slate-200 leading-relaxed">
-                        <MathRenderer content={q.explanation || q.pembahasan || 'Belum ada penjelasan.'} className="flow-root" />
+                        <MathRenderer content={q.explanation || q.pembahasan || 'Belum ada penjelasan.'} className="flow-root" normalizeRotatedImages />
                       </div>
                     </div>
                   )}
@@ -724,7 +724,7 @@ function BankSoalContent() {
                     <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1">
                       <span className="font-bold text-indigo-300 block">💡 Pembahasan / Solusi:</span>
                       <div className="text-slate-300 leading-relaxed">
-                        <MathRenderer content={q.explanation || q.pembahasan} className="flow-root" />
+                        <MathRenderer content={q.explanation || q.pembahasan} className="flow-root" normalizeRotatedImages />
                       </div>
                     </div>
                   )}
