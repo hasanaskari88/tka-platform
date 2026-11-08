@@ -508,7 +508,9 @@ export default function PracticeHubPage() {
             ) : filteredExams.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
                 {filteredExams.map((exam, missionIndex) => {
-                  const cardVariation = missionIndex % 4
+                  const cardVariation = Array.from(
+                    String(exam.id || exam.title || missionIndex)
+                  ).reduce((total, character) => total + character.charCodeAt(0), 0) % 4
                   const style = getMissionStyle(exam.activity_type, cardVariation)
                   return (
                     <article
