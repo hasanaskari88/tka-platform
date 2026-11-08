@@ -454,7 +454,7 @@ export default function RichTextEditor({
                     img.setAttribute('src', imageUrl)
                     // PNG fallback Equation Word adalah gambar rumus; batasi ukurannya agar tidak memenuhi editor.
                     if (file.name.startsWith('gambar-word-') && file.type === 'image/png') {
-                      img.setAttribute('width', '140')
+                      img.removeAttribute('width')
                       img.style.width = '140px'
                       img.style.maxWidth = '100%'
                       img.style.height = 'auto'
@@ -481,7 +481,6 @@ export default function RichTextEditor({
                 const image = parsedDocument.createElement('img')
                 image.setAttribute('src', src)
                 image.setAttribute('alt', 'Gambar dari Microsoft Word')
-                image.setAttribute('width', '140')
                 image.style.width = '140px'
                 image.style.maxWidth = '100%'
                 image.style.height = 'auto'
