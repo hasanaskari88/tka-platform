@@ -260,3 +260,95 @@ video {
     animation: none !important;
   }
 }
+
+
+/* =========================================================
+   HOMEPAGE THEME POLISH — all themes except Gaming
+   ========================================================= */
+.theme-space, .theme-jungle, .theme-ocean, .theme-disney,
+.theme-cartoon3d, .theme-school {
+  background-attachment: fixed;
+  transition: background-color .25s ease;
+}
+.theme-space {
+  background-color: #080f25;
+  background-image: radial-gradient(ellipse at 12% 8%, rgba(124,58,237,.18), transparent 34%), radial-gradient(ellipse at 88% 35%, rgba(59,130,246,.13), transparent 32%), linear-gradient(180deg,#0b122b 0%,#111827 55%,#080f25 100%);
+}
+.theme-jungle {
+  background-color: #06251f;
+  background-image: radial-gradient(ellipse at 8% 12%, rgba(16,185,129,.18), transparent 34%), radial-gradient(ellipse at 92% 42%, rgba(132,204,22,.12), transparent 32%), linear-gradient(180deg,#06251f 0%,#0b3028 58%,#052019 100%);
+}
+.theme-ocean {
+  background-color: #082238;
+  background-image: radial-gradient(ellipse at 10% 10%, rgba(6,182,212,.2), transparent 35%), radial-gradient(ellipse at 92% 40%, rgba(59,130,246,.15), transparent 34%), linear-gradient(180deg,#082238 0%,#0c3048 58%,#071d32 100%);
+}
+.theme-disney {
+  background-color: #21133b;
+  background-image: radial-gradient(ellipse at 8% 8%, rgba(236,72,153,.2), transparent 35%), radial-gradient(ellipse at 92% 36%, rgba(251,191,36,.12), transparent 32%), linear-gradient(180deg,#21133b 0%,#261744 58%,#15132f 100%);
+}
+.theme-cartoon3d {
+  background-color: #fff8e8;
+  background-image: radial-gradient(ellipse at 8% 10%, rgba(251,191,36,.2), transparent 34%), radial-gradient(ellipse at 92% 35%, rgba(249,115,22,.12), transparent 32%), linear-gradient(180deg,#fffaf0 0%,#fff7e7 58%,#fffdf7 100%);
+}
+.theme-school {
+  background-color: #f1f5f9;
+  background-image: radial-gradient(ellipse at 8% 8%, rgba(99,102,241,.09), transparent 34%), radial-gradient(ellipse at 92% 38%, rgba(14,165,233,.08), transparent 32%), linear-gradient(180deg,#f8fafc 0%,#f1f5f9 58%,#f8fafc 100%);
+}
+.theme-space main > section:first-child, .theme-jungle main > section:first-child,
+.theme-ocean main > section:first-child, .theme-disney main > section:first-child,
+.theme-school main > section:first-child {
+  isolation: isolate;
+  box-shadow: 0 18px 42px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.12);
+}
+.theme-space main > section:first-child::after, .theme-jungle main > section:first-child::after,
+.theme-ocean main > section:first-child::after, .theme-disney main > section:first-child::after,
+.theme-school main > section:first-child::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 15rem;
+  height: 15rem;
+  right: -4rem;
+  top: -7rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255,255,255,.15), transparent 68%);
+  pointer-events: none;
+}
+.theme-space main article, .theme-jungle main article, .theme-ocean main article,
+.theme-disney main article, .theme-cartoon3d main article, .theme-school main article {
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+.theme-space main article:hover, .theme-jungle main article:hover, .theme-ocean main article:hover,
+.theme-disney main article:hover, .theme-cartoon3d main article:hover, .theme-school main article:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(2,6,23,.16);
+}
+.theme-space main h2, .theme-jungle main h2, .theme-ocean main h2,
+.theme-disney main h2, .theme-cartoon3d main h2, .theme-school main h2 {
+  letter-spacing: -.025em;
+}
+.theme-space main > section:not(:first-child), .theme-jungle main > section:not(:first-child),
+.theme-ocean main > section:not(:first-child), .theme-disney main > section:not(:first-child),
+.theme-cartoon3d main > section:not(:first-child), .theme-school main > section:not(:first-child) {
+  scroll-margin-top: 1.5rem;
+}
+@media (max-width: 640px) {
+  .theme-space main, .theme-jungle main, .theme-ocean main,
+  .theme-disney main, .theme-cartoon3d main, .theme-school main {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+  }
+  .theme-space main > section:first-child, .theme-jungle main > section:first-child,
+  .theme-ocean main > section:first-child, .theme-disney main > section:first-child,
+  .theme-school main > section:first-child { border-radius: 1.25rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-space main article, .theme-jungle main article, .theme-ocean main article,
+  .theme-disney main article, .theme-cartoon3d main article, .theme-school main article {
+    transition: none !important;
+  }
+  .theme-space main article:hover, .theme-jungle main article:hover, .theme-ocean main article:hover,
+  .theme-disney main article:hover, .theme-cartoon3d main article:hover, .theme-school main article:hover {
+    transform: none !important;
+  }
+}
