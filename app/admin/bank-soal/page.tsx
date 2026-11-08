@@ -14,7 +14,7 @@ function BankSoalManagementContent() {
   const [loading, setLoading] = useState(true)
 
   // 🟢 STATE FILTER & SORTING DAFTAR UJIAN (DEFAULT TAB UTAMA: 'EXAM' / Ujian Resmi CBT)
-  const [activeTabMode, setActiveTabMode] = useState<'ALL' | 'EXAM' | 'PRACTICE'>('EXAM')
+  const [activeTabMode, setActiveTabMode] = useState<'EXAM'>('EXAM')
   const [selectedSubtestFilter, setSelectedSubtestFilter] = useState<string>('ALL')
   const [sortBy, setSortBy] = useState<string>('newest')
 
@@ -138,11 +138,7 @@ function BankSoalManagementContent() {
   const filteredAndSortedExams = exams
     .filter((exam) => {
       // 1. Filter Kategori Tab (Ujian Resmi vs Aktivitas Latihan)
-      if (activeTabMode === 'EXAM') {
-        if (exam.target_mode === 'PRACTICE_ONLY') return false
-      } else if (activeTabMode === 'PRACTICE') {
-        if (exam.target_mode === 'EXAM_ONLY') return false
-      }
+      if (exam.target_mode === 'PRACTICE_ONLY') return false
 
       // 2. Filter Subtes
       if (selectedSubtestFilter !== 'ALL') {
