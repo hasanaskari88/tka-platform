@@ -102,8 +102,9 @@ export default function PracticeHubPage() {
       miniSurface: 'border border-indigo-400/20 bg-indigo-950/50',
     },
   }
-  const visual = themeVisuals[theme] || themeVisuals.school
-  const darkTheme = ['space', 'jungle', 'ocean', 'disney'].includes(theme)
+  // Practice memakai identitas Arcade Game Hub yang konsisten dengan homepage.
+  const visual = themeVisuals.gaming
+  const darkTheme = true
   const [exams, setExams] = useState<any[]>([])
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [availableClasses, setAvailableClasses] = useState<string[]>([])
@@ -121,7 +122,7 @@ export default function PracticeHubPage() {
 
     let query = supabase
       .from('profiles')
-      .select('id, full_name, username, class_code, xp, level, role')
+      .select('id, full_name, username, class_code, xp, level, role, avatar_url')
       .not('class_code', 'ilike', 'guru')
       .order('xp', { ascending: false })
       .limit(15)
@@ -225,6 +226,13 @@ export default function PracticeHubPage() {
   const level = userProfile?.level || 1
   const xp = userProfile?.xp || 0
   const xpProgress = Math.min(100, Math.max(8, (xp % 200) / 2))
+  const playerBadges = Array.isArray(userProfile?.badges)
+    ? userProfile.badges
+    : userProfile?.badges && typeof userProfile.badges === 'object'
+      ? Object.values(userProfile.badges)
+      : []
+  const playerAvatar = String(userProfile?.avatar_url || '👾')
+  const playerAvatarIsImage = /^https?:\\/\\//i.test(playerAvatar)
 
   const missionStyles = [
     {
@@ -309,7 +317,7 @@ export default function PracticeHubPage() {
   }
 
   return (
-    <div className={`min-h-screen overflow-hidden bg-transparent font-sans ${visual.page}`}>
+    <div className="theme-gaming min-h-screen overflow-hidden bg-[#17102b] font-sans text-white">
       <Navbar />
 
       <main className="mx-auto max-w-[1500px] space-y-7 px-4 py-5 sm:px-6 lg:px-8">
@@ -340,34 +348,43 @@ export default function PracticeHubPage() {
               </div>
             </div>
 
-            <div className={`relative rounded-[1.7rem] border ${visual.heroPanel} p-5 shadow-2xl backdrop-blur-md`}>
-              <div className="absolute -right-2 -top-3 rotate-12 rounded-xl bg-amber-300 px-3 py-1 text-xs font-black text-amber-950 shadow-lg">
-                PLAYER
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-300 to-blue-500 text-4xl shadow-lg">
-                  🦉
+            <div className="relative overflow-hidden rounded-[1.7rem] border-2 border-cyan-300/40 bg-slate-950/65 p-5 shadow-[0_12px_0_-5px_rgba(8,15,38,.9),0_20px_45px_rgba(0,0,0,.3)] backdrop-blur-md">
+              <div className="arcade-scanlines pointer-events-none absolute inset-0 opacity-20" />
+              <div className="absolute -right-5 -top-7 text-7xl opacity-10">✦</div>
+              <div className="relative">
+                <div className="mb-4 flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-black tracking-[.2em] text-lime-200">PLAYER PROFILE</span>
+                  <span className="rounded-lg border border-amber-200/30 bg-amber-300/15 px-2.5 py-1 text-[9px] font-black text-amber-100">PLAYER 01</span>
                 </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-blue-100">PETUALANG GETASAN</p>
-                  <p className="mt-1 text-2xl font-black text-amber-300">{xp} XP</p>
-                  <span className="mt-1 inline-block rounded-lg bg-violet-500/50 px-2.5 py-1 text-xs font-black">
-                    LEVEL {level}
-                  </span>
+                <div className="flex items-center gap-4">
+                  <div className="arcade-player-avatar relative flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border-[3px] border-cyan-200/80 bg-gradient-to-br from-cyan-300/30 to-violet-500/40 text-4xl shadow-[0_7px_0_#11152f,0_0_25px_rgba(34,211,238,.2)]">
+                    {playerAvatarIsImage ? <img src={playerAvatar} alt="Avatar pemain" className="h-full w-full object-cover" /> : playerAvatar}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-base font-black text-white">{userProfile?.full_name || 'Pemain Tamu'}</p>
+                    <p className="mt-1 truncate text-[10px] font-bold text-cyan-100/80">
+                      {userProfile?.username ? '@' + userProfile.username : 'Username belum diatur'}
+                      {userProfile?.class_code ? ` · Kelas ${userProfile.class_code}` : ''}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="rounded-lg border border-amber-200/30 bg-amber-300/15 px-2.5 py-1 text-xs font-black text-amber-200">{xp} XP</span>
+                      <span className="rounded-lg border border-violet-200/30 bg-violet-400/15 px-2.5 py-1 text-xs font-black text-violet-100">LEVEL {level}</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-5">
-                <div className="mb-2 flex justify-between text-[11px] font-bold text-blue-100">
-                  <span>PROGRES PETUALANGAN</span>
-                  <span>{xp} XP</span>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {playerBadges.length > 0 ? playerBadges.slice(0, 4).map((badge: any, index: number) => {
+                    const badgeName = typeof badge === 'string' ? badge : badge?.name || badge?.title || badge?.label || badge?.badge_name || badge?.id || `Badge ${index + 1}`
+                    const badgeIcon = typeof badge === 'object' ? badge?.icon || badge?.emoji || '🏅' : '🏅'
+                    return <span key={badgeName + '-' + index} title={badgeName} className="arcade-player-badge inline-flex items-center gap-1 rounded-xl border border-yellow-200/30 bg-yellow-200/10 px-2.5 py-1.5 text-[10px] font-black text-yellow-100"><span className="text-base">{badgeIcon}</span>{badgeName}</span>
+                  }) : <span className="text-[10px] font-semibold text-blue-100/65">🏅 Badge pertamamu menunggu untuk diraih!</span>}
                 </div>
-                <div className="h-3 overflow-hidden rounded-full border border-white/20 bg-slate-950/60 p-[2px]">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-lime-300 via-emerald-300 to-cyan-300 transition-all"
-                    style={{ width: `${xpProgress}%` }}
-                  />
+                <div className="mt-5">
+                  <div className="mb-2 flex justify-between text-[10px] font-black text-cyan-100"><span>PROGRES LEVEL</span><span>{xpProgress}%</span></div>
+                  <div className="h-3 overflow-hidden rounded-full border border-white/20 bg-slate-950/80 p-[2px]">
+                    <div className="h-full rounded-full bg-gradient-to-r from-lime-300 via-emerald-300 to-cyan-300 shadow-[0_0_12px_rgba(163,230,53,.5)] transition-all" style={{ width: `${xpProgress}%` }} />
+                  </div>
                 </div>
-                <p className="mt-2 text-[10px] text-blue-200">Terus berlatih untuk meningkatkan pencapaianmu!</p>
               </div>
             </div>
           </div>
@@ -461,12 +478,13 @@ export default function PracticeHubPage() {
               </div>
             ) : filteredExams.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {filteredExams.map((exam) => {
+                {filteredExams.map((exam, missionIndex) => {
                   const style = getMissionStyle(exam.activity_type)
+                  const cardVariation = missionIndex % 4
                   return (
                     <article
                       key={exam.id}
-                      className={`group relative flex min-h-[270px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-gradient-to-br ${style.card} p-5 text-white shadow-lg shadow-indigo-950/10 transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                      className={`arcade-mission-card arcade-mission-variant-${cardVariation} group relative flex min-h-[270px] flex-col justify-between overflow-hidden rounded-[1.7rem] border-2 border-white/25 bg-gradient-to-br ${style.card} p-5 text-white shadow-[0_9px_0_rgba(5,8,28,.45),0_18px_30px_rgba(0,0,0,.22)] transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
                     >
                       <div className="absolute -right-5 -top-7 text-8xl opacity-15 transition duration-300 group-hover:rotate-12 group-hover:scale-110">
                         {style.art}
@@ -539,7 +557,7 @@ export default function PracticeHubPage() {
 
           {/* LEADERBOARD */}
           <aside className={`overflow-hidden rounded-[1.7rem] border ${visual.surfaceBorder} ${visual.surface} shadow-xl shadow-indigo-900/10`}>
-            <div className="bg-gradient-to-r from-[#10265c] via-indigo-800 to-violet-800 p-5 text-white">
+            <div className="relative overflow-hidden border-b border-cyan-300/20 bg-gradient-to-r from-[#251044] via-[#171c49] to-[#0b2638] p-5 text-white">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Hall of Fame</p>
@@ -557,7 +575,7 @@ export default function PracticeHubPage() {
             </div>
 
             <div className="space-y-4 p-4">
-              <label htmlFor="leaderboard-class" className="block text-xs font-extrabold text-slate-600">
+              <label htmlFor="leaderboard-class" className="block text-xs font-extrabold text-cyan-100">
                 Lihat peringkat berdasarkan kelas
               </label>
               <select
@@ -584,22 +602,15 @@ export default function PracticeHubPage() {
               <div className="space-y-2">
                 {leaderboard.length > 0 ? (
                   leaderboard.map((student, rank) => {
-                    const rankStyle = darkTheme
-                      ? rank === 0
-                        ? 'border-amber-300/40 bg-amber-400/15'
-                        : rank === 1
-                          ? 'border-slate-300/30 bg-white/10'
-                          : rank === 2
-                            ? 'border-orange-300/40 bg-orange-400/15'
-                            : `border-white/10 ${visual.miniSurface} hover:border-indigo-300/50`
-                      : rank === 0
-                        ? 'border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-100'
-                        : rank === 1
-                          ? 'border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100'
-                          : rank === 2
-                            ? 'border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50'
-                            : `border-white/10 ${visual.miniSurface} hover:border-indigo-300/50`
+                    const rankStyle = rank === 0
+                      ? 'border-amber-300/70 bg-gradient-to-r from-amber-500/35 to-yellow-300/15 shadow-[0_0_22px_rgba(251,191,36,.12)]'
+                      : rank === 1
+                        ? 'border-cyan-200/60 bg-gradient-to-r from-slate-300/25 to-cyan-200/10'
+                        : rank === 2
+                          ? 'border-orange-300/70 bg-gradient-to-r from-orange-500/30 to-rose-400/10'
+                          : 'border-white/10 bg-slate-950/45 hover:border-cyan-300/40'
                     const rankBadge = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}`
+                    const rankText = rank < 3 ? 'text-white' : 'text-slate-100'
 
                     return (
                       <div
@@ -611,15 +622,18 @@ export default function PracticeHubPage() {
                             {rankBadge}
                           </span>
                           <div className="min-w-0">
-                            <p className={`truncate text-xs font-black ${visual.heading}`}>{student.full_name || student.username}</p>
-                            <p className={`mt-1 text-[10px] font-semibold ${visual.muted}`}>
-                              {student.class_code ? `Kelas ${student.class_code}` : `@${student.username}`}
-                            </p>
+                            <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-slate-900/60 text-xl shadow-inner">{/^https?:\\/\\//i.test(String(student.avatar_url || '')) ? <img src={student.avatar_url} alt="" className="h-full w-full object-cover" /> : (student.avatar_url || '👾')}</span>
+                            <div className="min-w-0">
+                              <p className={`truncate text-xs font-black ${rankText}`}>{student.full_name || student.username}</p>
+                              <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{student.username ? `@${student.username}` : (student.class_code ? `Kelas ${student.class_code}` : 'Pemain')}</p>
+                            </div>
+                          </div>
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-xs font-black text-indigo-700">{student.xp || 0} XP</p>
-                          <p className="mt-1 text-[9px] font-bold uppercase text-slate-400">LEVEL {student.level || 1}</p>
+                          <p className="text-xs font-black text-amber-200">{student.xp || 0} XP</p>
+                          <p className="mt-1 text-[9px] font-bold uppercase text-cyan-100/60">LEVEL {student.level || 1}</p>
                         </div>
                       </div>
                     )
