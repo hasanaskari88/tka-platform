@@ -826,41 +826,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 
                 {/* TAB SWITCHER (URUTAN BARU: UJIAN RESMI (CBT) -> AKTIVITAS LATIHAN -> SEMUA) */}
-                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('EXAM')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'EXAM'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    🎯 Ujian Resmi (CBT)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('PRACTICE')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'PRACTICE'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    🎮 Aktivitas Latihan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('ALL')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'ALL'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    📋 Semua ({exams.length})
-                  </button>
-                </div>
+                <div className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">🎯 Daftar paket ujian resmi (CBT)</div>
 
                 {/* FILTER SUBTES & SORTING */}
                 <div className="flex items-center gap-2 w-full sm:w-auto">
