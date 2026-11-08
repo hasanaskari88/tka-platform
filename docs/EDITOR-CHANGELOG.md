@@ -2249,3 +2249,11 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Build Preview belum dijalankan untuk commit perubahan ini; TypeScript, tampilan print, filter ranking, dan CRUD konten belum QA.
 - Migration belum diterapkan ke database aktif; fitur daftar penandatangan dan settings masih menunggu database pengembangan.
 - Tidak ada merge ke `main`, deployment Production, atau perubahan data Production.
+
+
+### Addendum verifikasi Preview (commit `59b89d22`)
+- Vercel Preview untuk commit `59b89d22e6c5bab045de087366ccf77662b3931c` berhasil **READY**.
+- URL: `https://grisan-606lnufqi-heins14.vercel.app`.
+- Log build mengonfirmasi **TypeScript selesai**, kompilasi Next.js berhasil, dan route baru `/admin/konten` serta `/admin/raport` masuk output build.
+- Deployment duplikat yang masih antre dibatalkan; deployment READY yang dipakai adalah `dpl_8UvL1ndGpBES92dUmjdAWnocBATm`.
+- Ini verifikasi build, belum verifikasi visual/operasional. Karena migration belum diterapkan, halaman daftar penandatangan tetap akan menampilkan error tabel belum tersedia saat dijalankan terhadap database aktif.
