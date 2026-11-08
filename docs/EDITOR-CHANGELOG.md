@@ -1491,3 +1491,12 @@ Kesimpulan sementara: data matematika dan gambar tampaknya tersedia dalam RTF, t
 Tindak lanjut: diagnostik tambahan mengumpulkan **nama control word RTF saja** di sekitar maksimal 3 grup `\\mmath` dan 5 grup `\\pict`. Isi teks soal dan payload gambar tidak ditampilkan. Hasil ini diperlukan untuk memastikan struktur matematika Word dan jenis payload gambar (misalnya PNG/JPEG/metafile) sebelum parser dibuat.
 
 Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum ada perubahan konversi atau penyimpanan gambar.
+
+
+## 2026-11-08 — Perbaikan diagnostik struktur RTF Word
+
+- Pengujian pengguna menunjukkan token `\\mmath` dan `\\pict` terdeteksi, tetapi ringkasan struktur kosong.
+- Penyebabnya ada pada pola RegExp diagnostik yang tidak meng-escape karakter backslash RTF dengan benar.
+- Diagnostik diperbaiki dengan memecah sampel berdasarkan backslash lalu membaca control word di awal setiap segmen.
+- Perubahan hanya menyentuh diagnostik sementara; belum mengubah konversi rumus/gambar, penyimpanan soal, API, atau database.
+- Commit: `6fe28fceb2af5d8575501f159fd56f9269505e73`.
