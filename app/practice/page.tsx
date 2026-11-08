@@ -234,29 +234,26 @@ export default function PracticeHubPage() {
   const playerAvatar = String(userProfile?.avatar_url || '👾')
   const playerAvatarIsImage = /^https?:\\/\\//i.test(playerAvatar)
 
-  const missionStyles = [
-    {
-      card: 'from-sky-500 via-blue-600 to-indigo-700',
-      pill: 'border-cyan-200/60 bg-cyan-100/20 text-white',
-      icon: '🧮',
-      art: '✨',
-      button: 'from-lime-300 to-emerald-400 text-emerald-950 hover:from-lime-200 hover:to-emerald-300',
-    },
-    {
-      card: 'from-emerald-500 via-green-600 to-teal-700',
-      pill: 'border-lime-200/60 bg-lime-100/20 text-white',
-      icon: '🗺️',
-      art: '🌿',
-      button: 'from-violet-500 to-indigo-500 text-white hover:from-violet-400 hover:to-indigo-400',
-    },
-    {
-      card: 'from-rose-500 via-pink-600 to-fuchsia-700',
-      pill: 'border-pink-200/60 bg-white/20 text-white',
-      icon: '⚡',
-      art: '🌟',
-      button: 'from-amber-300 to-yellow-400 text-amber-950 hover:from-amber-200 hover:to-yellow-300',
-    },
-  ]
+  const missionStyles = {
+    QUIZ: [
+      { card: 'from-sky-500 via-blue-600 to-indigo-700', art: '✨' },
+      { card: 'from-blue-600 via-indigo-600 to-violet-700', art: '💫' },
+      { card: 'from-cyan-600 via-blue-700 to-indigo-800', art: '⚡' },
+      { card: 'from-indigo-600 via-blue-600 to-sky-700', art: '🌠' },
+    ],
+    MAZE_GAME: [
+      { card: 'from-emerald-500 via-green-600 to-teal-700', art: '🌿' },
+      { card: 'from-green-600 via-emerald-600 to-cyan-700', art: '🍃' },
+      { card: 'from-teal-500 via-green-700 to-emerald-800', art: '🌴' },
+      { card: 'from-lime-600 via-emerald-600 to-green-800', art: '🧭' },
+    ],
+    FLASHCARD: [
+      { card: 'from-rose-500 via-pink-600 to-fuchsia-700', art: '🌟' },
+      { card: 'from-pink-500 via-fuchsia-600 to-purple-700', art: '💖' },
+      { card: 'from-fuchsia-600 via-pink-600 to-rose-700', art: '🎀' },
+      { card: 'from-rose-600 via-pink-700 to-purple-800', art: '✨' },
+    ],
+  }
 
   const availableSubtests = Array.from(
     new Set(
@@ -287,33 +284,17 @@ export default function PracticeHubPage() {
       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
     })
 
-  const getMissionStyle = (activityType: string) => {
+  const getMissionStyle = (activityType: string, variation = 0) => {
     const type = String(activityType || 'QUIZ').toUpperCase()
-    if (type === 'FLASHCARD') {
-      return {
-        ...missionStyles[2],
-        icon: '🃏',
-        art: '✨',
-        label: 'FLASHCARD',
-        action: 'BUKA KARTU',
-      }
-    }
-    if (type === 'MAZE_GAME') {
-      return {
-        ...missionStyles[1],
-        icon: '🤖',
-        art: '⭐',
-        label: 'GAME LABIRIN',
-        action: 'MAIN SEKARANG',
-      }
-    }
-    return {
-      ...missionStyles[0],
-      icon: '🧠',
-      art: '⚡',
-      label: 'KUIS LATIHAN',
-      action: 'MULAI LATIHAN',
-    }
+    const palette = type === 'FLASHCARD'
+      ? missionStyles.FLASHCARD
+      : type === 'MAZE_GAME'
+        ? missionStyles.MAZE_GAME
+        : missionStyles.QUIZ
+    const variant = palette[variation % palette.length]
+    if (type === 'FLASHCARD') return { ...variant, pill: 'border-pink-200/60 bg-white/20 text-white', icon: '🃏', label: 'FLASHCARD', action: 'BUKA KARTU', button: 'from-amber-300 to-yellow-400 text-amber-950 hover:from-amber-200 hover:to-yellow-300' }
+    if (type === 'MAZE_GAME') return { ...variant, pill: 'border-lime-200/60 bg-lime-100/20 text-white', icon: '🤖', label: 'GAME LABIRIN', action: 'MAIN SEKARANG', button: 'from-violet-500 to-indigo-500 text-white hover:from-violet-400 hover:to-indigo-400' }
+    return { ...variant, pill: 'border-cyan-200/60 bg-cyan-100/20 text-white', icon: '🧠', label: 'KUIS LATIHAN', action: 'MULAI LATIHAN', button: 'from-lime-300 to-emerald-400 text-emerald-950 hover:from-lime-200 hover:to-emerald-300' }
   }
 
   return (
@@ -348,13 +329,13 @@ export default function PracticeHubPage() {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-[1.7rem] border-2 border-cyan-300/40 bg-slate-950/65 p-5 shadow-[0_12px_0_-5px_rgba(8,15,38,.9),0_20px_45px_rgba(0,0,0,.3)] backdrop-blur-md">
+            <div className="arcade-player-card relative overflow-hidden rounded-[1.7rem] border-2 border-cyan-300/50 bg-slate-950/75 p-5 shadow-[0_12px_0_-5px_rgba(8,15,38,.9),0_20px_45px_rgba(0,0,0,.3)] backdrop-blur-md">
               <div className="arcade-scanlines pointer-events-none absolute inset-0 opacity-20" />
               <div className="absolute -right-5 -top-7 text-7xl opacity-10">✦</div>
               <div className="relative">
                 <div className="mb-4 flex items-center justify-between gap-2">
                   <span className="text-[10px] font-black tracking-[.2em] text-lime-200">PLAYER PROFILE</span>
-                  <span className="rounded-lg border border-amber-200/30 bg-amber-300/15 px-2.5 py-1 text-[9px] font-black text-amber-100">PLAYER 01</span>
+                  <span className="rounded-lg border border-amber-200/40 bg-amber-300/20 px-2.5 py-1 text-[9px] font-black tracking-wider text-amber-100">ID • {userProfile?.username || 'GUEST'}</span>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="arcade-player-avatar relative flex h-[76px] w-[76px] shrink-0 items-center justify-center overflow-hidden rounded-2xl border-[3px] border-cyan-200/80 bg-gradient-to-br from-cyan-300/30 to-violet-500/40 text-4xl shadow-[0_7px_0_#11152f,0_0_25px_rgba(34,211,238,.2)]">
@@ -372,12 +353,30 @@ export default function PracticeHubPage() {
                     </div>
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {playerBadges.length > 0 ? playerBadges.slice(0, 4).map((badge: any, index: number) => {
-                    const badgeName = typeof badge === 'string' ? badge : badge?.name || badge?.title || badge?.label || badge?.badge_name || badge?.id || `Badge ${index + 1}`
-                    const badgeIcon = typeof badge === 'object' ? badge?.icon || badge?.emoji || '🏅' : '🏅'
-                    return <span key={badgeName + '-' + index} title={badgeName} className="arcade-player-badge inline-flex items-center gap-1 rounded-xl border border-yellow-200/30 bg-yellow-200/10 px-2.5 py-1.5 text-[10px] font-black text-yellow-100"><span className="text-base">{badgeIcon}</span>{badgeName}</span>
-                  }) : <span className="text-[10px] font-semibold text-blue-100/65">🏅 Badge pertamamu menunggu untuk diraih!</span>}
+                <div className="mt-5">
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-[.18em] text-cyan-100">Koleksi pencapaian</span>
+                    <span className="rounded-full border border-yellow-200/30 bg-yellow-200/10 px-2 py-1 text-[9px] font-black text-yellow-100">{playerBadges.length} BADGE</span>
+                  </div>
+                  {playerBadges.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      {playerBadges.slice(0, 4).map((badge: any, index: number) => {
+                        const badgeName = typeof badge === 'string' ? badge : badge?.name || badge?.title || badge?.label || badge?.badge_name || badge?.id || `Badge ${index + 1}`
+                        const badgeIcon = typeof badge === 'object' ? badge?.icon || badge?.emoji || '🏅' : '🏅'
+                        return (
+                          <div key={badgeName + '-' + index} title={badgeName} className="arcade-player-badge group flex min-w-0 flex-col items-center gap-1 rounded-2xl border border-yellow-200/25 bg-gradient-to-b from-yellow-200/15 to-amber-500/5 px-2 py-3 text-center">
+                            <span className="arcade-badge-medal text-3xl">{badgeIcon}</span>
+                            <span className="w-full truncate text-[9px] font-black text-yellow-50">{badgeName}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="arcade-badge-empty flex items-center gap-3 rounded-2xl border border-dashed border-cyan-200/25 bg-cyan-300/5 px-3 py-3">
+                      <span className="arcade-badge-medal text-3xl">🏅</span>
+                      <span className="text-[10px] font-semibold leading-4 text-blue-100/75">Badge pertamamu menunggu! Selesaikan misi untuk mengisi koleksi pencapaianmu.</span>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-5">
                   <div className="mb-2 flex justify-between text-[10px] font-black text-cyan-100"><span>PROGRES LEVEL</span><span>{xpProgress}%</span></div>
@@ -479,8 +478,8 @@ export default function PracticeHubPage() {
             ) : filteredExams.length > 0 ? (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
                 {filteredExams.map((exam, missionIndex) => {
-                  const style = getMissionStyle(exam.activity_type)
                   const cardVariation = missionIndex % 4
+                  const style = getMissionStyle(exam.activity_type, cardVariation)
                   return (
                     <article
                       key={exam.id}
@@ -603,14 +602,14 @@ export default function PracticeHubPage() {
                 {leaderboard.length > 0 ? (
                   leaderboard.map((student, rank) => {
                     const rankStyle = rank === 0
-                      ? 'border-amber-300/70 bg-gradient-to-r from-amber-500/35 to-yellow-300/15 shadow-[0_0_22px_rgba(251,191,36,.12)]'
+                      ? 'arcade-rank-gold border-amber-300 bg-gradient-to-r from-amber-700 via-amber-600 to-yellow-700 shadow-[0_0_24px_rgba(251,191,36,.28)]'
                       : rank === 1
-                        ? 'border-cyan-200/60 bg-gradient-to-r from-slate-300/25 to-cyan-200/10'
+                        ? 'arcade-rank-silver border-slate-300 bg-gradient-to-r from-slate-600 via-slate-500 to-slate-700 shadow-[0_0_20px_rgba(203,213,225,.2)]'
                         : rank === 2
-                          ? 'border-orange-300/70 bg-gradient-to-r from-orange-500/30 to-rose-400/10'
-                          : 'border-white/10 bg-slate-950/45 hover:border-cyan-300/40'
+                          ? 'arcade-rank-bronze border-orange-300 bg-gradient-to-r from-orange-800 via-orange-700 to-rose-800 shadow-[0_0_20px_rgba(251,146,60,.22)]'
+                          : 'border-white/10 bg-slate-950/55 hover:border-cyan-300/40'
                     const rankBadge = rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `${rank + 1}`
-                    const rankText = rank < 3 ? 'text-white' : 'text-slate-100'
+                    const rankText = 'text-white'
 
                     return (
                       <div
@@ -626,14 +625,14 @@ export default function PracticeHubPage() {
                             <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-slate-900/60 text-xl shadow-inner">{/^https?:\\/\\//i.test(String(student.avatar_url || '')) ? <img src={student.avatar_url} alt="" className="h-full w-full object-cover" /> : (student.avatar_url || '👾')}</span>
                             <div className="min-w-0">
                               <p className={`truncate text-xs font-black ${rankText}`}>{student.full_name || student.username}</p>
-                              <p className="mt-1 truncate text-[10px] font-semibold text-cyan-100/75">{student.username ? `@${student.username}` : (student.class_code ? `Kelas ${student.class_code}` : 'Pemain')}</p>
+                              <p className={`mt-1 truncate text-[10px] font-semibold ${rank < 3 ? 'text-white/90' : 'text-cyan-100/75'}`}>{student.username ? `@${student.username}` : (student.class_code ? `Kelas ${student.class_code}` : 'Pemain')}</p>
                             </div>
                           </div>
                           </div>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-xs font-black text-amber-200">{student.xp || 0} XP</p>
-                          <p className="mt-1 text-[9px] font-bold uppercase text-cyan-100/60">LEVEL {student.level || 1}</p>
+                          <p className={`text-xs font-black ${rank < 3 ? 'text-white drop-shadow-sm' : 'text-amber-200'}`}>{student.xp || 0} XP</p>
+                          <p className={`mt-1 text-[9px] font-bold uppercase ${rank < 3 ? 'text-white/85' : 'text-cyan-100/60'}`}>LEVEL {student.level || 1}</p>
                         </div>
                       </div>
                     )
@@ -653,7 +652,7 @@ export default function PracticeHubPage() {
         </div>
 
         {/* FOOTER MOTIVATION */}
-        <section className="relative overflow-hidden rounded-[1.7rem] bg-gradient-to-r from-[#0b1d49] via-blue-900 to-indigo-900 p-5 text-white shadow-lg sm:p-6">
+        <section className="arcade-practice-footer relative overflow-hidden rounded-[1.7rem] border border-cyan-300/25 bg-gradient-to-r from-[#101b49] via-indigo-950 to-[#251044] p-5 text-white shadow-[0_12px_0_rgba(4,8,28,.35),0_22px_40px_rgba(0,0,0,.22)] sm:p-6">
           <div className="absolute -right-5 -top-10 text-8xl opacity-10">🏅</div>
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
