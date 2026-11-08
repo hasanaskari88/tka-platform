@@ -3,7 +3,8 @@
 
 alter table public.practice_attempts
   add column if not exists progress jsonb not null default '{}'::jsonb,
-  add column if not exists credited_xp integer not null default 0;
+  add column if not exists credited_xp integer not null default 0,
+  add column if not exists completion_bonus_xp integer not null default 0;
 
 create or replace function public.start_practice_attempt(p_exam_id uuid)
 returns jsonb
@@ -198,6 +199,8 @@ declare
   v_attempt public.practice_attempts%rowtype;
   v_score numeric;
   v_best_score numeric;
+  v_completed_count integer;
+  v_first_completion_bonus integer;
   v_answer_xp integer;
   v_streak integer;
   v_activity_type text;
@@ -246,8 +249,8 @@ begin
     else 0
   end;
 
-  select max(score)
-  into v_best_score
+  select count(*)::integer, max(score)
+  into v_completed_count, v_best_score
   from public.practice_attempts
   where user_id = v_user_id
     and exam_id = v_attempt.exam_id
@@ -255,6 +258,8 @@ begin
 
   v_answer_xp := p_correct_count * 10;
   v_streak := p_streak_xp;
+  -- The first successfully completed attempt earns this bonus, even if an earlier attempt was abandoned.
+  v_first_completion_bonus := case when coalesce(v_completed_count, 0) = 0 then 20 else 0 end;
 
   select activity_type::text
   into v_activity_type
@@ -269,7 +274,7 @@ begin
     else 0
   end;
 
-  v_total_xp := v_answer_xp + v_streak + v_improvement;
+  v_total_xp := v_answer_xp + v_streak + v_improvement + v_first_completion_bonus;
   v_delta_xp := v_total_xp - coalesce(v_attempt.credited_xp, 0);
 
   if v_delta_xp < 0 then
@@ -285,6 +290,7 @@ begin
       answer_xp = v_answer_xp,
       streak_xp = v_streak,
       improvement_xp = v_improvement,
+      completion_bonus_xp = v_first_completion_bonus,
       total_xp = v_total_xp,
       credited_xp = v_total_xp,
       completed_at = now()
@@ -310,6 +316,7 @@ begin
     'answer_xp', v_answer_xp,
     'streak_xp', v_streak,
     'improvement_xp', v_improvement,
+    'completion_bonus_xp', v_first_completion_bonus,
     'total_xp', v_total_xp,
     'xp_delta', v_delta_xp,
     'xp', v_new_xp,
