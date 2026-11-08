@@ -45,7 +45,7 @@ export default function AdminKontenPage() {
     if (m.error) setError(old => old ? old + ' | Materi: ' + m.error.message : 'Materi: ' + m.error.message)
     else setMaterials((m.data || []) as Material[])
     if (st.error) setError(old => old ? old + ' | Daftar mata pelajaran/subtes: ' + st.error.message : 'Daftar mata pelajaran/subtes: ' + st.error.message)
-    else setSubtests((st.data || []).map((x: any) => String(x.name || '').trim()).filter(Boolean))
+    else { const names = (st.data || []).map((x: any) => String(x.name || '').trim()).filter(Boolean); setSubtests(names); setMatSubject(old => old === 'Umum' && names.length ? names[0] : old) }
     const user = auth.data.user
     if (user) {
       const profile = await db.from('profiles').select('full_name').eq('id', user.id).maybeSingle()
