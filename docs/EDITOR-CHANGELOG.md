@@ -2206,3 +2206,12 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Catatan: daftar penandatangan tersimpan di tabel terpisah dari akun/profil login; tidak membuat atau mengubah akun guru.
 - Migration masih staged pada branch `homepage-arcade-catalog`; **belum diterapkan ke database aktif/Production**. Sampai migration diterapkan di database pengembangan, daftar tidak akan tersedia dan UI dapat menampilkan daftar kosong.
 - Build Vercel Preview, pemeriksaan TypeScript, dan uji cetak siswa/admin belum diverifikasi. Deployment tidak dilakukan; tidak ada merge ke `main` atau perubahan Production.
+
+
+## 2026-11-09 — Build Vercel Preview daftar penandatangan
+
+- Menjalankan build Preview untuk commit `d6ce89430dad63d5cdf620a4892aeeb2c6bd3676` pada branch `homepage-arcade-catalog`.
+- Deployment `dpl_ANKExdX4NFwDPyfBF17HH8nBYKwy` berstatus **READY**; URL `https://grisan-p00alumc5-heins14.vercel.app`.
+- Build Next.js selesai dalam sekitar 2 menit; 31/31 halaman statis berhasil dibuat. Route `/admin/pengaturan-dokumen`, `/admin/raport`, dan `/history` tercantum pada output build.
+- Log build tetap menampilkan warning/error non-fatal `HANGING_PROMISE_REJECTION` terkait `cookies()` ketika prerender route API `/api/google-drive/images` dan `/api/google-drive/connect`; meskipun deployment mencapai READY. Perlu audit terpisah, tidak diubah dalam tugas build ini.
+- Build ini hanya Preview. Tidak ada deployment Production, merge ke `main`, atau penerapan migration Supabase.
