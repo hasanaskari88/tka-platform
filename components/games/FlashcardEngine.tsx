@@ -71,6 +71,9 @@ export default function FlashcardEngine({
         setXpEarned(restoredIds.length * 10)
         setIsResumedSession(Boolean(data?.resumed))
         setIsComplete(restoredIndex >= totalQuestions)
+        if (restoredIndex >= totalQuestions) {
+          setNotice('Semua kartu sudah dipelajari. Sesi menunggu penyimpanan akhir.')
+        }
       } catch (error) {
         console.error('Gagal memulai sesi Flashcard:', error)
         if (active) {
