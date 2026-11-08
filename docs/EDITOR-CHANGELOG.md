@@ -1956,3 +1956,18 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Animasi sementara berbasis emoji dan CSS yang telah dikirim pada branch `homepage-arcade-catalog` dipertahankan; tidak dihapus atau diganti pada tahap ini.
 - Halaman Practice / Latihan menjadi fokus peninjauan berikutnya. Tahap awal hanya audit kode dan rekomendasi; belum ada perubahan aplikasi, database, skema, API, XP, leaderboard, atau scoring.
 - Status homepage: belum dinyatakan final untuk Production dan belum di-merge ke `main`; keputusan rilis tetap menunggu QA pengguna dan persetujuan eksplisit.
+
+## 2026-11-08 — Practice Tahap 1: pusat misi latihan
+
+- Fokus pengembangan dialihkan dari homepage ke halaman Practice sesuai persetujuan pengguna.
+- Audit awal mencakup `app/practice/page.tsx`, `app/practice/[id]/page.tsx`, `app/admin/practice/page.tsx`, `components/games/MazeGameEngine.tsx`, dan `components/games/FlashcardEngine.tsx`.
+- Implementasi Tahap 1 pada `app/practice/page.tsx`:
+  - Menambahkan pencarian judul, deskripsi, subtes, dan jenis aktivitas.
+  - Menambahkan filter jenis aktivitas: Kuis, Flashcard, dan Game Labirin.
+  - Menambahkan filter mata pelajaran/subtes berdasarkan nilai `exams.subtest` yang memang tersedia pada data saat ini; tidak membuat kolom atau skema baru.
+  - Menambahkan pengurutan Terbaru, Terlama, dan Nama A–Z.
+  - Menetapkan identitas warna/ikon kartu berdasarkan `activity_type`, bukan urutan kartu, agar jenis aktivitas konsisten.
+  - Menambahkan jumlah hasil dan keadaan kosong saat pencarian/filter tidak menemukan latihan, termasuk tombol reset.
+- Perubahan hanya pada katalog frontend Practice; tidak mengubah database, API, RPC, XP, level, badge, scoring, mesin soal, Maze, atau Flashcard.
+- Status: implementasi dikirim ke branch `homepage-arcade-catalog`; menunggu hasil Vercel Preview dan QA pengguna. Belum di-merge ke `main` dan bukan rilis Production.
+- Urutan lanjutan: (1) verifikasi Preview dan QA Tahap 1; (2) perbaiki berdasarkan temuan QA; (3) setelah disetujui, lanjut audit/desain pengerjaan soal; (4) baru setelah itu penyempurnaan Maze/Flashcard dan audit XP/attempt.
