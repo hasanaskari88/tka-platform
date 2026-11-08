@@ -1787,3 +1787,20 @@ Kesimpulan audit kode: bentuk payload lama dan jalur penyimpanan kunci/bobot mas
 - Bandingkan bobot, kunci, skor otomatis, nilai essay manual, bonus, dan override terhadap nilai yang diharapkan pada satu ujian uji. Jangan memakai data ujian aktif/produksi untuk percobaan yang dapat mengubah nilai siswa.
 
 Status: **audit kode selesai untuk empat file di atas; tidak ada file aplikasi yang diubah, tidak ada build/deployment baru, tidak ada perubahan database/skema/API/scoring atau branch `main`**.
+
+
+## 2026-11-08 — QA akhir pengguna dan persiapan rilis
+
+### Konfirmasi QA pengguna
+- Pengguna telah melakukan pengujian langsung untuk tampilan siswa, koreksi guru, ringkasan, cetak, dan kedua jenis export; hasil yang dilaporkan normal.
+- Pengguna juga telah mencoba alur pengerjaan soal dan memeriksa hasilnya, termasuk penilaian essay secara manual; hasil yang dilaporkan normal.
+- Pengujian dokumen Word panjang secara keseluruhan tetap dilewati sesuai keputusan pengguna. Pengujian contoh teks, rumus, gambar/diagram, crop, wrap, resize, dan simpan/buka ulang yang telah dikonfirmasi tetap menjadi cakupan QA.
+- Temuan rincian kunci matriks pada export Excel daftar soal tidak diperbaiki karena pengguna menyatakan export kunci Excel belum menjadi kebutuhan penting. Temuan ini hanya berdampak pada format export, bukan penyimpanan kunci atau mekanisme penilaian.
+
+### Penutupan audit
+- Pemeriksaan kode sebelumnya pada alur simpan/muat, render siswa/guru, cetak, export, dan pemisahan nilai essay manual tetap berlaku.
+- Tidak ada perubahan database, skema, RPC, trigger, API penilaian, maupun formula scoring pada tahap audit akhir.
+- Halaman laboratorium `app/font-test/page.tsx` sengaja dipertahankan sebagai alat uji editor sesuai aturan proyek.
+- Berkas sementara `tka-content-audit.txt` dihapus dari branch karena merupakan hasil audit lokal, bukan bagian dari aplikasi.
+- Preview terakhir yang diperiksa berstatus **READY**, branch `editor-test`, commit `6dd341a99defdd7531364a38d7b143569379ba71`. Penghapusan artefak audit dan catatan QA ini memerlukan Preview baru sebelum merge.
+- Status: **QA pengguna untuk cakupan yang disebutkan telah dikonfirmasi; siap melanjutkan pemeriksaan Preview pasca-pembersihan dan proses Pull Request ke `main`**.
