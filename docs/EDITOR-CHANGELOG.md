@@ -1572,3 +1572,5 @@ Checklist QA Preview:
 - [ ] Paste teks biasa, tabel, Arab, Aksara Jawa, dan rumus yang sebelumnya sudah bekerja tetap normal.
 
 Hasil build Preview dan QA pengguna: **menunggu**.
+
+- Penyempurnaan: ukuran awal gambar rumus disimpan sebagai `style.width: 140px` (bukan atribut HTML `width` numerik), agar parser node gambar membaca satuan CSS dengan benar.
