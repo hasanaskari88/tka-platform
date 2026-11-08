@@ -1647,3 +1647,14 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, format soal, kunci jawaban, atau penilaian.
 - Commit kode: `cb9678d596ab1101be258007b6bbceeacdaca06a`.
 - Status: menunggu build Preview dan QA pengguna. Perlu diuji apakah teks benar-benar mengalir di samping gambar pada paragraf yang sama; jika HTML clipboard Word memisahkan gambar dan teks ke paragraf berbeda, tahap lanjutan mungkin perlu menyatukan struktur paragraf secara selektif.
+
+
+## 2026-11-08 — Membaca informasi crop gambar Word dari RTF
+
+- Ekstraksi diagram WMF dari clipboard RTF kini membaca metadata crop Word: `\\piccropl`, `\\piccropr`, `\\piccropt`, dan `\\piccropb`, bersama ukuran target `\\picwgoal` / `\\pichgoal`.
+- Setelah WMF dikonversi menjadi PNG, crop diterapkan pada bitmap di browser sebelum gambar diunggah ke Google Drive. Jika metadata crop tidak tersedia atau tidak valid, file asli dipertahankan agar proses paste tidak gagal.
+- Perubahan ini ditujukan untuk mempertahankan area gambar yang terlihat di Word; hasil crop tetap perlu dibandingkan langsung dengan dokumen sumber karena variasi clipboard Word dapat menggunakan unit atau struktur yang berbeda.
+- Tata letak Wrap Text, ukuran gambar, konversi rumus RTF, dan alur upload yang sudah ada tetap dipertahankan.
+- Tidak mengubah database, skema soal, API upload, kunci jawaban, atau penilaian.
+- Commit kode: `7d32e44f448194a0845c4708e2dd11dd43e853c8`.
+- Status: implementasi pada branch `editor-test`; menunggu build Preview dan QA pengguna.
