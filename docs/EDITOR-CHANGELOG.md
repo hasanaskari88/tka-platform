@@ -1427,3 +1427,11 @@ Batas pemeriksaan:
 - Tidak ada perubahan database, API upload, skema soal, format penyimpanan jawaban, kunci jawaban, atau penilaian.
 
 Status: **perubahan kode pada `editor-test`; menunggu build Preview dan QA langsung pengguna**.
+
+
+### Catatan build Preview untuk perbaikan clipboard — 8 November 2026
+
+- Dua build antara gagal pada parsing TypeScript karena pola regex URL ditulis dengan escape garis miring yang berlebih. Log Vercel menunjukkan `Expression expected` / `Expected unicode escape` pada `RichTextEditor.tsx`.
+- Penyebab diperbaiki dengan mengganti regex tersebut menjadi pemeriksaan eksplisit `startsWith('http://')` dan `startsWith('https://')`.
+- Build pada commit `ad422a60da53de8353649267aee5f9aecb63bdc3` telah mencapai status **READY** di Vercel Preview.
+- Status READY hanya membuktikan proses build berhasil. Paste gambar dan konversi rumus dari Word masih menunggu pengujian langsung pengguna.
