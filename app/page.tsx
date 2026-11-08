@@ -551,7 +551,7 @@ const filteredExams = useMemo(() => {
                       arcadeBadges.slice(0, 4).map((badge: any, index: number) => {
                         const badgeName = typeof badge === 'string'
                           ? badge
-                          : badge?.name || badge?.title || badge?.label || 'Badge ' + (index + 1)
+                          : badge?.name || badge?.title || badge?.label || badge?.badge_name || badge?.id || 'Badge ' + (index + 1)
                         const badgeIcon = typeof badge === 'object'
                           ? badge?.icon || badge?.emoji || '🏅'
                           : '🏅'
@@ -660,9 +660,13 @@ const filteredExams = useMemo(() => {
             </div>
             <p className="mt-3 rounded-xl border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-3 py-2 text-xs font-semibold text-fuchsia-100">
               {userProfile
-                ? activeLeaderboard.some((student) => student.id === userProfile.id)
-                  ? '✨ Hebat, ' + (userProfile.full_name || 'Petualang') + '! Kamu masuk 3 besar ' + (leaderboardMode === 'CLASS' ? 'kelas' : 'global') + '. Pertahankan semangatmu!'
-                  : arcadeTier.message
+                ? activeLeaderboard.findIndex((student) => student.id === userProfile.id) === 0
+                  ? '👑 Luar biasa, ' + (userProfile.full_name || 'Petualang') + '! Kamu berada di peringkat pertama. Terus jadi teladan!'
+                  : activeLeaderboard.findIndex((student) => student.id === userProfile.id) === 1
+                    ? '🥈 Hebat! Kamu berada di peringkat kedua. Sedikit lagi menuju puncak!'
+                    : activeLeaderboard.findIndex((student) => student.id === userProfile.id) === 2
+                      ? '🥉 Keren! Kamu masuk tiga besar. Terus berlatih untuk meraih posisi lebih tinggi!'
+                      : arcadeTier.message
                 : 'Masuk ke akunmu untuk menyimpan XP, mengoleksi badge, dan ikut bersaing secara sehat.'}
             </p>
             <div className="mt-3 text-right">
