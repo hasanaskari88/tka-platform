@@ -19,6 +19,7 @@ type DocConfig = {
 export default function AdminReportPage() {
   const [students, setStudents] = useState<any[]>([])
   const [adminProfiles, setAdminProfiles] = useState<any[]>([])
+  const [signatories, setSignatories] = useState<any[]>([])
   const [exams, setExams] = useState<any[]>([])
   const [practice, setPractice] = useState<any[]>([])
   const [examSessions, setExamSessions] = useState<any[]>([])
@@ -62,11 +63,13 @@ export default function AdminReportPage() {
         setExams(e.data || [])
         setPractice(pr.data || [])
         setExamSessions(es.data || [])
-        const [admin, savedSettings] = await Promise.all([
+        const [admin, savedSettings, people] = await Promise.all([
           db.from('profiles').select('full_name').eq('role', 'admin').order('full_name'),
           db.rpc('get_school_document_settings'),
+          db.from('teacher_signatories').select('id,full_name,position,class_code,nip').eq('is_active', true),
         ])
         setAdminProfiles(admin.data || [])
+        setSignatories(people.data || [])
         if (savedSettings.data) {
           const s = savedSettings.data
           setConfig(current => ({ ...current, schoolName: s.school_name || current.schoolName, schoolAddress: s.school_address || current.schoolAddress, teacherName: s.teacher_name || admin.data?.[0]?.full_name || current.teacherName, teacherNip: s.teacher_nip || current.teacherNip, principalName: s.principal_name || current.principalName, principalNip: s.principal_nip || current.principalNip, issuePlace: s.issue_place || current.issuePlace, kkm: Number(s.kkm ?? current.kkm) }))
@@ -123,7 +126,13 @@ export default function AdminReportPage() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari nama peserta..." className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
             </div>
             <div className="mt-3 max-h-[560px] space-y-1 overflow-y-auto">
-              {filteredStudents.map(s => <button key={s.id} type="button" onClick={() => { setSelectedStudentId(s.id); setSelectedPracticeIds([]); setSelectedExamIds([]); setCertificateSessionId('') }} className={`w-full rounded-xl border p-3 text-left ${selectedStudentId === s.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}><div className="text-xs font-bold text-slate-900">{s.full_name || 'Tanpa nama'}</div><div className="mt-0.5 text-[10px] text-slate-500">Kelas {s.class_code || '-'} · @{s.username || '-'}</div></button>)}
+              {filteredStudents.map(s => <button key={s.id} type="button" onClick={() => {
+                setSelectedStudentId(s.id); setSelectedPracticeIds([]); setSelectedExamIds([]); setCertificateSessionId('')
+                const teacher = signatories.find(item => item.position === 'class_teacher' && item.class_code === s.class_code)
+                const principal = signatories.find(item => item.position === 'principal')
+                if (teacher) setConfig(old => ({ ...old, teacherName: teacher.full_name, teacherNip: teacher.nip || '' }))
+                if (principal) setConfig(old => ({ ...old, principalName: principal.full_name, principalNip: principal.nip || '' }))
+              }} className={`w-full rounded-xl border p-3 text-left ${selectedStudentId === s.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}><div className="text-xs font-bold text-slate-900">{s.full_name || 'Tanpa nama'}</div><div className="mt-0.5 text-[10px] text-slate-500">Kelas {s.class_code || '-'} · @{s.username || '-'}</div></button>)}
               {!loading && filteredStudents.length === 0 && <p className="py-6 text-center text-xs text-slate-400">Peserta tidak ditemukan.</p>}
             </div>
           </aside>
@@ -146,10 +155,8 @@ export default function AdminReportPage() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="text-xs font-semibold text-slate-600">Nama sekolah<input value={config.schoolName} onChange={e => updateConfig('schoolName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">Alamat sekolah<input value={config.schoolAddress} onChange={e => updateConfig('schoolAddress', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">Pilih Guru / Admin<select value={config.teacherName} onChange={e => updateConfig('teacherName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"><option value="">Pilih nama penandatangan</option>{adminProfiles.map(a => <option key={a.full_name} value={a.full_name}>{a.full_name}</option>)}</select><input value={config.teacherName} onChange={e => updateConfig('teacherName', e.target.value)} placeholder="Atau ketik nama manual" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">NIP Guru / Admin<input value={config.teacherNip} onChange={e => updateConfig('teacherNip', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">Kepala sekolah<input value={config.principalName} onChange={e => updateConfig('principalName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">NIP Kepala Sekolah<input value={config.principalNip} onChange={e => updateConfig('principalNip', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
+                <label className="text-xs font-semibold text-slate-600">Guru pengampu kelas {selectedStudent?.class_code || ''}<select value={signatories.find(item => item.position === 'class_teacher' && item.class_code === selectedStudent?.class_code && item.full_name === config.teacherName)?.id || ''} onChange={e => { const item = signatories.find(x => x.id === e.target.value); if (item) setConfig(old => ({ ...old, teacherName: item.full_name, teacherNip: item.nip || '' })) }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"><option value="">Pilih guru kelas</option>{signatories.filter(item => item.position === 'class_teacher' && item.class_code === selectedStudent?.class_code).map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}</select><span className="mt-1 block text-[10px] text-slate-500">NIP: {config.teacherNip || '—'}</span></label>
+                <label className="text-xs font-semibold text-slate-600">Kepala Sekolah<select value={signatories.find(item => item.position === 'principal' && item.full_name === config.principalName)?.id || ''} onChange={e => { const item = signatories.find(x => x.id === e.target.value); if (item) setConfig(old => ({ ...old, principalName: item.full_name, principalNip: item.nip || '' })) }} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"><option value="">Pilih kepala sekolah</option>{signatories.filter(item => item.position === 'principal').map(item => <option key={item.id} value={item.id}>{item.full_name}</option>)}</select><span className="mt-1 block text-[10px] text-slate-500">NIP: {config.principalNip || '—'}</span></label>
                 <label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={config.issuePlace} onChange={e => updateConfig('issuePlace', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">Tanggal dokumen<input type="date" value={config.issueDate} onChange={e => updateConfig('issueDate', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">KKM / batas ketuntasan<input type="number" min="0" max="100" value={config.kkm} onChange={e => updateConfig('kkm', Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
