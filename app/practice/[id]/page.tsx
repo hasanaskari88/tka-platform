@@ -126,13 +126,16 @@ function PracticeContent() {
     answers: {},
   })
   const finishStartedRef = useRef(false)
+  const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const startAttemptPromiseRef = useRef<{
-  examId: string;
-  promise: Promise<{
-    attemptId: string | null;
-    error: unknown;
-  }>;
-} | null>(null);
+    examId: string;
+    promise: Promise<{
+      attemptId: string | null;
+      progress: any;
+      resumed: boolean;
+      error: unknown;
+    }>;
+  } | null>(null);
   const streakXpRef = useRef(0)
 
   const checkAndUnlockBadges = async (
@@ -255,6 +258,8 @@ function PracticeContent() {
   })
   .catch((error: unknown) => ({
     attemptId: null,
+    progress: {},
+    resumed: false,
     error,
   }));
 
@@ -338,27 +343,32 @@ if (active) {
 
 const qType = currentQuestion?.question_type || 'multiple_choice'
 
-  const persistAttemptProgress = async (nextProgress?: any) => {
+  const persistAttemptProgress = (nextProgress?: any): Promise<boolean> => {
     const progress = nextProgress || progressRef.current
-    if (!attemptId) return false
+    if (!attemptId) return Promise.resolve(false)
 
-    const { error } = await createClient().rpc(
-      'save_practice_attempt_progress',
-      {
-        p_attempt_id: attemptId,
-        p_progress: progress,
-        p_answered_count: Number(progress.answeredCount || 0),
-        p_correct_count: Number(progress.correctCount || 0),
-        p_answer_xp: Number(progress.correctCount || 0) * 10,
-        p_streak_xp: Number(progress.streakXp || 0),
+    const saveTask = saveQueueRef.current.then(async () => {
+      const { error } = await createClient().rpc(
+        'save_practice_attempt_progress',
+        {
+          p_attempt_id: attemptId,
+          p_progress: progress,
+          p_answered_count: Number(progress.answeredCount || 0),
+          p_correct_count: Number(progress.correctCount || 0),
+          p_answer_xp: Number(progress.correctCount || 0) * 10,
+          p_streak_xp: Number(progress.streakXp || 0),
+        }
+      )
+
+      if (error) {
+        console.error('Gagal menyimpan progres latihan:', error)
+        return false
       }
-    )
+      return true
+    })
 
-    if (error) {
-      console.error('Gagal menyimpan progres latihan:', error)
-      return false
-    }
-    return true
+    saveQueueRef.current = saveTask.catch(() => false)
+    return saveTask
   }
 
   const processXpAndStreak = (isUserRight: boolean, answerValue: any = userAnswer) => {
@@ -681,7 +691,23 @@ const handleCheckMatrixAnswer = () => {
     }
 
     setIsSavingAndExit(true)
-    const saved = await persistAttemptProgress(progressRef.current)
+    const latestProgress = {
+      ...progressRef.current,
+      currentIndex,
+      skippedQuestionIds,
+      isReviewingSkipped,
+      reviewIndex,
+      userAnswer,
+      isAnswered,
+      isCorrect,
+      streakCount,
+      answeredCount,
+      correctCount,
+      totalXpEarned,
+      streakXp: streakXpRef.current,
+    }
+    progressRef.current = latestProgress
+    const saved = await persistAttemptProgress(latestProgress)
     setIsSavingAndExit(false)
 
     if (!saved) {
@@ -698,7 +724,23 @@ const handleCheckMatrixAnswer = () => {
     finishStartedRef.current = true
     setIsFinishing(true)
 
-    const saved = await persistAttemptProgress(progressRef.current)
+    const latestProgress = {
+      ...progressRef.current,
+      currentIndex,
+      skippedQuestionIds,
+      isReviewingSkipped,
+      reviewIndex,
+      userAnswer,
+      isAnswered,
+      isCorrect,
+      streakCount,
+      answeredCount,
+      correctCount,
+      totalXpEarned,
+      streakXp: streakXpRef.current,
+    }
+    progressRef.current = latestProgress
+    const saved = await persistAttemptProgress(latestProgress)
     if (!saved) {
       alert('Progres belum berhasil disimpan. Silakan coba lagi.')
       finishStartedRef.current = false
