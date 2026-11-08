@@ -224,12 +224,12 @@ function HomePageContent() {
       badge: '🕹️ ARCADE GAME HUB • MODE PETUALANGAN',
       title: 'Pilih Misi, Kumpulkan XP, Jadi Juara!',
       subtitle:
-        'Jelajahi galaksi ilmu, selesaikan tantangan, kumpulkan XP, dan naikkan levelmu!',
+        'Masuki arena belajar, selesaikan tantangan seru, buka pencapaian, dan tingkatkan levelmu setiap hari!',
       cardBg:
-        'bg-[#0c1229]/95 border-2 border-cyan-400/30 text-white hover:border-fuchsia-400/70 hover:shadow-xl hover:shadow-cyan-950/40',
+        'bg-gradient-to-br from-[#172b52] via-[#19133d] to-[#321447] border-2 border-cyan-300/35 text-white shadow-[0_7px_0_rgba(4,8,25,.65),0_15px_28px_rgba(0,0,0,.2)] hover:border-yellow-200/80 hover:shadow-[0_12px_0_rgba(4,8,25,.65),0_22px_35px_rgba(0,0,0,.3)]',
       cardTitle: 'text-cyan-300 font-black',
       btnBg:
-        'bg-gradient-to-r from-cyan-500 via-blue-600 to-fuchsia-600 hover:from-cyan-400 hover:via-blue-500 hover:to-fuchsia-500 text-white font-black shadow-lg shadow-cyan-500/20',
+        'bg-gradient-to-b from-cyan-300 via-blue-500 to-indigo-600 border border-cyan-100/70 text-white font-black shadow-[0_5px_0_#172554,0_10px_18px_rgba(34,211,238,.2)] hover:brightness-110',
       badgeColor:
         'bg-fuchsia-950/80 text-cyan-300 border border-cyan-400/40',
       textMuted: 'text-slate-300 font-medium',
