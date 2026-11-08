@@ -1882,3 +1882,13 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Pesan penyemangat tetap mengikuti golongan dinamis. XP dan level yang sudah tersimpan tidak diubah; tidak ada perubahan skema, sistem pemberian XP, rumus level, badge, scoring, RPC, login, atau CBT.
 - Commit implementasi: `7e4eae2362ac66d992e96ebf893dcb49cd1094f4`.
 - Status: menunggu Preview build dan QA pengguna. Peringkat dinamis bergantung pada data profil siswa yang dapat dibaca melalui kebijakan akses Supabase saat ini.
+
+## 2026-11-08 — Koreksi gelar untuk peringkat pertama leaderboard
+
+- Pemeriksaan ulang menemukan bahwa aturan sebelumnya menetapkan Legenda Arena hanya untuk persentil 1% teratas. Akibatnya, siswa peringkat pertama masih bisa mendapat Grandmaster ketika jumlah peserta membuat posisinya lebih dari 1% (misalnya peringkat 1 dari 20 siswa = 5%).
+- Aturan diperbaiki: siswa dengan XP tertinggi (peringkat 1) selalu mendapat **Legenda Arena**, berapa pun jumlah siswa.
+- Peringkat dihitung berdasarkan jumlah siswa yang memiliki XP lebih tinggi daripada pemain. Dengan demikian, siswa yang memiliki nilai XP sama memperoleh peringkat dan gelar yang sama (tie-aware), bukan dibedakan hanya oleh urutan baris.
+- Gelar untuk peringkat berikutnya tetap adaptif berdasarkan persentase posisi: Grandmaster (5% teratas), Master Pengetahuan (15%), Ksatria Cendekia (35%), Penjelajah Tangguh (65%), dan Calon Juara.
+- Perubahan hanya menyentuh perhitungan gelar di homepage. XP, level, papan peringkat, database, skema, scoring, RPC, RLS, login, dan CBT tidak diubah.
+- Commit kode: `6a393245b395b69bf0048064d0385ef9ce49b324`.
+- Status: menunggu build Vercel Preview dan QA pengguna; belum di-merge ke `main` dan belum mengubah Production.
