@@ -1704,3 +1704,11 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Crop dan wrap yang sebelumnya telah diuji tetap dipertahankan.
 - Tidak ada perubahan kode pada catatan QA ini; tidak mengubah Production, database, API, atau penilaian.
 
+## 2026-11-08 — QA pengguna: simpan dan buka ulang soal Word
+
+- Pengguna mengonfirmasi bahwa setelah soal disimpan, halaman ditinggalkan, lalu soal yang sama dibuka kembali, seluruh konten tetap konsisten.
+- Elemen yang diperiksa: teks, rumus, gambar, ukuran gambar, dan posisi gambar.
+- Kelima aspek tersebut tetap sama setelah pemuatan ulang; tahap **simpan dan buka ulang soal dinyatakan lulus QA pengguna**.
+- Hasil ini berlaku untuk skenario soal yang diuji dan tidak otomatis menyatakan seluruh tipe soal atau semua variasi konten telah diuji.
+- Tidak ada perubahan kode aplikasi, database, skema, API, penilaian, atau Production pada tahap QA ini. Catatan ditambahkan pada branch `editor-test`.
+- Langkah berikutnya: lanjutkan QA kompatibilitas pada tipe soal lain dan tampilan siswa/print, tanpa mengubah alur penilaian.
