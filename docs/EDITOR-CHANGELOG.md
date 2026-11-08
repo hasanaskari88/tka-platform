@@ -1658,3 +1658,14 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Tidak mengubah database, skema soal, API upload, kunci jawaban, atau penilaian.
 - Commit kode: `7d32e44f448194a0845c4708e2dd11dd43e853c8`.
 - Status: implementasi pada branch `editor-test`; menunggu build Preview dan QA pengguna.
+
+
+## 2026-11-08 — Penyesuaian skala crop gambar Word
+
+- QA pengguna menunjukkan crop sudah diterapkan, tetapi hasil yang terlihat masih lebih luas daripada crop di Word.
+- Perhitungan crop RTF disesuaikan: nilai crop kiri/kanan dibandingkan langsung dengan `picwgoal`, dan atas/bawah dengan `pichgoal`. Perhitungan sebelumnya menambahkan nilai crop ke penyebut sehingga hasil potongan lebih ringan.
+- Fallback tetap mempertahankan gambar asli bila metadata crop tidak valid atau hasil crop terlalu kecil.
+- Perubahan ini masih memerlukan perbandingan visual dengan dokumen Word yang sama; angka perhitungan belum dianggap QA final.
+- Tidak mengubah Wrap Text, rumus, database, API upload, atau penilaian.
+- Commit kode: `b64275216046deb6a1d458ce887d6d74774e1881`.
+- Status: menunggu Preview dan QA pengguna.
