@@ -2159,3 +2159,23 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Fungsi aktif `start_practice_attempt(uuid)` dan `finish_practice_attempt(uuid, integer, integer, integer)` cocok dengan signature yang diganti pada migration. Fungsi `save_practice_attempt_progress` belum tersedia di database aktif karena migration belum diterapkan.
 - Tabel aktif `practice_attempts` belum memiliki kolom `progress`, `credited_xp`, maupun `completion_bonus_xp`; semua kolom tersebut hanya ditambahkan oleh migration yang masih staged.
 - Migration history Supabase aktif saat audit tidak menampilkan migration yang tercatat. Tidak menjalankan migration atau mengubah Production.
+
+
+### Dashboard dan pemilihan raport/sertifikat — implementasi awal
+- Menyalin halaman pengelolaan admin lama ke `app/admin/bank-soal/page.tsx` dan mempertahankan fungsi paket ujian/latihan, subtes, materi, serta pengumuman. Halaman tersebut kini berjudul Pengelolaan Bank Soal & Konten.
+- Mengganti `app/admin/page.tsx` menjadi dashboard sekolah dengan statistik dasar, daftar siswa role `student`, cakupan global/per kelas, pencarian, sorting, pagination, serta dua ranking terpisah.
+- Menambahkan `app/admin/raport/page.tsx`:
+  - memilih siswa berdasarkan kelas dan pencarian;
+  - memilih riwayat latihan selesai per percobaan dan riwayat ujian selesai;
+  - menampilkan skor, nomor percobaan, XP, bonus pertama, bonus peningkatan, subtes, dan ketuntasan;
+  - memilih mode Raport atau Sertifikat;
+  - mengatur nama sekolah/alamat, guru/admin, kepala sekolah, NIP, tempat/tanggal dokumen;
+  - menampilkan pratinjau cetak yang hanya berisi data yang dipilih.
+- Nama guru/admin dapat dipilih dari profil ber-role admin yang tersedia, atau disunting manual. Nama kepala sekolah dan NIP dapat disunting manual.
+- Dashboard kini memiliki tautan langsung ke halaman Raport & Sertifikat.
+
+### Batasan implementasi dokumen
+- Pengaturan identitas pada halaman raport saat ini merupakan input untuk pembuatan dokumen/pratinjau. Penyimpanan pengaturan secara terpusat lintas perangkat dan halaman khusus Pengaturan Dokumen masih perlu dibuat dengan skema settings yang disetujui; belum diklaim tersimpan permanen.
+- Pemilihan riwayat berlaku pada proses pembuatan dokumen yang sedang dibuka; belum ada penyimpanan paket raport per siswa/periode sebagai arsip.
+- Preview/cetak browser, layout PDF, akses RLS admin untuk membaca seluruh data siswa, dan build belum diverifikasi di Preview.
+- Tidak ada migration yang diterapkan ke database aktif, tidak ada data yang diubah, dan tidak ada merge/deployment.
