@@ -604,11 +604,14 @@ export default function MazeGameEngine({
 
     setIsSavingAndExit(true)
     const completedIds = Array.from(completedMissionIdsRef.current)
+    const missionToResume = isComplete
+      ? Math.min(missionIndex + 1, missions.length - 1)
+      : missionIndex
     const saved = await persistMazeProgress(
       completedIds.length,
       completedIds,
-      missionIndex,
-      true
+      missionToResume,
+      !isComplete
     )
     setIsSavingAndExit(false)
 
