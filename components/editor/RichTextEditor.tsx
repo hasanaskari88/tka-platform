@@ -75,14 +75,14 @@ function ommlNodeToLatex(node: Element): string {
     ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 't'
   ).map((item) => item.textContent || '').join('')
   if (['omath', 'omathpara', 'e', 'num', 'den', 'sup', 'sub', 'fname'].includes(name)) return all()
-  if (name === 'f') return String.raw\`\\frac{\${content(child('num'))}}{\${content(child('den'))}}\`
-  if (name === 'ssup') return \`{\${content(child('e'))}}^{\${content(child('sup'))}}\`
-  if (name === 'ssub') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}\`
-  if (name === 'ssubsup') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}^{\${content(child('sup'))}}\`
+  if (name === 'f') return String.raw`\frac{${content(child('num'))}}{${content(child('den'))}}`
+  if (name === 'ssup') return `{${content(child('e'))}}^{${content(child('sup'))}}`
+  if (name === 'ssub') return `{${content(child('e'))}}_{${content(child('sub'))}}`
+  if (name === 'ssubsup') return `{${content(child('e'))}}_{${content(child('sub'))}}^{${content(child('sup'))}}`
   if (name === 'rad') {
     const degree = content(child('deg'))
     const base = content(child('e'))
-    return degree ? String.raw\`\\sqrt[\${degree}]{\${base}}\` : String.raw\`\\sqrt{\${base}}\`
+    return degree ? String.raw`\sqrt[${degree}]{${base}}` : String.raw`\sqrt{${base}}`
   }
   if (name === 'nary') {
     const properties = child('naryPr')
@@ -90,21 +90,21 @@ function ommlNodeToLatex(node: Element): string {
       ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'chr'
     ) : undefined
     const symbol = chrNode?.getAttribute('val') || '∑'
-    const command = symbol === '∫' ? String.raw\`\\int\` : symbol === '∏' ? String.raw\`\\prod\` : String.raw\`\\sum\`
+    const command = symbol === '∫' ? String.raw`\int` : symbol === '∏' ? String.raw`\prod` : String.raw`\sum`
     const lower = content(child('sub'))
     const upper = content(child('sup'))
-    return \`\${command}\${lower ? \`_{\${lower}}\` : ''}\${upper ? \`^{\${upper}}\` : ''} \${content(child('e'))}\`
+    return `${command}${lower ? `_{${lower}}` : ''}${upper ? `^{${upper}}` : ''} ${content(child('e'))}`
   }
   if (name === 'd') {
     const properties = child('dPr')
     const propertyNodes = properties ? Array.from(properties.getElementsByTagName('*')) : []
     const begin = propertyNodes.find((item) => ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'begChr')
     const end = propertyNodes.find((item) => ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'endChr')
-    return String.raw\`\\left\${begin?.getAttribute('val') || '('}\${content(child('e'))}\\right\${end?.getAttribute('val') || ')'}\`
+    return String.raw`\\left${begin?.getAttribute('val') || '('}${content(child('e'))}\\right${end?.getAttribute('val') || ')'}`
   }
-  if (name === 'bar') return String.raw\`\\overline{\${content(child('e'))}}\`
-  if (name === 'acc') return String.raw\`\\hat{\${content(child('e'))}}\`
-  if (name === 'func') return \`\${content(child('fname'))}\\\\left(\${content(child('e'))}\\\\right)\`
+  if (name === 'bar') return String.raw`\overline{${content(child('e'))}}`
+  if (name === 'acc') return String.raw`\hat{${content(child('e'))}}`
+  if (name === 'func') return `${content(child('fname'))}\\\\left(${content(child('e'))}\\\\right)`
   return all() || node.textContent || ''
 }
 
@@ -240,7 +240,7 @@ export default function RichTextEditor({
       attributes: {
         class:
           'editor-content w-full p-4 outline-none text-slate-800 leading-relaxed',
-        style: \`min-height: \${minHeight}px\`,
+        style: `min-height: ${minHeight}px`,
         'data-placeholder': placeholder,
         spellcheck: 'true',
       },
@@ -299,7 +299,7 @@ export default function RichTextEditor({
                 const file = item.getAsFile()
                 if (file) uploaded.push(await uploadPastedImage(file))
               }
-              html += uploaded.map((src) => \`<img src="\${src}" alt="Gambar dari Microsoft Word" />\`).join('')
+              html += uploaded.map((src) => `<img src="${src}" alt="Gambar dari Microsoft Word" />`).join('')
             }
             const wrapper = document.createElement('div')
             wrapper.innerHTML = html
