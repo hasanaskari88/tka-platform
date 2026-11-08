@@ -1356,3 +1356,14 @@ Checklist QA Preview:
 - [ ] Tombol edit dan simpan soal tetap bekerja.
 
 Hasil build dan QA pengguna: **menunggu**.
+
+
+### Penyempurnaan normalisasi rotasi — pengukuran responsif dan pemuatan gambar
+
+Penyempurnaan implementasi:
+- Gaya asli gambar disimpan sementara di DOM agar pengukuran dapat diulang dengan benar saat ukuran kolom berubah.
+- Normalisasi menunggu gambar selesai dimuat sebelum membaca ukuran intrinsiknya.
+- Wrapper menukar dimensi setelah rotasi 90°/270° dan mengecilkan gambar secara proporsional bila lebar hasil rotasi melebihi ruang konten.
+- Pengukuran ulang saat resize mengembalikan gaya asli terlebih dahulu sehingga tidak mengukur ukuran hasil transform sebelumnya.
+
+Catatan: penyimpanan gaya asli hanya berupa atribut sementara pada elemen DOM; tidak mengubah HTML/data yang tersimpan di database.
