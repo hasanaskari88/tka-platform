@@ -84,6 +84,8 @@ function ResizableImageView({
   const attrs = node.attrs
   const imageWidth = attrs.width ? String(attrs.width) : null
   const imageStyle = String(attrs.style || '')
+  const styleWidth = imageStyle.match(/(?:^|;)\s*width:\s*([^;]+)/i)?.[1]?.trim() || null
+  const configuredWidth = imageWidth || styleWidth
   const layout = getLayout(imageStyle)
   const rotation = normalizeRotation(attrs.rotation)
 
@@ -93,8 +95,8 @@ function ResizableImageView({
   const effectiveWidth =
     previewWidth !== null
       ? `${previewWidth}%`
-      : imageWidth && imageWidth !== 'auto'
-        ? imageWidth
+      : configuredWidth && configuredWidth !== 'auto'
+        ? configuredWidth
         : 'fit-content'
 
   const wrapperStyle: CSSProperties = {
@@ -119,7 +121,7 @@ function ResizableImageView({
   }
 
   const imageElementWidth =
-    previewWidth !== null || (imageWidth && imageWidth !== 'auto')
+    previewWidth !== null || (configuredWidth && configuredWidth !== 'auto')
       ? '100%'
       : 'auto'
 
@@ -133,7 +135,7 @@ function ResizableImageView({
   }
 
   const changeLayout = (nextLayout: ImageLayout) => {
-    const width = imageWidth || '60%'
+    const width = configuredWidth || '60%'
 
     updateAttributes({
       width,
