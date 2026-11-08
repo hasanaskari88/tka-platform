@@ -138,7 +138,7 @@ async function uploadPastedImage(file: File): Promise<string> {
 }
 
 function getClipboardImageFiles(clipboard: DataTransfer): File[] {
-  const files: File[] = []
+  const files: ExtractedRtfImage[] = []
   const seen = new Set<string>()
   const add = (file: File | null | undefined) => {
     if (!file || !file.type.startsWith('image/')) return
@@ -156,7 +156,9 @@ function getClipboardImageFiles(clipboard: DataTransfer): File[] {
   return files
 }
 
-function extractRtfPngImages(rtf: string): File[] {
+type ExtractedRtfImage = { file: File; widthPx: number }
+
+function extractRtfPngImages(rtf: string): ExtractedRtfImage[] {
   if (!rtf) return []
   type GroupFrame = {
     start: number
@@ -165,7 +167,7 @@ function extractRtfPngImages(rtf: string): File[] {
     markerEnd: number
   }
   const stack: GroupFrame[] = []
-  const pictures: Array<{ start: number; end: number; markerEnd: number }> = []
+  const pictures: Array<{ start: number; end: number; markerEnd: number; widthPx: number }> = []
 
   for (let i = 0; i < rtf.length; i += 1) {
     const char = rtf[i]
@@ -181,7 +183,10 @@ function extractRtfPngImages(rtf: string): File[] {
     if (char === '}') {
       const frame = stack.pop()
       if (frame?.isPicture && frame.format === 'png' && frame.markerEnd > 0) {
-        pictures.push({ start: frame.start, end: i + 1, markerEnd: frame.markerEnd })
+        const group = rtf.slice(frame.start, i + 1)
+        const widthMatch = group.match(/\\picwgoal(-?\d+)/i)
+        const widthPx = widthMatch ? Math.max(16, Math.min(80, Math.round(Number(widthMatch[1]) / 15))) : 32
+        pictures.push({ start: frame.start, end: i + 1, markerEnd: frame.markerEnd, widthPx })
       }
       continue
     }
@@ -259,7 +264,7 @@ function extractRtfPngImages(rtf: string): File[] {
       bytes[4] === 13 && bytes[5] === 10 && bytes[6] === 26 && bytes[7] === 10
     if (!isPng || seenPayloads.has(hex)) return
     seenPayloads.add(hex)
-    files.push(new File([bytes], 'gambar-word-' + (files.length + 1) + '.png', { type: 'image/png' }))
+    files.push({ file: new File([bytes], 'gambar-word-' + (files.length + 1) + '.png', { type: 'image/png' }), widthPx: picture.widthPx })
   })
   return files
 }
@@ -431,11 +436,15 @@ export default function RichTextEditor({
               html = textWrapper.innerHTML.replace(/\\n/g, '<br>')
             }
             if (parsedDocument) {
-              const remainingFiles = [...imageFiles, ...rtfPngImages]
+              const remainingFiles: Array<{ file: File; widthPx: number | null }> = [
+                ...imageFiles.map((file) => ({ file, widthPx: null })),
+                ...rtfPngImages.map((image) => ({ file: image.file, widthPx: image.widthPx })),
+              ]
               const uploadTasks = imageElements.map(async (img) => {
                 const src = img.getAttribute('src') || ''
                 try {
                   let file: File | undefined
+                  let formulaWidthPx: number | null = null
                   if (src.startsWith('data:image/')) {
                     const blob = await fetch(src).then((response) => {
                       if (!response.ok) throw new Error('Data gambar clipboard tidak dapat dibaca.')
@@ -444,7 +453,9 @@ export default function RichTextEditor({
                     file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
                   } else if (src && !src.startsWith('http://') && !src.startsWith('https://')) {
                     // Referensi file lokal Word dipasangkan dengan gambar yang berhasil diekstrak dari clipboard RTF.
-                    file = remainingFiles.shift()
+                    const nextImage = remainingFiles.shift()
+                    file = nextImage?.file
+                    formulaWidthPx = nextImage?.widthPx ?? null
                   } else if (!src && remainingFiles.length) {
                     file = remainingFiles.shift()
                   }
@@ -453,9 +464,9 @@ export default function RichTextEditor({
                     const imageUrl = await uploadPastedImage(file)
                     img.setAttribute('src', imageUrl)
                     // PNG fallback Equation Word adalah gambar rumus; batasi ukurannya agar tidak memenuhi editor.
-                    if (file.name.startsWith('gambar-word-') && file.type === 'image/png') {
+                    if (formulaWidthPx && file.type === 'image/png') {
                       img.removeAttribute('width')
-                      img.style.width = '140px'
+                      img.style.width = String(formulaWidthPx) + 'px'
                       img.style.maxWidth = '100%'
                       img.style.height = 'auto'
                     }
@@ -469,19 +480,19 @@ export default function RichTextEditor({
               // Upload secara bersamaan agar beberapa gambar tidak menunggu antrean satu per satu.
               await Promise.all(uploadTasks)
 
-              const extraUploads = await Promise.all(remainingFiles.map(async (file) => {
+              const extraUploads = await Promise.all(remainingFiles.map(async ({ file, widthPx }) => {
                 try {
-                  return await uploadPastedImage(file)
+                  return { src: await uploadPastedImage(file), widthPx }
                 } catch (imageError) {
                   console.warn('Gambar tambahan Word dilewati karena gagal diunggah:', imageError)
                   return null
                 }
               }))
-              extraUploads.filter((src): src is string => Boolean(src)).forEach((src) => {
+              extraUploads.filter((item): item is { src: string; widthPx: number | null } => Boolean(item)).forEach(({ src, widthPx }) => {
                 const image = parsedDocument.createElement('img')
                 image.setAttribute('src', src)
                 image.setAttribute('alt', 'Gambar dari Microsoft Word')
-                image.style.width = '140px'
+                if (widthPx) image.style.width = String(widthPx) + 'px'
                 image.style.maxWidth = '100%'
                 image.style.height = 'auto'
                 parsedDocument.body.appendChild(image)
@@ -489,8 +500,11 @@ export default function RichTextEditor({
               html = parsedDocument.body.innerHTML
             }
             if (!imageElements.length && (imageFiles.length || rtfPngImages.length)) {
-              const uploaded = await Promise.all([...imageFiles, ...rtfPngImages].map(uploadPastedImage))
-              html += uploaded.map((src) => `<img src="${src}" alt="Gambar dari Microsoft Word" style="width: 140px; max-width: 100%; height: auto;" />`).join('')
+              const uploaded = await Promise.all([
+                ...imageFiles.map(async (file) => ({ src: await uploadPastedImage(file), widthPx: null as number | null })),
+                ...rtfPngImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx })),
+              ])
+              html += uploaded.map(({ src, widthPx }) => '<img src="' + src + '" alt="Gambar dari Microsoft Word" style="' + (widthPx ? 'width: ' + widthPx + 'px; ' : '') + 'max-width: 100%; height: auto;" />').join('')
             }
             const wrapper = document.createElement('div')
             wrapper.innerHTML = html
