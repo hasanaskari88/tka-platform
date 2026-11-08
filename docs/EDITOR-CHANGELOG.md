@@ -1712,3 +1712,16 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Hasil ini berlaku untuk skenario soal yang diuji dan tidak otomatis menyatakan seluruh tipe soal atau semua variasi konten telah diuji.
 - Tidak ada perubahan kode aplikasi, database, skema, API, penilaian, atau Production pada tahap QA ini. Catatan ditambahkan pada branch `editor-test`.
 - Langkah berikutnya: lanjutkan QA kompatibilitas pada tipe soal lain dan tampilan siswa/print, tanpa mengubah alur penilaian.
+
+
+## 2026-11-08 — QA pengguna: tiga perbaikan tampilan dan RichTextEditor
+
+Pengguna mengonfirmasi ketiga masalah yang sebelumnya dilaporkan telah selesai diperbaiki dan diuji pada Preview:
+
+1. **Cetak soal matriks:** tag HTML `<b>...</b>` tidak lagi tampil sebagai teks mentah pada hasil cetak.
+2. **Hasil ujian:** highlight jawaban dan pembahasan kini memiliki kontras yang jelas dan dapat dibaca.
+3. **Jawaban esai siswa:** RichTextEditor sudah tampil pada bagian jawaban esai siswa.
+
+Status ketiga item: **berhasil diuji dan dikonfirmasi pengguna** pada 8 November 2026.
+
+Catatan: ini merupakan konfirmasi QA pengguna, bukan perubahan kode aplikasi. Tidak ada perubahan pada Production, database, skema, API, atau mekanisme penilaian.
