@@ -126,6 +126,7 @@ export default function PracticeHubPage() {
       let query = supabase
         .from('profiles')
         .select('id, full_name, username, class_code, xp, level, role, avatar_url')
+        .eq('role', 'student')
         .not('class_code', 'ilike', 'guru')
         .order('xp', { ascending: false })
         .limit(15)
