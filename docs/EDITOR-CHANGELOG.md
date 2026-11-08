@@ -2017,3 +2017,14 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 
 
 - Catatan lanjutan: gaya CSS khusus untuk badge berbentuk medali dan podium ditambahkan dengan selector baru agar tidak tertimpa aturan animasi badge lama yang sudah ada pada stylesheet.
+
+## 2026-11-08 — Practice Tahap 1A: penanganan kegagalan pemuatan katalog
+
+- Audit kode menemukan bahwa kegagalan query daftar latihan sebelumnya dapat terlihat seperti katalog kosong, sehingga pengguna tidak mendapat penjelasan bahwa data gagal dimuat.
+- Menambahkan state kesalahan pemuatan khusus untuk daftar latihan.
+- Memeriksa error dari query Supabase `exams`; ketika query gagal, halaman menampilkan pesan kendala dan tombol untuk mencoba memuat ulang, bukan menampilkan pesan seolah-olah belum ada misi yang dipublikasikan.
+- Memindahkan penghentian status loading ke blok `finally` agar indikator loading tetap berhenti baik ketika pemuatan berhasil maupun gagal.
+- Menambahkan penanganan untuk exception saat proses pemuatan data agar halaman tidak terus berada pada kondisi loading.
+- Tidak mengubah query/filter bisnis, data profil, leaderboard, XP, level, badge, database, skema, API, RPC, scoring, mesin soal, Maze, atau Flashcard.
+- Perubahan disimpan pada branch `homepage-arcade-catalog` melalui commit `a7e476c333e061575c834c373ec9caacc7cdd8a1`.
+- Status verifikasi: perubahan kode tersimpan di GitHub. Build belum dijalankan dan Preview Vercel belum tersedia karena kendala kuota deployment; belum ada klaim QA visual atau build berhasil.
