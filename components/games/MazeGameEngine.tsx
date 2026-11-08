@@ -67,10 +67,16 @@ export default function MazeGameEngine({
   const [attemptLoading, setAttemptLoading] = useState(true)
   const [attemptError, setAttemptError] = useState('')
   const [attemptRetryKey, setAttemptRetryKey] = useState(0)
+  const [isSavingAndExit, setIsSavingAndExit] = useState(false)
+  const [isResumedSession, setIsResumedSession] = useState(false)
 
   // Satu Promise untuk mencegah pembuatan attempt ganda
   // ketika React Strict Mode menjalankan effect dua kali.
-  const startAttemptPromiseRef = useRef<Promise<string> | null>(null)
+  const startAttemptPromiseRef = useRef<Promise<{
+    attemptId: string
+    progress: any
+    resumed: boolean
+  }> | null>(null)
 
   // Progress misi
   const [completedCount, setCompletedCount] = useState(0)
@@ -180,14 +186,32 @@ export default function MazeGameEngine({
               throw new Error('ID attempt tidak ditemukan dari RPC.')
             }
 
-            return String(newAttemptId)
+            return {
+              attemptId: String(newAttemptId),
+              progress: data?.progress ?? {},
+              resumed: Boolean(data?.resumed),
+            }
           })()
         }
 
-        const newAttemptId = await startAttemptPromiseRef.current
+        const startResult = await startAttemptPromiseRef.current
 
         if (active) {
-          setAttemptId(newAttemptId)
+          const saved = startResult.progress || {}
+          const restoredIds = Array.isArray(saved.completedMissionIds)
+            ? saved.completedMissionIds.map(String)
+            : []
+
+          completedMissionIdsRef.current = new Set(restoredIds)
+          setCompletedCount(restoredIds.length)
+          setMissionIndex(
+            Math.min(
+              Number(saved.missionIndex || 0),
+              Math.max(0, missions.length - 1)
+            )
+          )
+          setAttemptId(startResult.attemptId)
+          setIsResumedSession(startResult.resumed)
           setAttemptError('')
           setAttemptLoading(false)
         }
@@ -275,8 +299,40 @@ export default function MazeGameEngine({
 }
 
   // ==========================================
-  // 5. FINALISASI ATTEMPT
+  // 5. SIMPAN PROGRES DAN FINALISASI ATTEMPT
   // ==========================================
+
+  const persistMazeProgress = async (
+    nextCompletedCount: number,
+    completedIds: string[],
+    nextMissionIndex = missionIndex
+  ) => {
+    if (!attemptId) return false
+
+    const progress = {
+      missionIndex: nextMissionIndex,
+      completedMissionIds: completedIds,
+      completedCount: nextCompletedCount,
+    }
+
+    const { error } = await createClient().rpc(
+      'save_practice_attempt_progress',
+      {
+        p_attempt_id: attemptId,
+        p_progress: progress,
+        p_answered_count: nextCompletedCount,
+        p_correct_count: nextCompletedCount,
+        p_answer_xp: nextCompletedCount * 10,
+        p_streak_xp: 0,
+      }
+    )
+
+    if (error) {
+      console.error('Gagal menyimpan progres Maze:', error)
+      return false
+    }
+    return true
+  }
 
   const finishMaze = async (newCompletedCount: number) => {
     if (
@@ -291,6 +347,9 @@ export default function MazeGameEngine({
     setIsFinishing(true)
 
     try {
+      const completedIds = Array.from(completedMissionIdsRef.current)
+      await persistMazeProgress(newCompletedCount, completedIds)
+
       const supabase = createClient()
 
       const { data, error } = await supabase.rpc(
@@ -428,8 +487,18 @@ export default function MazeGameEngine({
         setCompletedCount(newCount)
         setFeedback('🎉 Hebat! Robot berhasil mencapai bintang!')
 
+        const completedIds = Array.from(completedMissionIdsRef.current)
         if (newCount === missions.length) {
           await finishMaze(newCount)
+        } else {
+          const saved = await persistMazeProgress(
+            newCount,
+            completedIds,
+            missionIndex
+          )
+          if (!saved) {
+            setFeedback('Misi berhasil, tetapi progres belum tersinkron. Tekan Simpan & Keluar untuk mencoba menyimpan lagi.')
+          }
         }
       }
     } else if (crashed) {
@@ -480,40 +549,28 @@ export default function MazeGameEngine({
   // ==========================================
 
   const handleExit = async () => {
-    if (isRunning || isFinishing) return
+    if (isRunning || isFinishing || isSavingAndExit) return
 
-    // Jika hasil sudah selesai disimpan, cukup kembali.
     if (finishSummary || !attemptId) {
       router.push('/practice')
       return
     }
 
-    const confirmed = window.confirm(
-      'Keluar dari latihan Maze? Progres sesi ini akan ditandai sebagai ditinggalkan.'
+    setIsSavingAndExit(true)
+    const completedIds = Array.from(completedMissionIdsRef.current)
+    const saved = await persistMazeProgress(
+      completedIds.length,
+      completedIds,
+      missionIndex
     )
+    setIsSavingAndExit(false)
 
-    if (!confirmed) return
-
-    try {
-      const supabase = createClient()
-
-      const { error } = await supabase.rpc(
-        'abandon_practice_attempt',
-        {
-          p_attempt_id: attemptId,
-        }
-      )
-
-      if (error) throw error
-
-      router.push('/practice')
-    } catch (error) {
-      console.error('Gagal menandai attempt sebagai abandoned:', error)
-
-      alert(
-        'Sesi belum berhasil ditutup. Periksa koneksi lalu coba lagi.'
-      )
+    if (!saved) {
+      alert('Progres Maze belum berhasil disimpan. Periksa koneksi lalu coba lagi.')
+      return
     }
+
+    router.push('/practice')
   }
 
   // ==========================================
@@ -574,10 +631,10 @@ export default function MazeGameEngine({
             <button
               type="button"
               onClick={handleExit}
-              disabled={isRunning || isFinishing}
-              className="text-xs font-bold text-slate-400 hover:text-white disabled:opacity-40"
+              disabled={isRunning || isFinishing || isSavingAndExit}
+              className="text-xs font-bold text-emerald-300 hover:text-white disabled:opacity-40"
             >
-              ← Keluar
+              {isSavingAndExit ? 'Menyimpan...' : '💾 Simpan & Keluar'}
             </button>
 
             <h1 className="mt-2 text-lg font-extrabold">
@@ -589,6 +646,11 @@ export default function MazeGameEngine({
               {' · '}
               Berhasil {completedCount}
             </p>
+            {isResumedSession && (
+              <p className="mt-1 text-[10px] font-semibold text-emerald-300">
+                Progres sesi sebelumnya dipulihkan
+              </p>
+            )}
           </div>
 
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 font-bold text-amber-300">
