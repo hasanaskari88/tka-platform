@@ -110,6 +110,7 @@ export default function PracticeHubPage() {
   const [availableClasses, setAvailableClasses] = useState<string[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
   const [searchTerm, setSearchTerm] = useState('')
   const [activityFilter, setActivityFilter] = useState<string>('ALL')
@@ -144,59 +145,69 @@ export default function PracticeHubPage() {
 
   useEffect(() => {
     async function loadPracticeData() {
-      const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      try {
+        const supabase = createClient()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-      let profile = null
-      if (user) {
-        const { data: profData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .maybeSingle()
+        let profile = null
+        if (user) {
+          const { data: profData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle()
 
-        if (profData) {
-          profile = profData
-          setUserProfile(profData)
+          if (profData) {
+            profile = profData
+            setUserProfile(profData)
+          }
         }
-      }
 
-      const { data: classData } = await supabase
-        .from('profiles')
-        .select('class_code')
-        .not('class_code', 'is', null)
+        const { data: classData } = await supabase
+          .from('profiles')
+          .select('class_code')
+          .not('class_code', 'is', null)
 
-      if (classData) {
-        const uniqueClasses = Array.from(
-          new Set(
-            classData
-              .map((p: any) => String(p.class_code || '').trim())
-              .filter((c: string) => c !== '' && c.toLowerCase() !== 'guru')
-          )
-        ).sort()
-        setAvailableClasses(uniqueClasses as string[])
-      }
+        if (classData) {
+          const uniqueClasses = Array.from(
+            new Set(
+              classData
+                .map((p: any) => String(p.class_code || '').trim())
+                .filter((c: string) => c !== '' && c.toLowerCase() !== 'guru')
+            )
+          ).sort()
+          setAvailableClasses(uniqueClasses as string[])
+        }
 
-      const { data: examData } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('is_published', true)
-        .order('created_at', { ascending: false })
+        const { data: examData, error: examError } = await supabase
+          .from('exams')
+          .select('*')
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
 
-      if (examData) {
-        const filteredExams = examData.filter(
+        if (examError) {
+          console.error('Gagal memuat daftar latihan:', examError)
+          setLoadError('Daftar latihan belum dapat dimuat. Periksa koneksi internet, lalu coba lagi.')
+          return
+        }
+
+        const filteredExams = (examData || []).filter(
           (exam: any) =>
             !exam.target_mode ||
             exam.target_mode === 'PRACTICE_ONLY' ||
             exam.target_mode === 'BOTH'
         )
         setExams(filteredExams)
-      }
 
-      await fetchLeaderboard(leaderboardFilter, profile)
-      setLoading(false)
+        await fetchLeaderboard(leaderboardFilter, profile)
+      } catch (error) {
+        console.error('Terjadi kesalahan saat memuat halaman Practice:', error)
+        setLoadError('Terjadi kendala saat memuat halaman latihan. Periksa koneksi internet, lalu coba lagi.')
+      } finally {
+        setLoading(false)
+      }
     }
 
     loadPracticeData()
@@ -218,6 +229,25 @@ export default function PracticeHubPage() {
           </div>
           <p className="text-lg font-black">Menyiapkan Arena Belajar...</p>
           <p className="mt-1 text-sm text-blue-100">Petualangan sebentar lagi dimulai!</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#071638] px-4 font-sans text-white">
+        <div className="w-full max-w-md rounded-3xl border border-rose-300/30 bg-slate-950/80 p-7 text-center shadow-2xl">
+          <div className="mb-3 text-5xl">📡</div>
+          <h1 className="text-xl font-black">Arena belum bisa dibuka</h1>
+          <p className="mt-2 text-sm leading-6 text-blue-100/80">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-5 rounded-xl bg-cyan-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-400"
+          >
+            Coba Muat Ulang
+          </button>
         </div>
       </div>
     )
