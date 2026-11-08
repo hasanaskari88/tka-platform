@@ -524,7 +524,8 @@ function extractRtfPngImages(rtf: string): ExtractedRtfImage[] {
 }
 
 
-type ExtractedRtfWmfImage = { file: File; widthPx: number | null }
+type RtfImageCrop = { left: number; right: number; top: number; bottom: number; widthGoal: number; heightGoal: number }
+type ExtractedRtfWmfImage = { file: File; widthPx: number | null; crop: RtfImageCrop | null }
 
 /**
  * Ambil WMF dari RTF Word. Fallback WMF yang berada di dalam grup matematika
@@ -540,10 +541,11 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
     isWmfPayload: boolean
     markerEnd: number
     widthPx: number | null
+    crop: RtfImageCrop | null
   }
 
   const stack: GroupFrame[] = []
-  const payloads: Array<{ start: number; end: number; markerEnd: number; widthPx: number | null }> = []
+  const payloads: Array<{ start: number; end: number; markerEnd: number; widthPx: number | null; crop: RtfImageCrop | null }> = []
 
   for (let i = 0; i < rtf.length; i += 1) {
     const char = rtf[i]
@@ -555,6 +557,7 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
         isWmfPayload: false,
         markerEnd: 0,
         widthPx: null,
+        crop: null,
       })
       continue
     }
@@ -567,6 +570,7 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
           end: i + 1,
           markerEnd: frame.markerEnd,
           widthPx: frame.widthPx,
+          crop: frame.crop,
         })
       }
       continue
@@ -608,8 +612,19 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
         frame.mathContext = stack.some((item) => item.mathContext)
         const pictureHeader = rtf.slice(pictureFrame.start, numberEnd)
         const widthMatch = pictureHeader.match(/\\picwgoal(-?\d+)/i)
-        frame.widthPx = widthMatch
-          ? Math.max(24, Math.min(1600, Math.round(Number(widthMatch[1]) / 15)))
+        const heightMatch = pictureHeader.match(/\\pichgoal(-?\d+)/i)
+        const cropLeft = Number(pictureHeader.match(/\\piccropl(-?\d+)/i)?.[1] || 0)
+        const cropRight = Number(pictureHeader.match(/\\piccropr(-?\d+)/i)?.[1] || 0)
+        const cropTop = Number(pictureHeader.match(/\\piccropt(-?\d+)/i)?.[1] || 0)
+        const cropBottom = Number(pictureHeader.match(/\\piccropb(-?\d+)/i)?.[1] || 0)
+        const widthGoal = Number(widthMatch?.[1] || 0)
+        const heightGoal = Number(heightMatch?.[1] || 0)
+        frame.widthPx = widthGoal > 0
+          ? Math.max(24, Math.min(1600, Math.round(widthGoal / 15)))
+          : null
+        frame.crop = widthGoal > 0 && heightGoal > 0 &&
+          (cropLeft > 0 || cropRight > 0 || cropTop > 0 || cropBottom > 0)
+          ? { left: cropLeft, right: cropRight, top: cropTop, bottom: cropBottom, widthGoal, heightGoal }
           : null
       }
     }
@@ -680,10 +695,47 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
         type: 'application/x-msmetafile',
       }),
       widthPx: payload.widthPx,
+      crop: payload.crop,
     })
   })
 
   return files
+}
+
+
+/**
+ * Terapkan crop yang direkam Word pada RTF ke bitmap hasil konversi WMF.
+ * Nilai crop RTF dibandingkan dengan ukuran target Word agar hasil tetap proporsional.
+ */
+async function applyRtfImageCrop(file: File, crop: RtfImageCrop | null): Promise<File> {
+  if (!crop) return file
+  const bitmap = await createImageBitmap(file)
+  try {
+    const horizontalTotal = crop.widthGoal + crop.left + crop.right
+    const verticalTotal = crop.heightGoal + crop.top + crop.bottom
+    if (horizontalTotal <= 0 || verticalTotal <= 0) return file
+
+    const left = Math.max(0, Math.min(bitmap.width - 1, Math.round(bitmap.width * crop.left / horizontalTotal)))
+    const right = Math.max(0, Math.min(bitmap.width - left - 1, Math.round(bitmap.width * crop.right / horizontalTotal)))
+    const top = Math.max(0, Math.min(bitmap.height - 1, Math.round(bitmap.height * crop.top / verticalTotal)))
+    const bottom = Math.max(0, Math.min(bitmap.height - top - 1, Math.round(bitmap.height * crop.bottom / verticalTotal)))
+    const width = bitmap.width - left - right
+    const height = bitmap.height - top - bottom
+    if (width < 2 || height < 2) return file
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const context = canvas.getContext('2d')
+    if (!context) return file
+    context.drawImage(bitmap, left, top, width, height, 0, 0, width, height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+    return blob
+      ? new File([blob], file.name.replace(/\.[^.]+$/, '') + '-crop.png', { type: 'image/png' })
+      : file
+  } finally {
+    bitmap.close()
+  }
 }
 
 function inferWordImageLayout(image: HTMLImageElement): 'wrap-left' | 'wrap-right' {
@@ -916,8 +968,10 @@ export default function RichTextEditor({
                       const response = await fetch(pngDataUrl)
                       if (!response.ok) throw new Error('Hasil konversi WMF tidak dapat dibaca.')
                       const blob = await response.blob()
+                      const convertedFile = new File([blob], 'gambar-word-wmf-' + (index + 1) + '.png', { type: 'image/png' })
+                      const croppedFile = await applyRtfImageCrop(convertedFile, image.crop)
                       return {
-                        file: new File([blob], 'gambar-word-wmf-' + (index + 1) + '.png', { type: 'image/png' }),
+                        file: croppedFile,
                         widthPx: image.widthPx ?? 0,
                       }
                     } catch (wmfError) {
