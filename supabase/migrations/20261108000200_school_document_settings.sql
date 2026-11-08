@@ -69,7 +69,7 @@ $function$;
 create or replace function public.save_school_document_settings(p_settings jsonb)
 returns jsonb
 language plpgsql
-security definer
+security invoker
 set search_path = ''
 as $function$
 declare
