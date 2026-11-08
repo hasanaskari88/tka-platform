@@ -2281,3 +2281,30 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Perubahan hanya pada branch `homepage-arcade-catalog`; tidak mengubah `main`, skema Supabase, atau data aktif.
 - Build dan QA visual/cetak belum dijalankan. Perlu uji Preview untuk dashboard, klik detail siswa, pilihan subtes/penulis, preview URL, serta cetak A4 dengan logo.
 
+## 2026-11-09 — Penyempurnaan dashboard peserta, konten, dan dokumen cetak
+
+### Dashboard peserta didik
+- Mengganti tabel lebar berisi Level/XP, jumlah latihan, nilai terbaik latihan, dan rata-rata ujian dengan daftar peserta yang lebih ringkas (nama, kelas, tautan riwayat).
+- Nama peserta dan tautan Riwayat membuka halaman detail admin `/admin/peserta/[id]`.
+- Menambahkan ringkasan kartu total XP, latihan selesai, rata-rata nilai ujian terbaik, dan jumlah peserta sesuai filter kelas.
+- Menambahkan diagram batang sebaran peserta per kelas dan 5 peserta dengan XP latihan tertinggi; ringkasan mengikuti filter kelas aktif.
+
+### Pengelolaan konten
+- Pilihan mata pelajaran memakai tabel `subtests` yang sama dengan dropdown subtes di pengelolaan paket ujian, tanpa membuat daftar mata pelajaran duplikat.
+- Daftar materi dapat difilter per mata pelajaran dan diurutkan berdasarkan mata pelajaran lalu judul.
+- Nama penulis default diambil dari `profiles.full_name` akun yang sedang login; pilihan `TIM Penyusun` tersedia. Penulis yang tersimpan sebelumnya tetap dipertahankan saat mengedit.
+- Menambahkan panel pratinjau URL materi melalui iframe dan tautan buka tab baru jika penyedia file melarang embedding.
+
+### Raport dan sertifikat
+- Pada mode cetak massal, urutan visual langkah 2 dan 3 dibalik pada desktop dan mobile: format/nilai lebih dahulu, pemilihan peserta sesudahnya. Mode per siswa tetap menggunakan urutan sebelumnya.
+- Menambahkan logo sekolah dari `/logo-sd-getasan.png` pada kop dokumen.
+- Memperindah kop, judul, dan area sertifikat, serta menetapkan halaman cetak A4 portrait dengan margin 12 mm dan pemisah halaman per siswa.
+
+### Halaman detail peserta
+- Menambahkan halaman admin `/admin/peserta/[id]` yang menampilkan ringkasan XP/level, nilai terbaik latihan/ujian, dan seluruh riwayat latihan/ujian termasuk status sesi dan XP yang sudah dikreditkan.
+- Halaman hanya memuat profil ber-role `student` dan memakai query yang sudah ada; tidak memerlukan perubahan skema atau RPC.
+
+### Batas verifikasi
+- Perubahan hanya pada branch `homepage-arcade-catalog`; tidak mengubah `main`, skema Supabase, atau data aktif.
+- Vercel Preview untuk commit terbaru masih berstatus QUEUED saat catatan ini dibuat; build belum selesai. QA visual, klik detail siswa, preview URL, dan cetak A4 belum dilakukan.
+
