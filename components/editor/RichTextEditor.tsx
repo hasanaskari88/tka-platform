@@ -322,7 +322,11 @@ export default function RichTextEditor({
             const found = rtf.indexOf(rtfSlash + token, position)
             if (found < 0) break
             const sample = rtf.slice(found, found + 1800)
-            const controls = sample.match(new RegExp(rtfSlash + '[a-zA-Z]+-?[0-9]*', 'g')) || []
+            const controls = sample
+              .split(rtfSlash)
+              .slice(1)
+              .map((part) => part.match(/^[a-zA-Z]+-?[0-9]*/)?.[0] || '')
+              .filter(Boolean)
             summaries.push([...new Set(controls)].slice(0, 35).join(' '))
             position = found + (rtfSlash + token).length
           }
