@@ -164,7 +164,6 @@ function extractRtfPngImages(rtf: string): File[] {
     isPicture: boolean
     format: string
     markerEnd: number
-    insideMathPicture: boolean
   }
   const stack: GroupFrame[] = []
   const pictures: Array<{ start: number; end: number; markerEnd: number }> = []
@@ -177,13 +176,12 @@ function extractRtfPngImages(rtf: string): File[] {
         isPicture: false,
         format: '',
         markerEnd: 0,
-        insideMathPicture: stack.some((frame) => frame.insideMathPicture),
       })
       continue
     }
     if (char === '}') {
       const frame = stack.pop()
-      if (frame?.isPicture && !frame.insideMathPicture && frame.format === 'png' && frame.markerEnd > 0) {
+      if (frame?.isPicture && frame.format === 'png' && frame.markerEnd > 0) {
         pictures.push({ start: frame.start, end: i + 1, markerEnd: frame.markerEnd })
       }
       continue
@@ -210,7 +208,6 @@ function extractRtfPngImages(rtf: string): File[] {
     if (rtf[numberEnd] === ' ') numberEnd += 1
 
     const frame = stack[stack.length - 1]
-    if (frame && word === 'mmathpict') frame.insideMathPicture = true
     if (frame && word === 'pict') frame.isPicture = true
     if (frame && word === 'pngblip') {
       frame.format = 'png'
