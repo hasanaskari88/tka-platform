@@ -3,6 +3,7 @@
 
 import { useEffect, useId } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
 
 import StarterKit from '@tiptap/starter-kit'
 import TextAlign from '@tiptap/extension-text-align'
@@ -54,6 +55,92 @@ function prepareEditorContent(value: string): string {
     return '<' + tag + ' data-type=\"' + type + '\" data-latex=\"' + escapeMathAttribute(latex) + '\">' + escapeMathText(latex) + '</' + tag + '>'
   })
 }
+
+function escapeLatexAttribute(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function ommlNodeToLatex(node: Element): string {
+  const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
+  const children = Array.from(node.children)
+  const child = (wanted: string) => children.find((item) =>
+    ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === wanted
+  )
+  const content = (element?: Element | null) =>
+    element ? Array.from(element.children).map(ommlNodeToLatex).join('') || element.textContent || '' : ''
+  const all = () => children.map(ommlNodeToLatex).join('')
+
+  if (name === 't') return node.textContent || ''
+  if (name === 'r') return Array.from(node.getElementsByTagName('*')).filter((item) =>
+    ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 't'
+  ).map((item) => item.textContent || '').join('')
+  if (['omath', 'omathpara', 'e', 'num', 'den', 'sup', 'sub', 'fname'].includes(name)) return all()
+  if (name === 'f') return String.raw\`\\frac{\${content(child('num'))}}{\${content(child('den'))}}\`
+  if (name === 'sSup') return \`{\${content(child('e'))}}^{\${content(child('sup'))}}\`
+  if (name === 'sSub') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}\`
+  if (name === 'sSubSup') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}^{\${content(child('sup'))}}\`
+  if (name === 'rad') {
+    const degree = content(child('deg'))
+    const base = content(child('e'))
+    return degree ? String.raw\`\\sqrt[\${degree}]{\${base}}\` : String.raw\`\\sqrt{\${base}}\`
+  }
+  if (name === 'nary') {
+    const properties = child('naryPr')
+    const chrNode = properties ? Array.from(properties.getElementsByTagName('*')).find((item) =>
+      ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'chr'
+    ) : undefined
+    const symbol = chrNode?.getAttribute('val') || '∑'
+    const command = symbol === '∫' ? String.raw\`\\int\` : symbol === '∏' ? String.raw\`\\prod\` : String.raw\`\\sum\`
+    const lower = content(child('sub'))
+    const upper = content(child('sup'))
+    return \`\${command}\${lower ? \`_{\${lower}}\` : ''}\${upper ? \`^{\${upper}}\` : ''} \${content(child('e'))}\`
+  }
+  if (name === 'd') {
+    const properties = child('dPr')
+    const propertyNodes = properties ? Array.from(properties.getElementsByTagName('*')) : []
+    const begin = propertyNodes.find((item) => ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'begChr')
+    const end = propertyNodes.find((item) => ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'endChr')
+    return String.raw\`\\left\${begin?.getAttribute('val') || '('}\${content(child('e'))}\\right\${end?.getAttribute('val') || ')'}\`
+  }
+  if (name === 'bar') return String.raw\`\\overline{\${content(child('e'))}}\`
+  if (name === 'acc') return String.raw\`\\hat{\${content(child('e'))}}\`
+  if (name === 'func') return \`\${content(child('fName'))}\\\\left(\${content(child('e'))}\\\\right)\`
+  return all() || node.textContent || ''
+}
+
+function convertWordMath(html: string): { html: string; converted: number } {
+  const document = new window.DOMParser().parseFromString(html, 'text/html')
+  let converted = 0
+  const mathNodes = Array.from(document.body.querySelectorAll('*')).filter((node) => {
+    const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
+    return name === 'omath' || name === 'omathpara'
+  })
+  for (const node of mathNodes) {
+    if (!node.parentNode) continue
+    const latex = ommlNodeToLatex(node).trim()
+    if (!latex) continue
+    const block = (node.localName || node.tagName).toLowerCase().includes('omathpara')
+    const replacement = document.createElement(block ? 'div' : 'span')
+    replacement.setAttribute('data-type', block ? 'block-math' : 'inline-math')
+    replacement.setAttribute('data-latex', escapeLatexAttribute(latex))
+    replacement.textContent = latex
+    node.parentNode.replaceChild(replacement, node)
+    converted += 1
+  }
+  return { html: document.body.innerHTML, converted }
+}
+
+async function uploadPastedImage(file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('file', file, file.name || 'gambar-word.png')
+  const response = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+  const result = await response.json()
+  if (!response.ok || !result.success || !result.file?.imageUrl) {
+    throw new Error(result.error || 'Gagal menyimpan gambar hasil paste ke Google Drive.')
+  }
+  return result.file.imageUrl as string
+}
+
 interface RichTextEditorProps {
   content?: string
   onChange?: (html: string) => void
@@ -153,9 +240,66 @@ export default function RichTextEditor({
       attributes: {
         class:
           'editor-content w-full p-4 outline-none text-slate-800 leading-relaxed',
-        style: `min-height: ${minHeight}px`,
+        style: \`min-height: \${minHeight}px\`,
         'data-placeholder': placeholder,
         spellcheck: 'true',
+      },
+      handlePaste: (view, event) => {
+        const clipboard = event.clipboardData
+        if (!clipboard) return false
+        const rawHtml = clipboard.getData('text/html')
+        const imageItems = Array.from(clipboard.items).filter((item) =>
+          item.kind === 'file' && item.type.startsWith('image/')
+        )
+        const converted = rawHtml ? convertWordMath(rawHtml) : { html: '', converted: 0 }
+        const parsedDocument = rawHtml
+          ? new window.DOMParser().parseFromString(converted.html, 'text/html')
+          : null
+        const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
+        const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
+        const hasLocalImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('file:'))
+        const hasMath = converted.converted > 0
+        if (!hasMath && !hasDataImages && !hasLocalImages && imageItems.length === 0) return false
+
+        event.preventDefault()
+        const bookmark = view.state.selection.getBookmark()
+        void (async () => {
+          try {
+            let html = ''
+            if (parsedDocument) {
+              for (const img of imageElements) {
+                const src = img.getAttribute('src') || ''
+                if (src.startsWith('data:image/')) {
+                  const blob = await fetch(src).then((response) => response.blob())
+                  const file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
+                  img.setAttribute('src', await uploadPastedImage(file))
+                } else if (src.startsWith('file:') && imageItems.length) {
+                  const item = imageItems.shift()
+                  const file = item?.getAsFile()
+                  if (file) img.setAttribute('src', await uploadPastedImage(file))
+                }
+              }
+              html = parsedDocument.body.innerHTML
+            }
+            if (!imageElements.length && imageItems.length) {
+              const uploaded: string[] = []
+              for (const item of imageItems) {
+                const file = item.getAsFile()
+                if (file) uploaded.push(await uploadPastedImage(file))
+              }
+              html += uploaded.map((src) => \`<img src="\${src}" alt="Gambar dari Microsoft Word" />\`).join('')
+            }
+            const wrapper = document.createElement('div')
+            wrapper.innerHTML = html
+            const slice = ProseMirrorDOMParser.fromSchema(view.state.schema).parseSlice(wrapper)
+            const selection = bookmark.resolve(view.state.doc)
+            view.dispatch(view.state.tr.setSelection(selection).replaceSelection(slice).scrollIntoView())
+          } catch (error) {
+            console.error('Word clipboard paste failed:', error)
+            window.alert(error instanceof Error ? error.message : 'Gagal menempelkan gambar atau rumus dari Microsoft Word.')
+          }
+        })()
+        return true
       },
     },
 
