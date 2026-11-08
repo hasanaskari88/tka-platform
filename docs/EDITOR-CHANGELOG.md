@@ -2179,3 +2179,10 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Pemilihan riwayat berlaku pada proses pembuatan dokumen yang sedang dibuka; belum ada penyimpanan paket raport per siswa/periode sebagai arsip.
 - Preview/cetak browser, layout PDF, akses RLS admin untuk membaca seluruh data siswa, dan build belum diverifikasi di Preview.
 - Tidak ada migration yang diterapkan ke database aktif, tidak ada data yang diubah, dan tidak ada merge/deployment.
+
+
+### Penyempurnaan raport dan konsistensi nilai
+- Halaman raport kini menyediakan pilihan nama guru/admin dari profil admin, input nama manual, kepala sekolah dan NIP, tanggal/tempat terbit, serta KKM yang dapat disesuaikan untuk preview.
+- Riwayat ujian siswa, ranking ujian dashboard, dan raport/sertifikat menggunakan `score_override` bila guru sudah menetapkan nilai koreksi; jika tidak, menggunakan `score`.
+- Halaman raport tetap belum menyimpan pengaturan identitas secara terpusat. Nilai yang diubah pada form digunakan untuk dokumen yang sedang dibuat; tabel pengaturan sekolah dan sinkronisasi lintas perangkat belum ditambahkan.
+- Perlu QA terhadap hak baca admin untuk semua profil/riwayat, tampilan cetak multi-halaman, serta verifikasi hasil nilai koreksi pada Preview.
