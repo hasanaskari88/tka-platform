@@ -1614,3 +1614,16 @@ Hasil build Preview dan QA pengguna: **menunggu**.
 - Memperbaiki satu sisa nama variabel ukuran gambar pada cabang paste yang menggunakan placeholder tanpa `src`.
 - Perbaikan ini menindaklanjuti dua kesalahan TypeScript yang tercatat di log Vercel. Build Preview berikutnya masih harus diverifikasi.
 - Tidak ada perubahan database, endpoint upload, Production, atau mekanisme penilaian.
+
+
+## 2026-11-08 — Tahap 2 awal: konversi rumus Word dari RTF
+
+Status: **implementasi awal pada branch `editor-test`; menunggu build Preview dan QA pengguna**.
+
+- Menambahkan pembaca grup matematika RTF Word (`\\mmath` / `\\mmathPara`) karena pemeriksaan clipboard sebelumnya menunjukkan OMML tidak tersedia pada HTML, sedangkan struktur rumus tersedia di RTF.
+- Parser awal mendukung teks matematika, pecahan (`\\mf`), pangkat (`\\msSup`), indeks bawah (`\\msSub`), kombinasi pangkat/indeks (`\\msSubSup`), akar (`\\mrad`), operator jumlah/integral/hasil kali (`\\mnary`), tanda kurung matematika (`\\md`), aksen, garis atas/bawah, dan fungsi.
+- Untuk clipboard Word yang memiliki PNG fallback Equation, placeholder gambar rumus diganti dengan node matematika Tiptap yang menyimpan LaTeX. PNG fallback yang sudah dikonversi tidak ikut diunggah lagi. Gambar biasa/diagram yang tersisa tetap mengikuti alur upload Google Drive yang telah ada.
+- Jalur konversi OMML dari HTML tetap dipertahankan sebagai prioritas jika format tersebut tersedia.
+- Parser ini merupakan tahap awal dan belum dianggap mendukung seluruh variasi objek matematika Word, matriks, persamaan bertingkat, atau semua simbol khusus. Perlu QA menggunakan dokumen Word yang sama, khususnya rumus `10:1/5`, opsi angka, pecahan, pangkat, dan akar.
+- Tidak mengubah database, skema soal, endpoint upload, penyimpanan konten lama, kunci jawaban, atau penilaian.
+- Commit implementasi: `f7951b72ad5c3dd4ddd63b9d1f62264c0be51e7b`.
