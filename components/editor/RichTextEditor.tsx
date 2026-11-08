@@ -100,11 +100,11 @@ function ommlNodeToLatex(node: Element): string {
     const propertyNodes = properties ? Array.from(properties.getElementsByTagName('*')) : []
     const begin = propertyNodes.find((item) => ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'begChr')
     const end = propertyNodes.find((item) => ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === 'endChr')
-    return String.raw`\\left${begin?.getAttribute('val') || '('}${content(child('e'))}\\right${end?.getAttribute('val') || ')'}`
+    return String.raw`\left${begin?.getAttribute('val') || '('}${content(child('e'))}\right${end?.getAttribute('val') || ')'}`
   }
   if (name === 'bar') return String.raw`\overline{${content(child('e'))}}`
   if (name === 'acc') return String.raw`\hat{${content(child('e'))}}`
-  if (name === 'func') return `${content(child('fname'))}\\\\left(${content(child('e'))}\\\\right)`
+  if (name === 'func') return `${content(child('fname'))}(${content(child('e'))})`
   return all() || node.textContent || ''
 }
 
@@ -248,6 +248,7 @@ export default function RichTextEditor({
         const clipboard = event.clipboardData
         if (!clipboard) return false
         const rawHtml = clipboard.getData('text/html')
+        const rawText = clipboard.getData('text/plain')
         const imageItems = Array.from(clipboard.items).filter((item) =>
           item.kind === 'file' && item.type.startsWith('image/')
         )
@@ -266,6 +267,11 @@ export default function RichTextEditor({
         void (async () => {
           try {
             let html = ''
+            if (!parsedDocument && rawText) {
+              const textWrapper = document.createElement('div')
+              textWrapper.textContent = rawText
+              html = textWrapper.innerHTML.replace(/\\n/g, '<br>')
+            }
             if (parsedDocument) {
               let usedClipboardFile = false
               for (const img of imageElements) {
