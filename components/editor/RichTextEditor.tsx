@@ -157,6 +157,101 @@ function getClipboardImageFiles(clipboard: DataTransfer): File[] {
   return files
 }
 
+function extractRtfPngImages(rtf: string): File[] {
+  if (!rtf) return []
+  type GroupFrame = { start: number; isPicture: boolean; format: string; markerEnd: number }
+  const stack: GroupFrame[] = []
+  const pictures: Array<{ start: number; end: number; markerEnd: number }> = []
+
+  for (let i = 0; i < rtf.length; i += 1) {
+    const char = rtf[i]
+    if (char === '{') {
+      stack.push({ start: i, isPicture: false, format: '', markerEnd: 0 })
+      continue
+    }
+    if (char === '}') {
+      const frame = stack.pop()
+      if (frame?.isPicture && frame.format === 'png' && frame.markerEnd > 0) {
+        pictures.push({ start: frame.start, end: i + 1, markerEnd: frame.markerEnd })
+      }
+      continue
+    }
+    if (char !== '\\') continue
+
+    const next = rtf[i + 1]
+    if (!next) continue
+    if (/[{}\\]/.test(next) || next === "'" || next === '*' || next === '~' || next === '-') {
+      i += next === "'" ? 3 : 1
+      continue
+    }
+    if (!/[a-zA-Z]/.test(next)) {
+      i += 1
+      continue
+    }
+
+    let end = i + 1
+    while (end < rtf.length && /[a-zA-Z]/.test(rtf[end])) end += 1
+    const word = rtf.slice(i + 1, end).toLowerCase()
+    let numberEnd = end
+    if (rtf[numberEnd] === '-') numberEnd += 1
+    while (numberEnd < rtf.length && /[0-9]/.test(rtf[numberEnd])) numberEnd += 1
+    if (rtf[numberEnd] === ' ') numberEnd += 1
+
+    const frame = stack[stack.length - 1]
+    if (frame && word === 'pict') frame.isPicture = true
+    if (frame && word === 'pngblip') {
+      frame.format = 'png'
+      frame.markerEnd = numberEnd
+    } else if (frame && (word === 'jpegblip' || word === 'jpgblip')) {
+      frame.format = 'jpeg'
+      frame.markerEnd = numberEnd
+    }
+    i = numberEnd - 1
+  }
+
+  const files: File[] = []
+  pictures.forEach((picture, index) => {
+    let hex = ''
+    let depth = 0
+    for (let i = picture.markerEnd; i < picture.end - 1; i += 1) {
+      const char = rtf[i]
+      if (char === '{') {
+        depth += 1
+        continue
+      }
+      if (char === '}') {
+        if (depth > 0) depth -= 1
+        continue
+      }
+      if (depth > 0) continue
+      if (char === '\\') {
+        const next = rtf[i + 1]
+        if (next === "'" ) i += 3
+        else if (next && /[a-zA-Z]/.test(next)) {
+          i += 1
+          while (i + 1 < picture.end && /[a-zA-Z]/.test(rtf[i + 1])) i += 1
+          if (rtf[i + 1] === '-') i += 1
+          while (i + 1 < picture.end && /[0-9]/.test(rtf[i + 1])) i += 1
+          if (rtf[i + 1] === ' ') i += 1
+        } else i += 1
+        continue
+      }
+      if (/[0-9a-fA-F]/.test(char)) hex += char
+    }
+
+    if (hex.length < 16 || hex.length % 2 !== 0 || hex.length > 16 * 1024 * 1024) return
+    const bytes = new Uint8Array(hex.length / 2)
+    for (let i = 0; i < bytes.length; i += 1) {
+      bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16)
+    }
+    const isPng = bytes.length >= 8 &&
+      bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71 &&
+      bytes[4] === 13 && bytes[5] === 10 && bytes[6] === 26 && bytes[7] === 10
+    if (isPng) files.push(new File([bytes], 'gambar-word-' + (files.length + 1) + '.png', { type: 'image/png' }))
+  })
+  return files
+}
+
 function convertWordDrawingImages(document: Document): void {
   const officeImages = Array.from(document.body.querySelectorAll('*')).filter((node) => {
     const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
@@ -313,6 +408,7 @@ export default function RichTextEditor({
         const clipboardItemSummary = Array.from(clipboard.items || []).map((item) => `${item.kind}:${item.type || 'tanpa tipe'}`)
         const imageFileSummary = imageFiles.map((file) => `${file.type || 'tanpa tipe'} (${file.size} byte)`)
         const rtf = clipboard.getData('text/rtf')
+        const rtfPngImages = extractRtfPngImages(rtf)
         const rtfSlash = String.fromCharCode(92)
         const countRtfToken = (token: string) => rtf.split(rtfSlash + token).length - 1
         const summarizeRtfGroups = (token: string, limit: number) => {
@@ -363,7 +459,8 @@ export default function RichTextEditor({
           `OMML: ${countOfficeNodes(['omath', 'omathpara'])}; MathML: ${originalDocument?.body.querySelectorAll('math').length || 0}`,
           `IMG: ${originalDocument?.body.querySelectorAll('img').length || 0}; sumber IMG: ${imageSrcKinds.join(', ') || 'tidak ada'}`,
           `VML imagedata: ${countOfficeNodes(['imagedata'])}; DrawingML blip: ${countOfficeNodes(['blip'])}`,
-          `File gambar: ${imageFiles.length}${imageFileSummary.length ? ' (' + imageFileSummary.join('; ') + ')' : ''}`,
+          `File gambar clipboard: ${imageFiles.length}${imageFileSummary.length ? ' (' + imageFileSummary.join('; ') + ')' : ''}`,
+          `PNG yang berhasil dibaca dari RTF: ${rtfPngImages.length}${rtfPngImages.length ? ' (' + rtfPngImages.map((file) => file.size + ' byte').join(', ') + ')' : ''}`,
           `RTF: ${rtfControls.join('; ')}`,
           `Struktur rumus RTF (maks. 3): ${mathRtfStructure.join(' || ') || 'tidak ditemukan'}`,
           `Struktur gambar RTF (maks. 5): ${pictureRtfStructure.join(' || ') || 'tidak ditemukan'}`,
@@ -390,7 +487,7 @@ export default function RichTextEditor({
               html = textWrapper.innerHTML.replace(/\\n/g, '<br>')
             }
             if (parsedDocument) {
-              const remainingFiles = [...imageFiles]
+              const remainingFiles = [...imageFiles, ...rtfPngImages]
               for (const img of imageElements) {
                 const src = img.getAttribute('src') || ''
                 if (src.startsWith('data:image/')) {
@@ -418,9 +515,9 @@ export default function RichTextEditor({
               }
               html = parsedDocument.body.innerHTML
             }
-            if (!imageElements.length && imageFiles.length) {
+            if (!imageElements.length && (imageFiles.length || rtfPngImages.length)) {
               const uploaded: string[] = []
-              for (const file of imageFiles) uploaded.push(await uploadPastedImage(file))
+              for (const file of [...imageFiles, ...rtfPngImages]) uploaded.push(await uploadPastedImage(file))
               html += uploaded.map((src) => `<img src="${src}" alt="Gambar dari Microsoft Word" />`).join('')
             }
             const wrapper = document.createElement('div')
