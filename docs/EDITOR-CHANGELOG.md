@@ -1315,3 +1315,44 @@ Checklist QA Preview:
 - [ ] Pastikan preview dan hasil cetak yang sebelumnya sudah benar tetap tidak berubah.
 
 Hasil build dan QA pengguna: **menunggu**.
+
+
+## Perbaikan ukuran tata letak gambar setelah rotasi pada daftar soal — 8 November 2026
+
+Status: **kode diterapkan pada `editor-test`; menunggu build Preview dan QA visual pengguna**.
+
+Masalah:
+- Rotasi gambar disimpan sebagai `data-rotation` dan CSS `transform: rotate(...)`.
+- CSS transform mengubah tampilan visual tetapi tidak menukar ukuran kotak tata letak gambar.
+- Pada rotasi 90°/270°, gambar dapat menutupi teks di sampingnya dan elemen berikutnya seperti pilihan/kunci jawaban.
+
+Perubahan:
+1. `MathRenderer` mendapat prop opsional `normalizeRotatedImages`, default `false`, sehingga halaman lain tidak berubah perilakunya.
+2. Sanitizer hasil akhir mempertahankan atribut `data-rotation` agar orientasi gambar dapat dikenali.
+3. Pada empat area daftar soal aktif (pertanyaan, opsi, pembahasan flashcard, pembahasan quiz), prop tersebut diaktifkan.
+4. Untuk gambar dengan rotasi 90°/270°, renderer mengukur ukuran gambar sebelum transform, lalu membuat wrapper tata letak dengan lebar/tinggi tertukar. Gambar diposisikan dan diputar di dalam wrapper tersebut.
+5. Float, margin, dan clear dari gambar asli dipindahkan ke wrapper agar pengaturan gambar di kiri/kanan serta pembungkusan teks tetap berjalan.
+6. Ukuran dihitung ulang saat lebar area daftar berubah melalui ResizeObserver.
+
+Batas perubahan:
+- Tidak mengubah data soal, format HTML tersimpan, URL gambar, editor, rotasi yang tersimpan, database, query Supabase, kunci jawaban, atau penilaian.
+- Perilaku normalisasi hanya diaktifkan pada daftar soal aktif.
+- Gambar dengan rotasi 0°/180° tidak memerlukan pertukaran lebar/tinggi.
+- Perubahan `flow-root` sebelumnya tetap dipertahankan.
+
+Pemeriksaan kode:
+- Perubahan renderer bersifat opt-in.
+- Empat pemanggilan MathRenderer pada daftar soal aktif mengaktifkan normalisasi.
+- Build Preview dan pemeriksaan browser masih menunggu.
+
+Checklist QA Preview:
+- [ ] Soal dengan gambar persegi panjang diputar 90°: teks di sebelahnya tetap terbaca.
+- [ ] Soal dengan gambar diputar 270°: teks dan area soal tidak bertumpuk.
+- [ ] Pilihan jawaban dan pembahasan di bawah gambar tidak tertutup.
+- [ ] Gambar wrap-left dan wrap-right tetap membungkus teks dengan benar.
+- [ ] Gambar tanpa rotasi serta rotasi 180° tetap normal.
+- [ ] Uji pada lebar desktop dan jendela browser yang lebih sempit.
+- [ ] Preview dan hasil cetak tetap seperti sebelumnya.
+- [ ] Tombol edit dan simpan soal tetap bekerja.
+
+Hasil build dan QA pengguna: **menunggu**.
