@@ -144,7 +144,6 @@ export default function MathRenderer({
   normalizeRotatedImages = false,
 }: MathRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
-  if (!content) return null
 
   let htmlContent = ''
 
@@ -152,7 +151,7 @@ export default function MathRenderer({
     // 1. Bersihkan HTML sumber sebelum diproses.
     const safeInput = String(
       DOMPurify.sanitize(content, {
-        ADD_ATTR: ['data-type', 'data-latex'],
+        ADD_ATTR: ['data-type', 'data-latex', 'data-rotation'],
       })
     )
 
@@ -290,6 +289,8 @@ export default function MathRenderer({
 
     return () => observer.disconnect()
   }, [content, normalizeRotatedImages])
+
+  if (!content) return null
 
   return (
     <div
