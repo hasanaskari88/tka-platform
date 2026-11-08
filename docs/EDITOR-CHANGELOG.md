@@ -1627,3 +1627,12 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Parser ini merupakan tahap awal dan belum dianggap mendukung seluruh variasi objek matematika Word, matriks, persamaan bertingkat, atau semua simbol khusus. Perlu QA menggunakan dokumen Word yang sama, khususnya rumus `10:1/5`, opsi angka, pecahan, pangkat, dan akar.
 - Tidak mengubah database, skema soal, endpoint upload, penyimpanan konten lama, kunci jawaban, atau penilaian.
 - Commit implementasi: `f7951b72ad5c3dd4ddd63b9d1f62264c0be51e7b`.
+
+
+## 2026-11-08 — Perbaikan pemisahan rumus dan gambar fallback Word
+
+- Menindaklanjuti QA pengguna: pecahan `10:1/5` tampil, tetapi dialog edit tidak mengenali LaTeX karena atribut `data-latex` ikut berisi metadata bentuk Word dan payload gambar PNG/WMF.
+- Parser RTF sekarang mengabaikan grup visual Equation Word (`mmathPict`, `pict`, `shppict`, `nonshppict`, dan grup metadata bentuk terkait) saat membentuk LaTeX.
+- Tujuan perubahan: hanya struktur matematika yang masuk ke `data-latex`; fallback gambar Equation tidak menjadi bagian dari rumus. Gambar diagram non-matematika tetap diproses oleh alur paste yang ada.
+- Belum diverifikasi pengguna. Menunggu build Preview dan pengujian ulang rumus serta diagram.
+- Commit: `229fd39a23486655c7cb8a6647c99ec84000cc65`.
