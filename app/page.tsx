@@ -502,7 +502,7 @@ const filteredExams = useMemo(() => {
   
     return (
       <div
-        className={`min-h-screen flex flex-col font-sans relative isolate ${
+        className={`min-h-screen flex flex-col font-sans relative isolate theme-${theme} ${
           theme === 'gaming'
             ? 'bg-[#17102b] text-white'
             : ''
