@@ -315,6 +315,21 @@ export default function RichTextEditor({
         const rtf = clipboard.getData('text/rtf')
         const rtfSlash = String.fromCharCode(92)
         const countRtfToken = (token: string) => rtf.split(rtfSlash + token).length - 1
+        const summarizeRtfGroups = (token: string, limit: number) => {
+          const summaries: string[] = []
+          let position = 0
+          while (summaries.length < limit) {
+            const found = rtf.indexOf(rtfSlash + token, position)
+            if (found < 0) break
+            const sample = rtf.slice(found, found + 1800)
+            const controls = sample.match(new RegExp(rtfSlash + '[a-zA-Z]+-?[0-9]*', 'g')) || []
+            summaries.push([...new Set(controls)].slice(0, 35).join(' '))
+            position = found + (rtfSlash + token).length
+          }
+          return summaries
+        }
+        const mathRtfStructure = summarizeRtfGroups('mmath', 3)
+        const pictureRtfStructure = summarizeRtfGroups('pict', 5)
         const rtfControls = [
           rtfSlash + 'mmath: ' + countRtfToken('mmath'),
           rtfSlash + 'mfrac: ' + countRtfToken('mfrac'),
@@ -346,6 +361,8 @@ export default function RichTextEditor({
           `VML imagedata: ${countOfficeNodes(['imagedata'])}; DrawingML blip: ${countOfficeNodes(['blip'])}`,
           `File gambar: ${imageFiles.length}${imageFileSummary.length ? ' (' + imageFileSummary.join('; ') + ')' : ''}`,
           `RTF: ${rtfControls.join('; ')}`,
+          `Struktur rumus RTF (maks. 3): ${mathRtfStructure.join(' || ') || 'tidak ditemukan'}`,
+          `Struktur gambar RTF (maks. 5): ${pictureRtfStructure.join(' || ') || 'tidak ditemukan'}`,
           `Item clipboard: ${clipboardItemSummary.join(', ') || 'tidak ada'}`,
         ].join('\\n')
         console.info('[Word paste diagnostics]', diagnostic)
