@@ -1676,3 +1676,13 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Catatan tambahan: ukuran gambar hasil paste masih sekitar 4 kali lebih besar daripada ukuran yang diharapkan, tetapi pengguna menyatakan ukuran tersebut masih dapat disesuaikan melalui kontrol ukuran gambar editor.
 - Status crop Word: **berhasil diuji pengguna**. Ketidaksesuaian ukuran awal dicatat sebagai penyempurnaan terpisah dan bukan penghambat fungsi crop.
 - Perubahan ini hanya memperbarui dokumentasi QA pada branch `editor-test`; tidak mengubah kode aplikasi, Production, database, API, atau penilaian.
+
+
+## 2026-11-08 — Penyesuaian ukuran awal diagram Word (WMF)
+
+- Menindaklanjuti QA pengguna: hasil crop sudah sesuai dengan Microsoft Word, tetapi ukuran awal gambar hasil paste tampak sekitar 4 kali lebih besar dari ukuran yang diharapkan.
+- Koreksi skala diterapkan khusus pada lebar tampilan diagram WMF hasil ekstraksi RTF: nilai target `picwgoal` dibagi 60 (sebelumnya dibagi 15), dengan batas aman 24–400 px.
+- Nilai `widthGoal` mentah tetap dipakai untuk perhitungan crop. Algoritme crop, posisi wrap, dan rasio gambar tidak diubah.
+- PNG fallback rumus Word serta gambar clipboard biasa tidak terkena penyesuaian ini.
+- Tidak mengubah database, API Google Drive, format soal, kunci jawaban, penilaian, atau Production.
+- Status: perubahan kode pada branch `editor-test`; menunggu build Preview dan QA pengguna. Jika ukuran diagram menjadi terlalu kecil/besar, skala dapat disetel berdasarkan hasil uji visual.
