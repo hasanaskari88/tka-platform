@@ -1948,3 +1948,11 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Perubahan hanya pada CSS homepage; tidak mengubah database, skema, API, XP, leaderboard, login, ujian, CBT, atau scoring.
 - Commit CSS: aa0ff3747474d94c8ecf5eec33e3507ec9b195ba.
 - Status: menunggu build Vercel Preview dan QA pengguna; belum di-merge ke `main` dan belum mengubah Production.
+
+## 2026-11-08 — Pengarsipan sementara maskot 3D realistis homepage
+
+- Pengembangan homepage dihentikan sementara sesuai keputusan pengguna; tidak ada perubahan lanjutan pada layout, warna, latar, kartu, tombol, atau navigasi homepage pada tahap berikutnya.
+- Konsep maskot ilustrasi 3D realistis untuk tema Space, Jungle, Ocean, Disney, dan School disimpan sebagai backlog visual. Pekerjaan ini menunggu ketersediaan pembuatan aset gambar.
+- Animasi sementara berbasis emoji dan CSS yang telah dikirim pada branch `homepage-arcade-catalog` dipertahankan; tidak dihapus atau diganti pada tahap ini.
+- Halaman Practice / Latihan menjadi fokus peninjauan berikutnya. Tahap awal hanya audit kode dan rekomendasi; belum ada perubahan aplikasi, database, skema, API, XP, leaderboard, atau scoring.
+- Status homepage: belum dinyatakan final untuk Production dan belum di-merge ke `main`; keputusan rilis tetap menunggu QA pengguna dan persetujuan eksplisit.
