@@ -612,7 +612,7 @@ function HistoryContent() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2">
             <input value={examSearch} onChange={(e) => { setExamSearch(e.target.value); setExamPage(1) }} placeholder="Cari judul ujian..." className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
             <select value={examStatus} onChange={(e) => { setExamStatus(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
-              <option value="all">Semua status</option><option value="completed">Selesai</option><option value="ongoing">Sedang dikerjakan</option>
+              <option value="all">Semua status</option><option value="completed">Selesai</option><option value="ongoing">Sedang dikerjakan</option><option value="paused">Dijeda</option><option value="expired">Kedaluwarsa</option>
             </select>
             <select value={examSort} onChange={(e) => { setExamSort(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
               <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
