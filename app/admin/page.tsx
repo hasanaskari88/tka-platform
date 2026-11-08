@@ -129,11 +129,12 @@ export default function AdminDashboardPage() {
           <div className="rounded-xl border bg-white p-4"><p className="text-xs text-slate-500">Kelas terdata</p><p className="mt-1 text-2xl font-black text-violet-700">{classes.length}</p></div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <Link href="/admin/bank-soal" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">📝</span><h2 className="mt-2 font-black text-slate-900">Bank Soal & Ujian</h2><p className="mt-1 text-xs text-slate-500">Kelola paket, soal, token, materi, dan pengumuman.</p></Link>
           <Link href="/admin/users" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">👩‍🎓</span><h2 className="mt-2 font-black text-slate-900">Data Peserta</h2><p className="mt-1 text-xs text-slate-500">Kelola akun, kelas, dan profil siswa.</p></Link>
           <Link href="/admin/practice" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">🎮</span><h2 className="mt-2 font-black text-slate-900">Pengelolaan Practice</h2><p className="mt-1 text-xs text-slate-500">Kelola kuis, flashcard, dan game edukatif.</p></Link>
           <Link href="/admin/raport" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">📄</span><h2 className="mt-2 font-black text-slate-900">Raport & Sertifikat</h2><p className="mt-1 text-xs text-slate-500">Pilih peserta dan riwayat nilai, atur penandatangan, preview, lalu cetak.</p></Link>
+          <Link href="/admin/pengaturan-dokumen" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">⚙️</span><h2 className="mt-2 font-black text-slate-900">Pengaturan Dokumen</h2><p className="mt-1 text-xs text-slate-500">Atur identitas sekolah, guru/admin, kepala sekolah, dan KKM.</p></Link>
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
