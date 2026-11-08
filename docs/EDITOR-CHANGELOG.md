@@ -1733,3 +1733,12 @@ Catatan: ini merupakan konfirmasi QA pengguna, bukan perubahan kode aplikasi. Ti
 - Status kompatibilitas tampilan soal lama: **berhasil diuji dan dikonfirmasi pengguna**.
 - Catatan ini hanya mencakup tampilan saat dibuka; pengujian simpan/buka ulang untuk setiap tipe soal tetap dicatat terpisah pada roadmap QA.
 - Tidak ada perubahan kode aplikasi, database, skema, API, penilaian, atau Production.
+
+
+## 2026-11-08 — Keputusan ruang lingkup QA: paste satu dokumen Word lengkap
+
+- Pengguna memutuskan pengujian copy-paste satu dokumen Word lengkap (dokumen panjang dengan banyak soal) boleh dilewati karena membutuhkan waktu besar dan pada praktiknya menyerupai proses import.
+- Pengujian dokumen Word lengkap **bukan syarat penghambat** untuk penyelesaian editor dan persiapan penerapan ke `main`.
+- Batasan yang tetap dicatat: paste Word telah diuji pada contoh teks, rumus, gambar/diagram, crop, wrap, ukuran, serta simpan/buka ulang yang telah dikonfirmasi pengguna; tidak ada klaim bahwa satu dokumen panjang telah diuji menyeluruh.
+- QA akhir tetap mencakup pemeriksaan terarah pada tipe soal, tampilan siswa/guru, export/cetak, dan tidak berubahnya kunci, bobot, serta penilaian.
+- Keputusan ini tidak mengubah kode aplikasi, database, skema, API, atau Production.
