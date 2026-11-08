@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 type DocConfig = {
   schoolName: string
@@ -61,9 +62,17 @@ export default function AdminReportPage() {
         setExams(e.data || [])
         setPractice(pr.data || [])
         setExamSessions(es.data || [])
-        const admin = await db.from('profiles').select('full_name').eq('role', 'admin').order('full_name')
+        const [admin, savedSettings] = await Promise.all([
+          db.from('profiles').select('full_name').eq('role', 'admin').order('full_name'),
+          db.rpc('get_school_document_settings'),
+        ])
         setAdminProfiles(admin.data || [])
-        if (admin.data?.[0]?.full_name) setConfig(current => ({ ...current, teacherName: admin.data[0].full_name }))
+        if (savedSettings.data) {
+          const s = savedSettings.data
+          setConfig(current => ({ ...current, schoolName: s.school_name || current.schoolName, schoolAddress: s.school_address || current.schoolAddress, teacherName: s.teacher_name || admin.data?.[0]?.full_name || current.teacherName, teacherNip: s.teacher_nip || current.teacherNip, principalName: s.principal_name || current.principalName, principalNip: s.principal_nip || current.principalNip, issuePlace: s.issue_place || current.issuePlace, kkm: Number(s.kkm ?? current.kkm) }))
+        } else if (admin.data?.[0]?.full_name) {
+          setConfig(current => ({ ...current, teacherName: admin.data[0].full_name }))
+        }
       } catch (error: any) {
         if (active) setWarning(error?.message || 'Gagal memuat data raport.')
       } finally {
@@ -132,7 +141,7 @@ export default function AdminReportPage() {
             </section>
 
             <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <h2 className="font-black text-slate-900">3. Pengaturan Identitas Dokumen</h2>
+              <div className="flex items-center justify-between gap-2"><h2 className="font-black text-slate-900">3. Pengaturan Identitas Dokumen</h2><Link href="/admin/pengaturan-dokumen" className="text-xs font-bold text-indigo-600 hover:underline">Pengaturan terpusat →</Link></div>
               <p className="mt-1 text-xs text-slate-500">Pilih atau sesuaikan nama penandatangan untuk pratinjau dokumen.</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="text-xs font-semibold text-slate-600">Nama sekolah<input value={config.schoolName} onChange={e => updateConfig('schoolName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
