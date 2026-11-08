@@ -232,7 +232,7 @@ export default function PracticeHubPage() {
       ? Object.values(userProfile.badges)
       : []
   const playerAvatar = String(userProfile?.avatar_url || '👾')
-  const playerAvatarIsImage = /^https?:\\/\\//i.test(playerAvatar)
+  const playerAvatarIsImage = playerAvatar.startsWith('http://') || playerAvatar.startsWith('https://')
 
   const missionStyles = {
     QUIZ: [
@@ -622,7 +622,7 @@ export default function PracticeHubPage() {
                           </span>
                           <div className="min-w-0">
                             <div className="flex min-w-0 items-center gap-2.5">
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-slate-900/60 text-xl shadow-inner">{/^https?:\\/\\//i.test(String(student.avatar_url || '')) ? <img src={student.avatar_url} alt="" className="h-full w-full object-cover" /> : (student.avatar_url || '👾')}</span>
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/25 bg-slate-900/60 text-xl shadow-inner">{(String(student.avatar_url || '').startsWith('http://') || String(student.avatar_url || '').startsWith('https://')) ? <img src={student.avatar_url} alt="" className="h-full w-full object-cover" /> : (student.avatar_url || '👾')}</span>
                             <div className="min-w-0">
                               <p className={`truncate text-xs font-black ${rankText}`}>{student.full_name || student.username}</p>
                               <p className={`mt-1 truncate text-[10px] font-semibold ${rank < 3 ? 'text-white/90' : 'text-cyan-100/75'}`}>{student.username ? `@${student.username}` : (student.class_code ? `Kelas ${student.class_code}` : 'Pemain')}</p>
