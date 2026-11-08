@@ -135,3 +135,128 @@ video {
 .ProseMirror li p {
   margin: 0 !important;
 }
+
+/* =========================================================
+   3D THEME MOTION — Cartoon 3D & Arcade Game Hub
+   CSS-only: no external 3D runtime or additional dependency.
+   ========================================================= */
+.arcade-hero {
+  transform-style: preserve-3d;
+  isolation: isolate;
+}
+.arcade-scanlines {
+  background-image: linear-gradient(to bottom, transparent 50%, rgba(125,211,252,.08) 51%);
+  background-size: 100% 5px;
+  mask-image: linear-gradient(to bottom, black, transparent 92%);
+}
+.arcade-stage {
+  perspective: 1000px;
+  transform-style: preserve-3d;
+}
+.arcade-cabinet {
+  transform: rotateY(-12deg) rotateX(3deg);
+  transform-style: preserve-3d;
+  animation: arcade-cabinet-float 4.5s ease-in-out infinite;
+  transition: transform .35s ease, filter .35s ease;
+}
+.arcade-stage:hover .arcade-cabinet {
+  transform: rotateY(8deg) rotateX(-2deg) translateY(-8px) scale(1.035);
+  filter: drop-shadow(0 20px 22px rgba(34,211,238,.22));
+}
+.arcade-screen {
+  position: relative;
+  overflow: hidden;
+}
+.arcade-screen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 25%, rgba(255,255,255,.18) 45%, transparent 65%);
+  transform: translateX(-120%);
+  animation: arcade-screen-glint 5s ease-in-out infinite;
+}
+.arcade-mascot {
+  animation: arcade-mascot-bounce 1.8s ease-in-out infinite;
+}
+.arcade-coin {
+  transform-style: preserve-3d;
+  animation: arcade-coin-float 3.2s ease-in-out infinite;
+}
+.arcade-coin-delay { animation-delay: -1.4s; }
+.arcade-pixel { animation: arcade-pixel-pulse 2.4s ease-in-out infinite; }
+.arcade-platform { transform: rotateX(68deg); }
+.arcade-3d-button { transform: translateZ(0); }
+.arcade-mission-card {
+  transform: perspective(900px) rotateX(0deg) translateY(0);
+  transform-style: preserve-3d;
+}
+.arcade-mission-card:hover {
+  transform: perspective(900px) rotateX(3deg) translateY(-7px);
+  box-shadow: 0 15px 0 -7px rgba(34,211,238,.45), 0 20px 35px rgba(0,0,0,.24);
+}
+.cartoon3d-hero {
+  transform-style: preserve-3d;
+}
+.cartoon3d-stage {
+  perspective: 800px;
+  transform-style: preserve-3d;
+}
+.cartoon3d-mascot {
+  transform: rotateY(-12deg) rotateX(7deg);
+  animation: cartoon3d-bob 3.5s ease-in-out infinite;
+  transition: transform .3s ease;
+}
+.cartoon3d-stage:hover .cartoon3d-mascot {
+  transform: rotateY(14deg) rotateX(-5deg) translateY(-8px) scale(1.06);
+}
+.cartoon3d-cloud { animation: cartoon3d-cloud-drift 5s ease-in-out infinite; }
+.cartoon3d-star { animation: arcade-pixel-pulse 2s ease-in-out infinite; }
+
+.theme-gaming main article {
+  transform-style: preserve-3d;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.theme-gaming main article:hover {
+  transform: perspective(1000px) translateY(-5px) rotateX(1.5deg);
+  box-shadow: 0 16px 28px rgba(0,0,0,.22);
+}
+.theme-gaming main a:not(.arcade-3d-button) {
+  transition: transform .2s ease, filter .2s ease;
+}
+.theme-gaming main a:not(.arcade-3d-button):hover {
+  filter: brightness(1.12);
+}
+@keyframes arcade-cabinet-float {
+  0%, 100% { transform: translateY(0) rotateY(-12deg) rotateX(3deg); }
+  50% { transform: translateY(-9px) rotateY(-7deg) rotateX(1deg); }
+}
+@keyframes arcade-screen-glint {
+  0%, 65%, 100% { transform: translateX(-120%); }
+  85% { transform: translateX(120%); }
+}
+@keyframes arcade-mascot-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-5px) scale(1.05); }
+}
+@keyframes arcade-coin-float {
+  0%, 100% { transform: translateY(0) rotateY(0deg) rotateZ(-8deg); }
+  50% { transform: translateY(-12px) rotateY(22deg) rotateZ(8deg); }
+}
+@keyframes arcade-pixel-pulse {
+  0%, 100% { opacity: .65; transform: scale(1) rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.18) rotate(12deg); }
+}
+@keyframes cartoon3d-bob {
+  0%, 100% { transform: translateY(0) rotateY(-12deg) rotateX(7deg); }
+  50% { transform: translateY(-9px) rotateY(-4deg) rotateX(2deg); }
+}
+@keyframes cartoon3d-cloud-drift {
+  0%, 100% { transform: translateX(0) translateY(0); }
+  50% { transform: translateX(-9px) translateY(-5px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arcade-cabinet, .arcade-screen::after, .arcade-mascot, .arcade-coin,
+  .arcade-pixel, .cartoon3d-mascot, .cartoon3d-cloud, .cartoon3d-star {
+    animation: none !important;
+  }
+}
