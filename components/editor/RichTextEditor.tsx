@@ -64,7 +64,7 @@ function ommlNodeToLatex(node: Element): string {
   const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
   const children = Array.from(node.children)
   const child = (wanted: string) => children.find((item) =>
-    ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === wanted
+    ((item.localName || item.tagName).toLowerCase().split(':').pop() || '') === wanted.toLowerCase()
   )
   const content = (element?: Element | null) =>
     element ? Array.from(element.children).map(ommlNodeToLatex).join('') || element.textContent || '' : ''
@@ -76,9 +76,9 @@ function ommlNodeToLatex(node: Element): string {
   ).map((item) => item.textContent || '').join('')
   if (['omath', 'omathpara', 'e', 'num', 'den', 'sup', 'sub', 'fname'].includes(name)) return all()
   if (name === 'f') return String.raw\`\\frac{\${content(child('num'))}}{\${content(child('den'))}}\`
-  if (name === 'sSup') return \`{\${content(child('e'))}}^{\${content(child('sup'))}}\`
-  if (name === 'sSub') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}\`
-  if (name === 'sSubSup') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}^{\${content(child('sup'))}}\`
+  if (name === 'ssup') return \`{\${content(child('e'))}}^{\${content(child('sup'))}}\`
+  if (name === 'ssub') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}\`
+  if (name === 'ssubsup') return \`{\${content(child('e'))}}_{\${content(child('sub'))}}^{\${content(child('sup'))}}\`
   if (name === 'rad') {
     const degree = content(child('deg'))
     const base = content(child('e'))
@@ -104,7 +104,7 @@ function ommlNodeToLatex(node: Element): string {
   }
   if (name === 'bar') return String.raw\`\\overline{\${content(child('e'))}}\`
   if (name === 'acc') return String.raw\`\\hat{\${content(child('e'))}}\`
-  if (name === 'func') return \`\${content(child('fName'))}\\\\left(\${content(child('e'))}\\\\right)\`
+  if (name === 'func') return \`\${content(child('fname'))}\\\\left(\${content(child('e'))}\\\\right)\`
   return all() || node.textContent || ''
 }
 
@@ -267,16 +267,28 @@ export default function RichTextEditor({
           try {
             let html = ''
             if (parsedDocument) {
+              let usedClipboardFile = false
               for (const img of imageElements) {
                 const src = img.getAttribute('src') || ''
                 if (src.startsWith('data:image/')) {
                   const blob = await fetch(src).then((response) => response.blob())
                   const file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
                   img.setAttribute('src', await uploadPastedImage(file))
-                } else if (src.startsWith('file:') && imageItems.length) {
+                } else if ((src.startsWith('file:') || (!src.startsWith('http:') && !src.startsWith('https:'))) && imageItems.length) {
                   const item = imageItems.shift()
                   const file = item?.getAsFile()
-                  if (file) img.setAttribute('src', await uploadPastedImage(file))
+                  if (file) {
+                    img.setAttribute('src', await uploadPastedImage(file))
+                    usedClipboardFile = true
+                  }
+                }
+              }
+              if (imageElements.length && imageItems.length && !usedClipboardFile && !hasDataImages && !hasLocalImages) {
+                for (const img of imageElements) {
+                  const item = imageItems.shift()
+                  const file = item?.getAsFile()
+                  if (!file) break
+                  img.setAttribute('src', await uploadPastedImage(file))
                 }
               }
               html = parsedDocument.body.innerHTML
