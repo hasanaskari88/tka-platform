@@ -2309,3 +2309,12 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Vercel Preview untuk commit terbaru masih berstatus QUEUED saat catatan ini dibuat; build belum selesai. QA visual, klik detail siswa, preview URL, dan cetak A4 belum dilakukan.
 
 - Penyempurnaan lanjutan: materi baru otomatis memilih subtes pertama yang tersedia; saat materi lama diedit, penulis kosong memakai nama lengkap akun aktif sebagai fallback.
+
+### Addendum build Preview 2026-11-09
+- Commit kode yang dibangun: `6599bc8635cfea92ed732c8d49666728bb105edb`.
+- Vercel deployment `dpl_HEY4BDcPH1RquJAnhCqB7CMYbLWE` berstatus **READY**; URL: https://grisan-cgafh4bt0-heins14.vercel.app.
+- Next.js compile berhasil; TypeScript selesai; proses build selesai dan deployment selesai.
+- Route halaman detail peserta baru ikut dalam build Next.js.
+- Warning prerender pada Google Drive callback masih muncul seperti catatan sebelumnya; build tidak gagal karenanya.
+- Status ini hanya membuktikan build/deployment Preview berhasil. Belum ada QA visual, pengujian data runtime, atau uji cetak fisik A4 oleh pengguna.
+
