@@ -126,6 +126,242 @@ function convertWordMath(html: string): { html: string; converted: number } {
   return { html: document.body.innerHTML, converted }
 }
 
+
+type RtfMathNode = { destination: string; parts: Array<string | RtfMathNode> }
+type ExtractedRtfMath = { latex: string; displayMode: boolean }
+
+function parseRtfMathGroup(source: string): RtfMathNode | null {
+  let index = 0
+  const parseGroup = (): RtfMathNode | null => {
+    if (source[index] !== '{') return null
+    index += 1
+    const node: RtfMathNode = { destination: '', parts: [] }
+    while (index < source.length) {
+      const char = source[index]
+      if (char === '}') { index += 1; return node }
+      if (char === '{') {
+        const child = parseGroup()
+        if (child) node.parts.push(child)
+        continue
+      }
+      if (char !== '\\') { node.parts.push(char); index += 1; continue }
+      index += 1
+      const next = source[index]
+      if (!next) break
+      if (next === "'" && /^[0-9a-f]{2}$/i.test(source.slice(index + 1, index + 3))) {
+        node.parts.push(String.fromCharCode(Number.parseInt(source.slice(index + 1, index + 3), 16)))
+        index += 3
+        continue
+      }
+      if (next === '{' || next === '}' || next === '\\') {
+        node.parts.push(next); index += 1; continue
+      }
+      if (next === '*') { index += 1; continue }
+      if (!/[a-zA-Z]/.test(next)) {
+        if (next === '~') node.parts.push('\u00a0')
+        else if (next === '_') node.parts.push('\u2011')
+        index += 1
+        continue
+      }
+      const wordStart = index
+      while (index < source.length && /[a-zA-Z]/.test(source[index])) index += 1
+      const word = source.slice(wordStart, index)
+      let number = ''
+      if (source[index] === '-') { number = '-'; index += 1 }
+      while (index < source.length && /[0-9]/.test(source[index])) { number += source[index]; index += 1 }
+      if (source[index] === ' ') index += 1
+      const normalized = word.toLowerCase()
+      if (normalized === 'u' && number) {
+        const code = Number(number)
+        node.parts.push(String.fromCharCode(code < 0 ? code + 65536 : code))
+        if (index < source.length) {
+          if (source[index] === '\\' && source[index + 1] === "'") index += 4
+          else if (source[index] !== '{' && source[index] !== '}') index += 1
+        }
+      } else if (normalized === 'par' || normalized === 'line') node.parts.push(' ')
+      else if (normalized === 'tab') node.parts.push('\t')
+      else if (normalized === 'emdash') node.parts.push('—')
+      else if (normalized === 'endash') node.parts.push('–')
+      else if (!node.destination) node.destination = word
+    }
+    return node
+  }
+  return parseGroup()
+}
+
+function rtfMathNodeText(node: RtfMathNode | undefined): string {
+  if (!node) return ''
+  return node.parts.map((part) => typeof part === 'string' ? part : rtfMathNodeText(part)).join('')
+}
+
+function rtfMathChild(node: RtfMathNode, destination: string): RtfMathNode | undefined {
+  return node.parts.find((part): part is RtfMathNode =>
+    typeof part !== 'string' && part.destination === destination
+  )
+}
+
+function rtfMathPropertyText(node: RtfMathNode, propertyGroup: string, valueGroup: string): string {
+  const properties = rtfMathChild(node, propertyGroup)
+  return properties ? rtfMathNodeText(rtfMathChild(properties, valueGroup)) : ''
+}
+
+function rtfMathToLatex(node: RtfMathNode): string {
+  const children = node.parts.filter((part): part is RtfMathNode => typeof part !== 'string')
+  const childLatex = (name: string) => {
+    const child = children.find((item) => item.destination === name)
+    return child ? rtfMathToLatex(child) : ''
+  }
+  const plain = () => node.parts.map((part) =>
+    typeof part === 'string' ? part : rtfMathToLatex(part)
+  ).join('')
+
+  switch (node.destination) {
+    case 'mmath':
+    case 'mmathPara':
+    case 'me':
+    case 'mnum':
+    case 'mden':
+    case 'mdeg':
+    case 'msub':
+    case 'msup':
+    case 'mlim':
+    case 'mfName':
+    case 'mr':
+      return plain()
+    case 'mf': {
+      const numerator = childLatex('mnum')
+      const denominator = childLatex('mden')
+      return numerator && denominator ? '\\frac{' + numerator + '}{' + denominator + '}' : plain()
+    }
+    case 'msSup': {
+      const base = childLatex('me'); const sup = childLatex('msup')
+      return base && sup ? '{' + base + '}^{' + sup + '}' : plain()
+    }
+    case 'msSub': {
+      const base = childLatex('me'); const sub = childLatex('msub')
+      return base && sub ? '{' + base + '}_{' + sub + '}' : plain()
+    }
+    case 'msSubSup': {
+      const base = childLatex('me'); const sub = childLatex('msub'); const sup = childLatex('msup')
+      return base && (sub || sup) ? '{' + base + '}' + (sub ? '_{' + sub + '}' : '') + (sup ? '^{' + sup + '}' : '') : plain()
+    }
+    case 'msPre': {
+      const base = childLatex('me'); const sub = childLatex('msub'); const sup = childLatex('msup')
+      return base ? '{}'+ (sub ? '_{' + sub + '}' : '') + (sup ? '^{' + sup + '}' : '') + '{' + base + '}' : plain()
+    }
+    case 'mrad': {
+      const base = childLatex('me'); const degree = childLatex('mdeg')
+      return base ? (degree ? '\\sqrt[' + degree + ']{' + base + '}' : '\\sqrt{' + base + '}') : plain()
+    }
+    case 'mnary': {
+      const symbol = rtfMathPropertyText(node, 'mnaryPr', 'mchr') || '∑'
+      const command = symbol.includes('∫') ? '\\int'
+        : symbol.includes('∏') ? '\\prod'
+          : symbol.includes('⋃') ? '\\bigcup'
+            : symbol.includes('⋂') ? '\\bigcap' : '\\sum'
+      const lower = childLatex('msub'); const upper = childLatex('msup'); const base = childLatex('me')
+      return command + (lower ? '_{' + lower + '}' : '') + (upper ? '^{' + upper + '}' : '') + (base ? ' ' + base : '')
+    }
+    case 'md': {
+      const begin = rtfMathPropertyText(node, 'mdPr', 'mbegChr') || '('
+      const end = rtfMathPropertyText(node, 'mdPr', 'mendChr') || ')'
+      const body = children.filter((item) => item.destination === 'me').map(rtfMathToLatex).join('')
+      return '\\left' + begin + (body || plain()) + '\\right' + end
+    }
+    case 'macc': {
+      const symbol = rtfMathPropertyText(node, 'maccPr', 'mchr')
+      const base = childLatex('me')
+      const accent = symbol.includes('̃') ? 'tilde' : symbol.includes('̇') ? 'dot' : symbol.includes('̈') ? 'ddot' : symbol.includes('→') ? 'vec' : 'hat'
+      return base ? '\\' + accent + '{' + base + '}' : plain()
+    }
+    case 'mbar': {
+      const base = childLatex('me'); const position = rtfMathPropertyText(node, 'mbarPr', 'mpos')
+      return base ? (position.toLowerCase().includes('bot') ? '\\underline{' + base + '}' : '\\overline{' + base + '}') : plain()
+    }
+    case 'mfunc': {
+      const name = childLatex('mfName'); const argument = childLatex('me')
+      return name && argument ? name + '\\left(' + argument + '\\right)' : plain()
+    }
+    case 'mgroupChr': {
+      const base = childLatex('me'); const position = rtfMathPropertyText(node, 'mgroupChrPr', 'mpos')
+      return base ? (position.toLowerCase().includes('bot') ? '\\underbrace{' + base + '}' : '\\overbrace{' + base + '}') : plain()
+    }
+    case 'mphant':
+      return childLatex('me')
+    case 'mfPr': case 'msSupPr': case 'msSubPr': case 'msSubSupPr': case 'msPrePr':
+    case 'mradPr': case 'mnaryPr': case 'mdPr': case 'maccPr': case 'mbarPr':
+    case 'mfuncPr': case 'mgroupChrPr': case 'margPr': case 'mctrlPr':
+    case 'mtype': case 'mchr': case 'mbegChr': case 'mendChr': case 'mpos':
+    case 'mlimLoc': case 'msty': case 'mnor':
+      return ''
+    default:
+      return plain()
+  }
+}
+
+function extractRtfMathFormulas(rtf: string): ExtractedRtfMath[] {
+  if (!rtf) return []
+  const formulas: ExtractedRtfMath[] = []
+  for (let i = 0; i < rtf.length; i += 1) {
+    if (rtf[i] !== '{') continue
+    const destination = rtf.slice(i + 1).match(/^\\(mmathPara|mmath)(?=[\s{}])/i)
+    if (!destination) continue
+    let depth = 0
+    let end = -1
+    for (let cursor = i; cursor < rtf.length; cursor += 1) {
+      const char = rtf[cursor]
+      if (char === '\\') {
+        const next = rtf[cursor + 1]
+        if (next === "'") { cursor += 3; continue }
+        if (next && /[a-zA-Z]/.test(next)) {
+          cursor += 1
+          while (cursor + 1 < rtf.length && /[a-zA-Z]/.test(rtf[cursor + 1])) cursor += 1
+          if (rtf[cursor + 1] === '-') cursor += 1
+          while (cursor + 1 < rtf.length && /[0-9]/.test(rtf[cursor + 1])) cursor += 1
+          if (rtf[cursor + 1] === ' ') cursor += 1
+        } else cursor += 1
+        continue
+      }
+      if (char === '{') depth += 1
+      else if (char === '}') {
+        depth -= 1
+        if (depth === 0) { end = cursor + 1; break }
+      }
+    }
+    if (end < 0) continue
+    const group = parseRtfMathGroup(rtf.slice(i, end))
+    if (group) {
+      const latex = rtfMathToLatex(group).trim()
+      if (latex) formulas.push({ latex, displayMode: destination[1].toLowerCase() === 'mmathpara' })
+    }
+    i = end - 1
+  }
+  return formulas
+}
+
+function replaceRtfMathImagePlaceholders(
+  document: Document,
+  formulas: ExtractedRtfMath[],
+  fallbackImageCount: number,
+): number {
+  if (!formulas.length || !fallbackImageCount) return 0
+  const placeholders = Array.from(document.body.querySelectorAll('img')).filter((image) => {
+    const src = image.getAttribute('src') || ''
+    return Boolean(src) && !src.startsWith('data:image/') &&
+      !src.startsWith('http://') && !src.startsWith('https://')
+  })
+  const count = Math.min(formulas.length, fallbackImageCount, placeholders.length)
+  for (let index = 0; index < count; index += 1) {
+    const formula = formulas[index]
+    const replacement = document.createElement(formula.displayMode ? 'div' : 'span')
+    replacement.setAttribute('data-type', formula.displayMode ? 'block-math' : 'inline-math')
+    replacement.setAttribute('data-latex', formula.latex)
+    replacement.textContent = formula.latex
+    placeholders[index].replaceWith(replacement)
+  }
+  return count
+}
+
 async function uploadPastedImage(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('file', file, file.name || 'gambar-word.png')
@@ -577,16 +813,21 @@ export default function RichTextEditor({
           ? new window.DOMParser().parseFromString(converted.html, 'text/html')
           : null
         if (parsedDocument) convertWordDrawingImages(parsedDocument)
-        const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
         const rtf = clipboard.getData('text/rtf')
+        const rtfMathFormulas = converted.converted > 0 ? [] : extractRtfMathFormulas(rtf)
         const rtfPngImages = extractRtfPngImages(rtf)
+        const convertedRtfMathCount = parsedDocument
+          ? replaceRtfMathImagePlaceholders(parsedDocument, rtfMathFormulas, rtfPngImages.length)
+          : 0
+        const remainingRtfPngImages = rtfPngImages.slice(convertedRtfMathCount)
+        const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
         const rtfWmfImages = extractRtfWmfImages(rtf)
         const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
         const hasClipboardImageRefs = imageElements.some((img) => {
           const src = img.getAttribute('src') || ''
           return Boolean(src) && !src.startsWith('data:image/') && !src.startsWith('http://') && !src.startsWith('https://')
         })
-        const hasMath = converted.converted > 0
+        const hasMath = converted.converted > 0 || convertedRtfMathCount > 0
         if (!hasMath && !hasDataImages && !hasClipboardImageRefs && imageFiles.length === 0 && rtfPngImages.length === 0 && rtfWmfImages.length === 0) return false
 
         event.preventDefault()
@@ -634,7 +875,7 @@ export default function RichTextEditor({
             if (parsedDocument) {
               const remainingFiles: Array<{ file: File; widthPx: number | null }> = [
                 ...imageFiles.map((file) => ({ file, widthPx: null })),
-                ...rtfPngImages.map((image) => ({ file: image.file, widthPx: image.widthPx })),
+                ...remainingRtfPngImages.map((image) => ({ file: image.file, widthPx: image.widthPx })),
                 ...convertedWmfImages.map((image) => ({ file: image.file, widthPx: image.widthPx || null })),
               ]
               const uploadTasks = imageElements.map(async (img) => {
@@ -701,7 +942,7 @@ export default function RichTextEditor({
             if (!imageElements.length && (imageFiles.length || rtfPngImages.length || convertedWmfImages.length)) {
               const uploaded = await Promise.all([
                 ...imageFiles.map(async (file) => ({ src: await uploadPastedImage(file), widthPx: null as number | null })),
-                ...rtfPngImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx })),
+                ...remainingRtfPngImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx })),
                 ...convertedWmfImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx: widthPx || null })),
               ])
               html += uploaded.map(({ src, widthPx }) => '<img src="' + src + '" alt="Gambar dari Microsoft Word" style="' + (widthPx ? 'width: ' + widthPx + 'px; ' : '') + 'max-width: 100%; height: auto;" />').join('')
