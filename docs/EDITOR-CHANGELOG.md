@@ -1,4 +1,12 @@
 
+## 2026-11-08 — Latar tema transparan, tidak mengganti latar asli
+- Menindaklanjuti persetujuan pengguna: latar dasar tema non-Gaming tidak lagi diberi warna solid atau gradasi pengganti.
+- Menghapus aturan background-image/background-color besar yang sebelumnya menutupi latar.
+- Mengganti aksen dengan lapisan pseudo-element transparan: titik kecil dan cahaya warna tema ber-opacity rendah; tidak menangkap klik.
+- Mempertahankan CSS hover kartu, efek hero, dan layout hero tema yang telah dibuat. Gaming tetap menggunakan latar arcade khusus yang sudah ada.
+- Tidak mengubah data, skema, alur ujian, atau Production. Menunggu Preview terbaru dan QA pengguna.
+
+
 ## 2026-11-08 — Penyelarasan latar dotted dan hero seluruh tema
 - Mengembalikan pola titik-titik sebagai ciri latar seluruh tema non-Gaming, dengan warna dasar dan titik yang berbeda untuk tiap tema.
 - Menggunakan kembali prinsip visual Gaming untuk pola latar, serta mempertahankan kombinasi kartu/tombol Cartoon 3D sebagai acuan kedalaman dan kontras.
