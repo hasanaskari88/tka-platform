@@ -31,6 +31,12 @@ begin
     raise exception 'Modul belum memiliki soal atau misi.';
   end if;
 
+  -- Serialize attempts for this user/module before checking for an unfinished one.
+  perform pg_advisory_xact_lock(
+    hashtext(v_user_id::text),
+    hashtext(p_exam_id::text)
+  );
+
   -- Resume the latest unfinished attempt instead of creating duplicates.
   select id, coalesce(progress, '{}'::jsonb)
   into v_attempt_id, v_progress
@@ -49,11 +55,6 @@ begin
       'progress', v_progress
     );
   end if;
-
-  perform pg_advisory_xact_lock(
-    hashtext(v_user_id::text),
-    hashtext(p_exam_id::text)
-  );
 
   select coalesce(max(attempt_number), 0) + 1
   into v_attempt_number
