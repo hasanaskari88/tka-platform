@@ -15,6 +15,9 @@ function HomePageContent() {
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [materials, setMaterials] = useState<any[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([])
+  const [classLeaderboard, setClassLeaderboard] = useState<any[]>([])
+  const [leaderboardMode, setLeaderboardMode] = useState<'GLOBAL' | 'CLASS'>('GLOBAL')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -45,6 +48,8 @@ function HomePageContent() {
           data: { user },
         } = await supabase.auth.getUser()
 
+        let currentProfile: any = null
+
         if (user) {
           const { data: profile } = await supabase
             .from('profiles')
@@ -52,7 +57,42 @@ function HomePageContent() {
             .eq('id', user.id)
             .maybeSingle()
 
-          if (profile) setUserProfile(profile)
+          if (profile) {
+            currentProfile = profile
+            setUserProfile(profile)
+          }
+        }
+
+        // Papan juara memakai sumber dan urutan XP yang sama dengan halaman latihan.
+        const { data: globalTop } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, class_code, xp, level, avatar_url')
+          .not('class_code', 'ilike', 'guru')
+          .order('xp', { ascending: false })
+          .limit(3)
+
+        setGlobalLeaderboard(
+          (globalTop || []).filter(
+            (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
+          )
+        )
+
+        if (currentProfile?.class_code) {
+          const { data: classTop } = await supabase
+            .from('profiles')
+            .select('id, full_name, username, class_code, xp, level, avatar_url')
+            .eq('class_code', currentProfile.class_code)
+            .not('class_code', 'ilike', 'guru')
+            .order('xp', { ascending: false })
+            .limit(3)
+
+          setClassLeaderboard(
+            (classTop || []).filter(
+              (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
+            )
+          )
+        } else {
+          setClassLeaderboard([])
         }
 
         // 1. Ambil ujian yang dipublikasikan.
@@ -394,6 +434,28 @@ const filteredExams = useMemo(() => {
     }, {})
   }, [filteredExams])
 
+  // Gelar ini hanya label visual berdasarkan level tersimpan; tidak mengubah XP/level.
+  const arcadeLevel = Math.max(1, Number(userProfile?.level) || 1)
+  const arcadeTier =
+    arcadeLevel >= 30
+      ? { name: 'Legenda Getasan', icon: '👑', message: 'Kamu sudah menjadi inspirasi bagi petualang lain. Teruslah berbagi semangat belajar!' }
+      : arcadeLevel >= 20
+        ? { name: 'Master Ilmu', icon: '🏆', message: 'Hebat! Konsistensimu mulai terlihat. Satu misi lagi bisa membawa prestasimu lebih tinggi!' }
+        : arcadeLevel >= 10
+          ? { name: 'Ksatria Pengetahuan', icon: '⚔️', message: 'Kamu berkembang pesat. Pertahankan rasa ingin tahu dan keberanian mencoba!' }
+          : arcadeLevel >= 5
+            ? { name: 'Penjelajah Cerdas', icon: '🧭', message: 'Langkahmu semakin jauh. Terus jelajahi materi dan taklukkan tantangan baru!' }
+            : { name: 'Petualang Pemula', icon: '🌱', message: 'Setiap juara berawal dari langkah kecil. Ayo kumpulkan XP dari satu misi hari ini!' }
+
+  const arcadeBadges = Array.isArray(userProfile?.badges)
+    ? userProfile.badges
+    : userProfile?.badges && typeof userProfile.badges === 'object'
+      ? Object.values(userProfile.badges)
+      : []
+
+  const activeLeaderboard =
+    leaderboardMode === 'CLASS' ? classLeaderboard : globalLeaderboard
+
   
   if (loading) {
     return (
@@ -444,7 +506,8 @@ const filteredExams = useMemo(() => {
             <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div className="max-w-xl space-y-4">
                 <span className="inline-flex items-center gap-2 rounded-full border border-lime-300/50 bg-lime-300/10 px-3 py-1.5 text-[10px] font-black tracking-[0.18em] text-lime-200 shadow-[0_0_24px_rgba(190,242,100,0.18)]">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-lime-300" /> ARCADE GAME HUB • PLAYER 1
+                  <span className="h-2 w-2 animate-pulse rounded-full bg-lime-300" />
+                  ARCADE GAME HUB • {userProfile?.username ? '@' + userProfile.username : 'PLAYER 1'}
                 </span>
                 <h1 className="text-3xl font-black leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
                   Pilih Misi.<br /><span className="bg-gradient-to-r from-yellow-200 via-orange-300 to-pink-300 bg-clip-text text-transparent">Jadilah Juara!</span>
@@ -452,14 +515,57 @@ const filteredExams = useMemo(() => {
                 <p className="max-w-lg text-sm leading-relaxed text-blue-100/85 sm:text-base">
                   Arena belajar penuh tantangan. Kumpulkan XP dari aktivitas belajar, naikkan level, dan buka pencapaian baru!
                 </p>
-                <div className="flex flex-wrap items-center gap-3 pt-1">
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-cyan-200/20 bg-slate-950/35 p-3 backdrop-blur-sm">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-cyan-200/30 bg-gradient-to-br from-cyan-300/25 to-violet-400/25 text-3xl shadow-inner">
+                    {userProfile?.avatar_url || '👾'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-black text-white">
+                      {userProfile?.full_name || 'Pemain Tamu'}
+                    </p>
+                    <p className="truncate text-[10px] font-semibold text-cyan-100/75">
+                      {userProfile?.username ? '@' + userProfile.username : userProfile ? 'Username belum diatur' : 'Masuk untuk menyimpan progres'}
+                      {userProfile?.class_code ? ' · Kelas ' + userProfile.class_code : ''}
+                    </p>
+                  </div>
+                  {!userProfile && (
+                    <Link href="/login" className="shrink-0 rounded-lg bg-cyan-300 px-3 py-2 text-[10px] font-black text-slate-950">
+                      MASUK
+                    </Link>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 pt-3">
                   <a href="#arcade-missions" className="arcade-3d-button rounded-xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-5 py-3 text-sm font-black text-[#32133d] shadow-[0_6px_0_#9a421b,0_10px_24px_rgba(249,115,22,.28)] transition hover:-translate-y-1 hover:shadow-[0_9px_0_#9a421b,0_16px_28px_rgba(249,115,22,.35)] active:translate-y-1 active:shadow-[0_2px_0_#9a421b]">
                     ▶ MULAI PETUALANGAN
                   </a>
                   <span className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-cyan-100 backdrop-blur">
-                    ⭐ {userProfile?.xp || 0} XP <span className="mx-1 text-white/30">|</span> LEVEL {userProfile?.level || 1}
+                    ⭐ {userProfile?.xp || 0} XP <span className="mx-1 text-white/30">|</span> LEVEL {arcadeLevel}
+                  </span>
+                  <span className="rounded-xl border border-amber-200/30 bg-amber-200/10 px-3 py-2 text-xs font-black text-amber-100">
+                    {arcadeTier.icon} {arcadeTier.name}
                   </span>
                 </div>
+                {userProfile && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {arcadeBadges.length > 0 ? (
+                      arcadeBadges.slice(0, 4).map((badge: any, index: number) => {
+                        const badgeName = typeof badge === 'string'
+                          ? badge
+                          : badge?.name || badge?.title || badge?.label || 'Badge ' + (index + 1)
+                        const badgeIcon = typeof badge === 'object'
+                          ? badge?.icon || badge?.emoji || '🏅'
+                          : '🏅'
+                        return (
+                          <span key={badgeName + '-' + index} title={badgeName} className="rounded-full border border-yellow-200/25 bg-yellow-200/10 px-2.5 py-1 text-[10px] font-bold text-yellow-100">
+                            {badgeIcon} {badgeName}
+                          </span>
+                        )
+                      })
+                    ) : (
+                      <span className="text-[10px] text-blue-100/60">🏅 Badge pertamamu menunggu untuk diraih!</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="arcade-stage relative mx-auto flex h-[250px] w-full max-w-[430px] items-center justify-center sm:h-[310px]" aria-label="Ilustrasi mesin arcade tiga dimensi">
@@ -518,6 +624,56 @@ const filteredExams = useMemo(() => {
         )}
 
         {theme === 'gaming' && (
+          <section className="overflow-hidden rounded-3xl border border-cyan-300/25 bg-gradient-to-br from-[#101b3d]/95 via-[#17143c]/95 to-[#25123e]/95 p-4 shadow-[0_18px_40px_rgba(0,0,0,.22)] sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-black tracking-[.22em] text-cyan-300">HALL OF FAME</span>
+                <h2 className="mt-1 text-lg font-black text-white sm:text-xl">🏆 Arena Peringkat</h2>
+                <p className="mt-1 text-xs text-blue-100/70">Peringkat dihitung dari total XP siswa.</p>
+              </div>
+              <div className="flex rounded-xl border border-white/10 bg-black/20 p-1">
+                <button type="button" onClick={() => setLeaderboardMode('GLOBAL')} className={`rounded-lg px-3 py-2 text-[10px] font-black transition ${leaderboardMode === 'GLOBAL' ? 'bg-cyan-300 text-slate-950' : 'text-cyan-100 hover:bg-white/10'}`}>
+                  🌐 GLOBAL
+                </button>
+                <button type="button" onClick={() => setLeaderboardMode('CLASS')} disabled={!userProfile?.class_code} className={`rounded-lg px-3 py-2 text-[10px] font-black transition disabled:cursor-not-allowed disabled:opacity-40 ${leaderboardMode === 'CLASS' ? 'bg-cyan-300 text-slate-950' : 'text-cyan-100 hover:bg-white/10'}`}>
+                  🏫 KELAS
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-3">
+              {activeLeaderboard.length > 0 ? activeLeaderboard.map((student, index) => (
+                <div key={student.id} className={`flex items-center gap-3 rounded-2xl border p-3 ${student.id === userProfile?.id ? 'border-yellow-300/60 bg-yellow-300/10' : 'border-white/10 bg-white/[0.04]'}`}>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg font-black">{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-black text-white">{student.full_name || student.username || 'Siswa'}</p>
+                    <p className="truncate text-[10px] text-cyan-100/65">{student.class_code ? 'Kelas ' + student.class_code : 'Siswa Getasan'}</p>
+                  </div>
+                  <span className="shrink-0 text-xs font-black text-amber-200">{student.xp || 0} XP</span>
+                </div>
+              )) : (
+                <p className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-xs text-blue-100/70 sm:col-span-3">
+                  {leaderboardMode === 'CLASS' && !userProfile?.class_code
+                    ? 'Masuk dan lengkapi kelas pada profil untuk melihat peringkat kelas.'
+                    : 'Belum ada data peringkat yang dapat ditampilkan.'}
+                </p>
+              )}
+            </div>
+            <p className="mt-3 rounded-xl border border-fuchsia-300/20 bg-fuchsia-300/[0.07] px-3 py-2 text-xs font-semibold text-fuchsia-100">
+              {userProfile
+                ? activeLeaderboard.some((student) => student.id === userProfile.id)
+                  ? '✨ Hebat, ' + (userProfile.full_name || 'Petualang') + '! Kamu masuk 3 besar ' + (leaderboardMode === 'CLASS' ? 'kelas' : 'global') + '. Pertahankan semangatmu!'
+                  : arcadeTier.message
+                : 'Masuk ke akunmu untuk menyimpan XP, mengoleksi badge, dan ikut bersaing secara sehat.'}
+            </p>
+            <div className="mt-3 text-right">
+              <Link href="/practice" className="text-[10px] font-black text-cyan-200 underline decoration-cyan-300/50 underline-offset-4 hover:text-white">
+                Lihat papan peringkat lengkap →
+              </Link>
+            </div>
+          </section>
+        )}
+
+        {theme === 'gaming' && (
           <section id="arcade-missions" className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
@@ -566,10 +722,10 @@ const filteredExams = useMemo(() => {
         )}
 
         {/* Widget latihan dan gamifikasi */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section className={`grid grid-cols-1 gap-4 ${theme === 'gaming' ? 'md:grid-cols-1' : 'md:grid-cols-3'}`}>
           {/* Banner latihan mandiri */}
           <div
-            className={`relative flex items-center justify-between gap-4 overflow-hidden rounded-3xl border p-6 shadow-xl backdrop-blur-xl md:col-span-2 ${themeDetails.boxBg}`}
+            className={`relative flex items-center justify-between gap-4 overflow-hidden rounded-3xl border p-6 shadow-xl backdrop-blur-xl ${theme === 'gaming' ? 'md:col-span-1' : 'md:col-span-2'} ${themeDetails.boxBg}`}
           >
             <div className="relative z-10 max-w-md space-y-2">
               <span
@@ -599,7 +755,8 @@ const filteredExams = useMemo(() => {
             </div>
           </div>
 
-          {/* Kartu status gamifikasi */}
+          {/* Kartu status tetap untuk tema selain Gaming; pada Gaming sudah menyatu dengan hero. */}
+          {theme !== 'gaming' && (
           <div
             className={`flex flex-col justify-between space-y-3 rounded-3xl border p-5 shadow-md backdrop-blur-xl ${themeDetails.boxBg}`}
           >
@@ -701,6 +858,7 @@ const filteredExams = useMemo(() => {
               Lihat Leaderboard →
             </Link>
           </div>
+          )}
         </section>
 
         {/* Pengumuman sekolah */}
