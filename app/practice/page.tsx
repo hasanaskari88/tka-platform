@@ -111,6 +111,7 @@ export default function PracticeHubPage() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [leaderboardError, setLeaderboardError] = useState('')
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
   const [searchTerm, setSearchTerm] = useState('')
   const [activityFilter, setActivityFilter] = useState<string>('ALL')
@@ -118,28 +119,35 @@ export default function PracticeHubPage() {
   const [sortOrder, setSortOrder] = useState<string>('NEWEST')
 
   const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
-    const supabase = createClient()
-    const activeProfile = currentProfile || userProfile
+    try {
+      const supabase = createClient()
+      const activeProfile = currentProfile || userProfile
 
-    let query = supabase
-      .from('profiles')
-      .select('id, full_name, username, class_code, xp, level, role, avatar_url')
-      .not('class_code', 'ilike', 'guru')
-      .order('xp', { ascending: false })
-      .limit(15)
+      let query = supabase
+        .from('profiles')
+        .select('id, full_name, username, class_code, xp, level, role, avatar_url')
+        .not('class_code', 'ilike', 'guru')
+        .order('xp', { ascending: false })
+        .limit(15)
 
-    if ((filterVal === 'MY_CLASS' || filterVal === 'CLASS') && activeProfile?.class_code) {
-      query = query.eq('class_code', activeProfile.class_code)
-    } else if (filterVal !== 'ALL' && filterVal !== 'MY_CLASS' && filterVal !== 'CLASS') {
-      query = query.eq('class_code', filterVal)
-    }
+      if ((filterVal === 'MY_CLASS' || filterVal === 'CLASS') && activeProfile?.class_code) {
+        query = query.eq('class_code', activeProfile.class_code)
+      } else if (filterVal !== 'ALL' && filterVal !== 'MY_CLASS' && filterVal !== 'CLASS') {
+        query = query.eq('class_code', filterVal)
+      }
 
-    const { data: topUsers } = await query
-    if (topUsers) {
-      const cleanUsers = topUsers.filter(
+      const { data: topUsers, error } = await query
+      if (error) throw error
+
+      const cleanUsers = (topUsers || []).filter(
         (u: any) => String(u.class_code || '').trim().toLowerCase() !== 'guru'
       )
       setLeaderboard(cleanUsers)
+      setLeaderboardError('')
+    } catch (error) {
+      console.error('Gagal memuat papan peringkat:', error)
+      setLeaderboard([])
+      setLeaderboardError('Papan peringkat belum dapat dimuat. Daftar latihan tetap bisa digunakan.')
     }
   }
 
@@ -629,6 +637,12 @@ export default function PracticeHubPage() {
                   </optgroup>
                 )}
               </select>
+
+              {leaderboardError && (
+                <p role="status" className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-[11px] leading-5 text-amber-100">
+                  {leaderboardError}
+                </p>
+              )}
 
               <div className="space-y-2">
                 {leaderboard.length > 0 ? (
