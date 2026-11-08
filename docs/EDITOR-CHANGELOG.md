@@ -1435,3 +1435,13 @@ Status: **perubahan kode pada `editor-test`; menunggu build Preview dan QA langs
 - Penyebab diperbaiki dengan mengganti regex tersebut menjadi pemeriksaan eksplisit `startsWith('http://')` dan `startsWith('https://')`.
 - Build pada commit `ad422a60da53de8353649267aee5f9aecb63bdc3` telah mencapai status **READY** di Vercel Preview.
 - Status READY hanya membuktikan proses build berhasil. Paste gambar dan konversi rumus dari Word masih menunggu pengujian langsung pengguna.
+
+
+### Diagnostik clipboard Word sementara — 8 November 2026
+
+- Pengguna mengonfirmasi pengujian dilakukan pada alias Preview branch `editor-test` yang benar; alias tersebut terhubung ke deployment READY commit `975be5b4e9e7b98036c6e595f734e5371f934455`.
+- Karena gambar dan rumus tetap tidak terkonversi, ditambahkan diagnostik sementara pada event paste untuk menampilkan jenis clipboard, panjang HTML/teks, jumlah OMML/MathML/IMG/VML/DrawingML, serta tipe dan ukuran file gambar.
+- Diagnostik hanya menampilkan metadata/jumlah, tidak menampilkan isi soal atau teks clipboard.
+- Diagnostik ini bersifat sementara untuk mengidentifikasi format yang benar-benar dikirim Word/browser. Setelah penyebab diketahui, diagnostik akan dihapus dan diganti penanganan clipboard yang sesuai.
+- Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, atau mekanisme penilaian.
+- Build Preview dan hasil diagnostik pengguna: **menunggu**.
