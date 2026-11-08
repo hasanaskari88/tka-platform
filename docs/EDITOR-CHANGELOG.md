@@ -1804,3 +1804,36 @@ Status: **audit kode selesai untuk empat file di atas; tidak ada file aplikasi y
 - Berkas sementara `tka-content-audit.txt` dihapus dari branch karena merupakan hasil audit lokal, bukan bagian dari aplikasi.
 - Preview terakhir yang diperiksa berstatus **READY**, branch `editor-test`, commit `6dd341a99defdd7531364a38d7b143569379ba71`. Penghapusan artefak audit dan catatan QA ini memerlukan Preview baru sebelum merge.
 - Status: **QA pengguna untuk cakupan yang disebutkan telah dikonfirmasi; siap melanjutkan pemeriksaan Preview pasca-pembersihan dan proses Pull Request ke `main`**.
+
+
+---
+
+## Pengembangan homepage, Arcade Game Hub, dan katalog sumber belajar (8 November 2026)
+
+Status: **implementasi awal selesai di branch Preview; menunggu build dan QA pengguna**.
+
+Branch kerja: `homepage-arcade-catalog` (berbasis `main`). Branch produksi `main` belum diubah.
+
+### Temuan sebelum implementasi
+- Form CMS `study_materials` hanya menyimpan `title`, `file_url`, `description`, `subject`, dan `author_display_name` (serta `created_by` saat insert).
+- Query homepage/admin menggunakan `study_materials` dan relasi penulis.
+- Tidak ditemukan penanda tipe yang membedakan Materi dan Modul Ajar pada payload CMS yang diperiksa.
+- Karena itu, implementasi ini memperlakukan koleksi sebagai **Sumber Belajar**. Tidak menambahkan tab Materi/Modul Ajar yang akan memberi klasifikasi palsu, dan tidak mengubah skema database.
+
+### Perubahan kode
+- `app/page.tsx`
+  - Mengganti daftar kartu materi panjang menjadi pratinjau ringkas maksimal tiga sumber belajar.
+  - Menambahkan pencarian ringkas, filter mata pelajaran, pengurutan, dan tautan ke katalog penuh.
+  - Mengubah tema Gaming dari nuansa galaksi menjadi arah Arcade Game Hub dengan arena warna, pola pixel, dan pesan misi/XP.
+  - Mempertahankan query materi, data penulis, tautan file, widget XP/level, pengumuman, dan alur ujian.
+- `app/materi/page.tsx` (baru)
+  - Katalog sumber belajar dengan pencarian judul/deskripsi/penulis.
+  - Filter mata pelajaran, pengurutan, dan pagination 10 item per halaman.
+  - Mempertahankan tautan file, deskripsi MathRenderer, dan nama penulis.
+- Database, scoring, RPC, RLS, login, CBT, dan alur admin tidak diubah.
+
+### Status verifikasi
+- Implementasi kode: selesai.
+- Build Vercel Preview: menunggu hasil.
+- QA tampilan desktop/mobile, pencarian, filter, pagination, tautan file, dan tema Gaming: belum dikonfirmasi pengguna.
+- Belum di-merge ke `main`.
