@@ -304,6 +304,25 @@ export default function RichTextEditor({
           : null
         if (parsedDocument) convertWordDrawingImages(parsedDocument)
         const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
+        const originalDocument = rawHtml ? new window.DOMParser().parseFromString(rawHtml, 'text/html') : null
+        const countOfficeNodes = (names: string[]) => originalDocument
+          ? Array.from(originalDocument.body.querySelectorAll('*')).filter((node) =>
+              names.includes((node.localName || node.tagName).toLowerCase().split(':').pop() || '')
+            ).length
+          : 0
+        const clipboardItemSummary = Array.from(clipboard.items || []).map((item) => `${item.kind}:${item.type || 'tanpa tipe'}`)
+        const imageFileSummary = imageFiles.map((file) => `${file.type || 'tanpa tipe'} (${file.size} byte)`)
+        const diagnostic = [
+          'Diagnostik paste sementara:',
+          `Format clipboard: ${Array.from(clipboard.types || []).join(', ') || 'tidak terbaca'}`,
+          `HTML: ${rawHtml.length} karakter; teks biasa: ${rawText.length} karakter`,
+          `OMML: ${countOfficeNodes(['omath', 'omathpara'])}; MathML: ${originalDocument?.body.querySelectorAll('math').length || 0}`,
+          `IMG: ${originalDocument?.body.querySelectorAll('img').length || 0}; VML imagedata: ${countOfficeNodes(['imagedata'])}; DrawingML blip: ${countOfficeNodes(['blip'])}`,
+          `File gambar: ${imageFiles.length}${imageFileSummary.length ? ' (' + imageFileSummary.join('; ') + ')' : ''}`,
+          `Item clipboard: ${clipboardItemSummary.join(', ') || 'tidak ada'}`,
+        ].join('\\n')
+        console.info('[Word paste diagnostics]', diagnostic)
+        window.alert(diagnostic)
         const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
         const hasClipboardImageRefs = imageElements.some((img) => {
           const src = img.getAttribute('src') || ''
