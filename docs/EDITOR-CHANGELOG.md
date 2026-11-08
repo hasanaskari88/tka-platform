@@ -2149,3 +2149,13 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Migration masih berupa file SQL di repository. Kolom `completion_bonus_xp` dan fungsi RPC baru akan tersedia setelah migration diuji dan diterapkan pada lingkungan yang disetujui.
 - Build, akses RLS dashboard, kecocokan nilai status ujian, tampilan, dan alur cetak belum diverifikasi karena Preview Vercel masih terkendala kuota deployment.
 - Tahap berikutnya: verifikasi data dashboard dan riwayat, kemudian bangun pengelolaan raport/sertifikat terpusat dengan pilihan peserta, percobaan nilai, pengaturan tanda tangan, preview, dan cetak.
+
+
+### Audit tambahan pada schema Supabase aktif (read-only)
+- Memeriksa struktur database aktif tanpa menjalankan DDL atau mengubah data.
+- Terverifikasi `profiles.role` saat ini hanya memiliki enum `student` dan `admin`; dashboard memfilter role `student` sesuai struktur aktual.
+- Terverifikasi status `exam_sessions`: `ongoing`, `completed`, `expired`, `paused`; filter riwayat ujian disesuaikan dengan keempat status tersebut.
+- Terverifikasi status `practice_attempts`: `in_progress`, `completed`, `abandoned`; filter riwayat latihan menggunakan nilai status yang sesuai.
+- Fungsi aktif `start_practice_attempt(uuid)` dan `finish_practice_attempt(uuid, integer, integer, integer)` cocok dengan signature yang diganti pada migration. Fungsi `save_practice_attempt_progress` belum tersedia di database aktif karena migration belum diterapkan.
+- Tabel aktif `practice_attempts` belum memiliki kolom `progress`, `credited_xp`, maupun `completion_bonus_xp`; semua kolom tersebut hanya ditambahkan oleh migration yang masih staged.
+- Migration history Supabase aktif saat audit tidak menampilkan migration yang tercatat. Tidak menjalankan migration atau mengubah Production.
