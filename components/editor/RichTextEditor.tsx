@@ -313,17 +313,19 @@ export default function RichTextEditor({
         const clipboardItemSummary = Array.from(clipboard.items || []).map((item) => `${item.kind}:${item.type || 'tanpa tipe'}`)
         const imageFileSummary = imageFiles.map((file) => `${file.type || 'tanpa tipe'} (${file.size} byte)`)
         const rtf = clipboard.getData('text/rtf')
+        const rtfSlash = String.fromCharCode(92)
+        const countRtfToken = (token: string) => rtf.split(rtfSlash + token).length - 1
         const rtfControls = [
-          ['\mmath', /\\\\mmath\\b/gi],
-          ['\mfrac', /\\\\mfrac\\b/gi],
-          ['\msup', /\\\\msup\\b/gi],
-          ['\msub', /\\\\msub\\b/gi],
-          ['\mrad', /\\\\mrad\\b/gi],
-          ['\\pict', /\\\\pict\\b/gi],
-          ['\\shppict', /\\\\shppict\\b/gi],
-          ['\\nonshppict', /\\\\nonshppict\\b/gi],
-          ['\\objdata', /\\\\objdata\\b/gi],
-        ].map(([label, pattern]) => `${label}: ${(rtf.match(pattern as RegExp) || []).length}`)
+          \`\\\\mmath: \${countRtfToken('mmath')}\`,
+          \`\\\\mfrac: \${countRtfToken('mfrac')}\`,
+          \`\\\\msup: \${countRtfToken('msup')}\`,
+          \`\\\\msub: \${countRtfToken('msub')}\`,
+          \`\\\\mrad: \${countRtfToken('mrad')}\`,
+          \`\\\\pict: \${countRtfToken('pict')}\`,
+          \`\\\\shppict: \${countRtfToken('shppict')}\`,
+          \`\\\\nonshppict: \${countRtfToken('nonshppict')}\`,
+          \`\\\\objdata: \${countRtfToken('objdata')}\`,
+        ]
         const imageSrcKinds = (originalDocument ? Array.from(originalDocument.body.querySelectorAll('img')) : [])
           .map((img) => {
             const src = img.getAttribute('src') || ''
