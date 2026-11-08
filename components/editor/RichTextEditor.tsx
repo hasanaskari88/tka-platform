@@ -316,15 +316,15 @@ export default function RichTextEditor({
         const rtfSlash = String.fromCharCode(92)
         const countRtfToken = (token: string) => rtf.split(rtfSlash + token).length - 1
         const rtfControls = [
-          \`\\\\mmath: \${countRtfToken('mmath')}\`,
-          \`\\\\mfrac: \${countRtfToken('mfrac')}\`,
-          \`\\\\msup: \${countRtfToken('msup')}\`,
-          \`\\\\msub: \${countRtfToken('msub')}\`,
-          \`\\\\mrad: \${countRtfToken('mrad')}\`,
-          \`\\\\pict: \${countRtfToken('pict')}\`,
-          \`\\\\shppict: \${countRtfToken('shppict')}\`,
-          \`\\\\nonshppict: \${countRtfToken('nonshppict')}\`,
-          \`\\\\objdata: \${countRtfToken('objdata')}\`,
+          \`\${rtfSlash}mmath: \${countRtfToken('mmath')}\`,
+          \`\${rtfSlash}mfrac: \${countRtfToken('mfrac')}\`,
+          \`\${rtfSlash}msup: \${countRtfToken('msup')}\`,
+          \`\${rtfSlash}msub: \${countRtfToken('msub')}\`,
+          \`\${rtfSlash}mrad: \${countRtfToken('mrad')}\`,
+          \`\${rtfSlash}pict: \${countRtfToken('pict')}\`,
+          \`\${rtfSlash}shppict: \${countRtfToken('shppict')}\`,
+          \`\${rtfSlash}nonshppict: \${countRtfToken('nonshppict')}\`,
+          \`\${rtfSlash}objdata: \${countRtfToken('objdata')}\`,
         ]
         const imageSrcKinds = (originalDocument ? Array.from(originalDocument.body.querySelectorAll('img')) : [])
           .map((img) => {
