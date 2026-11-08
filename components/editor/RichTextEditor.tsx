@@ -56,10 +56,6 @@ function prepareEditorContent(value: string): string {
   })
 }
 
-function escapeLatexAttribute(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
 function ommlNodeToLatex(node: Element): string {
   const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
   const children = Array.from(node.children)
@@ -169,7 +165,6 @@ function convertWordDrawingImages(document: Document): void {
 
   officeImages.forEach((officeImage, index) => {
     if (!officeImage.parentNode) return
-    const name = (officeImage.localName || officeImage.tagName).toLowerCase().split(':').pop() || ''
     const source = officeImage.getAttribute('src') ||
       officeImage.getAttribute('href') ||
       officeImage.getAttribute('r:embed') ||
@@ -310,9 +305,12 @@ export default function RichTextEditor({
         if (parsedDocument) convertWordDrawingImages(parsedDocument)
         const imageElements = parsedDocument ? Array.from(parsedDocument.querySelectorAll('img')) : []
         const hasDataImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('data:image/'))
-        const hasLocalImages = imageElements.some((img) => (img.getAttribute('src') || '').startsWith('file:'))
+        const hasClipboardImageRefs = imageElements.some((img) => {
+          const src = img.getAttribute('src') || ''
+          return Boolean(src) && !src.startsWith('data:image/') && !/^https?:\\/\\//i.test(src)
+        })
         const hasMath = converted.converted > 0
-        if (!hasMath && !hasDataImages && !hasLocalImages && imageFiles.length === 0) return false
+        if (!hasMath && !hasDataImages && !hasClipboardImageRefs && imageFiles.length === 0) return false
 
         event.preventDefault()
         const bookmark = view.state.selection.getBookmark()
@@ -336,11 +334,20 @@ export default function RichTextEditor({
                   // Termasuk file://, cid:, blob:, path relatif, VML, dan referensi DrawingML.
                   const file = remainingFiles.shift()
                   if (file) img.setAttribute('src', await uploadPastedImage(file))
-                  else img.remove()
+                  else if (src.startsWith('office-clipboard-image-')) {
+                    throw new Error('Microsoft Word tidak menyertakan data gambar pada clipboard. Coba salin gambarnya langsung dari Word, lalu tempel kembali.')
+                  } else img.remove()
                 } else if (!src && remainingFiles.length) {
                   const file = remainingFiles.shift()
                   if (file) img.setAttribute('src', await uploadPastedImage(file))
                 }
+              }
+              for (const file of remainingFiles) {
+                const imageUrl = await uploadPastedImage(file)
+                const image = parsedDocument.createElement('img')
+                image.setAttribute('src', imageUrl)
+                image.setAttribute('alt', 'Gambar dari Microsoft Word')
+                parsedDocument.body.appendChild(image)
               }
               html = parsedDocument.body.innerHTML
             }
