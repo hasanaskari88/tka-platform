@@ -623,7 +623,7 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
         // daripada ukuran tampil yang diharapkan; koreksi hanya untuk lebar tampilan.
         // widthGoal mentah tetap disimpan pada crop agar hasil potongan tidak berubah.
         frame.widthPx = widthGoal > 0
-          ? Math.max(24, Math.min(400, Math.round(widthGoal / 60)))
+          ? Math.max(12, Math.min(400, Math.round(widthGoal / 110)))
           : null
         frame.crop = widthGoal > 0 && heightGoal > 0 &&
           (cropLeft > 0 || cropRight > 0 || cropTop > 0 || cropBottom > 0)
