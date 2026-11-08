@@ -2014,3 +2014,6 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Percobaan membuat Preview dari Git commit terbaru ditolak Vercel dengan status 402: batas penggunaan `api-deployments-free-per-day` tercapai (lebih dari 100 deployment dalam satu hari); Vercel menyarankan mencoba kembali setelah 1 hari.
 - Tidak mengubah paket, billing, pengaturan tim, atau deployment Production.
 - Status visual: kode dan changelog sudah berada di branch; build setelah perbaikan sintaks belum dapat diverifikasi karena batas deployment Vercel. Preview READY terakhir masih commit lama, jadi belum boleh dipakai untuk QA perubahan visual ini.
+
+
+- Catatan lanjutan: gaya CSS khusus untuk badge berbentuk medali dan podium ditambahkan dengan selector baru agar tidak tertimpa aturan animasi badge lama yang sudah ada pada stylesheet.
