@@ -17,6 +17,7 @@ type DocConfig = {
 
 export default function AdminReportPage() {
   const [students, setStudents] = useState<any[]>([])
+  const [adminProfiles, setAdminProfiles] = useState<any[]>([])
   const [exams, setExams] = useState<any[]>([])
   const [practice, setPractice] = useState<any[]>([])
   const [examSessions, setExamSessions] = useState<any[]>([])
@@ -61,6 +62,7 @@ export default function AdminReportPage() {
         setPractice(pr.data || [])
         setExamSessions(es.data || [])
         const admin = await db.from('profiles').select('full_name').eq('role', 'admin').order('full_name')
+        setAdminProfiles(admin.data || [])
         if (admin.data?.[0]?.full_name) setConfig(current => ({ ...current, teacherName: admin.data[0].full_name }))
       } catch (error: any) {
         if (active) setWarning(error?.message || 'Gagal memuat data raport.')
@@ -135,7 +137,7 @@ export default function AdminReportPage() {
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="text-xs font-semibold text-slate-600">Nama sekolah<input value={config.schoolName} onChange={e => updateConfig('schoolName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">Alamat sekolah<input value={config.schoolAddress} onChange={e => updateConfig('schoolAddress', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
-                <label className="text-xs font-semibold text-slate-600">Guru / Admin<input value={config.teacherName} onChange={e => updateConfig('teacherName', e.target.value)} placeholder="Nama guru / admin" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
+                <label className="text-xs font-semibold text-slate-600">Pilih Guru / Admin<select value={config.teacherName} onChange={e => updateConfig('teacherName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"><option value="">Pilih nama penandatangan</option>{adminProfiles.map(a => <option key={a.full_name} value={a.full_name}>{a.full_name}</option>)}</select><input value={config.teacherName} onChange={e => updateConfig('teacherName', e.target.value)} placeholder="Atau ketik nama manual" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">NIP Guru / Admin<input value={config.teacherNip} onChange={e => updateConfig('teacherNip', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">Kepala sekolah<input value={config.principalName} onChange={e => updateConfig('principalName', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">NIP Kepala Sekolah<input value={config.principalNip} onChange={e => updateConfig('principalNip', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
