@@ -1532,3 +1532,14 @@ Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum a
 - Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, atau penilaian.
 - Commit kode: `f21d0a9cbaa2dc346afcaf3008596181e752c73b`.
 - Status: menunggu build Preview dan QA pengguna.
+
+
+## 2026-11-08 — Menjaga teks Word tetap ter-paste saat upload gambar gagal
+
+- Pengujian terbaru menunjukkan empat PNG fallback Equation berhasil diekstrak dari RTF, tetapi seluruh isi paste tidak muncul di editor.
+- Ditemukan bahwa proses paste sebelumnya menunggu semua upload gambar selesai sebelum memasukkan HTML/teks ke editor. Satu kegagalan upload dapat membatalkan seluruh proses.
+- Setiap upload gambar sekarang ditangani secara terpisah. Jika satu gambar gagal dibaca atau diunggah, placeholder gambar tersebut dilewati dan proses tetap melanjutkan gambar lain serta memasukkan teks/format HTML.
+- Kegagalan gambar dicatat di console browser untuk pemeriksaan teknis, tanpa menghentikan paste keseluruhan.
+- Perubahan hanya pada branch `editor-test`; tidak mengubah Production, database, API upload, atau penilaian.
+- Commit kode: `ad075e03a613909bcdabea3ec99af525204240a8`.
+- Status: menunggu build Preview dan QA pengguna.
