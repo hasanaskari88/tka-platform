@@ -686,6 +686,51 @@ function extractRtfWmfImages(rtf: string): ExtractedRtfWmfImage[] {
   return files
 }
 
+function inferWordImageLayout(image: HTMLImageElement): 'wrap-left' | 'wrap-right' {
+  const elements: Element[] = [image]
+  let parent = image.parentElement
+  while (parent && parent !== image.ownerDocument.body) {
+    elements.push(parent)
+    parent = parent.parentElement
+  }
+
+  const styles = elements.map((element) => {
+    const inline = element.getAttribute('style') || ''
+    const align = element.getAttribute('align') || ''
+    const className = typeof element.className === 'string' ? element.className : ''
+    return (inline + ' ' + align + ' ' + className).toLowerCase()
+  }).join(' ')
+
+  if (/float\\s*:\\s*left|mso-position-horizontal\\s*:\\s*left|align\\s*=\\s*["']?left/.test(styles)) {
+    return 'wrap-left'
+  }
+  if (/float\\s*:\\s*right|mso-position-horizontal\\s*:\\s*right|align\\s*=\\s*["']?right/.test(styles)) {
+    return 'wrap-right'
+  }
+
+  // Word sering menyimpan posisi gambar mengambang sebagai koordinat margin.
+  // Bila sisi tidak dinyatakan secara eksplisit, gunakan kanan sebagai default
+  // agar gambar tidak mengambil satu baris penuh di atas teks soal.
+  return 'wrap-right'
+}
+
+function applyWordImageWrap(image: HTMLImageElement, widthPx?: number | null): void {
+  const layout = inferWordImageLayout(image)
+  const width = widthPx && widthPx > 0
+    ? Math.min(widthPx, 360)
+    : 260
+  const widthCss = width + 'px'
+  image.removeAttribute('width')
+  image.style.width = widthCss
+  image.style.maxWidth = '42%'
+  image.style.height = 'auto'
+  image.style.display = 'block'
+  image.style.float = layout === 'wrap-left' ? 'left' : 'right'
+  image.style.margin = layout === 'wrap-left'
+    ? '0 16px 12px 0'
+    : '0 0 12px 16px'
+}
+
 function convertWordDrawingImages(document: Document): void {
   const officeImages = Array.from(document.body.querySelectorAll('*')).filter((node) => {
     const name = (node.localName || node.tagName).toLowerCase().split(':').pop() || ''
@@ -922,11 +967,8 @@ export default function RichTextEditor({
                     const imageUrl = await uploadPastedImage(file)
                     img.setAttribute('src', imageUrl)
                     // PNG fallback Equation Word mengikuti ukuran target asli yang tercatat di RTF Word.
-                    if (imageWidthPx && file.type === 'image/png') {
-                      img.removeAttribute('width')
-                      img.style.width = String(imageWidthPx) + 'px'
-                      img.style.maxWidth = '100%'
-                      img.style.height = 'auto'
+                    if (file.type === 'image/png' && (imageWidthPx !== null || src.startsWith('file:'))) {
+                      applyWordImageWrap(img, imageWidthPx)
                     }
                   }
                 } catch (imageError) {
@@ -950,9 +992,7 @@ export default function RichTextEditor({
                 const image = parsedDocument.createElement('img')
                 image.setAttribute('src', src)
                 image.setAttribute('alt', 'Gambar dari Microsoft Word')
-                if (widthPx) image.style.width = String(widthPx) + 'px'
-                image.style.maxWidth = '100%'
-                image.style.height = 'auto'
+                applyWordImageWrap(image, widthPx)
                 parsedDocument.body.appendChild(image)
               })
               html = parsedDocument.body.innerHTML
@@ -963,7 +1003,7 @@ export default function RichTextEditor({
                 ...remainingRtfPngImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx })),
                 ...convertedWmfImages.map(async ({ file, widthPx }) => ({ src: await uploadPastedImage(file), widthPx: widthPx || null })),
               ])
-              html += uploaded.map(({ src, widthPx }) => '<img src="' + src + '" alt="Gambar dari Microsoft Word" style="' + (widthPx ? 'width: ' + widthPx + 'px; ' : '') + 'max-width: 100%; height: auto;" />').join('')
+              html += uploaded.map(({ src, widthPx }) => '<img src="' + src + '" alt="Gambar dari Microsoft Word" style="width: ' + Math.min(widthPx || 260, 360) + 'px; max-width: 42%; height: auto; display: block; float: right; margin: 0 0 12px 16px;" />').join('')
             }
             const wrapper = document.createElement('div')
             wrapper.innerHTML = html
