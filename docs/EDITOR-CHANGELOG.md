@@ -1669,3 +1669,10 @@ Status: **implementasi awal pada branch `editor-test`; menunggu build Preview da
 - Tidak mengubah Wrap Text, rumus, database, API upload, atau penilaian.
 - Commit kode: `b64275216046deb6a1d458ce887d6d74774e1881`.
 - Status: menunggu Preview dan QA pengguna.
+
+## 2026-11-08 — QA pengguna: crop gambar Microsoft Word sesuai
+
+- Pengguna mengonfirmasi hasil crop gambar yang dipaste dari Microsoft Word kini sudah sesuai dengan area/tampilan crop pada dokumen sumber.
+- Catatan tambahan: ukuran gambar hasil paste masih sekitar 4 kali lebih besar daripada ukuran yang diharapkan, tetapi pengguna menyatakan ukuran tersebut masih dapat disesuaikan melalui kontrol ukuran gambar editor.
+- Status crop Word: **berhasil diuji pengguna**. Ketidaksesuaian ukuran awal dicatat sebagai penyempurnaan terpisah dan bukan penghambat fungsi crop.
+- Perubahan ini hanya memperbarui dokumentasi QA pada branch `editor-test`; tidak mengubah kode aplikasi, Production, database, API, atau penilaian.
