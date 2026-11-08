@@ -508,22 +508,16 @@ const handleQuickExamAuthorSave = async (examId: string) => {
         <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 border-slate-200 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">
-              Pengelolaan Bank Soal & Konten
+              Pengelolaan Bank Soal & Ujian
             </h1>
             <p className="text-slate-600 mt-1">
-              Kelola paket soal, token ujian, pengumuman, modul materi, dan visibilitas CBT.
+              Kelola paket ujian, bank soal, subtes, token, dan pengaturan CBT. Konten dan latihan dikelola pada halaman terpisah.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setIsCMSModalOpen(true)}
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center space-x-1"
-              suppressHydrationWarning
-            >
-              <span>📢</span>
-              <span>Kelola Pengumuman & Materi</span>
-            </button>
+            <Link href="/admin/konten" className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg">📢 Pengelolaan Konten</Link>
+            <Link href="/admin" className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg">← Dashboard Admin</Link>
             <button
               onClick={() => setIsSubtestModalOpen(true)}
               className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
@@ -544,12 +538,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
             >
               <span>🎮 Kelola Mode Latihan & Game Edukatif →</span>
             </Link>
-            <Link
-              href="/"
-              className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition-colors"
-            >
-              ← Lihat Beranda
-            </Link>
+            
           </div>
         </div>
 
