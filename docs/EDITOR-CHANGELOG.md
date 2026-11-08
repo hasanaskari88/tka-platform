@@ -1903,3 +1903,14 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Tema Gaming sengaja dikecualikan agar identitas Arcade Game Hub tetap utuh.
 - Tidak mengubah konten/data, navigasi, login, leaderboard, XP, filter, pencarian, katalog, ujian, CBT, database, skema, API, atau scoring.
 - Status: perubahan berada di branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Belum di-merge ke `main` dan belum mengubah Production.
+
+## 2026-11-08 — Penyegaran latar belakang homepage (Soft Glow + Soft Geometric)
+
+- Arah desain disepakati pengguna: gabungan Soft Glow dan Soft Geometric; visual harus lebih hidup tetapi tetap ringan dan ramah anak.
+- Tema Space dan Jungle dibuat lebih ceria: Space menggunakan dasar biru yang lebih terang dengan aksen ungu/cyan serta bintang statis yang samar; Jungle menggunakan hijau segar dengan aksen lime/turquoise dan cahaya hangat.
+- Ocean, Disney, Cartoon 3D, dan School mempertahankan karakter warna yang telah disepakati. Gaming tidak disentuh agar identitas Arcade Game Hub tetap utuh.
+- Latar menggunakan CSS gradient statis; tidak menambahkan gambar latar, font, library, dependensi, video, WebGL, maupun animasi latar baru.
+- Mengubah `background-attachment` dari `fixed` menjadi `scroll` untuk menghindari perilaku fixed-background yang tidak diperlukan, khususnya saat scroll pada perangkat mobile.
+- Mempertahankan efek hover kartu, hero glow yang sudah ada, dan dukungan `prefers-reduced-motion`.
+- Ruang lingkup hanya CSS latar belakang homepage; tidak mengubah fitur, konten, navigasi, database, skema, API, login, XP, leaderboard, ujian, CBT, maupun scoring.
+- Status implementasi: perubahan dikirim ke branch `homepage-arcade-catalog`; menunggu build Vercel Preview dan QA pengguna. Belum di-merge ke `main` dan belum mengubah Production.
