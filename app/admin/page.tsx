@@ -89,12 +89,14 @@ export default function AdminDashboardPage() {
     const student=studentMap.get(r.user_id),meta=metaMap.get(r.exam_id)
     if(!student||(rankClass!=='ALL'&&student.class_code!==rankClass))return false
     if(rankExam&&r.exam_id!==rankExam)return false
-    if(rankType!=='ALL'&&meta?.activity_type!==rankType)return false
+    if(rankType==='EXAM')return false
+    if(rankType==='PRACTICE'&&meta?.target_mode==='EXAM_ONLY')return false
+    if(['QUIZ','FLASHCARD','MAZE_GAME'].includes(rankType)&&meta?.activity_type!==rankType)return false
     return true
   })
   const practiceTotals=new Map<string,number>()
   eligiblePractice.forEach(r=>practiceTotals.set(r.user_id,(practiceTotals.get(r.user_id)||0)+(r.status==='completed'?Number(r.total_xp||0):Number(r.credited_xp||0))))
-  const practiceRanking=[...practiceTotals].map(([id,xp])=>({student:studentMap.get(id)!,value:xp})).filter(x=>x.student).sort((a,b)=>b.value-a.value).slice(0,10)
+  const practiceRanking=[...practiceTotals].map(([id,xp])=>({student:studentMap.get(id)!,value:xp})).filter((x): x is {student:Student;value:number}=>Boolean(x.student)).sort((a,b)=>b.value-a.value).slice(0,10)
   const eligibleExams=examRows.filter(r=>{
     const student=studentMap.get(r.user_id),meta=metaMap.get(r.exam_id)
     if(!student||r.status!=='completed'||(rankClass!=='ALL'&&student.class_code!==rankClass))return false
@@ -108,7 +110,7 @@ export default function AdminDashboardPage() {
   eligibleExams.forEach(r=>{const key=r.user_id+'|'+r.exam_id,score=Number(r.score_override??r.score??0);bestScores.set(key,Math.max(bestScores.get(key)??-1,score))})
   const examTotals=new Map<string,{sum:number;count:number}>()
   bestScores.forEach((score,key)=>{const userId=key.split('|')[0],old=examTotals.get(userId)||{sum:0,count:0};examTotals.set(userId,{sum:old.sum+score,count:old.count+1})})
-  const examRanking=[...examTotals].map(([id,v])=>({student:studentMap.get(id)!,value:Math.round(v.sum/v.count),count:v.count})).filter(x=>x.student).sort((a,b)=>b.value-a.value).slice(0,10)
+  const examRanking=[...examTotals].map(([id,v])=>({student:studentMap.get(id)!,value:Math.round(v.sum/v.count),count:v.count})).filter((x): x is {student:Student;value:number;count:number}=>Boolean(x.student)).sort((a,b)=>b.value-a.value).slice(0,10)
   const completedPractice=practiceRows.filter(r=>r.status==='completed').length,completedExams=examRows.filter(r=>r.status==='completed').length
   const cards=[{label:'Peserta didik',value:students.length,icon:'👩‍🎓',color:'from-indigo-500 to-blue-600'},{label:'Paket ujian & latihan',value:stats.exams,icon:'📚',color:'from-violet-500 to-purple-600'},{label:'Bank soal',value:stats.questions,icon:'📝',color:'from-amber-500 to-orange-600'},{label:'Materi pembelajaran',value:stats.materials,icon:'📖',color:'from-emerald-500 to-teal-600'}]
   const ChartBars=({items,color,suffix}:{items:{student:Student;value:number}[];color:string;suffix:string})=>{
