@@ -223,7 +223,7 @@ function extractRtfPngImages(rtf: string): ExtractedRtfImage[] {
     i = numberEnd - 1
   }
 
-  const files: File[] = []
+  const files: ExtractedRtfImage[] = []
   const seenPayloads = new Set<string>()
   pictures.forEach((picture) => {
     let hex = ''
@@ -457,13 +457,15 @@ export default function RichTextEditor({
                     file = nextImage?.file
                     formulaWidthPx = nextImage?.widthPx ?? null
                   } else if (!src && remainingFiles.length) {
-                    file = remainingFiles.shift()
+                    const nextImage = remainingFiles.shift()
+                    file = nextImage?.file
+                    formulaWidthPx = nextImage?.widthPx ?? null
                   }
 
                   if (file) {
                     const imageUrl = await uploadPastedImage(file)
                     img.setAttribute('src', imageUrl)
-                    // PNG fallback Equation Word adalah gambar rumus; batasi ukurannya agar tidak memenuhi editor.
+                    // PNG fallback Equation Word mengikuti ukuran target asli yang tercatat di RTF Word.
                     if (formulaWidthPx && file.type === 'image/png') {
                       img.removeAttribute('width')
                       img.style.width = String(formulaWidthPx) + 'px'
