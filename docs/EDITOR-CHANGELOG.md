@@ -2097,6 +2097,8 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
   - Finalisasi menghitung selisih XP agar XP yang telah dikreditkan selama sesi tidak diberikan dua kali.
 - Maze lama:
   - Menyimpan daftar misi yang berhasil dan indeks misi berikutnya.
+  - Menyimpan draft blok perintah, posisi robot, arah robot, dan umpan balik saat pengguna memilih **Simpan & Keluar**; draft dipulihkan ketika sesi dibuka kembali.
+  - Jika misi sudah berhasil, sesi dipulihkan ke misi berikutnya agar misi selesai tidak dianggap belum dikerjakan.
   - Menyediakan tombol **Simpan & Keluar** dan memulihkan misi yang belum selesai ketika sesi dibuka kembali.
   - XP misi dikreditkan saat progres disimpan; finalisasi hanya memberikan selisih/bonus yang belum dikreditkan.
 - Flashcard:
