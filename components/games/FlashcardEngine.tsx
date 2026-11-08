@@ -176,6 +176,11 @@ export default function FlashcardEngine({
   const handleSaveAndExit = async () => {
     if (isSaving || isSavingAndExit || !attemptId) return
 
+    if (isComplete) {
+      window.location.assign('/practice')
+      return
+    }
+
     setIsSavingAndExit(true)
     const saved = await persistProgress(currentIndex, completedCardIds)
     setIsSavingAndExit(false)
