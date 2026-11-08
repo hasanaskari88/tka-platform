@@ -2046,3 +2046,34 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Query, filter kelas, urutan XP, dan batas 15 pemain tetap sama; tidak mengubah data atau mekanisme XP/leaderboard di database.
 - Perubahan disimpan melalui commit `dd79b10329f8b66eb726a0388ff04e8c45ef6046` pada branch `homepage-arcade-catalog`.
 - Status verifikasi: kode tersimpan di GitHub; build dan QA visual belum dilakukan karena kendala deployment Vercel.
+
+## 2026-11-08 — Audit akses Practice, leaderboard, Maze V2, dan Flashcard
+
+### Akses halaman Practice
+- Pemeriksaan `app/practice/page.tsx` dan `app/practice/[id]/page.tsx` tidak menemukan pemeriksaan role `student` maupun pengalihan khusus untuk admin/guru.
+- Artinya, dari sisi kode halaman, Practice belum dibatasi hanya untuk siswa. Akses data/aksi tetap dapat dipengaruhi kebijakan Supabase yang tidak diubah dalam pekerjaan ini.
+- Belum menerapkan larangan admin/guru mengakses halaman Practice karena kebijakan akses halaman perlu dipastikan terpisah dari kebijakan siapa yang boleh tampil di leaderboard.
+
+### Leaderboard
+- Sebelumnya leaderboard mengecualikan profil dengan `class_code = guru`, tetapi belum memfilter `role`; akun admin dengan kelas selain guru berpotensi ikut tampil.
+- Query leaderboard kini hanya mengambil profil dengan `role = student`, dan daftar pilihan kelas leaderboard juga hanya mengambil kelas dari profil student.
+- Filter kelas guru tetap dipertahankan. Tidak ada perubahan skema, RLS, atau data profil.
+- Commit kode: `53412c1c301d15a2c68b0ab94f8797a1fa2d079e` dan `4bddb6c8dbe99b2c231c911a6a271180ace4ed1f`.
+
+### Coding Maze V2 (Blok Visual)
+- Ditemukan bahwa `MAZE_GAME_V2` sudah tersedia sebagai pilihan jenis kegiatan dan badge/filter di halaman admin.
+- Namun alur pengerjaan `app/practice/[id]/page.tsx` hanya merender `MazeGameEngine` untuk `MAZE_GAME`; `MAZE_GAME_V2` tidak memiliki engine yang dirender dan dapat jatuh ke renderer kuis biasa.
+- Halaman admin juga belum memiliki editor misi khusus V2: editor Maze yang ada hanya dibuka untuk `MAZE_GAME` dan menyimpan `question_type = maze_game`. Generator otomatis serta pemetaan bulk import juga belum menyediakan payload khusus V2.
+- Kesimpulan: Coding Maze V2 belum selesai secara end-to-end. Perlu engine blok visual dan alur pembuatan/penyimpanan misi yang cocok; tidak dialihkan begitu saja ke Maze lama agar perilaku V2 tidak disamarkan.
+- Audit juga menemukan loop gerak pada Maze lama memperbarui posisi robot tanpa jeda animasi; perlu penyempurnaan gerak bertahap pada tahap Maze.
+
+### Flashcard
+- Jalur render `FLASHCARD` dan komponen `FlashcardEngine` sudah ada. Komponen membalik kartu dari `question_text` ke `explanation`/jawaban dan memberi XP melalui RPC `add_user_xp`.
+- Ditemukan celah pada import JSON: format umum `front`/`back` atau `term`/`answer` sebelumnya tidak dipetakan ke kolom yang dibaca FlashcardEngine. Import bulk kini menerima variasi field tersebut dan menyimpannya ke `question_text` serta `explanation`.
+- Generator otomatis Flashcard saat ini hanya membuat satu kartu contoh generik; kartu nyata sebaiknya dibuat melalui editor soal atau bulk import. Perlu QA dengan satu set kartu sungguhan untuk memastikan alur flip dan sinkronisasi XP.
+- Commit kode import Flashcard: `d35c6bc8954536a125211ae75c55843453f5cd87`.
+
+### Batas verifikasi
+- Seluruh perubahan dicatat pada branch `homepage-arcade-catalog`.
+- Belum menjalankan build maupun Preview Vercel karena kendala kuota deployment. Tidak ada klaim bahwa Maze V2/Flashcard sudah lulus QA.
+- Tidak mengubah database, skema, RLS, RPC, sistem login, CBT, penilaian, atau mekanisme XP selain perbaikan pemetaan field import.
