@@ -503,28 +503,39 @@ export default function RichTextEditor({
               const remainingFiles = [...imageFiles, ...rtfPngImages]
               for (const img of imageElements) {
                 const src = img.getAttribute('src') || ''
-                if (src.startsWith('data:image/')) {
-                  const blob = await fetch(src).then((response) => response.blob())
-                  const file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
-                  img.setAttribute('src', await uploadPastedImage(file))
-                } else if (src && !src.startsWith('http://') && !src.startsWith('https://')) {
-                  // Termasuk file://, cid:, blob:, path relatif, VML, dan referensi DrawingML.
-                  const file = remainingFiles.shift()
-                  if (file) img.setAttribute('src', await uploadPastedImage(file))
-                  else if (src.startsWith('office-clipboard-image-')) {
-                    throw new Error('Microsoft Word tidak menyertakan data gambar pada clipboard. Coba salin gambarnya langsung dari Word, lalu tempel kembali.')
-                  } else img.remove()
-                } else if (!src && remainingFiles.length) {
-                  const file = remainingFiles.shift()
-                  if (file) img.setAttribute('src', await uploadPastedImage(file))
+                try {
+                  if (src.startsWith('data:image/')) {
+                    const blob = await fetch(src).then((response) => {
+                      if (!response.ok) throw new Error('Data gambar clipboard tidak dapat dibaca.')
+                      return response.blob()
+                    })
+                    const file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
+                    img.setAttribute('src', await uploadPastedImage(file))
+                  } else if (src && !src.startsWith('http://') && !src.startsWith('https://')) {
+                    // Termasuk file://, cid:, blob:, path relatif, VML, dan referensi DrawingML.
+                    const file = remainingFiles.shift()
+                    if (file) img.setAttribute('src', await uploadPastedImage(file))
+                    else img.remove()
+                  } else if (!src && remainingFiles.length) {
+                    const file = remainingFiles.shift()
+                    if (file) img.setAttribute('src', await uploadPastedImage(file))
+                  }
+                } catch (imageError) {
+                  // Kegagalan upload satu gambar tidak boleh membatalkan teks yang sedang dipaste.
+                  console.warn('Gambar Word dilewati karena gagal diunggah:', imageError)
+                  img.remove()
                 }
               }
               for (const file of remainingFiles) {
-                const imageUrl = await uploadPastedImage(file)
-                const image = parsedDocument.createElement('img')
-                image.setAttribute('src', imageUrl)
-                image.setAttribute('alt', 'Gambar dari Microsoft Word')
-                parsedDocument.body.appendChild(image)
+                try {
+                  const imageUrl = await uploadPastedImage(file)
+                  const image = parsedDocument.createElement('img')
+                  image.setAttribute('src', imageUrl)
+                  image.setAttribute('alt', 'Gambar dari Microsoft Word')
+                  parsedDocument.body.appendChild(image)
+                } catch (imageError) {
+                  console.warn('Gambar tambahan Word dilewati karena gagal diunggah:', imageError)
+                }
               }
               html = parsedDocument.body.innerHTML
             }
