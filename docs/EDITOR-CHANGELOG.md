@@ -2186,3 +2186,11 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Riwayat ujian siswa, ranking ujian dashboard, dan raport/sertifikat menggunakan `score_override` bila guru sudah menetapkan nilai koreksi; jika tidak, menggunakan `score`.
 - Halaman raport tetap belum menyimpan pengaturan identitas secara terpusat. Nilai yang diubah pada form digunakan untuk dokumen yang sedang dibuat; tabel pengaturan sekolah dan sinkronisasi lintas perangkat belum ditambahkan.
 - Perlu QA terhadap hak baca admin untuk semua profil/riwayat, tampilan cetak multi-halaman, serta verifikasi hasil nilai koreksi pada Preview.
+
+
+### Pengaturan dokumen terpusat — disiapkan, belum diaktifkan
+- Menambahkan migration staged `supabase/migrations/20261108000200_school_document_settings.sql` untuk tabel tunggal `school_document_settings`, RLS admin-only, dan RPC baca/simpan pengaturan.
+- RPC menggunakan `SECURITY INVOKER`, `search_path` kosong, referensi schema berkualifikasi, validasi role admin, serta hak execute hanya untuk authenticated.
+- Menambahkan halaman `app/admin/pengaturan-dokumen/page.tsx` untuk mengatur nama/alamat sekolah, guru/admin dan NIP, kepala sekolah dan NIP, tempat terbit, serta KKM.
+- Dashboard admin menyediakan tautan ke pengaturan dokumen. Pembuat raport/sertifikat membaca pengaturan tersimpan melalui RPC dan tetap menyediakan penyesuaian untuk dokumen yang sedang dibuat.
+- Migration ini **belum diterapkan** ke database aktif; sebelum dapat digunakan, perlu diuji pada lingkungan pengembangan, termasuk ketersediaan fungsi RPC melalui Data API dan policy admin.
