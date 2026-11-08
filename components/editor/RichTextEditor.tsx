@@ -711,14 +711,15 @@ async function applyRtfImageCrop(file: File, crop: RtfImageCrop | null): Promise
   if (!crop) return file
   const bitmap = await createImageBitmap(file)
   try {
-    const horizontalTotal = crop.widthGoal + crop.left + crop.right
-    const verticalTotal = crop.heightGoal + crop.top + crop.bottom
-    if (horizontalTotal <= 0 || verticalTotal <= 0) return file
+    // RTF Word menyatakan nilai crop dan ukuran target dalam twips.
+    // Gunakan ukuran target sebagai acuan skala crop; jangan menambahkan
+    // nilai crop ke penyebut karena itu membuat pemotongan terlalu ringan.
+    if (crop.widthGoal <= 0 || crop.heightGoal <= 0) return file
 
-    const left = Math.max(0, Math.min(bitmap.width - 1, Math.round(bitmap.width * crop.left / horizontalTotal)))
-    const right = Math.max(0, Math.min(bitmap.width - left - 1, Math.round(bitmap.width * crop.right / horizontalTotal)))
-    const top = Math.max(0, Math.min(bitmap.height - 1, Math.round(bitmap.height * crop.top / verticalTotal)))
-    const bottom = Math.max(0, Math.min(bitmap.height - top - 1, Math.round(bitmap.height * crop.bottom / verticalTotal)))
+    const left = Math.max(0, Math.min(bitmap.width - 1, Math.round(bitmap.width * crop.left / crop.widthGoal)))
+    const right = Math.max(0, Math.min(bitmap.width - left - 1, Math.round(bitmap.width * crop.right / crop.widthGoal)))
+    const top = Math.max(0, Math.min(bitmap.height - 1, Math.round(bitmap.height * crop.top / crop.heightGoal)))
+    const bottom = Math.max(0, Math.min(bitmap.height - top - 1, Math.round(bitmap.height * crop.bottom / crop.heightGoal)))
     const width = bitmap.width - left - right
     const height = bitmap.height - top - bottom
     if (width < 2 || height < 2) return file
