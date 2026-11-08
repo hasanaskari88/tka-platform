@@ -2000,3 +2000,10 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Tidak mengubah query leaderboard, data profil, XP, level, badge yang tersimpan, scoring, mesin latihan, database, skema, API, atau RPC.
 
 Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menunggu Vercel Preview build dan QA ulang pengguna. Belum di-merge ke `main` dan belum mengubah Production.
+
+
+### Catatan build dan perbaikan
+- Build Preview pertama setelah penyegaran visual gagal karena dua regex pemeriksaan URL avatar pada halaman Practice memiliki escaping slash yang tidak valid untuk parser TSX.
+- Pemeriksaan URL avatar diganti dengan `startsWith('http://')` / `startsWith('https://')` agar sintaks lebih sederhana dan aman.
+- Tidak ada perubahan perilaku data avatar; perbaikan hanya menyentuh deteksi URL gambar.
+- Menunggu deployment ulang dan pemeriksaan build Vercel.
