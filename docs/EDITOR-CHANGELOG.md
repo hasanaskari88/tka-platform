@@ -1870,5 +1870,5 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Pesan penyemangat berubah sesuai kondisi: pemain yang masuk tiga besar mendapat apresiasi; pemain lain mendapat dorongan sesuai gelar level. Papan peringkat lengkap tetap dapat dibuka melalui halaman latihan.
 - Kartu status gamifikasi lama tetap ditampilkan pada tema non-Gaming; pada tema Gaming kartu tersebut disatukan dengan hero agar tidak berulang.
 - Tidak mengubah skema/database, sistem pemberian XP, formula level, badge, scoring, RPC, login, atau CBT.
-- Commit kode: `be9952b68065122f30d2c41cf9298fb5b9f6722f`.
+- Commit kode: `8ecbea6a0b302c8f4fa0320c92f17da5f0c6f90f` (penyesuaian pesan penyemangat berdasarkan posisi 1, 2, atau 3).
 - Status: implementasi pada branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Angka peringkat ditampilkan sebagai tiga besar yang benar-benar dikembalikan query; tidak mengarang posisi siswa di luar daftar tersebut.
