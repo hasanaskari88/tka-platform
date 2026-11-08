@@ -1500,3 +1500,14 @@ Status: **menunggu Preview READY dan hasil struktur RTF dari pengguna**. Belum a
 - Diagnostik diperbaiki dengan memecah sampel berdasarkan backslash lalu membaca control word di awal setiap segmen.
 - Perubahan hanya menyentuh diagnostik sementara; belum mengubah konversi rumus/gambar, penyimpanan soal, API, atau database.
 - Commit: `6fe28fceb2af5d8575501f159fd56f9269505e73`.
+
+
+## 2026-11-08 — Ekstraksi PNG dari clipboard RTF Word (tahap awal)
+
+- Menambahkan pembaca grup RTF berimbang untuk menemukan grup `\\pict` berformat `\\pngblip`.
+- Data heksadesimal dikumpulkan hanya dari isi utama grup gambar, dikonversi menjadi byte, lalu divalidasi dengan signature PNG sebelum dijadikan `File`.
+- File PNG RTF dipasangkan berurutan ke elemen gambar HTML yang masih memiliki referensi lokal/file URL, kemudian memakai endpoint upload Google Drive yang sudah ada.
+- Diagnostik kini menampilkan jumlah dan ukuran PNG yang berhasil diekstrak; tidak menampilkan isi gambar atau dokumen.
+- Format WMF/JPEG dan konversi rumus RTF belum diaktifkan. Jika PNG tidak lolos validasi, mekanisme lama tetap berlaku.
+- Perlu pengujian Preview menggunakan dokumen Word yang sama untuk memastikan hasil ekstraksi, jumlah gambar, dan upload.
+- Commit kode: `76f097f15646dd2927c2dfc5186ae7fec4afc1b6`.
