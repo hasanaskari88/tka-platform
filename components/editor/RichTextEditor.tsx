@@ -330,7 +330,7 @@ export default function RichTextEditor({
                   const blob = await fetch(src).then((response) => response.blob())
                   const file = new File([blob], 'gambar-word-paste.png', { type: blob.type || 'image/png' })
                   img.setAttribute('src', await uploadPastedImage(file))
-                } else if (src && !/^https?:\\/\\//i.test(src)) {
+                } else if (src && !src.startsWith('http://') && !src.startsWith('https://')) {
                   // Termasuk file://, cid:, blob:, path relatif, VML, dan referensi DrawingML.
                   const file = remainingFiles.shift()
                   if (file) img.setAttribute('src', await uploadPastedImage(file))
