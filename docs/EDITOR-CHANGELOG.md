@@ -2112,7 +2112,7 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
   - Kolom `practice_attempts.progress` untuk data progres JSON.
   - Kolom `practice_attempts.credited_xp` untuk mencegah pemberian XP ganda.
   - Memperbarui `start_practice_attempt` agar mengizinkan akun terautentikasi dan memulihkan sesi aktif terakhir.
-  - Menambahkan `save_practice_attempt_progress` untuk menyimpan progres dan hanya mengkreditkan selisih XP baru.
+  - Menambahkan `save_practice_attempt_progress` untuk menyimpan progres dan hanya mengkreditkan selisih XP baru. RPC ini memverifikasi kepemilikan attempt melalui `auth.uid()`, memakai search path kosong dengan referensi tabel berkualifikasi, dan hanya memberi hak eksekusi kepada role `authenticated`.
   - Memperbarui `finish_practice_attempt` agar hanya memberikan XP yang belum dikreditkan, tanpa membatasi role ke student.
   - Rumus XP dasar kuis, bonus combo, bonus peningkatan nilai, dan XP Maze dipertahankan. Flashcard tetap +10 per kartu tanpa bonus peningkatan nilai.
 - Migration **belum diterapkan ke database aktif**. Tidak ada perubahan langsung pada database/Production dalam tahap ini.
