@@ -143,6 +143,7 @@ export default function AdminReportPage() {
                 <label className="text-xs font-semibold text-slate-600">NIP Kepala Sekolah<input value={config.principalNip} onChange={e => updateConfig('principalNip', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={config.issuePlace} onChange={e => updateConfig('issuePlace', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
                 <label className="text-xs font-semibold text-slate-600">Tanggal dokumen<input type="date" value={config.issueDate} onChange={e => updateConfig('issueDate', e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
+                <label className="text-xs font-semibold text-slate-600">KKM / batas ketuntasan<input type="number" min="0" max="100" value={config.kkm} onChange={e => updateConfig('kkm', Number(e.target.value))} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900"/></label>
               </div>
             </section>
 
