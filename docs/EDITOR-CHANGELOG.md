@@ -2308,3 +2308,4 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Perubahan hanya pada branch `homepage-arcade-catalog`; tidak mengubah `main`, skema Supabase, atau data aktif.
 - Vercel Preview untuk commit terbaru masih berstatus QUEUED saat catatan ini dibuat; build belum selesai. QA visual, klik detail siswa, preview URL, dan cetak A4 belum dilakukan.
 
+- Penyempurnaan lanjutan: materi baru otomatis memilih subtes pertama yang tersedia; saat materi lama diedit, penulis kosong memakai nama lengkap akun aktif sebagai fallback.
