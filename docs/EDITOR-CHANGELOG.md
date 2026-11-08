@@ -1373,3 +1373,38 @@ Catatan: penyimpanan gaya asli hanya berupa atribut sementara pada elemen DOM; t
 
 - Atribut `data-rotation` kini diizinkan pada tahap sanitasi pertama dan terakhir agar nilai rotasi tidak hilang sebelum proses layout.
 - `useEffect` selalu dipanggil sebelum kondisi konten kosong mengembalikan `null`, sehingga jumlah hook konsisten antar-render.
+
+
+## Implementasi awal kompatibilitas paste Microsoft Word — 8 November 2026
+
+Status: **kode diterapkan pada `editor-test`; menunggu build Preview dan QA pengguna**.
+
+File aplikasi:
+- `components/editor/RichTextEditor.tsx`.
+
+Perubahan:
+1. Menambahkan handler paste khusus pada Tiptap untuk mendeteksi konten clipboard yang membawa Office Math/OMML atau gambar.
+2. Konversi OMML ke LaTeX untuk struktur umum: teks matematika, pecahan, pangkat, indeks bawah, pangkat-indeks gabungan, akar (termasuk akar berindeks), operator jumlah/integral/produk, tanda kurung matematika, garis atas, aksen, dan fungsi.
+3. Hasil rumus dimasukkan sebagai node matematika inline atau block Tiptap dengan atribut `data-type` dan `data-latex`, sehingga mengikuti renderer matematika yang sudah ada.
+4. Gambar clipboard berbentuk data URI atau file clipboard diunggah melalui endpoint Google Drive yang sudah ada (`/api/google-drive/upload`). URL hasil upload dipasang kembali pada elemen gambar.
+5. Bila clipboard hanya menyediakan file gambar, gambar tetap dapat ditempelkan; teks biasa dari clipboard dipertahankan jika tersedia.
+6. HTML clipboard yang tidak mengandung OMML/gambar tetap menggunakan perilaku paste bawaan Tiptap agar teks, tabel, format, Arab, dan Aksara Jawa yang sebelumnya sudah berjalan tidak diambil alih handler baru.
+
+Batas dan catatan:
+- Tidak menambah dependency dan tidak mengubah database, endpoint upload, skema, struktur payload soal, kunci jawaban, atau penilaian.
+- Upload gambar mengikuti batas dan validasi endpoint yang sudah ada: JPG/PNG/WEBP/GIF, maksimal 8 MB, dan memerlukan koneksi Google Drive admin.
+- Konversi OMML ini merupakan dukungan awal untuk struktur umum, bukan jaminan seluruh variasi objek Word (misalnya SmartArt, shape, text box, persamaan kompleks tertentu, atau gambar tertaut eksternal).
+- Gambar yang disalin sebagai objek clipboard browser bergantung pada format yang disediakan Microsoft Word/browser. Bila Word tidak memberikan byte gambar pada clipboard, gambar tersebut tidak dapat diunggah otomatis.
+- Kode belum dianggap lulus sebelum build Preview dan pengujian dengan dokumen Word contoh pengguna.
+
+Checklist QA Preview:
+- [ ] Paste gambar dari Word: gambar muncul di editor dan URL tersimpan berasal dari Google Drive.
+- [ ] Simpan soal, buka ulang, pastikan gambar tetap tampil.
+- [ ] Paste beberapa gambar dan teks campuran; pastikan urutan serta isi teks tidak hilang.
+- [ ] Paste pecahan, pangkat, indeks, akar, dan operasi matematika dari Word; pastikan pratinjau rumus terbaca.
+- [ ] Simpan dan buka ulang rumus; pastikan node matematika tetap utuh.
+- [ ] Periksa hasil pada daftar soal, tampilan siswa, pembahasan, hasil/koreksi, dan cetak.
+- [ ] Pastikan paste teks biasa, tabel, bold/italic/underline, Arab, dan Aksara Jawa tetap berfungsi.
+- [ ] Pastikan kegagalan upload menampilkan pesan dan tidak menghapus konten soal yang sudah ada.
+
+Hasil build dan QA pengguna: **menunggu**.
