@@ -200,6 +200,7 @@ declare
   v_best_score numeric;
   v_answer_xp integer;
   v_streak integer;
+  v_activity_type text;
   v_improvement integer;
   v_total_xp integer;
   v_delta_xp integer;
@@ -255,7 +256,14 @@ begin
   v_answer_xp := p_correct_count * 10;
   v_streak := p_streak_xp;
 
+  select activity_type::text
+  into v_activity_type
+  from public.exams
+  where id = v_attempt.exam_id;
+
+  -- Flashcards keep their established flat +10 XP per completed card.
   v_improvement := case
+    when v_activity_type = 'FLASHCARD' then 0
     when v_best_score is not null and v_score > v_best_score
     then floor((v_score - v_best_score) / 10)::integer * 5
     else 0
