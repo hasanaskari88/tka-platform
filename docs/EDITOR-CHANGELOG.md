@@ -1872,3 +1872,13 @@ Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
 - Tidak mengubah skema/database, sistem pemberian XP, formula level, badge, scoring, RPC, login, atau CBT.
 - Commit kode: `8ecbea6a0b302c8f4fa0320c92f17da5f0c6f90f` (penyesuaian pesan penyemangat berdasarkan posisi 1, 2, atau 3).
 - Status: implementasi pada branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Angka peringkat ditampilkan sebagai tiga besar yang benar-benar dikembalikan query; tidak mengarang posisi siswa di luar daftar tersebut.
+
+
+## 2026-11-08 — Gelar Arcade dinamis berdasarkan distribusi XP siswa
+
+- Menghapus patokan gelar berdasarkan level tetap (misalnya level 5, 10, 20, atau 30). Level dan XP tinggi, termasuk level di atas 1.000, tidak lagi membuat gelar berhenti berkembang pada batas tertentu.
+- Gelar sekarang ditentukan dari posisi relatif XP pemain di antara seluruh profil siswa yang bukan akun Guru. Sistem mengambil kolom minimum `id`, `class_code`, dan `xp`, lalu menghitung persentil posisi pemain.
+- Tingkatan gelar adaptif terhadap jumlah dan perkembangan peserta: Legenda Arena (1% teratas), Grandmaster (5% teratas), Master Pengetahuan (15% teratas), Ksatria Cendekia (35% teratas), Penjelajah Tangguh (65% teratas), dan Calon Juara (kelompok berikutnya). Jika baru ada satu peserta, digunakan gelar Perintis Arena; jika profil tidak ditemukan, Petualang Baru.
+- Pesan penyemangat tetap mengikuti golongan dinamis. XP dan level yang sudah tersimpan tidak diubah; tidak ada perubahan skema, sistem pemberian XP, rumus level, badge, scoring, RPC, login, atau CBT.
+- Commit implementasi: `7e4eae2362ac66d992e96ebf893dcb49cd1094f4`.
+- Status: menunggu Preview build dan QA pengguna. Peringkat dinamis bergantung pada data profil siswa yang dapat dibaca melalui kebijakan akses Supabase saat ini.
