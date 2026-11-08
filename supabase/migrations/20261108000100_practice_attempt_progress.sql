@@ -9,7 +9,7 @@ create or replace function public.start_practice_attempt(p_exam_id uuid)
 returns jsonb
 language plpgsql
 security definer
-set search_path to 'public'
+set search_path to ''
 as $function$
 declare
   v_user_id uuid := auth.uid();
@@ -96,7 +96,7 @@ create or replace function public.save_practice_attempt_progress(
 returns jsonb
 language plpgsql
 security definer
-set search_path to 'public'
+set search_path to ''
 as $function$
 declare
   v_user_id uuid := auth.uid();
@@ -179,7 +179,7 @@ begin
 end;
 $function$;
 
-revoke all on function public.save_practice_attempt_progress(uuid, jsonb, integer, integer, integer, integer) from public;
+revoke all on function public.save_practice_attempt_progress(uuid, jsonb, integer, integer, integer, integer) from anon, public;
 grant execute on function public.save_practice_attempt_progress(uuid, jsonb, integer, integer, integer, integer) to authenticated;
 
 create or replace function public.finish_practice_attempt(
@@ -191,7 +191,7 @@ create or replace function public.finish_practice_attempt(
 returns jsonb
 language plpgsql
 security definer
-set search_path to 'public'
+set search_path to ''
 as $function$
 declare
   v_user_id uuid := auth.uid();
