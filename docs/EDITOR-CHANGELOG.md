@@ -1742,3 +1742,48 @@ Catatan: ini merupakan konfirmasi QA pengguna, bukan perubahan kode aplikasi. Ti
 - Batasan yang tetap dicatat: paste Word telah diuji pada contoh teks, rumus, gambar/diagram, crop, wrap, ukuran, serta simpan/buka ulang yang telah dikonfirmasi pengguna; tidak ada klaim bahwa satu dokumen panjang telah diuji menyeluruh.
 - QA akhir tetap mencakup pemeriksaan terarah pada tipe soal, tampilan siswa/guru, export/cetak, dan tidak berubahnya kunci, bobot, serta penilaian.
 - Keputusan ini tidak mengubah kode aplikasi, database, skema, API, atau Production.
+
+
+## 2026-11-08 — Audit kode QA roundtrip, tampilan, export, dan penilaian (tanpa perubahan aplikasi)
+
+Branch audit: `editor-test`. Pemeriksaan dilakukan pada kode terbaru dengan SHA:
+- `app/admin/exam/[id]/page.tsx`: `329826bffc10ef6371fcf0137b6c86560c5bedba`
+- `app/exam/[id]/page.tsx`: `22a32f8d7b3e8f78dbb44c2ea4efdb66e6d3b110`
+- `app/admin/exam/[id]/results/page.tsx`: `c456fcc7e19d4a43b2f16ac07719fe3f06faec14`
+- `app/exam/[id]/summary/page.tsx`: `ed959ddc377f4bf764b1b2f4494901c748d6778f`
+
+### Hasil audit alur simpan dan pemuatan
+
+1. Form editor ujian menyimpan `max_score`, `question_type`, `options`, `correct_option`, dan `correct_answers` sesuai tipe soal:
+   - PG: satu kunci pada `correct_option` dan array satu elemen pada `correct_answers`.
+   - PG kompleks: array opsi dan array kunci jawaban.
+   - Matriks: array pernyataan dan object kunci berdasarkan ID pernyataan.
+   - Essay: `options=[]`, `correct_option='ESSAY'`, `correct_answers=null`.
+2. Handler edit memuat kembali bobot, isi, opsi, pernyataan, dan kunci sesuai tipe. Kompatibilitas field lama `image_url` masih dipertahankan.
+3. Halaman siswa menyimpan jawaban PG pada `selected_option`, jawaban PG kompleks/matriks pada `selected_answers`, dan semua jawaban dalam `user_answer` (teks HTML untuk essay; JSON untuk struktur pilihan). Saat pemulihan, nilai JSON diparse kembali.
+4. Jawaban essay RichTextEditor disimpan sebagai HTML pada `user_answer`; penilaian guru tersimpan terpisah pada `answers.teacher_score`.
+5. Penilaian guru membatasi nilai essay pada rentang 0 sampai `max_score`. Nilai akhir, bonus, dan override disimpan pada `exam_sessions.score`, `bonus_points`, dan `score_override`.
+
+Kesimpulan audit kode: bentuk payload lama dan jalur penyimpanan kunci/bobot masih dipertahankan. Ini pemeriksaan kode, bukan bukti roundtrip browser untuk setiap tipe soal.
+
+### Hasil audit tampilan dan output
+
+- Halaman siswa merender pertanyaan, opsi, pernyataan matriks, dan jawaban essay melalui `MathRenderer` atau RichTextEditor.
+- Ringkasan siswa merender pertanyaan, pilihan, pernyataan, jawaban essay, dan pembahasan melalui `MathRenderer`.
+- Hasil/koreksi guru memakai `MathRenderer` untuk pertanyaan, pembahasan, serta jawaban siswa; bagian cetak soal memakai `MathRenderer` untuk pertanyaan, opsi, pernyataan matriks, dan pembahasan.
+- Export Excel daftar soal mempertahankan teks pertanyaan, opsi/pernyataan, pembahasan, tipe soal, dan bobot.
+- Export rekap guru memuat rekap siswa dan analisis butir. Untuk analisis matriks, kolom kunci saat ini ditampilkan sebagai label umum “Matriks”, bukan rincian kunci per pernyataan.
+
+### Temuan yang perlu ditangani/diuji sebelum penutupan
+
+1. **Temuan export daftar soal matriks (perbaikan disarankan):** fungsi export Excel di `app/admin/exam/[id]/page.tsx` membaca `correct_answers` jika berbentuk array atau object pada `correct_option`. Pada soal matriks, kunci sebenarnya berada di object `correct_answers`, sedangkan `correct_option` berisi string `MATRIX`. Akibatnya, export saat ini berpotensi menulis “MATRIX”, bukan pasangan ID pernyataan dan Benar/Salah. Tidak memengaruhi data database atau penilaian; hanya keluaran Excel.
+2. **Statistik ringkasan siswa untuk essay:** `evaluateQuestion` menganggap essay terisi sebagai jawaban menunggu penilaian (bukan benar), dan `calculatedScore` ringkasan menghitung nilai otomatis tanpa membaca `teacher_score`. Header “Skor Akhir” memprioritaskan `sessionData.score` yang tersimpan, tetapi kartu “Akurasi Nilai” dan hitungan benar/salah berasal dari perhitungan lokal tersebut. Setelah essay dinilai guru, statistik lokal dapat berbeda dari nilai akhir tersimpan. Perlu dipastikan apakah label/statistik ini memang dimaksudkan hanya untuk penilaian otomatis atau perlu diselaraskan; jangan mengubah formula penilaian tanpa persetujuan.
+3. **Konsistensi evaluasi PG kompleks:** rumus skor parsial ada di halaman siswa, ringkasan, dan hasil guru. Struktur dasarnya sama (benar dikurangi salah dibagi jumlah kunci), tetapi implementasi memiliki sedikit perbedaan normalisasi/pembatasan rasio. Perlu uji pembanding menggunakan satu set jawaban yang sama untuk memastikan hasil identik; tidak ada perubahan scoring pada audit ini.
+
+### QA pengguna yang masih perlu dilakukan
+
+- Roundtrip simpan/buka ulang per tipe: PG tunggal, PG kompleks, matriks, dan essay. Catatan satu skenario Word roundtrip yang telah lulus tidak menggantikan empat tipe tersebut.
+- Cek tampilan halaman siswa, hasil/koreksi guru, ringkasan, cetak, dan kedua jenis export pada contoh yang mewakili tipe soal.
+- Bandingkan bobot, kunci, skor otomatis, nilai essay manual, bonus, dan override terhadap nilai yang diharapkan pada satu ujian uji. Jangan memakai data ujian aktif/produksi untuk percobaan yang dapat mengubah nilai siswa.
+
+Status: **audit kode selesai untuk empat file di atas; tidak ada file aplikasi yang diubah, tidak ada build/deployment baru, tidak ada perubahan database/skema/API/scoring atau branch `main`**.
