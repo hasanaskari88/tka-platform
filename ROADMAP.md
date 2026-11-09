@@ -158,3 +158,42 @@ G. **Google Drive OAuth Preview:** tetap ditunda sampai isolasi aman tanpa biaya
 - Setiap hasil audit harus mencatat tanggal, branch, commit, bukti verifikasi, risiko, dan tindakan berikutnya.
 - Jangan menyatakan fitur selesai hanya karena build sukses atau halaman dapat dibuka; bedakan build, smoke test, dan QA fungsi.
 - Jangan menganggap migration sudah diterapkan hanya karena file SQL ada di GitHub.
+
+
+## Hasil pemeriksaan lanjutan — 9 November 2026
+
+### Temuan yang diverifikasi langsung pada Preview
+
+- [x] `app/api/admin/users/route.ts` pada Preview masih membuat client menggunakan `SUPABASE_SERVICE_ROLE_KEY` (dengan fallback anon) dan handler PUT/DELETE tidak memanggil `requireAdmin()`. Ini menguatkan temuan prioritas sangat tinggi: endpoint perlu ditutup sebelum fitur pengelolaan akun dianggap aman.
+- [x] Form signup pada halaman login yang diperiksa hanya mengirim nama, username, dan kode kelas; tidak mengirim role. Namun trigger database tetap perlu diperiksa karena pemanggil Auth lain dapat mengirim metadata tambahan.
+- [x] `requireAdmin()` dan layout admin memeriksa `profiles.role`; kekuatan pemeriksaan tersebut bergantung pada keamanan sumber role di database.
+- [x] `FlashcardEngine` dan `MazeGameEngine` pada Preview menggunakan RPC `start_practice_attempt` / `finish_practice_attempt`; perubahan engine di PR #2 perlu ditinjau agar konsisten dengan keputusan membekukan V2.
+- [x] Branch `main` dan Preview tidak memiliki branch protection yang aktif menurut metadata GitHub. Pertimbangkan proteksi `main` setelah persetujuan pemilik proyek.
+- [x] Dokumen audit keamanan berada di branch `security-audit-inventory`; isinya adalah audit statis atas commit `main` tanggal 8 November dan belum mengubah kode/database.
+- [x] Repository Preview tidak memiliki file roadmap sebelumnya; dokumen ini dibuat sebagai catatan terpusat.
+
+### Status database dan migration
+
+- [x] Tiga file migration ditemukan di Preview. Isi migration menyatakan staged/development-only dan tidak otomatis dijalankan oleh Vercel.
+- [ ] Keberadaan tabel/RPC baru di database bersama harus diverifikasi sebelum halaman yang bergantung padanya dianggap berfungsi penuh.
+- [ ] Belum ada migration yang dijalankan dalam rangka audit ini.
+
+### Status deployment setelah pencatatan roadmap
+
+- [x] Commit dokumentasi roadmap: `a9ced9498fdb7b8fe86fbc062c3abeedb7c9f425`.
+- [ ] Deployment Preview otomatis untuk commit dokumentasi tersebut masih BUILDING saat pemeriksaan terakhir; tunggu READY dan cek build.
+- [x] Deployment Preview sebelumnya untuk commit `46eeaf4` berstatus READY.
+- [x] Deployment Production terakhir yang tercatat berstatus READY pada commit `9979e352`.
+
+### Konfirmasi yang diperlukan sebelum pekerjaan berisiko
+
+1. **Perbaikan keamanan kode (disarankan segera):** izinkan pembuatan branch keamanan terpisah dan perbaikan endpoint admin users, perlindungan signup/role, query profil sensitif, serta RPC XP. Batasnya: kode saja, tidak menjalankan SQL ke Supabase dan tidak merge ke `main`.
+2. **Perubahan database/RLS:** belum disetujui. Sebelum eksekusi, berikan rancangan SQL lengkap, matriks akses per peran, dampak fitur, rencana rollback, dan metode uji database terisolasi.
+3. **Migration fitur:** izinkan review dan persiapan saja; penerapan membutuhkan persetujuan terpisah setelah database terisolasi tersedia.
+4. **Flashcard/Maze:** tentukan apakah perubahan pada engine yang ada di PR #2 dipertahankan atau dikembalikan agar sesuai status dibekukan.
+5. **Merge PR #2 / Production:** belum disetujui. Perlu QA dan persetujuan eksplisit setelah seluruh temuan ditangani.
+6. **Google Drive Preview OAuth:** tetap ditunda; jangan meminta konfirmasi ulang sampai ada opsi isolasi aman tanpa biaya tambahan.
+
+### Batas audit ini
+
+Pemeriksaan GitHub, isi file, riwayat PR, deployment, dan build log dilakukan secara read-only. Satu-satunya perubahan yang dibuat adalah penambahan file `ROADMAP.md` pada branch `homepage-arcade-catalog`. Tidak ada perubahan `main`, database, data siswa, token Google Drive, environment variable, atau deployment Production.
