@@ -838,3 +838,24 @@ Keputusan ini **menggantikan usulan sebelumnya** tentang branch rilis sementara 
 - Lanjutkan pengembangan di Preview yang sama sesuai lingkup Kandidat A. Periksa dampak CSS global dan lakukan QA yang relevan; jangan memasukkan pekerjaan Admin/Practice atau migration ke pekerjaan Homepage.
 
 **Instruksi operasional:** semua commit pengembangan selanjutnya untuk lingkup ini diarahkan ke `homepage-arcade-catalog`. Tidak ada branch baru, PR, merge, atau deployment Production.
+
+
+## Audit awal Kandidat A — Homepage di Preview (10 November 2026)
+
+**Status:** pemeriksaan awal file selesai; belum ada perubahan kode pada tahap pemeriksaan ini.
+
+| File | SHA blob Preview | Ukuran | Catatan |
+|---|---|---:|---|
+| `app/page.tsx` | `4ad06c46514a1693356cf53f8f83124e5cf0aa19` | 69.698 karakter | Homepage memakai Supabase client, ThemeContext, Navbar, ExamTokenModal, MathRenderer, serta state/filter untuk ujian, materi, leaderboard, dan Arcade |
+| `app/globals.css` | `36b7c218f4ed22679591bc6e5045873b3edcbe0d` | 18.387 karakter | Berisi font Arab/Jawa, KaTeX, fondasi global, aturan form/focus/media, aturan Tiptap, serta class animasi Arcade/Cartoon 3D |
+| `app/layout.tsx` | `633a781f061371694c690469b3b909a60e013938` | 1.081 karakter | Memuat global CSS, ThemeProvider, ThemeBackground, Footer, dan FocusModeButton untuk seluruh aplikasi |
+
+### Temuan awal dan arah kerja
+1. Homepage Preview sudah berisi implementasi visual yang menjadi Kandidat A. Tidak perlu menyalin Homepage dari branch lain.
+2. `app/globals.css` tidak boleh diganti atau dipindahkan seluruhnya hanya untuk merilis/menata Homepage, karena file tersebut dimuat oleh root layout dan memengaruhi halaman lain.
+3. CSS memuat aturan global yang memang dibutuhkan lintas halaman (font Arab/Jawa, KaTeX, input, focus, reduced motion, dan Tiptap) sekaligus kelas visual Arcade/Cartoon 3D. Kedua kelompok harus dipisahkan secara konseptual sebelum ada refactor.
+4. Root layout juga menyediakan ThemeBackground, Footer, FocusModeButton, dan ThemeProvider; perubahan Homepage tidak boleh menghilangkan atau menggandakan elemen global tersebut.
+5. Langkah audit berikutnya adalah memetakan class khusus Homepage terhadap definisi CSS, lalu memeriksa apakah class yang sama dipakai halaman lain. Baru setelah itu tentukan apakah ada refactor CSS lokal yang aman. Pertahankan seluruh query/data/fitur Homepage; pekerjaan ini tidak mengubah database.
+6. Ruang lingkup tetap Preview branch `homepage-arcade-catalog` saja. Tidak ada branch baru, PR, merge, atau perubahan Production.
+
+**QA:** belum ada build atau browser QA baru yang dijalankan dalam audit file ini. Hasil build/QA terdahulu tetap sebagaimana dicatat pada bagian masing-masing dan tidak dianggap sebagai bukti untuk perubahan yang belum dibuat.
