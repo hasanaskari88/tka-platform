@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
+import Link from 'next/link'
 import MazeGameEngine from '@/components/games/MazeGameEngine'
 import FlashcardEngine from '@/components/games/FlashcardEngine'
 
@@ -106,35 +107,15 @@ function PracticeContent() {
   const [isFinishing, setIsFinishing] = useState(false)
   const [finishSummary, setFinishSummary] = useState<any>(null)
   const [configurationError, setConfigurationError] = useState('')
-  const [isSavingAndExit, setIsSavingAndExit] = useState(false)
-  const [isResumedSession, setIsResumedSession] = useState(false)
 
-  const progressRef = useRef<any>({
-    currentIndex: 0,
-    skippedQuestionIds: [],
-    isReviewingSkipped: false,
-    reviewIndex: 0,
-    userAnswer: null,
-    isAnswered: false,
-    isCorrect: false,
-    streakCount: 0,
-    answeredCount: 0,
-    correctCount: 0,
-    totalXpEarned: 0,
-    streakXp: 0,
-    answers: {},
-  })
   const finishStartedRef = useRef(false)
-  const saveQueueRef = useRef<Promise<boolean>>(Promise.resolve(true))
   const startAttemptPromiseRef = useRef<{
-    examId: string;
-    promise: Promise<{
-      attemptId: string | null;
-      progress: any;
-      resumed: boolean;
-      error: unknown;
-    }>;
-  } | null>(null);
+  examId: string;
+  promise: Promise<{
+    attemptId: string | null;
+    error: unknown;
+  }>;
+} | null>(null);
   const streakXpRef = useRef(0)
 
   const checkAndUnlockBadges = async (
@@ -250,15 +231,11 @@ function PracticeContent() {
 
     return {
       attemptId,
-      progress: data?.progress ?? {},
-      resumed: Boolean(data?.resumed),
       error,
     };
   })
   .catch((error: unknown) => ({
     attemptId: null,
-    progress: {},
-    resumed: false,
     error,
   }));
 
@@ -288,42 +265,7 @@ if (startResult.error || !startResult.attemptId) {
 }
 
 if (active) {
-  const savedProgress = startResult.progress || {}
-  const restored = {
-    currentIndex: Number(savedProgress.currentIndex || 0),
-    skippedQuestionIds: Array.isArray(savedProgress.skippedQuestionIds)
-      ? savedProgress.skippedQuestionIds
-      : [],
-    isReviewingSkipped: Boolean(savedProgress.isReviewingSkipped),
-    reviewIndex: Number(savedProgress.reviewIndex || 0),
-    userAnswer: savedProgress.userAnswer ?? null,
-    isAnswered: Boolean(savedProgress.isAnswered),
-    isCorrect: Boolean(savedProgress.isCorrect),
-    streakCount: Number(savedProgress.streakCount || 0),
-    answeredCount: Number(savedProgress.answeredCount || 0),
-    correctCount: Number(savedProgress.correctCount || 0),
-    totalXpEarned: Number(savedProgress.totalXpEarned || 0),
-    streakXp: Number(savedProgress.streakXp || 0),
-    answers: savedProgress.answers && typeof savedProgress.answers === 'object'
-      ? savedProgress.answers
-      : {},
-  }
-
-  progressRef.current = restored
-  setCurrentIndex(Math.min(restored.currentIndex, Math.max(0, loadedQuestions.length - 1)))
-  setSkippedQuestionIds(restored.skippedQuestionIds)
-  setIsReviewingSkipped(restored.isReviewingSkipped)
-  setReviewIndex(restored.reviewIndex)
-  setUserAnswer(restored.userAnswer)
-  setIsAnswered(restored.isAnswered)
-  setIsCorrect(restored.isCorrect)
-  setStreakCount(restored.streakCount)
-  setAnsweredCount(restored.answeredCount)
-  setCorrectCount(restored.correctCount)
-  setTotalXpEarned(restored.totalXpEarned)
-  streakXpRef.current = restored.streakXp
-  setAttemptId(startResult.attemptId)
-  setIsResumedSession(startResult.resumed)
+  setAttemptId(startResult.attemptId);
 }
 }
       if (active) setLoading(false)
@@ -342,87 +284,34 @@ if (active) {
 
 const qType = currentQuestion?.question_type || 'multiple_choice'
 
-  const persistAttemptProgress = (nextProgress?: any): Promise<boolean> => {
-    const progress = nextProgress || progressRef.current
-    if (!attemptId) return Promise.resolve(false)
-
-    const saveTask = saveQueueRef.current.then(async () => {
-      const { error } = await createClient().rpc(
-        'save_practice_attempt_progress',
-        {
-          p_attempt_id: attemptId,
-          p_progress: progress,
-          p_answered_count: Number(progress.answeredCount || 0),
-          p_correct_count: Number(progress.correctCount || 0),
-          p_answer_xp: Number(progress.correctCount || 0) * 10,
-          p_streak_xp: Number(progress.streakXp || 0),
-        }
-      )
-
-      if (error) {
-        console.error('Gagal menyimpan progres latihan:', error)
-        return false
-      }
-      return true
-    })
-
-    saveQueueRef.current = saveTask.catch(() => false)
-    return saveTask
-  }
-
-  const processXpAndStreak = (isUserRight: boolean, answerValue: any = userAnswer) => {
-    if (isAnswered || !currentQuestion?.id) return
-
+  const processXpAndStreak = (isUserRight: boolean) => {
+    if (isAnswered) return
+    
     setConfigurationError('')
-
-    const nextAnsweredCount = answeredCount + 1
-    const nextCorrectCount = correctCount + (isUserRight ? 1 : 0)
-    const newStreak = isUserRight ? streakCount + 1 : 0
-    const bonus = isUserRight
-      ? newStreak >= 10 ? 10
-        : newStreak >= 6 ? 8
-        : newStreak >= 4 ? 5
-        : newStreak >= 2 ? 2 : 0
-      : 0
-    const nextStreakXp = streakXpRef.current + bonus
-    const nextTotalXp = totalXpEarned + (isUserRight ? 10 + bonus : 0)
 
     setIsAnswered(true)
     setIsCorrect(isUserRight)
-    setAnsweredCount(nextAnsweredCount)
-    setCorrectCount(nextCorrectCount)
-    setStreakCount(newStreak)
-    streakXpRef.current = nextStreakXp
-    setTotalXpEarned(nextTotalXp)
+    setAnsweredCount((previous) => previous + 1)
 
     if (isUserRight) {
-      checkAndUnlockBadges(totalXpEarned + 10, newStreak)
-    }
+      setCorrectCount((previous) => previous + 1)
 
-    const nextProgress = {
-      ...progressRef.current,
-      currentIndex,
-      skippedQuestionIds,
-      isReviewingSkipped,
-      reviewIndex,
-      userAnswer: answerValue,
-      isAnswered: true,
-      isCorrect: isUserRight,
-      streakCount: newStreak,
-      answeredCount: nextAnsweredCount,
-      correctCount: nextCorrectCount,
-      totalXpEarned: nextTotalXp,
-      streakXp: nextStreakXp,
-      answers: {
-        ...(progressRef.current.answers || {}),
-        [String(currentQuestion.id)]: {
-          answer: answerValue,
-          isCorrect: isUserRight,
-        },
-      },
+      const newStreak = streakCount + 1
+      setStreakCount(newStreak)
+
+      const bonus =
+        newStreak >= 10 ? 10 :
+        newStreak >= 6 ? 8 :
+        newStreak >= 4 ? 5 :
+        newStreak >= 2 ? 2 : 0
+
+      streakXpRef.current += bonus
+      setTotalXpEarned((previous) => previous + 10 + bonus)
+
+      checkAndUnlockBadges(totalXpEarned + 10, newStreak)
+    } else {
+      setStreakCount(0)
     }
-    progressRef.current = nextProgress
-    void persistAttemptProgress(nextProgress)
   }
 
   const handleSingleChoiceSelect = (selectedOptKey: string) => {
@@ -440,7 +329,7 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
       return
     }
 
-    processXpAndStreak(normalizeKey(selectedOptKey) === correctOpt, selectedOptKey)
+    processXpAndStreak(normalizeKey(selectedOptKey) === correctOpt)
   }
 
   const handleToggleComplexChoice = (optKey: string) => {
@@ -479,7 +368,7 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
       userList.every((value, index) => value === correctList[index])
 
     setConfigurationError('')
-    processXpAndStreak(isUserRight, userList)
+    processXpAndStreak(isUserRight)
   }
 
   const handleSelectMatrixRow = (optionKey: string, value: string) => {
@@ -537,7 +426,7 @@ const handleCheckMatrixAnswer = () => {
   })
 
   setConfigurationError('')
-  processXpAndStreak(allCorrect, userAnswer)
+  processXpAndStreak(allCorrect)
 }
 
   const handleCheckFillInAnswer = () => {
@@ -555,35 +444,27 @@ const handleCheckMatrixAnswer = () => {
       return
     }
 
-    processXpAndStreak(userText === targetText, userAnswer)
+    processXpAndStreak(userText === targetText)
   }
 
   const handleSubmitEssayAnswer = () => {
     if (isAnswered || !currentQuestion) return
 
     // Sesuai perilaku lama: essay mendapatkan XP berbasis usaha.
-    processXpAndStreak(true, userAnswer)
+    processXpAndStreak(true)
   }
 
   const handleNextQuestion = () => {
-  let nextCurrentIndex = currentIndex
-  let nextSkippedIds = skippedQuestionIds
-  let nextReviewingSkipped = isReviewingSkipped
-  let nextReviewIndex = reviewIndex
-
   if (isReviewingSkipped) {
     if (!currentQuestion?.id) return
 
-    nextSkippedIds = skippedQuestionIds.filter((id) => id !== currentQuestion.id)
-    nextReviewIndex = 0
-    setSkippedQuestionIds(nextSkippedIds)
+    setSkippedQuestionIds((previous) =>
+      previous.filter((id) => id !== currentQuestion.id)
+    )
     setReviewIndex(0)
   } else if (currentIndex < questions.length - 1) {
-    nextCurrentIndex = currentIndex + 1
-    setCurrentIndex(nextCurrentIndex)
+    setCurrentIndex((previous) => previous + 1)
   } else if (skippedQuestionIds.length > 0) {
-    nextReviewingSkipped = true
-    nextReviewIndex = 0
     setIsReviewingSkipped(true)
     setReviewIndex(0)
   } else {
@@ -594,28 +475,10 @@ const handleCheckMatrixAnswer = () => {
   setUserAnswer(null)
   setIsCorrect(false)
   setConfigurationError('')
-
-  const nextProgress = {
-    ...progressRef.current,
-    currentIndex: nextCurrentIndex,
-    skippedQuestionIds: nextSkippedIds,
-    isReviewingSkipped: nextReviewingSkipped,
-    reviewIndex: nextReviewIndex,
-    userAnswer: null,
-    isAnswered: false,
-    isCorrect: false,
-  }
-  progressRef.current = nextProgress
-  void persistAttemptProgress(nextProgress)
 }
 
   const handleSkipQuestion = () => {
   if (isAnswered || !currentQuestion?.id) return
-
-  let nextCurrentIndex = currentIndex
-  let nextSkippedIds = skippedQuestionIds
-  let nextReviewingSkipped = isReviewingSkipped
-  let nextReviewIndex = reviewIndex
 
   setStreakCount(0)
   setUserAnswer(null)
@@ -630,52 +493,23 @@ const handleCheckMatrixAnswer = () => {
     setSkippedQuestionIds(nextSkippedIds)
 
     if (currentIndex < questions.length - 1) {
-      nextCurrentIndex = currentIndex + 1
-      setCurrentIndex(nextCurrentIndex)
+      setCurrentIndex((previous) => previous + 1)
     } else {
-      nextReviewingSkipped = true
-      nextReviewIndex = 0
       setIsReviewingSkipped(true)
       setReviewIndex(0)
     }
 
-    const nextProgress = {
-      ...progressRef.current,
-      currentIndex: nextCurrentIndex,
-      skippedQuestionIds: nextSkippedIds,
-      isReviewingSkipped: nextReviewingSkipped,
-      reviewIndex: nextReviewIndex,
-      streakCount: 0,
-      userAnswer: null,
-      isAnswered: false,
-      isCorrect: false,
-    }
-    progressRef.current = nextProgress
-    void persistAttemptProgress(nextProgress)
     return
   }
 
   // Saat putaran soal tertunda, pindahkan soal yang dilewati
   // ke urutan paling belakang jika masih ada soal tertunda lainnya.
   if (skippedQuestionIds.length > 1) {
-  nextSkippedIds = [
-    ...skippedQuestionIds.filter((id) => id !== currentQuestion.id),
+  setSkippedQuestionIds((previous) => [
+    ...previous.filter((id) => id !== currentQuestion.id),
     currentQuestion.id,
-  ]
-  nextReviewIndex = 0
-  setSkippedQuestionIds(nextSkippedIds)
+  ])
   setReviewIndex(0)
-  const nextProgress = {
-    ...progressRef.current,
-    skippedQuestionIds: nextSkippedIds,
-    reviewIndex: 0,
-    streakCount: 0,
-    userAnswer: null,
-    isAnswered: false,
-    isCorrect: false,
-  }
-  progressRef.current = nextProgress
-  void persistAttemptProgress(nextProgress)
 } else {
   setConfigurationError(
     'Soal ini masih tertunda. Kamu bisa mencoba menjawabnya atau memilih Selesai & Ambil XP.'
@@ -683,69 +517,11 @@ const handleCheckMatrixAnswer = () => {
 }
 }
 
-  const handleSaveAndExit = async () => {
-    if (!attemptId || isSavingAndExit || isFinishing) {
-      if (!attemptId) router.push('/practice')
-      return
-    }
-
-    setIsSavingAndExit(true)
-    const latestProgress = {
-      ...progressRef.current,
-      currentIndex,
-      skippedQuestionIds,
-      isReviewingSkipped,
-      reviewIndex,
-      userAnswer,
-      isAnswered,
-      isCorrect,
-      streakCount,
-      answeredCount,
-      correctCount,
-      totalXpEarned,
-      streakXp: streakXpRef.current,
-    }
-    progressRef.current = latestProgress
-    const saved = await persistAttemptProgress(latestProgress)
-    setIsSavingAndExit(false)
-
-    if (!saved) {
-      alert('Progres belum berhasil disimpan. Periksa koneksi lalu coba lagi.')
-      return
-    }
-
-    router.push('/practice')
-  }
-
   const handleFinishQuiz = async () => {
     if (!attemptId || finishStartedRef.current || isFinishing) return
 
     finishStartedRef.current = true
     setIsFinishing(true)
-
-    const latestProgress = {
-      ...progressRef.current,
-      currentIndex,
-      skippedQuestionIds,
-      isReviewingSkipped,
-      reviewIndex,
-      userAnswer,
-      isAnswered,
-      isCorrect,
-      streakCount,
-      answeredCount,
-      correctCount,
-      totalXpEarned,
-      streakXp: streakXpRef.current,
-    }
-    progressRef.current = latestProgress
-    const saved = await persistAttemptProgress(latestProgress)
-    if (!saved) {
-      alert('Progres belum berhasil disimpan. Silakan coba lagi.')
-      finishStartedRef.current = false
-      setIsFinishing(false)
-      return
-    }
 
     const supabase = createClient()
 
@@ -815,14 +591,12 @@ const handleCheckMatrixAnswer = () => {
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
       <header className="bg-slate-900 text-white px-6 py-3.5 flex justify-between items-center shadow-md">
         <div className="flex items-center space-x-3">
-          <button
-            type="button"
-            onClick={handleSaveAndExit}
-            disabled={isSavingAndExit || isFinishing}
-            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl"
+          <Link
+            href="/practice"
+            className="px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl"
           >
-            {isSavingAndExit ? 'Menyimpan...' : '💾 Simpan & Keluar'}
-          </button>
+            ← Keluar
+          </Link>
 
           <div>
             <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold">
@@ -856,12 +630,6 @@ const handleCheckMatrixAnswer = () => {
 
       <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6">
         <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
-          {isResumedSession && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800">
-              Sesi sebelumnya dipulihkan. Lanjutkan dari progres terakhir.
-            </div>
-          )}
-
           <div className="flex justify-between items-center border-b pb-3">
             <div>
               <span className="font-bold text-slate-800 text-xs">
@@ -1140,14 +908,6 @@ const handleCheckMatrixAnswer = () => {
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-  <button
-    type="button"
-    onClick={handleSaveAndExit}
-    disabled={isSavingAndExit || isFinishing}
-    className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 disabled:opacity-50"
-  >
-    {isSavingAndExit ? 'Menyimpan progres...' : '💾 Simpan & Keluar'}
-  </button>
   {!isAnswered && (
     <button
       onClick={handleSkipQuestion}
