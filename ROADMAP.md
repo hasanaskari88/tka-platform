@@ -182,3 +182,13 @@ File `app/admin/page.tsx` Preview telah dibandingkan dengan Production pada 10 N
 - Build Preview untuk commit `0c008ba0a1c52a5326c2ef64d746f330a24e8918` berstatus READY (deployment `dpl_Dd5XveAWQrPnon4hjiLbY8FtATpV`).
 - QA browser masih menunggu konfirmasi pengguna. Batch 1 belum dianggap lulus QA dan belum menjadi kandidat rilis Production.
 - Rincian file, commit, koreksi build, dan checklist QA tetap diarsipkan pada `homepage-arcade-catalog/ROADMAP.md`.
+
+
+## Penilaian kandidat rilis Preview — 10 November 2026
+
+- Audit terbaru membandingkan `main` dengan `homepage-arcade-catalog`: branch diverged, Preview 193 commit ahead dan 5 commit behind; terdapat 31 file berbeda pada snapshot audit.
+- Tidak ada merge/push ke Production yang dilakukan. Batch 1 Dashboard Admin + Live Monitor masih menunggu QA browser dan belum siap dirilis.
+- Homepage, Admin, dan Practice mungkin dirilis bertahap, tetapi merge seluruh branch Preview tidak aman. Homepage bergantung pada perubahan CSS global; Admin Preview jauh lebih ringkas daripada Admin Production sehingga fitur Production harus direkonsiliasi; Practice bergantung pada halaman detail, mesin game, dan migration/RPC progres Practice.
+- Migration `20261108000100_practice_attempt_progress.sql` belum ada di Main dan mengubah kolom serta RPC terkait progres/XP. Tidak boleh diterapkan di Production tanpa audit dan persetujuan database terpisah.
+- Rekomendasi: siapkan kandidat terpisah untuk (A) Homepage + CSS terpilih, (B) Admin hasil rekonsiliasi fitur Production, dan (C) Practice sebagai paket frontend/backend yang ditinjau tersendiri. Rekonsiliasi 5 commit Main yang tertinggal sebelum menyiapkan merge.
+- Rincian file, SHA, dependensi, dan risiko dicatat pada `homepage-arcade-catalog/ROADMAP.md`. Status Production dan database tidak berubah.
