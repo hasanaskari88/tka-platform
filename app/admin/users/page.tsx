@@ -265,7 +265,7 @@ function AdminUsersContent() {
 
     try {
       const lines = bulkInputText
-        .split(/\\r?\\n/)
+        .split(/\r?\n/)
         .map((line) => line.trim())
         .filter(Boolean)
       const users: any[] = []
