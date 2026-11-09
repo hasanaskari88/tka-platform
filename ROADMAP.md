@@ -782,3 +782,35 @@ File yang diperiksa: `app/admin/page.tsx` — SHA `e083d220d953488cd78737e08f2d5
 Jangan mengubah Batch 1 yang sudah build READY hanya untuk mengganti bentuk kontrol. Simpan item ini di backlog Batch 2 dan putuskan bersama usulan dashboard lain setelah inventaris terkumpul. Prioritas rendah-menengah: fungsi filter sudah tersedia dan berjalan sebagai tombol; perubahan dropdown hanya mengubah cara memilih kategori.
 
 **Batas inventaris:** pemeriksaan dilakukan pada file GitHub Preview. Tidak mengklaim telah memeriksa perubahan lokal Codespace. Tidak ada perubahan kode, database, konfigurasi, deployment, atau Production.
+
+
+## Penilaian kandidat rilis ke Production — Homepage, Admin, dan Practice (10 November 2026)
+
+**Status:** audit awal selesai; belum disetujui untuk merge/push ke `main`. Tidak ada kode aplikasi, database, konfigurasi, atau deployment yang diubah dalam penilaian ini.
+
+### Snapshot branch terbaru
+- `main` dan `homepage-arcade-catalog` berstatus **diverged**.
+- Preview: **193 commit ahead, 5 commit behind** dari `main` pada saat audit.
+- Perbandingan menampilkan 31 file berbeda (termasuk roadmap dan migration). Karena branch menyimpang cukup jauh, merge seluruh branch Preview tidak aman sebagai cara merilis tiga halaman.
+- Lima commit Production yang belum ada di Preview wajib direkonsiliasi sebelum merge; jangan menganggap Preview otomatis berisi semua perbaikan Production.
+
+### Audit kandidat file dan dependensi
+
+| Area kandidat | Perbedaan terverifikasi | Dependensi/risiko | Rekomendasi |
+|---|---|---|---|
+| Homepage `app/page.tsx` | Main 48,477 karakter; Preview 69,698. Import langsung relatif sederhana, tetapi Preview memakai `app/globals.css` yang juga berbeda besar (Main 2,654; Preview 18,387 karakter). | CSS global dapat memengaruhi seluruh situs, bukan homepage saja. Perlu petakan class/token yang dipakai homepage dan halaman lain sebelum menyalin CSS. | Bisa menjadi kandidat rilis tersendiri setelah ekstraksi CSS terpakai dan QA homepage + halaman lain yang terdampak. Jangan salin global CSS secara membabi buta. |
+| Admin `app/admin/page.tsx` | Main 82,037 karakter; Preview 31,193 karakter. Preview dashboard berbeda jauh dan jauh lebih ringkas. | Risiko fitur Production yang sudah ada (CMS/modal, subtest, author display, dan pintasan pengelolaan) tertimpa atau hilang bila file Preview menggantikan file Main. Batch 1 dashboard/monitor hanya mengubah file Preview ini dan halaman monitor. | Jangan replace file Production dengan versi Preview. Lakukan rekonsiliasi fitur satu per satu, pertahankan kemampuan Production, lalu terapkan peningkatan Batch 1 secara selektif. |
+| Practice hub `app/practice/page.tsx` | Main 26,199 karakter; Preview 40,426 karakter. | Halaman detail `app/practice/[id]/page.tsx` juga berbeda (Main 29,737; Preview 37,745), dan memanggil RPC `start_practice_attempt`. Mesin Flashcard juga memanggil RPC `start_practice_attempt` dan `finish_practice_attempt`. | Tidak aman merilis hub saja. Perlu satu paket Practice terkoordinasi dengan halaman detail dan komponen game yang memang diperlukan. |
+| Komponen game | `FlashcardEngine.tsx`: Main 8,072; Preview 12,971. `MazeGameEngine.tsx`: Main 23,515; Preview 27,622. | Keduanya memiliki perubahan perilaku; bukan sekadar tampilan. | Masukkan hanya jika fitur Practice Preview yang dirilis memerlukannya, dan uji alur lengkap Maze/Flashcard. |
+| Migration progres Practice | Preview menambahkan `20261108000100_practice_attempt_progress.sql`; tidak ada di Main. | Menambah kolom progres/XP dan membuat RPC `start_practice_attempt`, `save_practice_attempt_progress`, `finish_practice_attempt`. Ini perubahan database/XP yang berdampak pada data dan fungsi. | Migration adalah gerbang rilis tersendiri: audit SQL, pastikan status database target, rencana rollback/kompatibilitas, dan minta persetujuan eksplisit sebelum menjalankan di Production. Jangan menganggap merge file migration otomatis menjalankannya. |
+
+### Kesimpulan rilis
+1. **Batch 1 Dashboard Admin + Live Monitor belum selesai QA dan belum siap Production.** Build Preview READY, tetapi QA browser pengguna belum dicatat selesai.
+2. Homepage, Admin Page, dan Practice Page dapat dirilis ke Production secara bertahap, tetapi **tidak aman dengan merge seluruh branch Preview** dan tidak aman pula dengan menyalin tiga file halaman secara terpisah.
+3. Rekomendasi pemecahan kandidat: (A) Homepage + CSS terpilih setelah audit dampak; (B) Admin dengan rekonsiliasi fitur Production dan peningkatan dashboard/monitor; (C) Practice sebagai paket frontend + RPC/migration yang ditinjau terpisah.
+4. Sebelum membuat kandidat merge, rekonsiliasi 5 commit Main yang tertinggal, audit seluruh file pendukung, bandingkan behavior Main vs Preview, dan jalankan build serta QA regresi yang sesuai.
+5. Tidak ada PR, cherry-pick, merge, push ke Main, migration, atau deployment Production yang dilakukan.
+
+### Persetujuan yang masih diperlukan
+- Persetujuan eksplisit untuk pekerjaan persiapan kandidat rilis (tanpa merge) dapat diberikan per area.
+- Persetujuan terpisah wajib diminta sebelum merge/push ke `main` dan sebelum perubahan database/migration Production.
