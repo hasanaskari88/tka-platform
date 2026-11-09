@@ -630,3 +630,67 @@ Pemeriksaan ini dilanjutkan langsung dari struktur file GitHub Preview setelah e
 **Batch:** file ini memang bagian **Batch 1: Dashboard Admin dan Live Monitor**. Arah Batch 1 sebaiknya memprioritaskan keterbacaan, ringkasan, navigasi, dan informasi tindak lanjut tanpa mengubah aksi proktor, perhitungan timer, force submit, reset, maupun alur CBT. Temuan data/query dan fitur tambah waktu dicatat untuk audit/perbaikan terpisah jika diperlukan.
 
 **QA:** audit statis GitHub saja; tidak menjalankan Live Monitor, tidak melakukan pause/resume/force submit/reset, tidak menguji refresh terhadap database, dan tidak mengubah kode maupun database. QA runtime tetap menunggu implementasi Batch 1 yang disetujui dan hanya perlu menguji perilaku yang benar-benar berubah.
+
+
+## Rancangan pelaksanaan Batch 1 — Dashboard Admin dan Live Monitor (10 November 2026)
+
+**Status:** rancangan siap ditinjau; belum ada persetujuan perubahan kode. Persetujuan pengguna untuk "lanjutkan" pada tahap ini ditafsirkan sebagai melanjutkan penyusunan rencana, bukan izin mengedit aplikasi.
+
+### Baseline yang dipakai
+- Preview dashboard `app/admin/page.tsx`: SHA `5f01d99fda70055b96918f1ed2d6c83e6ab8de87`.
+- Live Monitor `app/admin/exam/[id]/monitor/page.tsx`: SHA `889ea265e9370540ca9b5ef777e1847f868aac74`, identik dengan Production pada snapshot audit.
+- Dashboard Preview sudah memiliki ringkasan angka, ranking, daftar peserta, dan panel `Perlu Ditindaklanjuti`; panel tersebut saat ini menampilkan maksimal 8 item dan semua item diarahkan ke halaman hasil.
+- Data dashboard sudah memuat sesi, metadata paket ujian, jawaban essay, dan profil siswa. Rencana awal memanfaatkan data yang telah tersedia agar tidak perlu menambah query atau mengubah database.
+- Live Monitor sudah memiliki dua mode, filter status/kelas/pencarian, auto-refresh 5 detik, timer 1 detik, statistik, ekspor Excel, dan aksi proktor.
+
+### File yang diusulkan untuk Batch 1
+
+| File | Perubahan yang direncanakan | Klasifikasi | Batasan khusus |
+|---|---|---|---|
+| `app/admin/page.tsx` | Merapikan hierarki bagian dashboard; menambahkan filter kategori pada panel tindak lanjut; menyediakan akses Live Monitor per paket yang memang memiliki sesi ongoing/paused, dengan jumlah status yang bersumber dari data sesi yang sudah dimuat; membedakan tindakan pantau sesi dan penilaian essay | Penting untuk batch aktif | Gunakan state/data yang ada terlebih dahulu; jangan menambah query, mengubah rumus skor/XP, atau mengubah penentuan status sesi tanpa audit dan persetujuan |
+| `app/admin/exam/[id]/monitor/page.tsx` | Merapikan keterbacaan header, ringkasan status, kontrol filter, dan tampilan tabel agar mudah dipakai di desktop maupun layar kecil; memperjelas navigasi kembali ke dashboard/rekap | Penting untuk batch aktif | Pertahankan persis perilaku timer, auto-refresh 5 detik, filter, kalkulasi, ekspor, dan aksi pause/resume/force submit/reset; jangan menambah atau mengaktifkan aksi proktor baru |
+
+### Rincian UX yang diusulkan
+
+**A. Dashboard Admin**
+1. Pertahankan bagian statistik, ranking, peserta, dan pintasan pengelolaan yang telah ada; fokus pada hierarki dan keterbacaan, bukan menghapus fitur.
+2. Panel `Perlu Ditindaklanjuti` memiliki kategori filter: Semua, Sesi belum selesai, dan Essay belum dinilai. Angka kategori dihitung dari `pendingWork` yang sudah dibentuk kode saat ini.
+3. Item yang mempunyai sesi belum selesai menyediakan tautan `Pantau Live` ke `/admin/exam/{examId}/monitor`.
+4. Item yang mempunyai essay belum dinilai menyediakan tautan `Buka Penilaian` ke `/admin/exam/{examId}/results`. Jika kedua kondisi berlaku, kedua tindakan ditampilkan dengan label yang berbeda.
+5. Tambahkan ringkasan `Live Monitor` per paket ujian hanya untuk paket yang memiliki sesi berstatus `ongoing` atau `paused`; tampilkan jumlah sesi aktif dan dipause serta tautan menuju monitor paket tersebut. Sumbernya data `examRows` dan `examMeta` yang sudah tersedia di state, tanpa query tambahan.
+6. Loading, empty state, dan warning yang sudah ada tetap dipertahankan; tidak menutupi pesan kegagalan.
+
+**B. Live Monitor**
+1. Perjelas identitas paket ujian, waktu pembaruan, dan status auto-refresh pada header.
+2. Susun kartu statistik dan filter supaya label mudah dibaca dan kontrol tetap dapat dipakai di layar kecil.
+3. Pertahankan dua mode tampilan: sesi real-time dan ringkasan siswa/multi-attempt.
+4. Pertahankan kolom, data, timer, ekspor, serta semua tombol aksi proktor tanpa mengubah makna atau perilakunya. Perubahan Batch 1 di file ini dibatasi pada tata letak dan keterbacaan.
+5. Tidak menambahkan tombol `Tambah Waktu` pada batch ini. Audit menemukan handler `handleExtendTime` belum terlihat dipanggil dari JSX; perlu keputusan dan QA terpisah sebelum fitur tersebut diaktifkan.
+
+### Di luar cakupan Batch 1
+- Perubahan Supabase schema, RLS, policy, grant, RPC, trigger, atau data.
+- Perubahan query dashboard/monitor, pemilihan kolom, pagination backend, atau strategi refresh.
+- Perubahan scoring, XP, perhitungan KKM 75, status CBT, timer, atau penyimpanan jawaban.
+- Perubahan perilaku pause, resume, force submit, reset sesi, dan tambah waktu.
+- Perbaikan fitur grading/results yang sudah tercatat sebagai audit lanjutan.
+- Integrasi Google Drive.
+- Merge ke `main`, deployment Production, perubahan environment/config, atau pembuatan branch.
+
+### Risiko dan dependensi yang harus dijaga
+- Dashboard membaca `profiles`, `practice_attempts`, `exam_sessions`, `exams`, `questions`, `answers`, `study_materials`, dan `announcements`; jangan mengubah query atau asumsi kompatibilitas kolom `credited_xp` dalam pekerjaan tata letak.
+- Ringkasan sesi mengandalkan `exam_sessions.status`, `exam_id`, `user_id`, dan jawaban essay/teacher_score.
+- Monitor bergantung pada `start_time`, `paused_at`, `paused_duration_seconds`, `extra_time_seconds`, `score`, `total_correct`, dan relasi penghapusan jawaban saat reset.
+- Rute monitor harus selalu menerima ID paket ujian yang benar. Jangan membuat tautan global tanpa exam ID.
+- Perubahan komponen monitor dapat berdampak pada tindakan langsung terhadap peserta ujian; aksi proktor tidak boleh diuji sembarangan pada sesi nyata.
+
+### Rencana QA Preview setelah implementasi disetujui
+1. Build/lint sesuai script yang tersedia; catat hasil nyata, jangan menganggap build lulus sebelum dijalankan.
+2. Dashboard: loading, warning, data kosong, tiga filter kategori, jumlah badge, serta tautan `Pantau Live` dan `Buka Penilaian` menuju ID paket yang benar.
+3. Dashboard: daftar Live Monitor hanya menampilkan paket dengan sesi ongoing/paused; jumlah tiap status cocok dengan data yang terlihat.
+4. Monitor: buka paket uji yang aman; pastikan dua mode, filter status/kelas, pencarian, auto-refresh, dan waktu pembaruan tetap berfungsi.
+5. Pastikan tampilan tabel dan kontrol tetap dapat digunakan pada desktop dan layar kecil.
+6. Jangan melakukan pause/resume/force submit/reset pada sesi siswa nyata. Gunakan paket/sesi uji yang disetujui bila aksi tersebut memang perlu diverifikasi.
+7. QA yang sudah pernah dinyatakan lulus tidak diminta ulang kecuali perubahan baru menyentuh perilaku tersebut.
+
+### Gerbang persetujuan
+Sebelum kode diubah, minta persetujuan eksplisit atas dua file dan ruang lingkup di atas. Jika disetujui, perubahan hanya dilakukan pada branch Preview `homepage-arcade-catalog`; tidak membuat branch baru, tidak menyentuh Production, dan tidak melakukan perubahan database/config. Kode lokal Codespace yang belum diserahkan tetap tidak diasumsikan sama dengan GitHub.
