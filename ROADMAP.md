@@ -814,3 +814,12 @@ Jangan mengubah Batch 1 yang sudah build READY hanya untuk mengganti bentuk kont
 ### Persetujuan yang masih diperlukan
 - Persetujuan eksplisit untuk pekerjaan persiapan kandidat rilis (tanpa merge) dapat diberikan per area.
 - Persetujuan terpisah wajib diminta sebelum merge/push ke `main` dan sebelum perubahan database/migration Production.
+
+
+### Pembaruan snapshot sebelum persiapan Kandidat A — 10 November 2026
+
+- Pemeriksaan ulang setelah pembaruan roadmap menunjukkan branch telah berubah: `homepage-arcade-catalog` sekarang **194 commit ahead dan 6 commit behind** dari `main`; status tetap `diverged`; merge base `9979e3523e3d296d51cb1b650c97e1f9edebac27`.
+- Perbandingan masih menunjukkan 31 file berbeda, termasuk Admin, Practice, CSS global, tiga migration, API, komponen game, dan dokumentasi. Perubahan angka dari snapshot sebelumnya disebabkan commit dokumentasi yang baru masuk ke kedua branch.
+- Kandidat A tetap dibatasi pada Homepage dan dependensi visual yang benar-benar diperlukan. PR langsung dari branch Preview saat ini akan mencakup perubahan lain yang belum disetujui, sehingga **tidak dibuat**.
+- Belum ada branch baru atau PR kandidat karena proses proyek saat ini menetapkan tidak membuat branch baru. Menyiapkan PR terisolasi membutuhkan pengecualian eksplisit untuk membuat branch rilis sementara; alternatif push langsung ke `main` tidak direkomendasikan untuk rilis ini.
+- Tidak ada kode aplikasi, database, deployment, atau konfigurasi Production yang diubah.
