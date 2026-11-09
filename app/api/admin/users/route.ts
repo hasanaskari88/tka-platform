@@ -3,6 +3,7 @@ import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const USERNAME_PATTERN = /^[a-z0-9._-]{2,40}$/
 
 function rejectCrossOriginMutation(request: Request) {
   const origin = request.headers.get('origin')
@@ -34,6 +35,124 @@ async function authorizeMutation(request: Request) {
   return { auth } as const
 }
 
+function parseAllowedAdminIds() {
+  return (process.env.ADMIN_USER_IDS || '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+}
+
+// POST: Buat akun melalui server setelah admin tepercaya terverifikasi.
+export async function POST(req: Request) {
+  try {
+    const authorization = await authorizeMutation(req)
+    if ('response' in authorization) return authorization.response
+
+    const body = await req.json()
+    const username =
+      typeof body.username === 'string'
+        ? body.username.trim().toLowerCase()
+        : ''
+    const fullName =
+      typeof body.fullName === 'string' ? body.fullName.trim() : ''
+    const classCode =
+      typeof body.classCode === 'string'
+        ? body.classCode.trim().toUpperCase()
+        : ''
+    const password = typeof body.password === 'string' ? body.password : ''
+    const role = body.role
+
+    if (!USERNAME_PATTERN.test(username)) {
+      return NextResponse.json(
+        { error: 'Username 2–40 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.' },
+        { status: 400 }
+      )
+    }
+
+    if (!fullName || fullName.length > 150) {
+      return NextResponse.json(
+        { error: 'Nama lengkap wajib diisi dan maksimal 150 karakter.' },
+        { status: 400 }
+      )
+    }
+
+    if (!classCode || classCode.length > 30) {
+      return NextResponse.json(
+        { error: 'Kode kelas wajib diisi dan maksimal 30 karakter.' },
+        { status: 400 }
+      )
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: 'Password minimal 6 karakter.' },
+        { status: 400 }
+      )
+    }
+
+    if (role !== 'student' && role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Role pengguna tidak valid.' },
+        { status: 400 }
+      )
+    }
+
+    const email = `${username}@grisan.com`
+    const { data: created, error: createError } =
+      await authorization.auth.adminClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          username,
+          full_name: fullName,
+          class_code: classCode,
+        },
+      })
+
+    if (createError || !created.user) {
+      return NextResponse.json(
+        { error: createError?.message || 'Akun gagal dibuat.' },
+        { status: 400 }
+      )
+    }
+
+    const { error: profileError } = await authorization.auth.adminClient
+      .from('profiles')
+      .upsert(
+        {
+          id: created.user.id,
+          username,
+          full_name: fullName,
+          class_code: classCode,
+          role,
+          plain_password: password,
+        },
+        { onConflict: 'id' }
+      )
+
+    if (profileError) {
+      await authorization.auth.adminClient.auth.admin.deleteUser(created.user.id)
+      return NextResponse.json(
+        { error: `Akun Auth berhasil dibuat tetapi profil gagal disimpan: ${profileError.message}. Akun Auth sudah dibatalkan.` },
+        { status: 400 }
+      )
+    }
+
+    return NextResponse.json(
+      {
+        message: `Akun @${username} (${role.toUpperCase()}) berhasil dibuat.`,
+        userId: created.user.id,
+      },
+      { status: 201 }
+    )
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Terjadi kesalahan server.'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
 // DELETE: Hapus akun Auth. profiles.id memiliki ON DELETE CASCADE.
 export async function DELETE(req: Request) {
   try {
@@ -57,17 +176,9 @@ export async function DELETE(req: Request) {
       )
     }
 
-    const allowedAdminIds = (process.env.ADMIN_USER_IDS || '')
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean)
-
-    if (allowedAdminIds.includes(userId)) {
+    if (parseAllowedAdminIds().includes(userId)) {
       return NextResponse.json(
-        {
-          error:
-            'Akun admin tepercaya tidak dapat dihapus melalui halaman ini. Perbarui daftar ADMIN_USER_IDS melalui prosedur admin terlebih dahulu.',
-        },
+        { error: 'Akun admin tepercaya tidak dapat dihapus melalui halaman ini.' },
         { status: 400 }
       )
     }
@@ -134,17 +245,9 @@ export async function PUT(req: Request) {
       )
     }
 
-    const allowedAdminIds = (process.env.ADMIN_USER_IDS || '')
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean)
-
-    if (allowedAdminIds.includes(userId) && role !== 'admin') {
+    if (parseAllowedAdminIds().includes(userId) && role !== 'admin') {
       return NextResponse.json(
-        {
-          error:
-            'Role admin tepercaya tidak dapat diturunkan melalui halaman ini. Perbarui daftar ADMIN_USER_IDS melalui prosedur admin terlebih dahulu.',
-        },
+        { error: 'Role admin tepercaya tidak dapat diturunkan melalui halaman ini.' },
         { status: 400 }
       )
     }
@@ -156,13 +259,22 @@ export async function PUT(req: Request) {
       )
     }
 
+    const updates: {
+      full_name: string
+      class_code: string
+      role: 'student' | 'admin'
+      plain_password?: string
+    } = {
+      full_name: fullName,
+      class_code: classCode,
+      role,
+    }
+
+    if (newPassword) updates.plain_password = newPassword.trim()
+
     const { error: profileError } = await authorization.auth.adminClient
       .from('profiles')
-      .update({
-        full_name: fullName,
-        class_code: classCode,
-        role,
-      })
+      .update(updates)
       .eq('id', userId)
 
     if (profileError) {
