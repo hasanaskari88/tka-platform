@@ -1,6 +1,6 @@
 # ROADMAP TKA PLATFORM — SUMBER STATUS UTAMA
 
-Pembaruan: 9 November 2026  
+Pembaruan: 10 November 2026  
 Repository: `hasanaskari88/tka-platform`  
 Branch pengembangan/Preview: `homepage-arcade-catalog`  
 Branch Production: `main`
@@ -22,10 +22,10 @@ Dokumen ini menggantikan checklist lama yang saling bertumpuk. Riwayat QA editor
 
 | Komponen | Kondisi terverifikasi |
 |---|---|
-| Production | `main` — `9979e3523e3d296d51cb1b650c97e1f9edebac27` |
-| Deployment Production | READY — `dpl_3mSqU3a8j2bgcZD7zwSZ3tNa3d1F` |
-| Preview | `homepage-arcade-catalog` — `c5972884d9c8e2b2c2d0d2cffa6d806afa5b5f4e` |
-| Deployment Preview | READY — `dpl_VVx5g4KeAuBmdSicGzbh4gbpueeu` |
+| Production | `main` — `924a1b4895f911f7c4d6307474e79926aef2084e` |
+| Deployment Production | READY — `dpl_4VCs1NvSD5KV9ZuoTnCd3mWsKgkh` |
+| Preview | `homepage-arcade-catalog` — `bb6808251e4477c7a4d5812912b774842ac4271e` |
+| Deployment Preview | Status deployment untuk HEAD terbaru belum diverifikasi |
 | Selisih branch | Preview berada di depan `main`, 0 commit di belakang (jumlah commit tidak dijadikan ukuran kesiapan rilis) |
 | Pull Request | PR #2 masih OPEN; metadata `mergeable` berubah antara `true` dan `false` pada pembacaan berurutan. Status mergeability dianggap belum pasti dan harus diperiksa kembali setelah ruang lingkup kode ditetapkan. |
 | Perbedaan file | 29 file berubah pada perbandingan `main...homepage-arcade-catalog` |
@@ -155,3 +155,57 @@ Tidak ada perubahan pada:
 - database, schema, migration, RLS, policy, grant, function, trigger, atau data siswa;
 - environment variable, token Google Drive, maupun akun pengguna;
 - kode aplikasi pada pembaruan roadmap ini.
+
+
+## 9. Pembaruan keputusan — 10 November 2026
+
+### Catatan sistem roadmap (tetap satu sumber per jalur)
+
+- Dokumen ini adalah **satu-satunya catatan pengembangan untuk jalur Preview** pada branch `homepage-arcade-catalog`.
+- `main` memiliki satu `ROADMAP.md sendiri untuk status Production. Kedua dokumen memakai nama dan struktur yang sama, tetapi isinya mengikuti fungsi branch masing-masing.
+- Jangan membuat roadmap/checklist baru per fitur, per batch, atau per branch tambahan. Catatan teknis lama seperti `docs/EDITOR-CHANGELOG.md` tetap arsip riwayat, bukan roadmap kedua.
+- Setiap file Codespace yang dikirim pengguna dicatat di bagian inventaris/backlog dokumen ini: tujuan, status penting/tidak, keputusan (masuk batch/ditunda/jangan diubah), dependensi, dan risiko. Pengiriman kode bukan izin untuk mengubahnya.
+- Perbarui roadmap setelah ada keputusan baru, hasil pemeriksaan file, hasil QA pengguna, perubahan status Preview/Production, dan sebelum/sesudah evaluasi rilis. Jangan meminta pengguna mengulang informasi yang sudah tercatat.
+
+### Batch produksi pertama — Dashboard Admin dan Live Monitor
+
+**Prioritas aktif.** Tujuan awal adalah menyelesaikan inventaris perubahan lokal Codespace, lalu menilai perubahan dashboard dan pemantauan ujian sebagai satu paket Preview yang terarah.
+
+Batas cakupan awal:
+- Penyempurnaan dashboard admin dan ringkasan tindak lanjut.
+- Informasi sesi ujian yang belum selesai dan essay yang belum dinilai, jika memang sudah ada dalam perubahan lokal dan query-nya aman.
+- Filter kategori serta akses cepat ke Live Monitoring.
+- Utamakan UI/navigasi. Jangan memperluas ke perubahan skema, RLS, RPC, XP, penilaian, atau alur CBT tanpa temuan dan persetujuan khusus.
+- Jangan menimpa perubahan Codespace yang belum direkonsiliasi.
+
+Urutan kerja:
+1. Terima dan catat file lokal satu per satu; jangan mengubahnya.
+2. Setelah inventaris cukup, bandingkan dengan Preview dan tetapkan isi Batch 1.
+3. Tinjau dampak, dependensi, dan risiko; minta persetujuan sebelum implementasi.
+4. Siapkan satu kandidat Preview, build, lalu uji bagian yang berubah.
+5. Catat hasil dan putuskan batch berikutnya. Production tetap menunggu persetujuan rilis tersendiri.
+
+### Inventaris file masuk — `components/BulkUploadModal.tsx`
+
+| Bagian | Penilaian awal | Keputusan |
+|---|---|---|
+| Import Excel/XLSX/CSV | Fungsi inti impor | Pertahankan; bukan fokus Batch 1 |
+| Import Aiken TXT | Fungsi inti impor | Pertahankan; bukan fokus Batch 1 |
+| Import Moodle XML | Fungsi inti impor | Pertahankan; bukan fokus Batch 1 |
+| Import JSON | Fungsi inti impor | Pertahankan; bukan fokus Batch 1 |
+| DOCX dipilih lalu ditolak | Dinonaktifkan secara sengaja menurut konfirmasi pengguna | **Jangan diaktifkan atau dianggap bug** |
+| Parser DOCX, pemeriksaan OMML, dan upload gambar Word | Kode tersisa untuk rencana/fitur DOCX; belum menjadi pekerjaan aktif | Catat untuk audit batch import di kemudian hari |
+| Template dan preview impor | Pendukung alur impor | Pertahankan; evaluasi saat batch import dibuka |
+
+Catatan penting: meskipun parser DOCX dan fungsi upload gambar masih ada di file, handler pemilihan file memang menolak DOCX. Ini keputusan produk yang disengaja. Tidak ada perubahan kode yang dilakukan pada file ini.
+
+### Status CBT Production
+
+- [x] Perbaikan pemulihan sesi CBT telah masuk ke `main` pada commit `924a1b4895f911f7c4d6307474e79926aef2084e`.
+- [x] Deployment Production berstatus READY.
+- [x] Pengguna mengonfirmasi pengujian selesai: sesi normal dan jawaban tidak hilang.
+- [x] CBT tidak perlu diubah lagi tanpa bukti masalah baru.
+
+### Keputusan prioritas saat ini
+
+**Lanjutkan Batch 1 — Dashboard Admin dan Live Monitor.** File `BulkUploadModal.tsx` sudah diinventarisasi tetapi bukan prioritas sekarang. Jangan mengubah DOCX. Tidak ada kode aplikasi, database, atau konfigurasi yang diubah dalam pembaruan catatan ini.
