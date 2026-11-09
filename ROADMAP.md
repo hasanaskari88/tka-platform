@@ -747,3 +747,38 @@ Sebelum kode diubah, minta persetujuan eksplisit atas dua file dan ruang lingkup
 - Preview URL: https://grisan-git-homepage-arcade-catalog-heins14.vercel.app/
 - Deployment ID: `dpl_Dd5XveAWQrPnon4hjiLbY8FtATpV` (READY).
 - Status Batch 1: **build lulus; QA browser belum selesai; belum siap diminta rilis Production**.
+
+
+## Inventaris usulan UI dropdown dashboard — 10 November 2026
+
+**Status:** usulan/backlog saja. Belum disetujui untuk implementasi dan tidak ada kode aplikasi yang diubah dalam inventaris ini.
+
+### Temuan pada kode Preview terbaru
+
+File yang diperiksa: `app/admin/page.tsx` — SHA `e083d220d953488cd78737e08f2d5373d2c0f6b0`.
+
+- Panel `Perlu Ditindaklanjuti` yang baru masuk Batch 1 memakai tiga tombol kategori: `Semua`, `Sesi belum selesai`, dan `Essay belum dinilai`. Tidak memakai elemen dropdown.
+- Dashboard sebenarnya sudah mempunyai beberapa dropdown di bagian lain: lingkup ranking, paket ranking, kelas, tipe aktivitas, filter kelas daftar siswa, urutan/sortir, dan jumlah baris per halaman.
+- Jadi temuan ini bukan ketiadaan dropdown secara umum; yang belum ada adalah dropdown khusus untuk mengganti tiga kategori pada panel `Perlu Ditindaklanjuti`.
+- Live Monitor sudah mempunyai dropdown untuk filter status dan kelas.
+
+### Usulan item
+
+| Field | Catatan |
+|---|---|
+| File | `app/admin/page.tsx` |
+| Tujuan file/area | Panel tindak lanjut dashboard admin; memilih kategori pekerjaan yang ditampilkan |
+| Temuan | Tiga tombol kategori berfungsi sebagai filter, tetapi bukan dropdown |
+| Klasifikasi | Peningkatan UX / kosmetik-terarah; bukan blocker fungsi |
+| Alasan | Dropdown dapat menghemat ruang, terutama pada layar sempit; tombol saat ini lebih mudah terlihat dan cepat dipilih pada desktop |
+| Arah implementasi | Evaluasi kontrol responsif: tombol/segmented control tetap pada desktop dan dropdown dengan label serta jumlah item pada layar kecil, atau dropdown tunggal jika hasil uji menunjukkan lebih sederhana. Jangan mengubah logika filter, sumber hitungan, tautan, atau data |
+| Dependensi | State `pendingFilter` dan data `pendingWork` yang sudah ada; tidak perlu query baru atau perubahan database |
+| Risiko | Jangan membuat dua kontrol yang membingungkan atau state tidak sinkron; pastikan label/jumlah kategori konsisten dan aksesibilitas keyboard tetap baik |
+| Kelompok batch | **Usulan Batch 2 — Penyempurnaan UX Dashboard Admin**, digabung dengan permintaan UI dashboard lain jika muncul; tidak perlu batch mandiri |
+| Persetujuan | Persetujuan kode diperlukan sebelum implementasi. Tidak ada persetujuan yang diberikan pada tahap inventaris ini |
+
+### Rekomendasi keputusan
+
+Jangan mengubah Batch 1 yang sudah build READY hanya untuk mengganti bentuk kontrol. Simpan item ini di backlog Batch 2 dan putuskan bersama usulan dashboard lain setelah inventaris terkumpul. Prioritas rendah-menengah: fungsi filter sudah tersedia dan berjalan sebagai tombol; perubahan dropdown hanya mengubah cara memilih kategori.
+
+**Batas inventaris:** pemeriksaan dilakukan pada file GitHub Preview. Tidak mengklaim telah memeriksa perubahan lokal Codespace. Tidak ada perubahan kode, database, konfigurasi, deployment, atau Production.
