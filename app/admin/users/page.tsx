@@ -31,6 +31,9 @@ function AdminUsersContent() {
 
   // State Checkbox Seleksi Cetak
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [printUsers, setPrintUsers] = useState<any[]>([])
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [shouldPrint, setShouldPrint] = useState(false)
 
   // State Form Tambah User
   const [newUsername, setNewUsername] = useState('')
@@ -71,7 +74,7 @@ function AdminUsersContent() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, username, full_name, class_code, role')
       .order('class_code', { ascending: true })
       .order('full_name', { ascending: true })
 
@@ -82,6 +85,22 @@ function AdminUsersContent() {
   useEffect(() => {
     fetchUsers()
   }, [])
+
+  useEffect(() => {
+    if (!shouldPrint || printUsers.length === 0) return
+
+    const handleAfterPrint = () => setPrintUsers([])
+    window.addEventListener('afterprint', handleAfterPrint)
+    const timeoutId = window.setTimeout(() => {
+      window.print()
+      setShouldPrint(false)
+    }, 150)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.removeEventListener('afterprint', handleAfterPrint)
+    }
+  }, [shouldPrint, printUsers])
 
   // 1. Ekstraksi Daftar Kelas Unik
   const classList = Array.from(
@@ -338,14 +357,37 @@ function AdminUsersContent() {
     }
   }
 
-  const handleTriggerPrint = () => {
+  const handleTriggerPrint = async () => {
     if (selectedUserIds.length === 0) {
       return alert('Pilih setidaknya satu siswa menggunakan checkbox untuk dicetak!')
     }
-    window.print()
-  }
 
-  const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
+    setIsPrinting(true)
+    try {
+      const response = await fetch('/api/admin/users/print-cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ userIds: selectedUserIds }),
+      })
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Data kartu gagal disiapkan.')
+      }
+
+      if (!Array.isArray(result.users) || result.users.length === 0) {
+        throw new Error('Tidak ada data kartu yang dapat dicetak.')
+      }
+
+      setPrintUsers(result.users)
+      setShouldPrint(true)
+    } catch (error: any) {
+      alert(error.message || 'Gagal menyiapkan kartu cetak.')
+    } finally {
+      setIsPrinting(false)
+    }
+  }
 
   // 🎨 PEMETAAN TEMA KARTU UJIAN DINAMIS & PRESISI
   const cardThemeMap: Record<string, ThemeCardConfig> = {
@@ -480,7 +522,7 @@ function AdminUsersContent() {
 
             <button
               onClick={handleTriggerPrint}
-              disabled={selectedUserIds.length === 0}
+              disabled={selectedUserIds.length === 0 || isPrinting}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 ${
                 selectedUserIds.length > 0
                   ? 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'
@@ -489,7 +531,7 @@ function AdminUsersContent() {
               suppressHydrationWarning
             >
               <span>🖨️</span>
-              <span>Cetak {selectedUserIds.length} Kartu Selected</span>
+              <span>{isPrinting ? 'Menyiapkan Kartu...' : `Cetak ${selectedUserIds.length} Kartu Selected`}</span>
             </button>
 
             <Link
@@ -939,12 +981,8 @@ function AdminUsersContent() {
       {/* 🖨️ AREA CETAK KARTU GABUNGAN MODEL MODERN + TEMA DINAMIS (15 KARTU PER HALAMAN A4) */}
       <div id="print-area" className="hidden print:block">
         <div className="grid grid-cols-3 gap-2">
-          {selectedUserObjects.map((user, idx) => {
-            const realPassword =
-              user.plain_password ||
-              user.password ||
-              user.user_password ||
-              '******'
+          {printUsers.map((user, idx) => {
+            const realPassword = user.plain_password || '******'
 
             return (
               <div
