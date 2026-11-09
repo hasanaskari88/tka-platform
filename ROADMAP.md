@@ -197,3 +197,63 @@ G. **Google Drive OAuth Preview:** tetap ditunda sampai isolasi aman tanpa biaya
 ### Batas audit ini
 
 Pemeriksaan GitHub, isi file, riwayat PR, deployment, dan build log dilakukan secara read-only. Satu-satunya perubahan yang dibuat adalah penambahan file `ROADMAP.md` pada branch `homepage-arcade-catalog`. Tidak ada perubahan `main`, database, data siswa, token Google Drive, environment variable, atau deployment Production.
+
+
+## Persetujuan pemilik proyek dan progres lanjutan — 9 November 2026
+
+### Keputusan yang telah dikonfirmasi
+
+- [x] K1 — Perbaikan keamanan kode disetujui, terbatas pada branch khusus, tanpa SQL dan tanpa merge Production.
+- [x] K2 — Flashcard/Maze tetap dibekukan; perubahan yang sudah ada harus diaudit dahulu.
+- [x] K3 — SQL/RLS hanya direview dan disiapkan; tidak boleh dieksekusi.
+- [x] K4 — PR #2 tetap terbuka; tidak boleh merge.
+- [x] K5 — Google Drive Preview OAuth tetap ditunda.
+
+### Branch keamanan
+
+- [x] Dibuat branch `security-hardening-admin-api` dari Preview commit `b64a9122`.
+- [x] Ditambahkan helper `lib/supabase/trusted-admin.ts`.
+- [x] Helper memverifikasi sesi server dengan `auth.getUser()`, lalu memeriksa UUID terhadap allowlist server-only `ADMIN_USER_IDS`.
+- [x] Otorisasi endpoint tidak lagi bergantung pada `profiles.role` yang sedang diaudit.
+- [x] Jika allowlist kosong, akses admin API ditolak (fail closed).
+- [x] Service-role client hanya dibuat setelah admin lolos verifikasi; fallback ke anon key dihapus.
+- [x] PUT/DELETE API diberi pemeriksaan same-origin, validasi input, pencegahan self-delete, dan perlindungan akun allowlist.
+- [x] Ditambahkan POST server-side untuk pembuatan akun; halaman UI admin belum diintegrasikan ke POST tersebut.
+- [x] Password dan `plain_password` disiapkan untuk diperbarui melalui server endpoint, bukan lewat browser, tetapi penghapusan jalur client-side pada halaman admin belum selesai.
+- [x] Foreign key `profiles.id_fkey` diverifikasi memiliki ON DELETE CASCADE.
+- [ ] Konfigurasi Vercel `ADMIN_USER_IDS` belum dibuat. Jangan memasukkan semua UUID dengan `profiles.role='admin'` secara otomatis; daftar itu harus diverifikasi pemilik proyek karena sumber role saat ini belum aman.
+- [ ] Integrasikan `app/admin/users/page.tsx` ke POST dan hapus update `plain_password` dari browser. Percobaan edit file UI melalui GitHub ditolak pemeriksaan keselamatan tool; file UI belum berubah.
+- [ ] Audit dan pindahkan bulk import akun ke endpoint server.
+- [ ] Verifikasi helper dan route pada build terbaru.
+- [ ] Uji akses anonymous, student, UUID non-allowlist, dan admin allowlist setelah allowlist diverifikasi dan dikonfigurasi.
+- [ ] Audit seluruh route admin yang masih memakai `requireAdmin()` berbasis `profiles.role`.
+
+### Review Flashcard dan Maze (K2)
+
+- [x] Perubahan PR #2 pada `FlashcardEngine.tsx` dan `MazeGameEngine.tsx` dibandingkan dengan `main`.
+- [x] Perubahan menambahkan penyimpanan progres, pemulihan sesi, dan tombol Simpan & Keluar; bukan perubahan pada file `MazeGameV2Engine.tsx`.
+- [x] Flashcard kini memanggil `start_practice_attempt`, `save_practice_attempt_progress`, dan `finish_practice_attempt`.
+- [x] Maze kini memanggil `save_practice_attempt_progress` dan menggunakan RPC attempt.
+- [ ] Migration yang menyediakan `save_practice_attempt_progress` belum diverifikasi pada database dan belum dijalankan.
+- [ ] Uji efek terhadap XP, progres lama, sesi yang ditinggalkan, penyelesaian, dan pemulihan sebelum perubahan engine dipertahankan.
+- [ ] Jangan mengubah atau mengembalikan engine sampai audit dan keputusan berikutnya selesai.
+
+### Review database (K3)
+
+- [x] Tidak ada SQL yang dieksekusi dalam pekerjaan ini.
+- [x] Dibuat dokumen `docs/SECURITY-HARDENING-REVIEW.md` berisi rancangan trigger signup yang selalu menetapkan role student, catatan policy/grants, dan rencana pengujian.
+- [ ] Review fungsi trigger aktual dan seluruh kolom wajib sebelum rancangan menjadi migration.
+- [ ] Buat matriks policy untuk profiles, exams, questions, exam_sessions, answers, announcements, study_materials, practice_attempts, dan tabel terkait.
+- [ ] Siapkan rencana rollback dan database uji terisolasi sebelum meminta persetujuan eksekusi.
+
+### Build Preview keamanan
+
+- [x] Build awal menemukan masalah TypeScript pada tipe client Supabase di helper; masalah tipe telah diperbaiki pada commit berikutnya.
+- [ ] Deployment untuk commit `6221135` sedang BUILDING pada pemeriksaan terakhir.
+- [ ] Deployment untuk commit dokumentasi terakhir `58a6912` masih QUEUED pada pemeriksaan terakhir.
+- [ ] Deployment terbaru harus mencapai READY sebelum QA route.
+- [ ] Build READY bukan bukti keamanan runtime; perlu pengujian role dan endpoint setelah konfigurasi allowlist tersedia.
+
+### Catatan batas perubahan
+
+Semua perubahan kode dan dokumentasi di atas berada pada `security-hardening-admin-api`. Tidak ada perubahan pada `main`, PR #2, Supabase schema/data/policy/function/trigger, Vercel environment variables, token Google Drive, atau Production deployment.
