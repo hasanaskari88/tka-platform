@@ -101,7 +101,7 @@ Project `grisan` menggunakan Git integration. Branch non-production secara defau
 Untuk mengurangi build yang tidak perlu, project setting `Ignored Build Step` telah diatur dengan perintah:
 
 ```sh
-git diff --quiet HEAD^ HEAD -- . ':(exclude)**/*.md' ':(exclude)docs/**'
+changed_files="$(git diff --name-only HEAD^ HEAD)" || exit 2; if printf '%s\n' "$changed_files" | grep -qvE '(^docs/|\.md$)'; then exit 1; else exit 0; fi
 ```
 
 Tujuannya:
