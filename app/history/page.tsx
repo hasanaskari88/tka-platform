@@ -52,10 +52,23 @@ function HistoryContent() {
   const [practiceHistoryList, setPracticeHistoryList] = useState<any[]>([])
   const [subtestStats, setSubtestStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [practiceSearch, setPracticeSearch] = useState('')
+  const [practiceStatus, setPracticeStatus] = useState('all')
+  const [practiceSort, setPracticeSort] = useState('newest')
+  const [practicePageSize, setPracticePageSize] = useState(10)
+  const [practicePage, setPracticePage] = useState(1)
+  const [examSearch, setExamSearch] = useState('')
+  const [examStatus, setExamStatus] = useState('all')
+  const [examSort, setExamSort] = useState('newest')
+  const [examPageSize, setExamPageSize] = useState(10)
+  const [examPage, setExamPage] = useState(1)
 
   // 🖨️ State Modal Cetak
   const [showRaporModal, setShowRaporModal] = useState(false)
   const [selectedCertSession, setSelectedCertSession] = useState<any | null>(null)
+  const [signatories, setSignatories] = useState<any[]>([])
+  const [selectedTeacherId, setSelectedTeacherId] = useState('')
+  const [selectedPrincipalId, setSelectedPrincipalId] = useState('')
 
   // ⚙️ Pengaturan Standar Dokumen Cetak (Diseragamkan dengan Admin)
   const docSettings = {
@@ -108,6 +121,20 @@ function HistoryContent() {
 
     if (profileData) setProfile(profileData)
 
+    // Ambil daftar penandatangan aktif. Siswa hanya memilih guru untuk kelasnya dan kepala sekolah.
+    const { data: signatoryData, error: signatoryError } = await supabase
+      .from('teacher_signatories')
+      .select('id,full_name,position,class_code,nip')
+      .eq('is_active', true)
+    if (signatoryError) console.error('Daftar penandatangan belum tersedia:', signatoryError)
+    if (signatoryData) {
+      setSignatories(signatoryData)
+      const classTeacher = signatoryData.find((item: any) => item.position === 'class_teacher' && item.class_code === profileData?.class_code)
+      const principal = signatoryData.find((item: any) => item.position === 'principal')
+      if (classTeacher) setSelectedTeacherId(classTeacher.id)
+      if (principal) setSelectedPrincipalId(principal.id)
+    }
+
     const { data: sessionData } = await supabase
       .from('exam_sessions')
       .select('*')
@@ -155,7 +182,7 @@ function HistoryContent() {
         exam_id: session.exam_id,
         exam_title: exam.title,
         subtest: exam.subtest || 'UMUM',
-        score: Math.round(Number(session.score) || 0),
+        score: Math.round(Number(session.score_override ?? session.score) || 0),
         status: session.status || 'completed',
         completed_at: finishDate,
         show_results: exam.show_results ?? true,
@@ -217,6 +244,42 @@ function HistoryContent() {
     window.print()
   }
 
+  const filteredPracticeHistory = practiceHistoryList
+    .filter((item) => {
+      const matchesSearch = String(item.exam_title || '').toLowerCase().includes(practiceSearch.toLowerCase())
+      const matchesStatus = practiceStatus === 'all' || item.status === practiceStatus
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      if (practiceSort === 'oldest') return new Date(a.started_at || a.created_at).getTime() - new Date(b.started_at || b.created_at).getTime()
+      if (practiceSort === 'score-high') return Number(b.score || 0) - Number(a.score || 0)
+      if (practiceSort === 'score-low') return Number(a.score || 0) - Number(b.score || 0)
+      return new Date(b.started_at || b.created_at).getTime() - new Date(a.started_at || a.created_at).getTime()
+    })
+  const practicePageCount = Math.max(1, Math.ceil(filteredPracticeHistory.length / practicePageSize))
+  const visiblePracticeHistory = filteredPracticeHistory.slice(
+    (Math.min(practicePage, practicePageCount) - 1) * practicePageSize,
+    Math.min(practicePage, practicePageCount) * practicePageSize
+  )
+
+  const filteredExamHistory = historyList
+    .filter((item) => {
+      const matchesSearch = String(item.exam_title || '').toLowerCase().includes(examSearch.toLowerCase())
+      const matchesStatus = examStatus === 'all' || item.status === examStatus
+      return matchesSearch && matchesStatus
+    })
+    .sort((a, b) => {
+      if (examSort === 'oldest') return new Date(a.completed_at || 0).getTime() - new Date(b.completed_at || 0).getTime()
+      if (examSort === 'score-high') return Number(b.score || 0) - Number(a.score || 0)
+      if (examSort === 'score-low') return Number(a.score || 0) - Number(b.score || 0)
+      return new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
+    })
+  const examPageCount = Math.max(1, Math.ceil(filteredExamHistory.length / examPageSize))
+  const visibleExamHistory = filteredExamHistory.slice(
+    (Math.min(examPage, examPageCount) - 1) * examPageSize,
+    Math.min(examPage, examPageCount) * examPageSize
+  )
+
   const completedHistory = historyList.filter((h) => h.status === 'completed')
   const totalCompleted = completedHistory.length
   const totalAllScores = completedHistory.map((h) => h.score)
@@ -225,6 +288,11 @@ function HistoryContent() {
       ? Math.round(totalAllScores.reduce((a, b) => a + b, 0) / totalCompleted)
       : 0
   const overallHighest = totalCompleted > 0 ? Math.max(...totalAllScores) : 0
+
+  const classTeachers = signatories.filter((item) => item.position === 'class_teacher' && item.class_code === profile?.class_code)
+  const principals = signatories.filter((item) => item.position === 'principal')
+  const selectedTeacher = classTeachers.find((item) => item.id === selectedTeacherId) || classTeachers[0]
+  const selectedPrincipal = principals.find((item) => item.id === selectedPrincipalId) || principals[0]
 
   // 🟢 KOMPONEN BLOK TANDA TANGAN KEKINIAN & ADAPTIF
   const DynamicSignatureBlock = ({ studentClass }: { studentClass?: string }) => {
@@ -242,10 +310,10 @@ function HistoryContent() {
           <p className="text-slate-500 font-medium">Guru / Wali Kelas {studentClass || ''},</p>
           <div className="h-16"></div>
           <p className="font-bold text-slate-900 underline decoration-indigo-600 decoration-2">
-            {docSettings.teacherName}
+            {selectedTeacher?.full_name || '....................................'}
           </p>
           <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-            NIP. {docSettings.teacherNip}
+            NIP. {selectedTeacher?.nip || '-'}
           </p>
         </div>
 
@@ -258,10 +326,10 @@ function HistoryContent() {
           </p>
           <div className="h-14"></div>
           <p className="font-bold text-slate-900 underline decoration-amber-600 decoration-2">
-            {docSettings.principalName}
+            {selectedPrincipal?.full_name || '....................................'}
           </p>
           <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-            NIP. {docSettings.principalNip}
+            NIP. {selectedPrincipal?.nip || '-'}
           </p>
         </div>
       </div>
@@ -448,6 +516,19 @@ function HistoryContent() {
     </p>
   </div>
 
+  <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2">
+    <input value={practiceSearch} onChange={(e) => { setPracticeSearch(e.target.value); setPracticePage(1) }} placeholder="Cari nama latihan..." className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
+    <select value={practiceStatus} onChange={(e) => { setPracticeStatus(e.target.value); setPracticePage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+      <option value="all">Semua status</option><option value="completed">Selesai</option><option value="in_progress">Sedang dikerjakan</option><option value="abandoned">Dihentikan</option>
+    </select>
+    <select value={practiceSort} onChange={(e) => { setPracticeSort(e.target.value); setPracticePage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+      <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
+    </select>
+    <select value={practicePageSize} onChange={(e) => { setPracticePageSize(Number(e.target.value)); setPracticePage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+      <option value={10}>10 riwayat / halaman</option><option value={25}>25 riwayat / halaman</option><option value={50}>50 riwayat / halaman</option><option value={100}>100 riwayat / halaman</option>
+    </select>
+  </div>
+
   <div className="overflow-x-auto pt-1">
     <table className="w-full text-left border-collapse text-xs">
       <thead className="bg-slate-100 text-slate-700 font-bold border-b">
@@ -459,15 +540,16 @@ function HistoryContent() {
           <th className="p-3 text-center">Jawaban</th>
           <th className="p-3 text-center">Benar</th>
           <th className="p-3 text-center">Skor</th>
+          <th className="p-3 text-center">Bonus</th>
           <th className="p-3 text-center">Total XP</th>
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {practiceHistoryList.length > 0 ? (
-          practiceHistoryList.map((item, idx) => (
+        {visiblePracticeHistory.length > 0 ? (
+          visiblePracticeHistory.map((item, idx) => (
             <tr key={item.id} className="hover:bg-slate-50">
               <td className="p-3 text-center font-bold text-slate-400">
-                {idx + 1}
+                {(Math.min(practicePage, practicePageCount) - 1) * practicePageSize + idx + 1}
               </td>
               <td className="p-3 font-bold text-slate-800">
                 {item.exam_title}
@@ -507,20 +589,32 @@ function HistoryContent() {
               <td className="p-3 text-center font-bold text-indigo-600">
                 {Number(item.score || 0)}
               </td>
+              <td className="p-3 text-center text-[10px] text-slate-600">
+                <div className="font-semibold text-emerald-700">Pertama: +{item.completion_bonus_xp || 0}</div>
+                <div className="font-semibold text-indigo-700">Peningkatan: +{item.improvement_xp || 0}</div>
+              </td>
               <td className="p-3 text-center font-bold text-amber-600">
-                ⭐ {item.total_xp}
+                ⭐ {item.status === 'completed' ? (item.total_xp || 0) : (item.credited_xp || 0)}
               </td>
             </tr>
           ))
         ) : (
           <tr>
-            <td colSpan={8} className="p-8 text-center text-slate-400">
+            <td colSpan={9} className="p-8 text-center text-slate-400">
               Anda belum memiliki riwayat latihan.
             </td>
           </tr>
         )}
       </tbody>
     </table>
+  </div>
+  <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+    <span>Menampilkan {filteredPracticeHistory.length ? (Math.min(practicePage, practicePageCount) - 1) * practicePageSize + 1 : 0}–{Math.min(practicePage, practicePageCount) * practicePageSize} dari {filteredPracticeHistory.length} riwayat</span>
+    <div className="flex gap-2">
+      <button type="button" disabled={practicePage <= 1} onClick={() => setPracticePage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Sebelumnya</button>
+      <span className="px-2 py-1.5">Halaman {Math.min(practicePage, practicePageCount)} / {practicePageCount}</span>
+      <button type="button" disabled={practicePage >= practicePageCount} onClick={() => setPracticePage((p) => Math.min(practicePageCount, p + 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Berikutnya</button>
+    </div>
   </div>
 </div>
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
@@ -537,6 +631,18 @@ function HistoryContent() {
             </Link>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2">
+            <input value={examSearch} onChange={(e) => { setExamSearch(e.target.value); setExamPage(1) }} placeholder="Cari judul ujian..." className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800" />
+            <select value={examStatus} onChange={(e) => { setExamStatus(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+              <option value="all">Semua status</option><option value="completed">Selesai</option><option value="ongoing">Sedang dikerjakan</option><option value="paused">Dijeda</option><option value="expired">Kedaluwarsa</option>
+            </select>
+            <select value={examSort} onChange={(e) => { setExamSort(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+              <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
+            </select>
+            <select value={examPageSize} onChange={(e) => { setExamPageSize(Number(e.target.value)); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
+              <option value={10}>10 riwayat / halaman</option><option value={25}>25 riwayat / halaman</option><option value={50}>50 riwayat / halaman</option><option value={100}>100 riwayat / halaman</option>
+            </select>
+          </div>
           <div className="overflow-x-auto pt-1">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-slate-100 text-slate-700 font-bold border-b">
@@ -550,14 +656,14 @@ function HistoryContent() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {historyList.length > 0 ? (
-                  historyList.map((item, idx) => {
+                {visibleExamHistory.length > 0 ? (
+                  visibleExamHistory.map((item, idx) => {
                     const isOngoing = item.status === 'ongoing'
 
                     return (
                       <tr key={item.session_id} className="hover:bg-slate-50 transition-colors">
                         <td className="p-3 text-center font-bold text-slate-400">
-                          {idx + 1}
+                          {(Math.min(examPage, examPageCount) - 1) * examPageSize + idx + 1}
                         </td>
                         <td className="p-3">
                           <div className="font-bold text-slate-800">{item.exam_title}</div>
@@ -655,6 +761,14 @@ function HistoryContent() {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
+            <span>Menampilkan {filteredExamHistory.length ? (Math.min(examPage, examPageCount) - 1) * examPageSize + 1 : 0}–{Math.min(examPage, examPageCount) * examPageSize} dari {filteredExamHistory.length} riwayat</span>
+            <div className="flex gap-2">
+              <button type="button" disabled={examPage <= 1} onClick={() => setExamPage((p) => Math.max(1, p - 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Sebelumnya</button>
+              <span className="px-2 py-1.5">Halaman {Math.min(examPage, examPageCount)} / {examPageCount}</span>
+              <button type="button" disabled={examPage >= examPageCount} onClick={() => setExamPage((p) => Math.min(examPageCount, p + 1))} className="px-3 py-1.5 rounded-lg border disabled:opacity-40">Berikutnya</button>
+            </div>
           </div>
         </div>
       </main>
@@ -805,6 +919,12 @@ function HistoryContent() {
                   Tutup
                 </button>
               </div>
+            </div>
+
+            <div className="no-print grid gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-slate-700">Guru pengampu kelas {profile?.class_code || ''}<select value={selectedTeacher?.id || ''} onChange={e => setSelectedTeacherId(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Pilih guru pengampu</option>{classTeachers.map((item: any) => <option key={item.id} value={item.id}>{item.full_name} {item.nip ? '· NIP '+item.nip : ''}</option>)}</select></label>
+              <label className="text-xs font-semibold text-slate-700">Kepala sekolah<select value={selectedPrincipal?.id || ''} onChange={e => setSelectedPrincipalId(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"><option value="">Pilih kepala sekolah</option>{principals.map((item: any) => <option key={item.id} value={item.id}>{item.full_name} {item.nip ? '· NIP '+item.nip : ''}</option>)}</select></label>
+              {(!classTeachers.length || !principals.length) && <p className="text-xs text-amber-700 sm:col-span-2">Daftar guru kelas atau kepala sekolah belum lengkap. Hubungi admin untuk melengkapi Pengelolaan Dokumen.</p>}
             </div>
 
             {/* AREA CETAK SERTIFIKAT DESAIN ELEGANT DAN KEKINIAN */}

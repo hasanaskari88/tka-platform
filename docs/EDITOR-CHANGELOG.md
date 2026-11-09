@@ -1,3 +1,25 @@
+## 2026-11-08 — Animasi 3D hero tema non-Gaming
+- Menambahkan animasi melayang dengan rotasi perspektif 3D pada ilustrasi hero Space, Jungle, Ocean, Disney, dan School.
+- Ikon utama, bintang, dan ornamen pendamping bergerak dengan animasi terpisah untuk memberi kedalaman seperti hero Cartoon3D dan Gaming.
+- Efek visual meningkat saat pointer diarahkan; animasi menghormati preferensi reduced motion.
+- Tidak mengubah isi hero, tautan, data, skema, maupun alur aplikasi. Menunggu Preview dan QA pengguna.
+
+
+## 2026-11-08 — Latar tema transparan, tidak mengganti latar asli
+- Menindaklanjuti persetujuan pengguna: latar dasar tema non-Gaming tidak lagi diberi warna solid atau gradasi pengganti.
+- Menghapus aturan background-image/background-color besar yang sebelumnya menutupi latar.
+- Mengganti aksen dengan lapisan pseudo-element transparan: titik kecil dan cahaya warna tema ber-opacity rendah; tidak menangkap klik.
+- Mempertahankan CSS hover kartu, efek hero, dan layout hero tema yang telah dibuat. Gaming tetap menggunakan latar arcade khusus yang sudah ada.
+- Tidak mengubah data, skema, alur ujian, atau Production. Menunggu Preview terbaru dan QA pengguna.
+
+
+## 2026-11-08 — Penyelarasan latar dotted dan hero seluruh tema
+- Mengembalikan pola titik-titik sebagai ciri latar seluruh tema non-Gaming, dengan warna dasar dan titik yang berbeda untuk tiap tema.
+- Menggunakan kembali prinsip visual Gaming untuk pola latar, serta mempertahankan kombinasi kartu/tombol Cartoon 3D sebagai acuan kedalaman dan kontras.
+- Menambahkan hero bergaya ilustratif untuk Space, Jungle, Ocean, Disney, dan School; hero Cartoon 3D serta Arcade Gaming dipertahankan.
+- Hero tema umum kini memiliki tombol ajakan belajar dan ornamen ringan berbasis emoji/CSS; tanpa gambar eksternal, library, WebGL, atau animasi latar.
+- Perubahan hanya pada homepage CSS/JSX; tidak mengubah skema database, penilaian, CBT, API, atau Production. Menunggu Preview build dan QA pengguna.
+
 # Roadmap, Arsip Perjalanan, dan Inventaris Rich Text Editor
 
 Terakhir diperbarui: 7 November 2026
@@ -1804,3 +1826,533 @@ Status: **audit kode selesai untuk empat file di atas; tidak ada file aplikasi y
 - Berkas sementara `tka-content-audit.txt` dihapus dari branch karena merupakan hasil audit lokal, bukan bagian dari aplikasi.
 - Preview terakhir yang diperiksa berstatus **READY**, branch `editor-test`, commit `6dd341a99defdd7531364a38d7b143569379ba71`. Penghapusan artefak audit dan catatan QA ini memerlukan Preview baru sebelum merge.
 - Status: **QA pengguna untuk cakupan yang disebutkan telah dikonfirmasi; siap melanjutkan pemeriksaan Preview pasca-pembersihan dan proses Pull Request ke `main`**.
+
+
+---
+
+## Pengembangan homepage, Arcade Game Hub, dan katalog sumber belajar (8 November 2026)
+
+Status: **implementasi awal selesai di branch Preview; menunggu build dan QA pengguna**.
+
+Branch kerja: `homepage-arcade-catalog` (berbasis `main`). Branch produksi `main` belum diubah.
+
+### Temuan sebelum implementasi
+- Form CMS `study_materials` hanya menyimpan `title`, `file_url`, `description`, `subject`, dan `author_display_name` (serta `created_by` saat insert).
+- Query homepage/admin menggunakan `study_materials` dan relasi penulis.
+- Tidak ditemukan penanda tipe yang membedakan Materi dan Modul Ajar pada payload CMS yang diperiksa.
+- Karena itu, implementasi ini memperlakukan koleksi sebagai **Sumber Belajar**. Tidak menambahkan tab Materi/Modul Ajar yang akan memberi klasifikasi palsu, dan tidak mengubah skema database.
+
+### Perubahan kode
+- `app/page.tsx`
+  - Mengganti daftar kartu materi panjang menjadi pratinjau ringkas maksimal tiga sumber belajar.
+  - Menambahkan pencarian ringkas, filter mata pelajaran, pengurutan, dan tautan ke katalog penuh.
+  - Mengubah tema Gaming dari nuansa galaksi menjadi arah Arcade Game Hub dengan arena warna, pola pixel, dan pesan misi/XP.
+  - Mempertahankan query materi, data penulis, tautan file, widget XP/level, pengumuman, dan alur ujian.
+- `app/materi/page.tsx` (baru)
+  - Katalog sumber belajar dengan pencarian judul/deskripsi/penulis.
+  - Filter mata pelajaran, pengurutan, dan pagination 10 item per halaman.
+  - Mempertahankan tautan file, deskripsi MathRenderer, dan nama penulis.
+- Database, scoring, RPC, RLS, login, CBT, dan alur admin tidak diubah.
+
+### Status verifikasi
+- Implementasi kode: selesai.
+- Build Vercel Preview: menunggu hasil.
+- QA tampilan desktop/mobile, pencarian, filter, pagination, tautan file, dan tema Gaming: belum dikonfirmasi pengguna.
+- Belum di-merge ke `main`.
+
+
+## Pendalaman tema 3D Cartoon dan Arcade Game Hub (8 November 2026)
+
+Status: **implementasi tambahan di branch Preview; menunggu build dan QA**.
+
+### Tema Cartoon 3D
+- Hero homepage dibuat lebih ekspresif dengan maskot 3D bergaya kartun, bayangan berlapis, perspektif, dan animasi mengambang.
+- Tombol utama memiliki efek tekan/timbul agar terasa seperti objek fisik.
+
+### Tema Gaming — Arcade Game Hub
+- Hero diganti menjadi dashboard arcade dengan mesin permainan 3D berbasis CSS, layar bercahaya, tombol mesin, koin XP mengambang, dan animasi maskot.
+- Menambahkan panel pemilihan tiga misi yang benar-benar interaktif: Latihan Otak, Jelajah Buku, dan Tantangan TKA.
+- Kartu misi dapat dipilih; panel konfirmasi berubah mengikuti pilihan, lalu tombol membawa pengguna ke halaman latihan, katalog sumber belajar, atau bagian ujian.
+- Menampilkan XP dan level dari profil yang sudah dimuat; tidak menambahkan sistem hadiah atau klaim XP palsu.
+- Menambahkan kedalaman perspektif/hover pada kartu di tema Gaming.
+- Animasi menghormati pengaturan `prefers-reduced-motion`.
+
+### Implementasi teknis dan batasan
+- Efek 3D dibuat dengan CSS transforms, perspective, layered shadows, dan keyframes; tidak menambah library 3D atau beban WebGL.
+- Tidak mengubah sistem XP, scoring, database, autentikasi, CBT, atau alur ujian.
+- QA visual dan interaksi desktop/mobile belum dikonfirmasi. Build Preview harus READY terlebih dahulu.
+
+
+## 2026-11-08 — Penyatuan profil pemain dan papan peringkat Arcade Game Hub
+
+- Identitas pada hero Gaming kini menampilkan avatar, nama lengkap, username, dan kelas dari profil siswa. Label kecil Arcade Game Hub juga menampilkan username ketika tersedia; pengguna tamu diarahkan untuk masuk.
+- Status gamifikasi yang sebelumnya berada pada kartu terpisah di bawah hero dipindahkan ke hero: total XP, level, gelar level, dan hingga empat badge yang tersimpan pada profil.
+- Ditambahkan gelar visual berdasarkan level yang sudah tersimpan: Petualang Pemula, Penjelajah Cerdas, Ksatria Pengetahuan, Master Ilmu, dan Legenda Getasan. Gelar hanya untuk presentasi; tidak mengubah perhitungan XP atau level.
+- Ditambahkan pratinjau tiga besar papan peringkat dengan pilihan Global dan Kelas. Data menggunakan tabel `profiles`, urutan XP menurun, dan pengecualian akun kelas Guru, mengikuti pendekatan query leaderboard pada halaman latihan.
+- Pesan penyemangat berubah sesuai kondisi: pemain yang masuk tiga besar mendapat apresiasi; pemain lain mendapat dorongan sesuai gelar level. Papan peringkat lengkap tetap dapat dibuka melalui halaman latihan.
+- Kartu status gamifikasi lama tetap ditampilkan pada tema non-Gaming; pada tema Gaming kartu tersebut disatukan dengan hero agar tidak berulang.
+- Tidak mengubah skema/database, sistem pemberian XP, formula level, badge, scoring, RPC, login, atau CBT.
+- Commit kode: `8ecbea6a0b302c8f4fa0320c92f17da5f0c6f90f` (penyesuaian pesan penyemangat berdasarkan posisi 1, 2, atau 3).
+- Status: implementasi pada branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Angka peringkat ditampilkan sebagai tiga besar yang benar-benar dikembalikan query; tidak mengarang posisi siswa di luar daftar tersebut.
+
+
+## 2026-11-08 — Gelar Arcade dinamis berdasarkan distribusi XP siswa
+
+- Menghapus patokan gelar berdasarkan level tetap (misalnya level 5, 10, 20, atau 30). Level dan XP tinggi, termasuk level di atas 1.000, tidak lagi membuat gelar berhenti berkembang pada batas tertentu.
+- Gelar sekarang ditentukan dari posisi relatif XP pemain di antara seluruh profil siswa yang bukan akun Guru. Sistem mengambil kolom minimum `id`, `class_code`, dan `xp`, lalu menghitung persentil posisi pemain.
+- Tingkatan gelar adaptif terhadap jumlah dan perkembangan peserta: Legenda Arena (1% teratas), Grandmaster (5% teratas), Master Pengetahuan (15% teratas), Ksatria Cendekia (35% teratas), Penjelajah Tangguh (65% teratas), dan Calon Juara (kelompok berikutnya). Jika baru ada satu peserta, digunakan gelar Perintis Arena; jika profil tidak ditemukan, Petualang Baru.
+- Pesan penyemangat tetap mengikuti golongan dinamis. XP dan level yang sudah tersimpan tidak diubah; tidak ada perubahan skema, sistem pemberian XP, rumus level, badge, scoring, RPC, login, atau CBT.
+- Commit implementasi: `7e4eae2362ac66d992e96ebf893dcb49cd1094f4`.
+- Status: menunggu Preview build dan QA pengguna. Peringkat dinamis bergantung pada data profil siswa yang dapat dibaca melalui kebijakan akses Supabase saat ini.
+
+## 2026-11-08 — Koreksi gelar untuk peringkat pertama leaderboard
+
+- Pemeriksaan ulang menemukan bahwa aturan sebelumnya menetapkan Legenda Arena hanya untuk persentil 1% teratas. Akibatnya, siswa peringkat pertama masih bisa mendapat Grandmaster ketika jumlah peserta membuat posisinya lebih dari 1% (misalnya peringkat 1 dari 20 siswa = 5%).
+- Aturan diperbaiki: siswa dengan XP tertinggi (peringkat 1) selalu mendapat **Legenda Arena**, berapa pun jumlah siswa.
+- Peringkat dihitung berdasarkan jumlah siswa yang memiliki XP lebih tinggi daripada pemain. Dengan demikian, siswa yang memiliki nilai XP sama memperoleh peringkat dan gelar yang sama (tie-aware), bukan dibedakan hanya oleh urutan baris.
+- Gelar untuk peringkat berikutnya tetap adaptif berdasarkan persentase posisi: Grandmaster (5% teratas), Master Pengetahuan (15%), Ksatria Cendekia (35%), Penjelajah Tangguh (65%), dan Calon Juara.
+- Perubahan hanya menyentuh perhitungan gelar di homepage. XP, level, papan peringkat, database, skema, scoring, RPC, RLS, login, dan CBT tidak diubah.
+- Commit kode: `6a393245b395b69bf0048064d0385ef9ce49b324`.
+- Status: menunggu build Vercel Preview dan QA pengguna; belum di-merge ke `main` dan belum mengubah Production.
+
+
+## 2026-11-08 — Penyegaran visual homepage untuk tema non-Gaming
+
+- Menambahkan kelas tema pada pembungkus homepage agar styling tiap tema dapat ditargetkan secara terpisah.
+- Menyegarkan latar halaman Space, Jungle, Ocean, Disney, Cartoon 3D, dan School dengan gradasi lembut sesuai warna identitas tema.
+- Memperkuat hero tema standar dengan lapisan cahaya dan bayangan yang lebih halus.
+- Menambahkan umpan balik hover ringan pada kartu dan penyesuaian ruang vertikal untuk layar kecil.
+- Tema Gaming sengaja dikecualikan agar identitas Arcade Game Hub tetap utuh.
+- Tidak mengubah konten/data, navigasi, login, leaderboard, XP, filter, pencarian, katalog, ujian, CBT, database, skema, API, atau scoring.
+- Status: perubahan berada di branch `homepage-arcade-catalog`; menunggu build Preview dan QA pengguna. Belum di-merge ke `main` dan belum mengubah Production.
+
+## 2026-11-08 — Penyegaran latar belakang homepage (Soft Glow + Soft Geometric)
+
+- Arah desain disepakati pengguna: gabungan Soft Glow dan Soft Geometric; visual harus lebih hidup tetapi tetap ringan dan ramah anak.
+- Tema Space dan Jungle dibuat lebih ceria: Space menggunakan dasar biru yang lebih terang dengan aksen ungu/cyan serta bintang statis yang samar; Jungle menggunakan hijau segar dengan aksen lime/turquoise dan cahaya hangat.
+- Ocean, Disney, Cartoon 3D, dan School mempertahankan karakter warna yang telah disepakati. Gaming tidak disentuh agar identitas Arcade Game Hub tetap utuh.
+- Latar menggunakan CSS gradient statis; tidak menambahkan gambar latar, font, library, dependensi, video, WebGL, maupun animasi latar baru.
+- Mengubah `background-attachment` dari `fixed` menjadi `scroll` untuk menghindari perilaku fixed-background yang tidak diperlukan, khususnya saat scroll pada perangkat mobile.
+- Mempertahankan efek hover kartu, hero glow yang sudah ada, dan dukungan `prefers-reduced-motion`.
+- Ruang lingkup hanya CSS latar belakang homepage; tidak mengubah fitur, konten, navigasi, database, skema, API, login, XP, leaderboard, ujian, CBT, maupun scoring.
+- Status implementasi: perubahan dikirim ke branch `homepage-arcade-catalog`; menunggu build Vercel Preview dan QA pengguna. Belum di-merge ke `main` dan belum mengubah Production.
+
+
+## 2026-11-08 — Perbaikan animasi maskot hero tema non-Gaming
+
+- Audit menemukan aturan CSS sebelumnya menghentikan seluruh animasi maskot ketika pointer berada di atas hero. Kondisi ini membuat maskot terlihat diam saat pengguna mengarahkan kursor ke area tersebut.
+- Menghapus perilaku jeda animasi saat hover; hover kini hanya memperkuat pencahayaan/bayangan tanpa menghentikan gerakan.
+- Memperjelas gerakan karakter utama dengan siklus naik-turun, sedikit rotasi, dan perubahan skala; ornamen bintang dan aksen tetap bergerak terpisah.
+- Mempertahankan maskot/emoji, warna tema, bentuk kartu, latar belakang, konten, dan navigasi yang telah disepakati.
+- Tetap menghormati preferensi aksesibilitas `prefers-reduced-motion`.
+- Perubahan hanya pada CSS homepage; tidak mengubah database, skema, API, XP, leaderboard, login, ujian, CBT, atau scoring.
+- Commit CSS: aa0ff3747474d94c8ecf5eec33e3507ec9b195ba.
+- Status: menunggu build Vercel Preview dan QA pengguna; belum di-merge ke `main` dan belum mengubah Production.
+
+## 2026-11-08 — Pengarsipan sementara maskot 3D realistis homepage
+
+- Pengembangan homepage dihentikan sementara sesuai keputusan pengguna; tidak ada perubahan lanjutan pada layout, warna, latar, kartu, tombol, atau navigasi homepage pada tahap berikutnya.
+- Konsep maskot ilustrasi 3D realistis untuk tema Space, Jungle, Ocean, Disney, dan School disimpan sebagai backlog visual. Pekerjaan ini menunggu ketersediaan pembuatan aset gambar.
+- Animasi sementara berbasis emoji dan CSS yang telah dikirim pada branch `homepage-arcade-catalog` dipertahankan; tidak dihapus atau diganti pada tahap ini.
+- Halaman Practice / Latihan menjadi fokus peninjauan berikutnya. Tahap awal hanya audit kode dan rekomendasi; belum ada perubahan aplikasi, database, skema, API, XP, leaderboard, atau scoring.
+- Status homepage: belum dinyatakan final untuk Production dan belum di-merge ke `main`; keputusan rilis tetap menunggu QA pengguna dan persetujuan eksplisit.
+
+## 2026-11-08 — Practice Tahap 1: pusat misi latihan
+
+- Fokus pengembangan dialihkan dari homepage ke halaman Practice sesuai persetujuan pengguna.
+- Audit awal mencakup `app/practice/page.tsx`, `app/practice/[id]/page.tsx`, `app/admin/practice/page.tsx`, `components/games/MazeGameEngine.tsx`, dan `components/games/FlashcardEngine.tsx`.
+- Implementasi Tahap 1 pada `app/practice/page.tsx`:
+  - Menambahkan pencarian judul, deskripsi, subtes, dan jenis aktivitas.
+  - Menambahkan filter jenis aktivitas: Kuis, Flashcard, dan Game Labirin.
+  - Menambahkan filter mata pelajaran/subtes berdasarkan nilai `exams.subtest` yang memang tersedia pada data saat ini; tidak membuat kolom atau skema baru.
+  - Menambahkan pengurutan Terbaru, Terlama, dan Nama A–Z.
+  - Menetapkan identitas warna/ikon kartu berdasarkan `activity_type`, bukan urutan kartu, agar jenis aktivitas konsisten.
+  - Menambahkan jumlah hasil dan keadaan kosong saat pencarian/filter tidak menemukan latihan, termasuk tombol reset.
+- Perubahan hanya pada katalog frontend Practice; tidak mengubah database, API, RPC, XP, level, badge, scoring, mesin soal, Maze, atau Flashcard.
+- Status: implementasi dikirim ke branch `homepage-arcade-catalog`; menunggu hasil Vercel Preview dan QA pengguna. Belum di-merge ke `main` dan bukan rilis Production.
+- Urutan lanjutan: (1) verifikasi Preview dan QA Tahap 1; (2) perbaiki berdasarkan temuan QA; (3) setelah disetujui, lanjut audit/desain pengerjaan soal; (4) baru setelah itu penyempurnaan Maze/Flashcard dan audit XP/attempt.
+
+
+## 2026-11-08 — Verifikasi commit Practice dan Preview
+
+- Menindaklanjuti pengecekan pengguna bahwa commit terbaru belum terlihat pada tampilan GitHub.
+- Memastikan isi `app/practice/page.tsx` pada branch `homepage-arcade-catalog` sudah memuat katalog Practice dengan pencarian, filter aktivitas/subtes, pengurutan, dan empty state.
+- Memastikan catatan implementasi Practice Tahap 1 juga sudah ada pada changelog.
+- Memperbarui catatan verifikasi ini agar menghasilkan commit GitHub baru yang mudah dikenali dan memicu pemeriksaan deployment Preview dari branch yang sama.
+- Belum melakukan merge ke `main`; belum mengubah database, API, RPC, XP, scoring, atau mesin soal.
+
+
+## 2026-11-08 — QA Practice Tahap 1: penyegaran visual Arcade
+
+### Masukan QA pengguna
+- Katalog sudah tampil, tetapi kartu dalam jenis aktivitas yang sama perlu variasi visual agar tidak monoton.
+- Tiga peringkat teratas leaderboard membutuhkan latar yang lebih kuat dan kontras teks putih yang terbaca.
+- Identitas pemain dan koleksi badge belum terasa seperti kartu karakter/arcade; badge statis dan belum menonjol.
+- Seluruh halaman Practice perlu lebih konsisten dengan bahasa visual Arcade Game Hub di homepage.
+
+### Perbaikan yang diterapkan
+- Menambahkan empat variasi gradasi dan ornamen untuk setiap jenis aktivitas (Kuis, Game Labirin, Flashcard). Warna dasar tiap jenis tetap dalam keluarga warna yang sama.
+- Mengubah tiga baris teratas leaderboard menjadi podium gold, silver, dan bronze dengan latar lebih gelap/saturasi tinggi serta teks putih berkontras.
+- Mempertegas profil sebagai Player Card: ID username, avatar, nama, kelas, XP, level, dan koleksi pencapaian.
+- Mengubah badge menjadi medali visual berbentuk kartu kecil dengan animasi mengambang dan respons hover; keadaan belum memiliki badge juga diberi tampilan khusus.
+- Menambahkan ornamen pixel, kedalaman, dan aksen gerak ringan pada profil serta footer agar halaman lebih konsisten dengan Arcade Game Hub.
+- Animasi mengikuti `prefers-reduced-motion`.
+- Tidak mengubah query leaderboard, data profil, XP, level, badge yang tersimpan, scoring, mesin latihan, database, skema, API, atau RPC.
+
+Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menunggu Vercel Preview build dan QA ulang pengguna. Belum di-merge ke `main` dan belum mengubah Production.
+
+
+### Catatan build dan perbaikan
+- Build Preview pertama setelah penyegaran visual gagal karena dua regex pemeriksaan URL avatar pada halaman Practice memiliki escaping slash yang tidak valid untuk parser TSX.
+- Pemeriksaan URL avatar diganti dengan `startsWith('http://')` / `startsWith('https://')` agar sintaks lebih sederhana dan aman.
+- Tidak ada perubahan perilaku data avatar; perbaikan hanya menyentuh deteksi URL gambar.
+- Menunggu deployment ulang dan pemeriksaan build Vercel.
+
+
+### Kendala deployment Preview
+- Setelah perbaikan sintaks avatar dikirim, deployment otomatis untuk commit terbaru belum muncul pada daftar Vercel.
+- Percobaan membuat Preview dari Git commit terbaru ditolak Vercel dengan status 402: batas penggunaan `api-deployments-free-per-day` tercapai (lebih dari 100 deployment dalam satu hari); Vercel menyarankan mencoba kembali setelah 1 hari.
+- Tidak mengubah paket, billing, pengaturan tim, atau deployment Production.
+- Status visual: kode dan changelog sudah berada di branch; build setelah perbaikan sintaks belum dapat diverifikasi karena batas deployment Vercel. Preview READY terakhir masih commit lama, jadi belum boleh dipakai untuk QA perubahan visual ini.
+
+
+- Catatan lanjutan: gaya CSS khusus untuk badge berbentuk medali dan podium ditambahkan dengan selector baru agar tidak tertimpa aturan animasi badge lama yang sudah ada pada stylesheet.
+
+## 2026-11-08 — Practice Tahap 1A: penanganan kegagalan pemuatan katalog
+
+- Audit kode menemukan bahwa kegagalan query daftar latihan sebelumnya dapat terlihat seperti katalog kosong, sehingga pengguna tidak mendapat penjelasan bahwa data gagal dimuat.
+- Menambahkan state kesalahan pemuatan khusus untuk daftar latihan.
+- Memeriksa error dari query Supabase `exams`; ketika query gagal, halaman menampilkan pesan kendala dan tombol untuk mencoba memuat ulang, bukan menampilkan pesan seolah-olah belum ada misi yang dipublikasikan.
+- Memindahkan penghentian status loading ke blok `finally` agar indikator loading tetap berhenti baik ketika pemuatan berhasil maupun gagal.
+- Menambahkan penanganan untuk exception saat proses pemuatan data agar halaman tidak terus berada pada kondisi loading.
+- Tidak mengubah query/filter bisnis, data profil, leaderboard, XP, level, badge, database, skema, API, RPC, scoring, mesin soal, Maze, atau Flashcard.
+- Perubahan disimpan pada branch `homepage-arcade-catalog` melalui commit `a7e476c333e061575c834c373ec9caacc7cdd8a1`.
+- Status verifikasi: perubahan kode tersimpan di GitHub. Build belum dijalankan dan Preview Vercel belum tersedia karena kendala kuota deployment; belum ada klaim QA visual atau build berhasil.
+
+## 2026-11-08 — Practice Tahap 1A: kestabilan variasi kartu misi
+
+- Audit katalog menemukan variasi warna/ornamen kartu sebelumnya ditentukan dari urutan hasil yang sedang tampil. Akibatnya, satu misi dapat berganti variasi ketika pengguna mengubah pencarian, filter, atau pengurutan.
+- Mengubah penentuan variasi kartu menjadi deterministik berdasarkan ID misi (dengan judul/urutan sebagai fallback), sehingga tampilan setiap misi tetap konsisten saat daftar difilter atau diurutkan.
+- Warna dasar tiap jenis aktivitas dan empat variasi visual yang telah disepakati tetap dipertahankan.
+- Tidak mengubah data, navigasi, filter, pengurutan, leaderboard, XP, level, badge, database, skema, API, RPC, scoring, atau mesin latihan.
+- Perubahan kode disimpan melalui commit `e45cc4f3779eed1627676a8de691b6fd138ea78b` pada branch `homepage-arcade-catalog`.
+- Status verifikasi: tersimpan di GitHub; belum dibuild dan belum diuji secara visual karena kendala kuota deployment Vercel.
+
+## 2026-11-08 — Practice Tahap 1A: pemisahan error leaderboard dari katalog
+
+- Audit alur pemuatan menemukan bahwa kegagalan query leaderboard dapat ikut menghentikan pemuatan seluruh halaman Practice, padahal daftar misi dapat tetap digunakan secara mandiri.
+- Menambahkan penanganan error khusus pada pemuatan leaderboard; ketika gagal, daftar peringkat dikosongkan dan pesan informasi ditampilkan pada area leaderboard.
+- Kegagalan leaderboard tidak lagi dilempar ke penanganan error utama katalog, sehingga siswa tetap dapat mencari dan membuka latihan ketika layanan peringkat sedang bermasalah.
+- Query, filter kelas, urutan XP, dan batas 15 pemain tetap sama; tidak mengubah data atau mekanisme XP/leaderboard di database.
+- Perubahan disimpan melalui commit `dd79b10329f8b66eb726a0388ff04e8c45ef6046` pada branch `homepage-arcade-catalog`.
+- Status verifikasi: kode tersimpan di GitHub; build dan QA visual belum dilakukan karena kendala deployment Vercel.
+
+## 2026-11-08 — Audit akses Practice, leaderboard, Maze V2, dan Flashcard
+
+### Akses halaman Practice
+- Pemeriksaan `app/practice/page.tsx` dan `app/practice/[id]/page.tsx` tidak menemukan pemeriksaan role `student` maupun pengalihan khusus untuk admin/guru.
+- Artinya, dari sisi kode halaman, Practice belum dibatasi hanya untuk siswa. Akses data/aksi tetap dapat dipengaruhi kebijakan Supabase yang tidak diubah dalam pekerjaan ini.
+- Belum menerapkan larangan admin/guru mengakses halaman Practice karena kebijakan akses halaman perlu dipastikan terpisah dari kebijakan siapa yang boleh tampil di leaderboard.
+
+### Leaderboard
+- Sebelumnya leaderboard mengecualikan profil dengan `class_code = guru`, tetapi belum memfilter `role`; akun admin dengan kelas selain guru berpotensi ikut tampil.
+- Query leaderboard kini hanya mengambil profil dengan `role = student`, dan daftar pilihan kelas leaderboard juga hanya mengambil kelas dari profil student.
+- Filter kelas guru tetap dipertahankan. Tidak ada perubahan skema, RLS, atau data profil.
+- Commit kode: `53412c1c301d15a2c68b0ab94f8797a1fa2d079e` dan `4bddb6c8dbe99b2c231c911a6a271180ace4ed1f`.
+
+### Coding Maze V2 (Blok Visual)
+- Ditemukan bahwa `MAZE_GAME_V2` sudah tersedia sebagai pilihan jenis kegiatan dan badge/filter di halaman admin.
+- Namun alur pengerjaan `app/practice/[id]/page.tsx` hanya merender `MazeGameEngine` untuk `MAZE_GAME`; `MAZE_GAME_V2` tidak memiliki engine yang dirender dan dapat jatuh ke renderer kuis biasa.
+- Halaman admin juga belum memiliki editor misi khusus V2: editor Maze yang ada hanya dibuka untuk `MAZE_GAME` dan menyimpan `question_type = maze_game`. Generator otomatis serta pemetaan bulk import juga belum menyediakan payload khusus V2.
+- Kesimpulan: Coding Maze V2 belum selesai secara end-to-end. Perlu engine blok visual dan alur pembuatan/penyimpanan misi yang cocok; tidak dialihkan begitu saja ke Maze lama agar perilaku V2 tidak disamarkan.
+- Audit juga menemukan loop gerak pada Maze lama memperbarui posisi robot tanpa jeda animasi; perlu penyempurnaan gerak bertahap pada tahap Maze.
+
+### Flashcard
+- Jalur render `FLASHCARD` dan komponen `FlashcardEngine` sudah ada. Komponen membalik kartu dari `question_text` ke `explanation`/jawaban dan memberi XP melalui RPC `add_user_xp`.
+- Ditemukan celah pada import JSON: format umum `front`/`back` atau `term`/`answer` sebelumnya tidak dipetakan ke kolom yang dibaca FlashcardEngine. Import bulk kini menerima variasi field tersebut dan menyimpannya ke `question_text` serta `explanation`.
+- Generator otomatis Flashcard saat ini hanya membuat satu kartu contoh generik; kartu nyata sebaiknya dibuat melalui editor soal atau bulk import. Perlu QA dengan satu set kartu sungguhan untuk memastikan alur flip dan sinkronisasi XP.
+- Commit kode import Flashcard: `d35c6bc8954536a125211ae75c55843453f5cd87`.
+
+### Batas verifikasi
+- Seluruh perubahan dicatat pada branch `homepage-arcade-catalog`.
+- Belum menjalankan build maupun Preview Vercel karena kendala kuota deployment. Tidak ada klaim bahwa Maze V2/Flashcard sudah lulus QA.
+- Tidak mengubah database, skema, RLS, RPC, sistem login, CBT, penilaian, atau mekanisme XP selain perbaikan pemetaan field import.
+
+
+## 2026-11-08 — Practice: simpan, lanjutkan sesi, dan XP bertahap
+
+### Keputusan pengguna
+- Admin/guru tetap boleh membuka Practice untuk memeriksa materi, mencoba permainan, dan menguji aturan XP.
+- Admin/guru boleh memperoleh XP dari aktivitas Practice, tetapi hanya profil dengan role `student` yang ditampilkan di leaderboard.
+- Setiap layar soal/permainan perlu menyediakan tindakan **Simpan & Keluar**; sesi yang belum selesai dapat dilanjutkan kembali.
+- Soal yang dilewati tetap disimpan dalam antrean dan dapat dikerjakan setelah soal lain.
+
+### Perubahan frontend pada branch pengembangan
+- Kuis biasa:
+  - Menambahkan tombol **Simpan & Keluar** di header dan area navigasi soal.
+  - Menyimpan posisi soal, antrean soal terlewat, status jawaban saat ini, jawaban yang sudah dinilai, jumlah benar/dijawab, streak, XP jawaban, dan bonus combo.
+  - Saat masuk kembali ke modul yang sama, sesi `in_progress` terakhir dipulihkan alih-alih membuat sesi baru.
+  - Setelah jawaban dinilai, progres dikirim ke RPC penyimpanan sehingga XP jawaban benar dan bonus combo dapat dikreditkan tanpa menunggu set soal selesai.
+  - Penyimpanan berurutan untuk mencegah request autosave yang datang belakangan menimpa progres yang lebih baru.
+  - Finalisasi menghitung selisih XP agar XP yang telah dikreditkan selama sesi tidak diberikan dua kali.
+- Maze lama:
+  - Menyimpan daftar misi yang berhasil dan indeks misi berikutnya.
+  - Menyimpan draft blok perintah, posisi robot, arah robot, dan umpan balik saat pengguna memilih **Simpan & Keluar**; draft dipulihkan ketika sesi dibuka kembali.
+  - Jika misi sudah berhasil, sesi dipulihkan ke misi berikutnya agar misi selesai tidak dianggap belum dikerjakan.
+  - Menyediakan tombol **Simpan & Keluar** dan memulihkan misi yang belum selesai ketika sesi dibuka kembali.
+  - XP misi dikreditkan saat progres disimpan; finalisasi hanya memberikan selisih/bonus yang belum dikreditkan.
+- Flashcard:
+  - Mengganti pemberian XP langsung yang tidak terikat sesi dengan penyimpanan progres attempt.
+  - Kartu yang ditandai sudah dipahami disimpan bersama posisi kartu; sesi dapat dilanjutkan.
+  - XP tetap +10 per kartu dan tidak menambahkan bonus peningkatan nilai baru.
+  - Jika finalisasi gagal setelah seluruh kartu dipelajari, layar menyediakan tindakan coba simpan lagi.
+
+### Perubahan database yang disiapkan
+- Menambahkan migration `supabase/migrations/20261108000100_practice_attempt_progress.sql`:
+  - Kolom `practice_attempts.progress` untuk data progres JSON.
+  - Kolom `practice_attempts.credited_xp` untuk mencegah pemberian XP ganda.
+  - Memperbarui `start_practice_attempt` agar mengizinkan akun terautentikasi dan memulihkan sesi aktif terakhir.
+  - Menambahkan `save_practice_attempt_progress` untuk menyimpan progres dan hanya mengkreditkan selisih XP baru. RPC ini memverifikasi kepemilikan attempt melalui `auth.uid()`, memakai search path kosong dengan referensi tabel berkualifikasi, dan hanya memberi hak eksekusi kepada role `authenticated`.
+  - Memperbarui `finish_practice_attempt` agar hanya memberikan XP yang belum dikreditkan, tanpa membatasi role ke student.
+  - Rumus XP dasar kuis, bonus combo, bonus peningkatan nilai, dan XP Maze dipertahankan. Flashcard tetap +10 per kartu tanpa bonus peningkatan nilai.
+- Migration **belum diterapkan ke database aktif**. Tidak ada perubahan langsung pada database/Production dalam tahap ini.
+
+### Batasan dan status verifikasi
+- Implementasi ini baru mencakup kuis biasa, Maze lama, dan Flashcard. Coding Maze V2 masih memerlukan engine dan editor end-to-end tersendiri.
+- Perlu pengujian terhadap akun student, guru, dan admin; sesi baru, sesi yang disimpan, resume, soal terlewat, finalisasi, dan pencegahan XP ganda.
+- Build belum dijalankan dan Preview belum diverifikasi karena kendala kuota deployment Vercel yang sebelumnya tercatat. Tidak mengklaim build atau QA lulus.
+- Migration harus ditinjau dan diuji pada lingkungan pengembangan sebelum diterapkan ke database aktif.
+- Tidak mengubah leaderboard selain pengecualian role student yang sudah diimplementasikan pada tahap sebelumnya; tidak mengubah login, CBT, skema soal, atau rumus penilaian soal.
+- Belum di-merge ke `main` dan belum mengubah Production.
+
+
+## 2026-11-08 — Riwayat terkelola, aturan XP pengulangan, dan dashboard admin tahap awal
+
+### Aturan XP Practice yang disepakati
+- Setiap jawaban benar memberikan +10 XP pada setiap percobaan latihan; mengulang satu set latihan tetap menghasilkan XP.
+- Percobaan pertama yang berhasil diselesaikan memberikan bonus penyelesaian +20 XP. Percobaan yang hanya dimulai lalu ditinggalkan tidak menghabiskan hak bonus pertama.
+- Peningkatan nilai terbaik memberikan +5 XP untuk setiap kenaikan penuh 10 poin dibandingkan nilai terbaik sebelumnya. Contoh: 60 ke 80 memberikan +10 XP; 80 ke 90 memberikan +5 XP.
+- XP yang sudah dikreditkan dalam satu sesi tidak dikreditkan lagi ketika sesi disimpan, dilanjutkan, atau difinalisasi. Pengaman ini hanya mencegah duplikasi dalam satu sesi, bukan membatasi pengulangan latihan.
+- Flashcard tetap tidak memperoleh bonus peningkatan nilai; bonus penyelesaian pertama adalah bonus terpisah untuk penyelesaian satu set.
+
+### Implementasi kode pada branch pengembangan
+- Migration `20261108000100_practice_attempt_progress.sql` diperbarui dengan kolom `completion_bonus_xp`, perhitungan bonus penyelesaian pertama berdasarkan jumlah attempt yang sudah selesai, serta penyertaan bonus tersebut dalam total XP dan hasil RPC.
+- Logika peningkatan nilai tetap membandingkan nilai terbaru dengan nilai terbaik dari percobaan selesai sebelumnya. Percobaan yang belum selesai tidak menghabiskan bonus pertama.
+- Halaman `app/history/page.tsx` kini memiliki pencarian judul, filter status, pengurutan tanggal/nilai, dan pilihan 10/25/50/100 riwayat per halaman untuk riwayat latihan maupun ujian.
+- Riwayat latihan menampilkan nomor percobaan, status, progres jawaban, skor, bonus penyelesaian pertama, bonus peningkatan, dan XP yang telah diperoleh. Untuk sesi yang belum selesai, tampilan XP menggunakan `credited_xp` agar XP bertahap terlihat.
+- Halaman pengelolaan admin lama dipindahkan salinannya ke `app/admin/bank-soal/page.tsx`, dengan fungsi kelola paket ujian/latihan, subtes, pengumuman, dan materi tetap dipertahankan.
+- `app/admin/page.tsx` sekarang menjadi dashboard ringkasan awal: jumlah siswa, paket, soal, materi, pengumuman, latihan/ujian selesai; daftar siswa; filter kelas global/per kelas; pencarian; sorting; pagination; peringkat XP latihan dan rata-rata ujian.
+- Dashboard hanya mengambil profil dengan role `student` untuk daftar dan peringkat. Peringkat latihan dihitung dari XP attempt; peringkat ujian dari rata-rata sesi ujian berstatus completed.
+
+### Batas verifikasi dan langkah berikutnya
+- Perubahan dilakukan di branch `homepage-arcade-catalog`; belum merge ke `main`, belum deploy, dan tidak mengubah database aktif.
+- Migration masih berupa file SQL di repository. Kolom `completion_bonus_xp` dan fungsi RPC baru akan tersedia setelah migration diuji dan diterapkan pada lingkungan yang disetujui.
+- Build, akses RLS dashboard, kecocokan nilai status ujian, tampilan, dan alur cetak belum diverifikasi karena Preview Vercel masih terkendala kuota deployment.
+- Tahap berikutnya: verifikasi data dashboard dan riwayat, kemudian bangun pengelolaan raport/sertifikat terpusat dengan pilihan peserta, percobaan nilai, pengaturan tanda tangan, preview, dan cetak.
+
+
+### Audit tambahan pada schema Supabase aktif (read-only)
+- Memeriksa struktur database aktif tanpa menjalankan DDL atau mengubah data.
+- Terverifikasi `profiles.role` saat ini hanya memiliki enum `student` dan `admin`; dashboard memfilter role `student` sesuai struktur aktual.
+- Terverifikasi status `exam_sessions`: `ongoing`, `completed`, `expired`, `paused`; filter riwayat ujian disesuaikan dengan keempat status tersebut.
+- Terverifikasi status `practice_attempts`: `in_progress`, `completed`, `abandoned`; filter riwayat latihan menggunakan nilai status yang sesuai.
+- Fungsi aktif `start_practice_attempt(uuid)` dan `finish_practice_attempt(uuid, integer, integer, integer)` cocok dengan signature yang diganti pada migration. Fungsi `save_practice_attempt_progress` belum tersedia di database aktif karena migration belum diterapkan.
+- Tabel aktif `practice_attempts` belum memiliki kolom `progress`, `credited_xp`, maupun `completion_bonus_xp`; semua kolom tersebut hanya ditambahkan oleh migration yang masih staged.
+- Migration history Supabase aktif saat audit tidak menampilkan migration yang tercatat. Tidak menjalankan migration atau mengubah Production.
+
+
+### Dashboard dan pemilihan raport/sertifikat — implementasi awal
+- Menyalin halaman pengelolaan admin lama ke `app/admin/bank-soal/page.tsx` dan mempertahankan fungsi paket ujian/latihan, subtes, materi, serta pengumuman. Halaman tersebut kini berjudul Pengelolaan Bank Soal & Konten.
+- Mengganti `app/admin/page.tsx` menjadi dashboard sekolah dengan statistik dasar, daftar siswa role `student`, cakupan global/per kelas, pencarian, sorting, pagination, serta dua ranking terpisah.
+- Menambahkan `app/admin/raport/page.tsx`:
+  - memilih siswa berdasarkan kelas dan pencarian;
+  - memilih riwayat latihan selesai per percobaan dan riwayat ujian selesai;
+  - menampilkan skor, nomor percobaan, XP, bonus pertama, bonus peningkatan, subtes, dan ketuntasan;
+  - memilih mode Raport atau Sertifikat;
+  - mengatur nama sekolah/alamat, guru/admin, kepala sekolah, NIP, tempat/tanggal dokumen;
+  - menampilkan pratinjau cetak yang hanya berisi data yang dipilih.
+- Nama guru/admin dapat dipilih dari profil ber-role admin yang tersedia, atau disunting manual. Nama kepala sekolah dan NIP dapat disunting manual.
+- Dashboard kini memiliki tautan langsung ke halaman Raport & Sertifikat.
+
+### Batasan implementasi dokumen
+- Pengaturan identitas pada halaman raport saat ini merupakan input untuk pembuatan dokumen/pratinjau. Penyimpanan pengaturan secara terpusat lintas perangkat dan halaman khusus Pengaturan Dokumen masih perlu dibuat dengan skema settings yang disetujui; belum diklaim tersimpan permanen.
+- Pemilihan riwayat berlaku pada proses pembuatan dokumen yang sedang dibuka; belum ada penyimpanan paket raport per siswa/periode sebagai arsip.
+- Preview/cetak browser, layout PDF, akses RLS admin untuk membaca seluruh data siswa, dan build belum diverifikasi di Preview.
+- Tidak ada migration yang diterapkan ke database aktif, tidak ada data yang diubah, dan tidak ada merge/deployment.
+
+
+### Penyempurnaan raport dan konsistensi nilai
+- Halaman raport kini menyediakan pilihan nama guru/admin dari profil admin, input nama manual, kepala sekolah dan NIP, tanggal/tempat terbit, serta KKM yang dapat disesuaikan untuk preview.
+- Riwayat ujian siswa, ranking ujian dashboard, dan raport/sertifikat menggunakan `score_override` bila guru sudah menetapkan nilai koreksi; jika tidak, menggunakan `score`.
+- Halaman raport tetap belum menyimpan pengaturan identitas secara terpusat. Nilai yang diubah pada form digunakan untuk dokumen yang sedang dibuat; tabel pengaturan sekolah dan sinkronisasi lintas perangkat belum ditambahkan.
+- Perlu QA terhadap hak baca admin untuk semua profil/riwayat, tampilan cetak multi-halaman, serta verifikasi hasil nilai koreksi pada Preview.
+
+
+### Pengaturan dokumen terpusat — disiapkan, belum diaktifkan
+- Menambahkan migration staged `supabase/migrations/20261108000200_school_document_settings.sql` untuk tabel tunggal `school_document_settings`, RLS admin-only, dan RPC baca/simpan pengaturan.
+- RPC menggunakan `SECURITY INVOKER`, `search_path` kosong, referensi schema berkualifikasi, validasi role admin, serta hak execute hanya untuk authenticated.
+- Menambahkan halaman `app/admin/pengaturan-dokumen/page.tsx` untuk mengatur nama/alamat sekolah, guru/admin dan NIP, kepala sekolah dan NIP, tempat terbit, serta KKM.
+- Dashboard admin menyediakan tautan ke pengaturan dokumen. Pembuat raport/sertifikat membaca pengaturan tersimpan melalui RPC dan tetap menyediakan penyesuaian untuk dokumen yang sedang dibuat.
+- Migration ini **belum diterapkan** ke database aktif; sebelum dapat digunakan, perlu diuji pada lingkungan pengembangan, termasuk ketersediaan fungsi RPC melalui Data API dan policy admin.
+
+
+## 2026-11-08 — Arsip penandatangan guru dan kepala sekolah
+
+- Menambahkan migration staged `20261108000300_teacher_signatories.sql` untuk tabel `teacher_signatories`: nama lengkap, jabatan (`class_teacher` / `principal`), kode kelas, NIP, status aktif, dan timestamp.
+- Kebijakan RLS: admin dapat mengelola seluruh daftar; pengguna terautentikasi hanya dapat membaca penandatangan aktif yang relevan dengan profilnya (guru untuk kode kelas sendiri dan kepala sekolah). Tidak ada akses untuk anon/public.
+- Memperbarui `app/admin/pengaturan-dokumen/page.tsx`: form tambah/edit/hapus guru dan kepala sekolah; pilihan kelas diambil dari `profiles.class_code` milik siswa, bukan input bebas. Identitas sekolah/KKM tetap tersedia.
+- Memperbarui `app/admin/raport/page.tsx`: saat memilih siswa, guru kelas dan kepala sekolah terisi dari daftar penandatangan; admin dapat memilih ulang dari opsi yang sesuai kelas. NIP mengikuti entri terpilih.
+- Memperbarui `app/history/page.tsx`: pada modal cetak sertifikat mandiri, siswa mendapat pilihan guru pengampu sesuai `profile.class_code` dan pilihan kepala sekolah. Nama dan NIP yang dipilih tampil pada blok tanda tangan sertifikat.
+- Catatan: daftar penandatangan tersimpan di tabel terpisah dari akun/profil login; tidak membuat atau mengubah akun guru.
+- Migration masih staged pada branch `homepage-arcade-catalog`; **belum diterapkan ke database aktif/Production**. Sampai migration diterapkan di database pengembangan, daftar tidak akan tersedia dan UI dapat menampilkan daftar kosong.
+- Build Vercel Preview, pemeriksaan TypeScript, dan uji cetak siswa/admin belum diverifikasi. Deployment tidak dilakukan; tidak ada merge ke `main` atau perubahan Production.
+
+
+## 2026-11-09 — Build Vercel Preview daftar penandatangan
+
+- Menjalankan build Preview untuk commit `d6ce89430dad63d5cdf620a4892aeeb2c6bd3676` pada branch `homepage-arcade-catalog`.
+- Deployment `dpl_ANKExdX4NFwDPyfBF17HH8nBYKwy` berstatus **READY**; URL `https://grisan-p00alumc5-heins14.vercel.app`.
+- Build Next.js selesai dalam sekitar 2 menit; 31/31 halaman statis berhasil dibuat. Route `/admin/pengaturan-dokumen`, `/admin/raport`, dan `/history` tercantum pada output build.
+- Log build tetap menampilkan warning/error non-fatal `HANGING_PROMISE_REJECTION` terkait `cookies()` ketika prerender route API `/api/google-drive/images` dan `/api/google-drive/connect`; meskipun deployment mencapai READY. Perlu audit terpisah, tidak diubah dalam tugas build ini.
+- Build ini hanya Preview. Tidak ada deployment Production, merge ke `main`, atau penerapan migration Supabase.
+
+
+## 2026-11-09 — Perbaikan dashboard, raport massal, navigasi, dan pemisahan konten
+
+### Diagnosis Supabase
+- Read-only audit pada project Supabase aktif memastikan tabel `teacher_signatories` dan `school_document_settings` belum ada, serta RPC pengaturan dokumen belum terpasang. Karena objeknya memang belum dibuat, pesan schema cache bukan sekadar cache usang.
+- Kolom `progress`, `credited_xp`, dan `completion_bonus_xp` juga belum ada di `practice_attempts`.
+- Kebijakan SELECT admin pada `practice_attempts` sudah ada. Peringatan dashboard sebelumnya dipicu query yang secara eksplisit meminta kolom `credited_xp` yang belum tersedia, bukan bukti bahwa izin admin pasti salah.
+- Migration pengaturan sekolah dan penandatangan diperbarui untuk mengirim `NOTIFY pgrst, 'reload schema'` setelah objek dibuat. Migration tetap staged; tidak diterapkan ke project aktif.
+- Tidak ada Supabase development branch. Pembuatan branch terpisah memerlukan konfirmasi biaya; belum dibuat dan belum ada SQL DDL yang dijalankan.
+
+### Raport dan sertifikat
+- Mengganti builder raport awal dengan dua alur: cetak per siswa dan cetak massal.
+- Cetak massal mendukung cakupan semua kelas atau kelas tertentu, pemilihan siswa, serta checklist tiap rekaman nilai.
+- Rekaman diringkas menjadi nilai terbaik per siswa, per paket soal, dan per jenis sesi (latihan/ujian). Nilai ujian menggunakan `score_override` bila tersedia, sama seperti prinsip nilai terbaik di Live Monitoring.
+- Menambahkan pilihan format raport/sertifikat, penandatangan guru+kepala sekolah, hanya kepala sekolah, atau hanya guru/wali kelas, serta opsi tanda tangan orang tua/wali.
+- Guru untuk cetak massal dipilih otomatis berdasarkan kelas masing-masing siswa; satu kepala sekolah dipakai lintas kelas. Pada cetak per siswa, guru kelas dapat dipilih ulang.
+- Preview dan print menggunakan area dokumen khusus dengan page break per siswa.
+
+### Dashboard dan peringkat
+- Query riwayat latihan di dashboard menggunakan `select('*')` agar kompatibel sebelum/sesudah migration `credited_xp`; pembacaan XP bertahap memakai properti tersebut jika sudah ada.
+- Peringkat latihan menghitung XP dari attempt; peringkat ujian memakai nilai terbaik per siswa pada setiap paket, bukan menjumlahkan pengulangan.
+- Menambahkan filter global/per paket soal, kelas, dan tipe tes, serta grafik batang untuk 10 peringkat teratas latihan dan ujian.
+
+### Navigasi dan pemisahan menu
+- Membuat halaman baru `/admin/konten` untuk CRUD pengumuman dan materi.
+- Bank Soal kini fokus pada paket ujian resmi, dengan tautan Dashboard Admin dan Pengelolaan Konten. Tab paket latihan dikeluarkan dari Bank Soal; pengelolaan latihan tetap di `/admin/practice`.
+- Memperbaiki judul/deskripsi halaman Bank Soal dan mengganti tautan beranda yang membingungkan dengan Dashboard Admin.
+
+### Batas verifikasi
+- Semua perubahan kode disimpan pada branch `homepage-arcade-catalog`.
+- Build Preview belum dijalankan untuk commit perubahan ini; TypeScript, tampilan print, filter ranking, dan CRUD konten belum QA.
+- Migration belum diterapkan ke database aktif; fitur daftar penandatangan dan settings masih menunggu database pengembangan.
+- Tidak ada merge ke `main`, deployment Production, atau perubahan data Production.
+
+
+### Addendum verifikasi Preview (commit `59b89d22`)
+- Vercel Preview untuk commit `59b89d22e6c5bab045de087366ccf77662b3931c` berhasil **READY**.
+- URL: `https://grisan-606lnufqi-heins14.vercel.app`.
+- Log build mengonfirmasi **TypeScript selesai**, kompilasi Next.js berhasil, dan route baru `/admin/konten` serta `/admin/raport` masuk output build.
+- Deployment duplikat yang masih antre dibatalkan; deployment READY yang dipakai adalah `dpl_8UvL1ndGpBES92dUmjdAWnocBATm`.
+- Ini verifikasi build, belum verifikasi visual/operasional. Karena migration belum diterapkan, halaman daftar penandatangan tetap akan menampilkan error tabel belum tersedia saat dijalankan terhadap database aktif.
+
+## 2026-11-09 — Penyempurnaan dashboard peserta, konten, dan dokumen cetak
+
+### Dashboard peserta didik
+- Mengganti tabel lebar berisi Level/XP, jumlah latihan, nilai terbaik latihan, dan rata-rata ujian dengan daftar peserta yang lebih ringkas (nama, kelas, tautan riwayat).
+- Nama peserta dan tautan Riwayat membuka halaman detail admin `/admin/peserta/[id]`.
+- Menambahkan ringkasan kartu total XP, latihan selesai, rata-rata nilai ujian terbaik, dan jumlah peserta sesuai filter kelas.
+- Menambahkan diagram batang sebaran peserta per kelas dan 5 peserta dengan XP latihan tertinggi; ringkasan mengikuti filter kelas aktif.
+
+### Pengelolaan konten
+- Pilihan mata pelajaran memakai tabel `subtests` yang sama dengan dropdown subtes di pengelolaan paket ujian, tanpa membuat daftar mata pelajaran duplikat.
+- Daftar materi dapat difilter per mata pelajaran dan diurutkan berdasarkan mata pelajaran lalu judul.
+- Nama penulis default diambil dari `profiles.full_name` akun yang sedang login; pilihan `TIM Penyusun` tersedia. Penulis yang tersimpan sebelumnya tetap dipertahankan saat mengedit.
+- Menambahkan panel pratinjau URL materi melalui iframe dan tautan buka tab baru jika penyedia file melarang embedding.
+
+### Raport dan sertifikat
+- Pada mode cetak massal, urutan visual langkah 2 dan 3 dibalik: format/nilai lebih dahulu, pemilihan peserta sesudahnya. Mode per siswa tetap menggunakan urutan sebelumnya.
+- Menambahkan logo sekolah dari `/logo-sd-getasan.png` pada kop dokumen.
+- Memperindah kop, judul, dan area sertifikat, serta menetapkan halaman cetak A4 portrait dengan margin 12 mm dan pemisah halaman per siswa.
+
+### Batas verifikasi
+- Perubahan hanya pada branch `homepage-arcade-catalog`; tidak mengubah `main`, skema Supabase, atau data aktif.
+- Build dan QA visual/cetak belum dijalankan. Perlu uji Preview untuk dashboard, klik detail siswa, pilihan subtes/penulis, preview URL, serta cetak A4 dengan logo.
+
+## 2026-11-09 — Penyempurnaan dashboard peserta, konten, dan dokumen cetak
+
+### Dashboard peserta didik
+- Mengganti tabel lebar berisi Level/XP, jumlah latihan, nilai terbaik latihan, dan rata-rata ujian dengan daftar peserta yang lebih ringkas (nama, kelas, tautan riwayat).
+- Nama peserta dan tautan Riwayat membuka halaman detail admin `/admin/peserta/[id]`.
+- Menambahkan ringkasan kartu total XP, latihan selesai, rata-rata nilai ujian terbaik, dan jumlah peserta sesuai filter kelas.
+- Menambahkan diagram batang sebaran peserta per kelas dan 5 peserta dengan XP latihan tertinggi; ringkasan mengikuti filter kelas aktif.
+
+### Pengelolaan konten
+- Pilihan mata pelajaran memakai tabel `subtests` yang sama dengan dropdown subtes di pengelolaan paket ujian, tanpa membuat daftar mata pelajaran duplikat.
+- Daftar materi dapat difilter per mata pelajaran dan diurutkan berdasarkan mata pelajaran lalu judul.
+- Nama penulis default diambil dari `profiles.full_name` akun yang sedang login; pilihan `TIM Penyusun` tersedia. Penulis yang tersimpan sebelumnya tetap dipertahankan saat mengedit.
+- Menambahkan panel pratinjau URL materi melalui iframe dan tautan buka tab baru jika penyedia file melarang embedding.
+
+### Raport dan sertifikat
+- Pada mode cetak massal, urutan visual langkah 2 dan 3 dibalik pada desktop dan mobile: format/nilai lebih dahulu, pemilihan peserta sesudahnya. Mode per siswa tetap menggunakan urutan sebelumnya.
+- Menambahkan logo sekolah dari `/logo-sd-getasan.png` pada kop dokumen.
+- Memperindah kop, judul, dan area sertifikat, serta menetapkan halaman cetak A4 portrait dengan margin 12 mm dan pemisah halaman per siswa.
+
+### Halaman detail peserta
+- Menambahkan halaman admin `/admin/peserta/[id]` yang menampilkan ringkasan XP/level, nilai terbaik latihan/ujian, dan seluruh riwayat latihan/ujian termasuk status sesi dan XP yang sudah dikreditkan.
+- Halaman hanya memuat profil ber-role `student` dan memakai query yang sudah ada; tidak memerlukan perubahan skema atau RPC.
+
+### Batas verifikasi
+- Perubahan hanya pada branch `homepage-arcade-catalog`; tidak mengubah `main`, skema Supabase, atau data aktif.
+- Vercel Preview untuk commit terbaru masih berstatus QUEUED saat catatan ini dibuat; build belum selesai. QA visual, klik detail siswa, preview URL, dan cetak A4 belum dilakukan.
+
+- Penyempurnaan lanjutan: materi baru otomatis memilih subtes pertama yang tersedia; saat materi lama diedit, penulis kosong memakai nama lengkap akun aktif sebagai fallback.
+
+### Addendum build Preview 2026-11-09
+- Commit kode yang dibangun: `6599bc8635cfea92ed732c8d49666728bb105edb`.
+- Vercel deployment `dpl_HEY4BDcPH1RquJAnhCqB7CMYbLWE` berstatus **READY**; URL: https://grisan-cgafh4bt0-heins14.vercel.app.
+- Next.js compile berhasil; TypeScript selesai; proses build selesai dan deployment selesai.
+- Route halaman detail peserta baru ikut dalam build Next.js.
+- Warning prerender pada Google Drive callback masih muncul seperti catatan sebelumnya; build tidak gagal karenanya.
+- Status ini hanya membuktikan build/deployment Preview berhasil. Belum ada QA visual, pengujian data runtime, atau uji cetak fisik A4 oleh pengguna.
+
+
+
+## 2026-11-09 — Perbaikan dashboard dan cetak raport/sertifikat (batch, Preview READY)
+- Dashboard: menambahkan daftar dan grafik 5 peserta dengan rata-rata nilai ujian terbaik tertinggi, mengikuti filter kelas yang sedang dipilih.
+- Dashboard: menambahkan panel "Perlu Ditindaklanjuti" untuk sesi ujian yang belum berstatus completed dan sesi completed yang masih memiliki jawaban essay berisi teks tetapi belum memiliki teacher_score. Tautan membuka halaman hasil/penilaian paket terkait.
+- Cetak massal: mengganti pemilihan "Pilih semua nilai" menjadi checklist paket/subtes. Checklist memilih nilai paket tersebut pada semua peserta yang dipilih; pemilihan per-siswa tetap menggunakan tabel nilai.
+- Sertifikat: nama peserta hanya dicetak sekali sebagai nama utama pada bagian sertifikat; baris metadata nama dihilangkan untuk mencegah nama ganda. Raport tetap menampilkan nama pada identitas peserta.
+- Tanda tangan lengkap: urutan kiri ke kanan Orang Tua/Wali, Kepala Sekolah (dengan "Mengetahui"), Guru/Wali Kelas; tempat dan tanggal ditempatkan di atas kolom guru.
+- Kop dokumen disusun ulang dengan lima baris identitas resmi yang diminta; nama UPTD dibuat lebih besar dan alamat lebih kecil.
+- Perubahan hanya pada kode frontend dan dokumentasi. Tidak ada perubahan database, RPC, RLS, penilaian, atau alur CBT. Belum dilakukan Preview build, deploy, QA visual, atau uji cetak fisik.
+
+- Preview Vercel: https://grisan-2pmibm7of-heins14.vercel.app — deployment `dpl_C3YGgf2KxyrUkZFP5NQBeMYNNYNN`, commit `c60e2569a0723f08e7d301def068d9ef9098403a`, status READY; build Next.js/TypeScript berhasil.
+- Status QA: belum diuji visual/runtime oleh pengguna dan belum diuji cetak fisik A4. Tidak ada merge ke main atau perubahan Production.
+
+
+## 2026-11-09 — Penataan Dashboard Admin dan alur cetak massal (batch, belum deploy)
+- Dashboard diurutkan ulang: header/peringatan, pusat tindakan, pintasan menu, statistik, peringkat/grafik performa, lalu daftar peserta dan ringkasan kelas. Pekerjaan prioritas dan akses harian tampil lebih awal.
+- Menambahkan warna tematik pada latar, kartu statistik, pintasan, panel peringkat, dan panel peserta; warna berfungsi sebagai penanda kategori dengan kontras teks yang tetap jelas.
+- Cetak massal: daftar paket/subtes berasal dari seluruh rekaman nilai yang tersedia dan tampil sebelum peserta dipilih. Setelah paket dipilih, daftar peserta hanya menampilkan peserta dengan nilai pada setidaknya satu paket terpilih.
+- Peserta dengan nilai tidak lengkap tetap boleh dipilih; dokumen hanya memuat nilai yang tersedia. Pemilihan peserta dan paket dipisahkan agar tidak saling mengubah.
+- Tanda tangan: orang tua paling kiri bila diaktifkan (default aktif); kepala sekolah di kiri guru bila keduanya tampil; bila hanya satu pejabat tampil, kolomnya dipusatkan. Guru cetak massal otomatis mengikuti kelas peserta.
+- Tidak ada perubahan database, RPC, RLS, penilaian, CBT, atau Production. Belum ada Preview build/QA; menunggu batch sebelum deployment untuk menghemat kuota.
+
+
+### Addendum — Perbaikan build Preview cetak massal (2026-11-09)
+- Preview commit `964ea08439449695a214766ad62f5defcce61583` gagal pada parsing JSX di `app/admin/raport/page.tsx` baris 120: penutup callback `map` memiliki kurung kurawal berlebih sebelum kurung tutup.
+- Memperbaiki penutup ekspresi map pada daftar peserta cetak massal. Tidak mengubah aturan filter/pemilihan peserta maupun nilai.
+- Deployment gagal tersebut: `dpl_D5GPMV8rp6KVDBPF3bc76ZsbTFen`, error `Expected '</', got '}'`. Preview ulang diperlukan untuk memastikan kompilasi.
+
+
+### Addendum — Preview READY untuk dashboard admin dan cetak massal (2026-11-09)
+- Perbaikan JSX diterapkan pada commit kode `23bb4f0ee0ee992f2e3b570006e1b58447b29043`.
+- Vercel Preview `dpl_92pQwTScRP8C7YqZAvB6urPQakSq` berstatus **READY**: https://grisan-f6kaf57go-heins14.vercel.app.
+- Next.js compile berhasil; TypeScript selesai; 33 route diproses dan deployment selesai. Build selesai dalam sekitar 28 detik setelah mulai build.
+- Log menampilkan pesan `NEXT_PRERENDER_INTERRUPTED` pada route API Google Drive callback ketika prerender, sebagaimana catatan terdahulu. Build tetap selesai dan deployment READY; perlu uji runtime OAuth/galeri Drive terpisah jika digunakan.
+- Preview ini hanya membuktikan kompilasi/deployment. QA visual dashboard, data runtime, alur paket→peserta cetak massal, susunan tanda tangan, dan cetak A4 belum dilakukan pengguna.
+- Roadmap tersisa: QA integrasi RichTextEditor (simpan/buka ulang semua tipe soal dan renderer); paste gambar Microsoft Word; konversi Office Math/OMML; QA kompatibilitas soal lama, tabel, Arab/Jawa, hasil siswa, koreksi, analisis, export, dan print; rencana editor jawaban essay siswa; QA resume/autosave ujian; serta QA cetak dokumen/raport A4.
+- Migration practice progress/XP, school document settings, dan teacher signatories masih staged dan belum diterapkan ke database aktif. Tidak ada merge ke `main`, deployment Production, atau perubahan database pada batch ini.

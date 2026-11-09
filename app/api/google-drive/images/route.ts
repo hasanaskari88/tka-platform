@@ -1,5 +1,4 @@
-
-import { NextRequest, NextResponse } from 'next/server'
+import { connection as waitForRequest, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
@@ -7,6 +6,8 @@ import { decryptToken } from '@/lib/google-drive/token-encryption'
 
 export async function GET(request: NextRequest) {
   try {
+    await waitForRequest()
+
     // 1. Pastikan pengguna adalah admin
     const admin = await requireAdmin()
 
@@ -73,8 +74,10 @@ export async function GET(request: NextRequest) {
       connection.refresh_token_encrypted
     )
 
-    const redirectUri =
-      `${process.env.NEXT_PUBLIC_SITE_URL || 'https://grisan.vercel.app'}/api/google-drive/callback`
+    const redirectUri = new URL(
+      '/api/google-drive/callback',
+      request.url
+    ).toString()
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,

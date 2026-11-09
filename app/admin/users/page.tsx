@@ -31,6 +31,9 @@ function AdminUsersContent() {
 
   // State Checkbox Seleksi Cetak
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
+  const [printUsers, setPrintUsers] = useState<any[]>([])
+  const [isPrinting, setIsPrinting] = useState(false)
+  const [shouldPrint, setShouldPrint] = useState(false)
 
   // State Form Tambah User
   const [newUsername, setNewUsername] = useState('')
@@ -71,7 +74,7 @@ function AdminUsersContent() {
 
     const { data } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, username, full_name, class_code, role')
       .order('class_code', { ascending: true })
       .order('full_name', { ascending: true })
 
@@ -83,12 +86,28 @@ function AdminUsersContent() {
     fetchUsers()
   }, [])
 
+  useEffect(() => {
+    if (!shouldPrint || printUsers.length === 0) return
+
+    const handleAfterPrint = () => setPrintUsers([])
+    window.addEventListener('afterprint', handleAfterPrint)
+    const timeoutId = window.setTimeout(() => {
+      window.print()
+      setShouldPrint(false)
+    }, 150)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.removeEventListener('afterprint', handleAfterPrint)
+    }
+  }, [shouldPrint, printUsers])
+
   // 1. Ekstraksi Daftar Kelas Unik
   const classList = Array.from(
     new Set(profiles.map((p) => p.class_code || p.class_label).filter(Boolean))
   )
 
-  // 2. Tambah Akun Baru
+  // 2. Tambah Akun Baru — seluruh pembuatan akun dilakukan oleh API server.
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
@@ -100,51 +119,32 @@ function AdminUsersContent() {
       return
     }
 
-    const supabase = createClient()
-    const cleanUsername = newUsername.trim().toLowerCase()
-    const fakeEmail = `${cleanUsername}@grisan.com`
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: fakeEmail,
-      password: userPassword,
-      options: {
-        data: {
-          username: cleanUsername,
-          full_name: fullName.trim(),
-          class_code: classCode.trim().toUpperCase(),
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: newUsername.trim().toLowerCase(),
+          fullName: fullName.trim(),
+          classCode: classCode.trim().toUpperCase(),
+          password: userPassword,
           role: userRole,
-        },
-      },
-    })
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Akun gagal dibuat.')
 
-    if (authError) {
-      setCreateMsg(`Error Auth: ${authError.message}`)
-      setIsCreating(false)
-      return
-    }
-
-    if (authData.user) {
-      await supabase.from('profiles').upsert(
-        {
-          id: authData.user.id,
-          username: cleanUsername,
-          full_name: fullName.trim(),
-          class_code: classCode.trim().toUpperCase(),
-          role: userRole,
-          plain_password: userPassword,
-        },
-        { onConflict: 'id' }
-      )
-
-      setCreateMsg(`Akun "${cleanUsername}" (${userRole.toUpperCase()}) berhasil dibuat!`)
+      setCreateMsg(result.message || 'Akun berhasil dibuat!')
       setNewUsername('')
       setFullName('')
       setUserPassword('')
       setConfirmUserPassword('')
-      fetchUsers()
+      await fetchUsers()
+    } catch (error: any) {
+      setCreateMsg(`Error: ${error.message || 'Gagal membuat akun.'}`)
+    } finally {
+      setIsCreating(false)
     }
-
-    setIsCreating(false)
   }
 
   // 3. Edit User
@@ -197,14 +197,8 @@ function AdminUsersContent() {
       if (!res.ok) {
         setEditMsg(`Error: ${resData.error}`)
       } else {
-        if (editPassword.trim()) {
-          const supabase = createClient()
-          await supabase
-            .from('profiles')
-            .update({ plain_password: editPassword.trim() })
-            .eq('id', editingUser.id)
-        }
-
+        // API server sudah memperbarui Auth password dan plain_password
+        // setelah memverifikasi admin tepercaya.
         setEditMsg('Data pengguna berhasil diperbarui!')
         setTimeout(() => {
           setEditingUser(null)
@@ -263,48 +257,55 @@ function AdminUsersContent() {
     document.body.removeChild(link)
   }
 
-  // 6. Bulk Import
+  // 6. Bulk Import — browser hanya membaca CSV; validasi dan pembuatan akun di server.
   const handleProcessBulkImport = async () => {
     if (!bulkInputText.trim()) return alert('Masukkan teks CSV atau isi file lebih dulu!')
     setIsProcessingBulk(true)
-    setBulkMessage('Memproses pendaftaran massal...')
+    setBulkMessage('Memvalidasi dan memproses pendaftaran massal...')
 
-    const lines = bulkInputText.trim().split('\n')
-    const rowsToInsert: any[] = []
+    try {
+      const lines = bulkInputText
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+      const users: any[] = []
 
-    lines.forEach((line, index) => {
-      if (index === 0 && line.toLowerCase().includes('username')) return
+      lines.forEach((line, index) => {
+        if (index === 0 && line.toLowerCase().includes('username')) return
+        const cols = line.split(',').map((value) => value.trim())
+        if (cols.length >= 4) {
+          users.push({
+            username: cols[0],
+            fullName: cols[1],
+            classCode: cols[2],
+            password: cols[3],
+            role: cols[4] ? cols[4].toLowerCase() : 'student',
+          })
+        }
+      })
 
-      const cols = line.split(',').map((c) => c.trim())
-      if (cols.length >= 4) {
-        const uName = cols[0].toLowerCase()
-        rowsToInsert.push({
-          username: uName,
-          full_name: cols[1],
-          class_code: cols[2].toUpperCase(),
-          plain_password: cols[3],
-          role: cols[4] ? cols[4].toLowerCase() : 'student',
-        })
+      if (users.length === 0) {
+        setBulkMessage('Format data tidak valid. Pastikan format: username,nama_lengkap,kode_kelas,password,role.')
+        return
       }
-    })
 
-    if (rowsToInsert.length === 0) {
-      setIsProcessingBulk(false)
-      return setBulkMessage('Format data tidak valid. Pastikan dipisahkan dengan tanda koma.')
-    }
+      const response = await fetch('/api/admin/users/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Import gagal.')
 
-    const supabase = createClient()
-    const { error } = await supabase.from('profiles').insert(rowsToInsert)
-
-    if (error) {
-      setBulkMessage(`Gagal import: ${error.message}`)
-    } else {
-      setBulkMessage(`✅ Berhasil mengimpor ${rowsToInsert.length} akun pengguna!`)
+      setBulkMessage(`✅ ${result.message || `Berhasil mengimpor ${result.count} akun.`}`)
       setBulkInputText('')
-      fetchUsers()
+      await fetchUsers()
       setTimeout(() => setIsBulkModalOpen(false), 1500)
+    } catch (error: any) {
+      setBulkMessage(`Gagal import: ${error.message || 'Terjadi kesalahan.'}`)
+    } finally {
+      setIsProcessingBulk(false)
     }
-    setIsProcessingBulk(false)
   }
 
   // 7. Filter Profil
@@ -338,14 +339,37 @@ function AdminUsersContent() {
     }
   }
 
-  const handleTriggerPrint = () => {
+  const handleTriggerPrint = async () => {
     if (selectedUserIds.length === 0) {
       return alert('Pilih setidaknya satu siswa menggunakan checkbox untuk dicetak!')
     }
-    window.print()
-  }
 
-  const selectedUserObjects = profiles.filter((p) => selectedUserIds.includes(p.id))
+    setIsPrinting(true)
+    try {
+      const response = await fetch('/api/admin/users/print-cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({ userIds: selectedUserIds }),
+      })
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Data kartu gagal disiapkan.')
+      }
+
+      if (!Array.isArray(result.users) || result.users.length === 0) {
+        throw new Error('Tidak ada data kartu yang dapat dicetak.')
+      }
+
+      setPrintUsers(result.users)
+      setShouldPrint(true)
+    } catch (error: any) {
+      alert(error.message || 'Gagal menyiapkan kartu cetak.')
+    } finally {
+      setIsPrinting(false)
+    }
+  }
 
   // 🎨 PEMETAAN TEMA KARTU UJIAN DINAMIS & PRESISI
   const cardThemeMap: Record<string, ThemeCardConfig> = {
@@ -480,7 +504,7 @@ function AdminUsersContent() {
 
             <button
               onClick={handleTriggerPrint}
-              disabled={selectedUserIds.length === 0}
+              disabled={selectedUserIds.length === 0 || isPrinting}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center space-x-1.5 ${
                 selectedUserIds.length > 0
                   ? 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95'
@@ -489,7 +513,7 @@ function AdminUsersContent() {
               suppressHydrationWarning
             >
               <span>🖨️</span>
-              <span>Cetak {selectedUserIds.length} Kartu Selected</span>
+              <span>{isPrinting ? 'Menyiapkan Kartu...' : `Cetak ${selectedUserIds.length} Kartu Selected`}</span>
             </button>
 
             <Link
@@ -939,12 +963,8 @@ function AdminUsersContent() {
       {/* 🖨️ AREA CETAK KARTU GABUNGAN MODEL MODERN + TEMA DINAMIS (15 KARTU PER HALAMAN A4) */}
       <div id="print-area" className="hidden print:block">
         <div className="grid grid-cols-3 gap-2">
-          {selectedUserObjects.map((user, idx) => {
-            const realPassword =
-              user.plain_password ||
-              user.password ||
-              user.user_password ||
-              '******'
+          {printUsers.map((user, idx) => {
+            const realPassword = user.plain_password || '******'
 
             return (
               <div
