@@ -345,7 +345,7 @@ Bagian ini menggantikan catatan branch/deployment yang lebih lama jika terdapat 
 - [x] Project setting Ignored Build Step diatur agar commit yang hanya mengubah Markdown atau `docs/` tidak menjalankan build.
 - [x] Perubahan kode/dependency/konfigurasi tetap membangun Preview.
 - [x] Preview tidak dinonaktifkan; satu Preview branch tetap dipakai untuk QA.
-- [ ] Periksa hasil Ignored Build Step pada push dokumentasi pertama sebelum menganggap optimasi terverifikasi.
+- [x] Optimasi diuji pada commit dokumentasi `a816601`; log Vercel mengonfirmasi deployment dilewati karena Ignored Build Step mengembalikan exit code 0.
 
 ### Keselamatan tetap berlaku
 
