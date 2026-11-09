@@ -261,3 +261,11 @@ Protokol ini adalah instruksi operasional default untuk pekerjaan berikutnya; as
 - Keputusan percepatan: manfaatkan Git-to-Vercel auto deployment yang sudah ada terlebih dahulu. Jangan menambahkan workflow CI/deploy yang membutuhkan token/secret atau men-deploy ulang secara paralel sebelum konfigurasi, hak akses, dan kebutuhan build diverifikasi. Otomatisasi tambahan harus menjadi pemeriksaan kualitas/health check yang tidak dapat mengubah data atau mempromosikan deployment tanpa izin.
 
 **Prinsip utama:** jalur tercepat yang aman adalah satu commit terfokus ke `main` → satu deployment otomatis Vercel → verifikasi status dan smoke test → arsipkan hasil. Kecepatan tidak boleh mengorbankan stabilitas situs dan integritas jawaban/nilai.
+
+
+### Hasil pemeriksaan akses branch — 10 November 2026
+
+- Endpoint GitHub branch menunjukkan `main.protected = false`; required status checks belum dikonfigurasi. Integrasi yang tersedia dapat membaca status ini, tetapi tidak memiliki akses untuk mengubah aturan proteksi branch.
+- Artinya, push langsung ke `main` memang dapat dilakukan sesuai jalur cepat yang disetujui, tetapi belum ada pemeriksaan GitHub yang memblokir commit bermasalah sebelum Vercel mulai membangun. Karena itu, pemeriksaan diff sebelum commit dan pemantauan deployment/smoke test setelah commit menjadi wajib.
+- Jangan mengaktifkan proteksi yang mewajibkan PR tanpa keputusan baru, karena itu akan bertentangan dengan jalur langsung ke `main` yang baru disepakati.
+- Tidak ada perubahan kode aplikasi atau konfigurasi branch protection dalam pemeriksaan ini.
