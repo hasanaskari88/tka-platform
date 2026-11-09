@@ -2331,3 +2331,12 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 
 - Preview Vercel: https://grisan-2pmibm7of-heins14.vercel.app — deployment `dpl_C3YGgf2KxyrUkZFP5NQBeMYNNYNN`, commit `c60e2569a0723f08e7d301def068d9ef9098403a`, status READY; build Next.js/TypeScript berhasil.
 - Status QA: belum diuji visual/runtime oleh pengguna dan belum diuji cetak fisik A4. Tidak ada merge ke main atau perubahan Production.
+
+
+## 2026-11-09 — Penataan Dashboard Admin dan alur cetak massal (batch, belum deploy)
+- Dashboard diurutkan ulang: header/peringatan, pusat tindakan, pintasan menu, statistik, peringkat/grafik performa, lalu daftar peserta dan ringkasan kelas. Pekerjaan prioritas dan akses harian tampil lebih awal.
+- Menambahkan warna tematik pada latar, kartu statistik, pintasan, panel peringkat, dan panel peserta; warna berfungsi sebagai penanda kategori dengan kontras teks yang tetap jelas.
+- Cetak massal: daftar paket/subtes berasal dari seluruh rekaman nilai yang tersedia dan tampil sebelum peserta dipilih. Setelah paket dipilih, daftar peserta hanya menampilkan peserta dengan nilai pada setidaknya satu paket terpilih.
+- Peserta dengan nilai tidak lengkap tetap boleh dipilih; dokumen hanya memuat nilai yang tersedia. Pemilihan peserta dan paket dipisahkan agar tidak saling mengubah.
+- Tanda tangan: orang tua paling kiri bila diaktifkan (default aktif); kepala sekolah di kiri guru bila keduanya tampil; bila hanya satu pejabat tampil, kolomnya dipusatkan. Guru cetak massal otomatis mengikuti kelas peserta.
+- Tidak ada perubahan database, RPC, RLS, penilaian, CBT, atau Production. Belum ada Preview build/QA; menunggu batch sebelum deployment untuk menghemat kuota.
