@@ -159,6 +159,7 @@ function ExamEngineContent() {
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
     if (!examId) return
+    setLoading(true)
     setAuthCheckFailed(false)
     
     const supabase = createClient()
