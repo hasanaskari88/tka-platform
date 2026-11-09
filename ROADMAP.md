@@ -284,3 +284,16 @@ Semua perubahan kode dan dokumentasi di atas berada pada `security-hardening-adm
 - [ ] Build untuk commit berikutnya `f39f4e6` dan dokumentasi terbaru perlu dipastikan READY.
 - [ ] Integrasi UI admin users ke POST server-side dan penghapusan update password dari browser masih menjadi pekerjaan terbuka.
 - [ ] Konfigurasi allowlist admin masih menunggu verifikasi pemilik proyek.
+
+
+### Status verifikasi akhir pekerjaan kode — 9 November 2026
+
+- [x] Deployment Preview untuk commit kode `f39f4e6` mencapai READY.
+- [x] Next.js compile dan TypeScript selesai; route admin users dan route server Google Drive terdaftar dalam build.
+- [x] Helper trusted-admin kini menggunakan tipe `User` Supabase dan mengembalikan sesi server terverifikasi untuk kompatibilitas helper lama.
+- [x] `lib/supabase/admin.ts` telah dialihkan ke allowlist tepercaya, sehingga route Google Drive server tidak lagi memakai pemeriksaan role database sebagai otorisasi.
+- [x] Terdapat 7 baris profil yang saat query read-only tercatat ber-role admin. Daftar itu belum dapat dianggap sebagai daftar tepercaya karena temuan policy role; tidak ada UUID yang dimasukkan otomatis ke allowlist.
+- [ ] Konfirmasi pemilik proyek diperlukan untuk menentukan username akun yang sah menjadi admin tepercaya sebelum konfigurasi `ADMIN_USER_IDS`.
+- [ ] Build dokumen terbaru setelah commit `f39f4e6` masih otomatis diproses Vercel; kode tidak berubah setelah build READY.
+- [ ] Belum ada runtime QA terhadap operasi pembuatan/edit/hapus akun karena UI belum terintegrasi dan allowlist belum diisi.
+- [ ] Pekerjaan ini belum boleh dianggap sebagai penutupan penuh temuan keamanan database. RLS/policy dan trigger signup masih menunggu review serta persetujuan terpisah.
