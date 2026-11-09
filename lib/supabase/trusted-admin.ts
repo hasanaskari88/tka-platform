@@ -5,7 +5,7 @@ type TrustedAdminResult =
   | {
       authorized: true
       userId: string
-      adminClient: ReturnType<typeof createSupabaseAdminClient>
+      adminClient: any
     }
   | {
       authorized: false
