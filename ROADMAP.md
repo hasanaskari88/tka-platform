@@ -192,3 +192,12 @@ File `app/admin/page.tsx` Preview telah dibandingkan dengan Production pada 10 N
 - Migration `20261108000100_practice_attempt_progress.sql` belum ada di Main dan mengubah kolom serta RPC terkait progres/XP. Tidak boleh diterapkan di Production tanpa audit dan persetujuan database terpisah.
 - Rekomendasi: siapkan kandidat terpisah untuk (A) Homepage + CSS terpilih, (B) Admin hasil rekonsiliasi fitur Production, dan (C) Practice sebagai paket frontend/backend yang ditinjau tersendiri. Rekonsiliasi 5 commit Main yang tertinggal sebelum menyiapkan merge.
 - Rincian file, SHA, dependensi, dan risiko dicatat pada `homepage-arcade-catalog/ROADMAP.md`. Status Production dan database tidak berubah.
+
+
+### Pembaruan snapshot sebelum persiapan Kandidat A — 10 November 2026
+
+- Pemeriksaan ulang setelah pembaruan roadmap menunjukkan branch telah berubah: `homepage-arcade-catalog` sekarang **194 commit ahead dan 6 commit behind** dari `main`; status tetap `diverged`; merge base `9979e3523e3d296d51cb1b650c97e1f9edebac27`.
+- Perbandingan masih menunjukkan 31 file berbeda, termasuk Admin, Practice, CSS global, tiga migration, API, komponen game, dan dokumentasi. Perubahan angka dari snapshot sebelumnya disebabkan commit dokumentasi yang baru masuk ke kedua branch.
+- Kandidat A tetap dibatasi pada Homepage dan dependensi visual yang benar-benar diperlukan. PR langsung dari branch Preview saat ini akan mencakup perubahan lain yang belum disetujui, sehingga **tidak dibuat**.
+- Belum ada branch baru atau PR kandidat karena proses proyek saat ini menetapkan tidak membuat branch baru. Menyiapkan PR terisolasi membutuhkan pengecualian eksplisit untuk membuat branch rilis sementara; alternatif push langsung ke `main` tidak direkomendasikan untuk rilis ini.
+- Tidak ada kode aplikasi, database, deployment, atau konfigurasi Production yang diubah.
