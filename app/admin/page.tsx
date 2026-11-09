@@ -16,6 +16,7 @@ export default function AdminDashboardPage() {
   const [loading,setLoading]=useState(true)
   const [warning,setWarning]=useState('')
   const [pendingWork,setPendingWork]=useState<any[]>([])
+  const [pendingFilter,setPendingFilter]=useState<'ALL'|'UNFINISHED'|'UNGRADED'>('ALL')
   const [classFilter,setClassFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [sort,setSort]=useState('name')
@@ -144,6 +145,16 @@ export default function AdminDashboardPage() {
   bestScores.forEach((score,key)=>{const userId=key.split('|')[0],old=examTotals.get(userId)||{sum:0,count:0};examTotals.set(userId,{sum:old.sum+score,count:old.count+1})})
   const examRanking=[...examTotals].map(([id,v])=>({student:studentMap.get(id)!,value:Math.round(v.sum/v.count),count:v.count})).filter((x): x is {student:Student;value:number;count:number}=>Boolean(x.student)).sort((a,b)=>b.value-a.value).slice(0,10)
   const completedPractice=practiceRows.filter(r=>r.status==='completed').length,completedExams=examRows.filter(r=>r.status==='completed').length
+
+  const filteredPendingWork=pendingWork.filter(item=>pendingFilter==='ALL'||(pendingFilter==='UNFINISHED'?item.unfinished:item.ungradedEssayCount>0))
+  const liveMonitorSummaries=examRows.reduce((groups:any[],session:any)=>{
+    if(!['ongoing','paused'].includes(session.status))return groups
+    let group=groups.find(item=>item.examId===session.exam_id)
+    if(!group){const exam=examMeta.find(item=>item.id===session.exam_id);group={examId:session.exam_id,title:exam?.title||'Paket ujian',ongoing:0,paused:0};groups.push(group)}
+    if(session.status==='ongoing')group.ongoing+=1
+    if(session.status==='paused')group.paused+=1
+    return groups
+  },[]).sort((a:any,b:any)=>(b.ongoing+b.paused)-(a.ongoing+a.paused))
   const cards=[{label:'Peserta didik',value:students.length,icon:'👩‍🎓',color:'from-indigo-500 to-blue-600'},{label:'Paket ujian & latihan',value:stats.exams,icon:'📚',color:'from-violet-500 to-purple-600'},{label:'Bank soal',value:stats.questions,icon:'📝',color:'from-amber-500 to-orange-600'},{label:'Materi pembelajaran',value:stats.materials,icon:'📖',color:'from-emerald-500 to-teal-600'}]
   const summaryXp=scoped.reduce((sum,student)=>sum+student.xp,0)
   const summaryPractice=scoped.reduce((sum,student)=>sum+student.practiceAttempts,0)
@@ -160,7 +171,32 @@ export default function AdminDashboardPage() {
   return <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-amber-50 px-4 py-6 md:px-8 md:py-8"><div className="mx-auto max-w-7xl space-y-7">
     <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">TKA Platform · Admin Center</p><h1 className="mt-1 text-3xl font-black text-slate-900">Dashboard Pengelola</h1><p className="mt-1 text-sm text-slate-500">Ringkasan aktivitas, perkembangan peserta, dan pintasan pengelolaan website.</p></div><Link href="/" className="w-fit rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm">← Lihat Website</Link></header>
     {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</div>}
-    <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-black text-slate-900">Perlu Ditindaklanjuti</h2><p className="text-xs text-slate-600">Sesi yang belum selesai dan jawaban essay yang masih menunggu penilaian.</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} sesi</span></div><div className="mt-3 grid gap-2 md:grid-cols-2">{pendingWork.slice(0,8).map(item=><Link key={item.id} href={'/admin/exam/'+item.examId+'/results'} className="rounded-xl border border-amber-100 bg-white p-3 transition hover:border-amber-300 hover:shadow-sm"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-800">{item.studentName}</b><span className="text-[10px] font-bold text-slate-500">{item.classCode}</span></div><p className="mt-1 text-xs text-slate-600">{item.examTitle}</p><div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-800">Sesi {item.status}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div><p className="mt-2 text-[10px] font-bold text-indigo-700">Buka penilaian →</p></Link>)}{!loading&&!pendingWork.length&&<p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-5 text-center text-xs text-slate-500 md:col-span-2">Tidak ada sesi tertunda atau essay yang menunggu penilaian.</p>}</div>{pendingWork.length>8&&<p className="mt-2 text-right text-[10px] text-slate-500">Menampilkan 8 dari {pendingWork.length} sesi yang perlu ditindaklanjuti.</p>}</section>
+    <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 className="text-lg font-black text-slate-900">Perlu Ditindaklanjuti</h2><p className="text-xs text-slate-600">Pisahkan sesi yang perlu dipantau dan essay yang menunggu penilaian.</p></div>
+        <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} item</span>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {([{value:'ALL',label:'Semua',count:pendingWork.length},{value:'UNFINISHED',label:'Sesi belum selesai',count:pendingWork.filter(item=>item.unfinished).length},{value:'UNGRADED',label:'Essay belum dinilai',count:pendingWork.filter(item=>item.ungradedEssayCount>0).length}] as const).map(option=><button key={option.value} type="button" onClick={()=>setPendingFilter(option.value)} className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${pendingFilter===option.value?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'}`}>{option.label} <span className={pendingFilter===option.value?'text-indigo-100':'text-slate-400'}>({option.count})</span></button>)}
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {filteredPendingWork.slice(0,8).map(item=><article key={item.id} className="rounded-xl border border-amber-100 bg-white p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-800">{item.studentName}</b><span className="text-[10px] font-bold text-slate-500">{item.classCode}</span></div>
+          <p className="mt-1 text-xs text-slate-600">{item.examTitle}</p>
+          <div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-800">Sesi {item.status}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{item.unfinished&&<Link href={'/admin/exam/'+item.examId+'/monitor'} className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-indigo-700">Pantau Live →</Link>}{item.ungradedEssayCount>0&&<Link href={'/admin/exam/'+item.examId+'/results'} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100">Buka Penilaian →</Link>}</div>
+        </article>)}
+        {!loading&&!filteredPendingWork.length&&<p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-5 text-center text-xs text-slate-500 md:col-span-2">{pendingWork.length?'Tidak ada item pada kategori ini.':'Tidak ada sesi tertunda atau essay yang menunggu penilaian.'}</p>}
+      </div>
+      {filteredPendingWork.length>8&&<p className="mt-2 text-right text-[10px] text-slate-500">Menampilkan 8 dari {filteredPendingWork.length} item pada kategori ini.</p>}
+    </section>
+    <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-black text-slate-900">Live Monitor</h2><p className="text-xs text-slate-500">Paket dengan peserta yang sedang mengerjakan atau dijeda.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{liveMonitorSummaries.length} paket aktif</span></div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {liveMonitorSummaries.map((item:any)=><article key={item.examId} className="rounded-xl border border-slate-200 p-3"><h3 className="text-sm font-black text-slate-800">{item.title}</h3><div className="mt-2 flex flex-wrap gap-2 text-[11px]"><span className="rounded-md bg-emerald-50 px-2 py-1 font-bold text-emerald-700">{item.ongoing} mengerjakan</span><span className="rounded-md bg-amber-50 px-2 py-1 font-bold text-amber-700">{item.paused} dipause</span></div><Link href={'/admin/exam/'+item.examId+'/monitor'} className="mt-3 inline-flex rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-bold text-white hover:bg-slate-700">Buka Live Monitor →</Link></article>)}
+        {!loading&&!liveMonitorSummaries.length&&<p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-xs text-slate-500 md:col-span-2 xl:col-span-3">Belum ada paket dengan sesi yang sedang berjalan atau dipause.</p>}
+      </div>
+    </section>
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       <Link href="/admin/bank-soal" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📝</span><h2 className="mt-2 font-black">Bank Soal & Ujian</h2><p className="mt-1 text-xs text-slate-500">Paket ujian, soal, token, dan subtes.</p></Link>
       <Link href="/admin/konten" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📢</span><h2 className="mt-2 font-black">Konten Website</h2><p className="mt-1 text-xs text-slate-500">Pengumuman dan materi belajar.</p></Link>
