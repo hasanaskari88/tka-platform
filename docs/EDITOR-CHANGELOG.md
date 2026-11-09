@@ -2318,3 +2318,13 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Warning prerender pada Google Drive callback masih muncul seperti catatan sebelumnya; build tidak gagal karenanya.
 - Status ini hanya membuktikan build/deployment Preview berhasil. Belum ada QA visual, pengujian data runtime, atau uji cetak fisik A4 oleh pengguna.
 
+
+
+## 2026-11-09 — Perbaikan dashboard dan cetak raport/sertifikat (batch, belum deploy)
+- Dashboard: menambahkan daftar dan grafik 5 peserta dengan rata-rata nilai ujian terbaik tertinggi, mengikuti filter kelas yang sedang dipilih.
+- Dashboard: menambahkan panel "Perlu Ditindaklanjuti" untuk sesi ujian yang belum berstatus completed dan sesi completed yang masih memiliki jawaban essay berisi teks tetapi belum memiliki teacher_score. Tautan membuka halaman hasil/penilaian paket terkait.
+- Cetak massal: mengganti pemilihan "Pilih semua nilai" menjadi checklist paket/subtes. Checklist memilih nilai paket tersebut pada semua peserta yang dipilih; pemilihan per-siswa tetap menggunakan tabel nilai.
+- Sertifikat: nama peserta hanya dicetak sekali sebagai nama utama pada bagian sertifikat; baris metadata nama dihilangkan untuk mencegah nama ganda. Raport tetap menampilkan nama pada identitas peserta.
+- Tanda tangan lengkap: urutan kiri ke kanan Orang Tua/Wali, Kepala Sekolah (dengan "Mengetahui"), Guru/Wali Kelas; tempat dan tanggal ditempatkan di atas kolom guru.
+- Kop dokumen disusun ulang dengan lima baris identitas resmi yang diminta; nama UPTD dibuat lebih besar dan alamat lebih kecil.
+- Perubahan hanya pada kode frontend dan dokumentasi. Tidak ada perubahan database, RPC, RLS, penilaian, atau alur CBT. Belum dilakukan Preview build, deploy, QA visual, atau uji cetak fisik.

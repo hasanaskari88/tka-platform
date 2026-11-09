@@ -15,6 +15,7 @@ export default function AdminDashboardPage() {
   const [stats,setStats]=useState({exams:0,questions:0,materials:0,announcements:0})
   const [loading,setLoading]=useState(true)
   const [warning,setWarning]=useState('')
+  const [pendingWork,setPendingWork]=useState<any[]>([])
   const [classFilter,setClassFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [sort,setSort]=useState('name')
@@ -30,7 +31,7 @@ export default function AdminDashboardPage() {
     async function load(){
       const db=createClient()
       try{
-        const [p,pr,ex,em,ec,qc,mc,ac]=await Promise.all([
+        const [p,pr,ex,em,ec,qc,qmeta,mc,ac]=await Promise.all([
           db.from('profiles').select('id,full_name,username,class_code,role,xp,level').eq('role','student').order('full_name'),
           // select * keeps the dashboard compatible before/after the staged credited_xp migration
           db.from('practice_attempts').select('*'),
@@ -38,6 +39,7 @@ export default function AdminDashboardPage() {
           db.from('exams').select('id,title,subtest,target_mode,activity_type'),
           db.from('exams').select('id',{count:'exact',head:true}),
           db.from('questions').select('id',{count:'exact',head:true}),
+          db.from('questions').select('id,exam_id,question_type'),
           db.from('study_materials').select('id',{count:'exact',head:true}),
           db.from('announcements').select('id',{count:'exact',head:true}),
         ])
@@ -47,8 +49,14 @@ export default function AdminDashboardPage() {
         if(pr.error)problems.push('riwayat latihan: '+pr.error.message)
         if(ex.error)problems.push('riwayat ujian: '+ex.error.message)
         if(em.error)problems.push('metadata paket: '+em.error.message)
-        if(problems.length)setWarning('Sebagian data belum dapat dibaca — '+problems.join(' | '))
+        if(qmeta.error)problems.push('metadata soal: '+qmeta.error.message)
         const practice=pr.data||[], exams=ex.data||[], meta=em.data||[]
+        const sessionIds=exams.map((session:any)=>session.id)
+        const answerResult=sessionIds.length
+          ? await db.from('answers').select('session_id,question_id,user_answer,selected_answers,selected_option,teacher_score').in('session_id',sessionIds)
+          : {data:[],error:null}
+        if(answerResult.error)problems.push('jawaban ujian: '+answerResult.error.message)
+        if(problems.length)setWarning('Sebagian data belum dapat dibaca — '+problems.join(' | '))
         setPracticeRows(practice);setExamRows(exams);setExamMeta(meta as ExamMeta[])
         const metaMap=new Map(meta.map((x:any)=>[x.id,x]))
         const byPractice=new Map<string,{xp:number;count:number;best:number}>()
@@ -67,6 +75,30 @@ export default function AdminDashboardPage() {
           const userId=key.split('|')[0],old=byExam.get(userId)||{sum:0,count:0}
           byExam.set(userId,{sum:old.sum+score,count:old.count+1})
         })
+        const profileMap=new Map((p.data||[]).map((profile:any)=>[profile.id,profile]))
+        const questionRows=qmeta.data||[]
+        const essayQuestionsByExam=new Map<string,any[]>()
+        questionRows.filter((question:any)=>['essay','uraian'].includes(String(question.question_type||'').toLowerCase())).forEach((question:any)=>{
+          const list=essayQuestionsByExam.get(question.exam_id)||[]
+          list.push(question);essayQuestionsByExam.set(question.exam_id,list)
+        })
+        const answerMap=new Map<string,any>()
+        ;(answerResult.data||[]).forEach((answer:any)=>answerMap.set(answer.session_id+'|'+answer.question_id,answer))
+        const pending=exams.flatMap((session:any)=>{
+          const unfinished=session.status!=='completed'
+          const essayQuestions=essayQuestionsByExam.get(session.exam_id)||[]
+          const ungraded=essayQuestions.filter((question:any)=>{
+            const answer=answerMap.get(session.id+'|'+question.id)
+            if(!answer)return false
+            const raw=answer.user_answer??answer.selected_answers??answer.selected_option
+            const hasResponse=Array.isArray(raw)?raw.length>0:typeof raw==='string'?raw.trim().length>0:raw!==null&&raw!==undefined
+            return hasResponse&&(answer.teacher_score===null||answer.teacher_score===undefined||answer.teacher_score==='')
+          })
+          if(!unfinished&&!ungraded.length)return []
+          const profile:any=profileMap.get(session.user_id)
+          return [{id:session.id,examId:session.exam_id,userId:session.user_id,studentName:profile?.full_name||profile?.username||'Peserta',classCode:profile?.class_code||'—',examTitle:meta.find((item:any)=>item.id===session.exam_id)?.title||'Paket ujian',status:session.status,unfinished,ungradedEssayCount:ungraded.length}]
+        }).sort((a:any,b:any)=>Number(b.ungradedEssayCount>0)-Number(a.ungradedEssayCount>0))
+        setPendingWork(pending)
         setStudents((p.data||[]).map((r:any)=>{
           const a=byPractice.get(r.id)||{xp:0,count:0,best:0},b=byExam.get(r.id)||{sum:0,count:0}
           return {id:r.id,full_name:r.full_name,username:r.username,class_code:r.class_code,xp:Number(r.xp||0),level:Number(r.level||1),practiceXp:a.xp,practiceAttempts:a.count,practiceBest:a.best,examCount:b.count,examAverage:b.count?Math.round(b.sum/b.count):0}
@@ -119,6 +151,7 @@ export default function AdminDashboardPage() {
   const summaryExamAverage=summaryExam.length?Math.round(summaryExam.reduce((sum,student)=>sum+student.examAverage,0)/summaryExam.length):0
   const classSummary=classes.map(name=>({name,count:students.filter(student=>student.class_code===name).length})).filter(item=>classFilter==='ALL'||item.name===classFilter)
   const topPracticeStudents=[...scoped].sort((a,b)=>b.practiceXp-a.practiceXp).slice(0,5).map(student=>({student,value:student.practiceXp}))
+  const topExamStudents=[...scoped].filter(student=>student.examCount>0).sort((a,b)=>b.examAverage-a.examAverage).slice(0,5).map(student=>({student,value:student.examAverage}))
   const ChartBars=({items,color,suffix}:{items:{student:Student;value:number}[];color:string;suffix:string})=>{
     const max=Math.max(1,...items.map(x=>x.value))
     return <div className="mt-3 space-y-3">{items.map((item,i)=><div key={item.student.id}><div className="mb-1 flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate font-semibold text-slate-700">{i+1}. {item.student.full_name||item.student.username||'Siswa'} <span className="text-slate-400">({item.student.class_code||'—'})</span></span><b className="shrink-0">{item.value.toLocaleString('id-ID')} {suffix}</b></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${color}`} style={{width:(item.value/max*100)+'%'}}/></div></div>)}{!items.length&&<p className="py-5 text-center text-xs text-slate-400">Belum ada data pada filter ini.</p>}</div>
@@ -129,6 +162,7 @@ export default function AdminDashboardPage() {
     {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</div>}
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{cards.map(c=><div key={c.label} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className={`bg-gradient-to-r ${c.color} px-4 py-3 text-white`}><div className="flex items-center justify-between text-xs font-bold uppercase"><span>{c.label}</span><span className="text-2xl">{c.icon}</span></div><div className="mt-2 text-3xl font-black">{loading?'—':c.value.toLocaleString('id-ID')}</div></div></div>)}</section>
     <section className="grid grid-cols-2 gap-3 md:grid-cols-4">{[{label:'Latihan selesai',value:completedPractice},{label:'Ujian selesai',value:completedExams},{label:'Pengumuman',value:stats.announcements},{label:'Kelas terdata',value:classes.length}].map((x,i)=><div key={x.label} className="rounded-xl border bg-white p-4"><p className="text-xs text-slate-500">{x.label}</p><p className="mt-1 text-2xl font-black">{loading?'—':x.value}</p></div>)}</section>
+    <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-black text-slate-900">Perlu Ditindaklanjuti</h2><p className="text-xs text-slate-600">Sesi yang belum selesai dan jawaban essay yang masih menunggu penilaian.</p></div><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} sesi</span></div><div className="mt-3 grid gap-2 md:grid-cols-2">{pendingWork.slice(0,8).map(item=><Link key={item.id} href={'/admin/exam/'+item.examId+'/results'} className="rounded-xl border border-amber-100 bg-white p-3 transition hover:border-amber-300 hover:shadow-sm"><div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-800">{item.studentName}</b><span className="text-[10px] font-bold text-slate-500">{item.classCode}</span></div><p className="mt-1 text-xs text-slate-600">{item.examTitle}</p><div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-800">Sesi {item.status}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div><p className="mt-2 text-[10px] font-bold text-indigo-700">Buka penilaian →</p></Link>)}{!loading&&!pendingWork.length&&<p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-5 text-center text-xs text-slate-500 md:col-span-2">Tidak ada sesi tertunda atau essay yang menunggu penilaian.</p>}</div>{pendingWork.length>8&&<p className="mt-2 text-right text-[10px] text-slate-500">Menampilkan 8 dari {pendingWork.length} sesi yang perlu ditindaklanjuti.</p>}</section>
     <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
       <Link href="/admin/bank-soal" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">📝</span><h2 className="mt-2 font-black">Bank Soal & Ujian</h2><p className="mt-1 text-xs text-slate-500">Paket ujian, soal, token, dan subtes.</p></Link>
       <Link href="/admin/konten" className="rounded-2xl border-2 border-slate-900 bg-white p-4 shadow-[4px_4px_0_#0f172a]"><span className="text-2xl">📢</span><h2 className="mt-2 font-black">Konten Website</h2><p className="mt-1 text-xs text-slate-500">Pengumuman dan materi belajar.</p></Link>
@@ -153,6 +187,7 @@ export default function AdminDashboardPage() {
         </div>
         <div className="rounded-xl border border-slate-200 p-3"><div className="flex items-center justify-between gap-2"><h3 className="text-xs font-black text-slate-800">Sebaran peserta per kelas</h3><span className="text-[10px] text-slate-400">{classFilter==='ALL'?'Semua kelas':classFilter}</span></div><div className="mt-3 space-y-2">{classSummary.map(item=><div key={item.name}><div className="mb-1 flex justify-between text-[10px]"><span className="font-semibold text-slate-600">{item.name}</span><b className="text-slate-800">{item.count}</b></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500" style={{width:(item.count/Math.max(1,...classSummary.map(x=>x.count))*100)+'%'}}/></div></div>)}{!classSummary.length&&<p className="py-3 text-center text-xs text-slate-400">Belum ada data kelas.</p>}</div></div>
         <div className="rounded-xl border border-slate-200 p-3"><h3 className="text-xs font-black text-slate-800">5 peserta dengan XP latihan tertinggi</h3><ChartBars items={topPracticeStudents} color="bg-emerald-500" suffix="XP"/></div>
+        <div className="rounded-xl border border-slate-200 p-3"><h3 className="text-xs font-black text-slate-800">5 peserta dengan rata-rata nilai ujian tertinggi</h3><ChartBars items={topExamStudents} color="bg-indigo-500" suffix="/100"/></div>
       </aside>
     </div>
     <div className="mt-3 flex flex-col justify-between gap-2 text-xs text-slate-500 sm:flex-row sm:items-center"><span>{visible.length} peserta · halaman {currentPage}/{pageCount}</span><div className="flex items-center gap-2"><select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}} className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"><option value={10}>10 / halaman</option><option value={20}>20 / halaman</option><option value={50}>50 / halaman</option><option value={100}>100 / halaman</option></select><button type="button" disabled={currentPage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Sebelumnya</button><button type="button" disabled={currentPage>=pageCount} onClick={()=>setPage(p=>Math.min(pageCount,p+1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Berikutnya</button></div></div></section>
