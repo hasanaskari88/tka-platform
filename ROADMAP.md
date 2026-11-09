@@ -174,3 +174,11 @@ Belum ada rilis aplikasi baru yang disetujui pada pembaruan roadmap ini. Status 
 ### Status audit dashboard
 
 File `app/admin/page.tsx` Preview telah dibandingkan dengan Production pada 10 November 2026. Perubahan dashboard dicatat sebagai kandidat Batch 1 di roadmap Preview. Belum ada perubahan aplikasi atau rilis Production yang dilakukan.
+
+
+### Status Preview Batch 1 — 10 November 2026
+
+- Implementasi awal Dashboard Admin dan Live Monitor telah dilakukan hanya pada branch `homepage-arcade-catalog`; tidak ada perubahan pada Production.
+- Build Preview untuk commit `0c008ba0a1c52a5326c2ef64d746f330a24e8918` berstatus READY (deployment `dpl_Dd5XveAWQrPnon4hjiLbY8FtATpV`).
+- QA browser masih menunggu konfirmasi pengguna. Batch 1 belum dianggap lulus QA dan belum menjadi kandidat rilis Production.
+- Rincian file, commit, koreksi build, dan checklist QA tetap diarsipkan pada `homepage-arcade-catalog/ROADMAP.md`.
