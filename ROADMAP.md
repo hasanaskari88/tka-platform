@@ -127,3 +127,50 @@ Pekerjaan berikutnya adalah inventaris dan persiapan Batch 1 di Preview. Setelah
 
 Terakhir diperbarui: 10 November 2026.  
 Dokumen ini hanya diubah ketika status Production, keputusan rilis, atau komitmen lintas jalur berubah.
+
+
+## 9. Sinkronisasi roadmap dan riwayat rilis — 10 November 2026
+
+### Fungsi utama roadmap Production
+
+Dokumen ini menjadi catatan versi aplikasi yang benar-benar sudah dirilis. Setiap deployment Production yang membawa perubahan aplikasi harus menambahkan satu entri riwayat rilis/batch yang berisi:
+- tanggal dan nama/nomor batch;
+- commit SHA Production sebelum dan sesudah rilis;
+- deployment ID, status, dan URL deployment/alias Production;
+- daftar file yang berubah atau tautan perbandingan commit;
+- ringkasan fitur/perbaikan yang benar-benar masuk;
+- dependensi dan keputusan khusus (misalnya database/API) yang telah disetujui;
+- hasil build dan QA yang benar-benar dilakukan, termasuk pengujian pengguna;
+- catatan rollback atau tindak lanjut jika ada.
+
+Deployment dokumentasi saja dicatat sebagai pembaruan dokumentasi dan **tidak** dihitung sebagai rilis aplikasi. Status build READY tidak otomatis berarti runtime lulus QA.
+
+### Hubungan dengan roadmap Preview
+
+- `main/ROADMAP.md` adalah catatan Production dan riwayat rilis.
+- `homepage-arcade-catalog/ROADMAP.md` adalah catatan Preview, inventaris file, perbedaan branch, batch aktif, dan backlog.
+- Setelah setiap rilis Production, kedua roadmap diselaraskan: item yang terbukti masuk Production ditandai dirilis dengan commit/deployment; item yang belum masuk tetap terbuka di Preview.
+- Sebelum menyetujui rilis, catat snapshot SHA HEAD kedua branch, merge base, ahead/behind, dan daftar file yang berbeda. Jangan hanya mengandalkan nomor commit atau status PR.
+- Perbedaan branch harus dianalisis dari kedua sisi. Jika branch diverged, periksa commit Production yang belum ada di Preview dan perubahan Preview yang belum ada di Production untuk mencegah penimpaan atau konflik.
+- Inventaris per file mencatat versi Production, versi Preview, perilaku, perbedaan, dependensi, risiko, keputusan batch, dan status QA. Kode lokal Codespace hanya ditambahkan setelah benar-benar diberikan/dapat diakses.
+
+### Snapshot rekonsiliasi GitHub — 10 November 2026
+
+| Item | Nilai terverifikasi |
+|---|---|
+| HEAD Production | `main` — `22f0f005921dcc5bc3e2f595951e3dc11de394e7` |
+| HEAD Preview | `homepage-arcade-catalog` — `fd4988e8434364342223e2ea1eb931084210f4a7` |
+| Status branch | Diverged |
+| Preview ahead / behind | 176 commit ahead, 3 commit behind |
+| File berbeda | 30 |
+| Merge base | `9979e3523e3d296d51cb1b650c97e1f9edebac27` |
+
+**Catatan:** snapshot ini menunjukkan posisi GitHub saat audit, bukan status Codespace lokal. Perbedaan tiga commit Production yang belum ada di Preview harus diperiksa sebelum menyusun kandidat rilis berikutnya.
+
+### Riwayat deployment aplikasi
+
+Belum ada rilis aplikasi baru yang disetujui pada pembaruan roadmap ini. Status Production yang berlaku tetap deployment CBT READY pada commit `924a1b4895f911f7c4d6307474e79926aef2084e` seperti tercatat di bagian 2 dan 7. Commit `22f0f005921dcc5bc3e2f595951e3dc11de394e7` adalah pembaruan dokumentasi roadmap; bukan bukti deployment aplikasi baru.
+
+### Status audit dashboard
+
+File `app/admin/page.tsx` Preview telah dibandingkan dengan Production pada 10 November 2026. Perubahan dashboard dicatat sebagai kandidat Batch 1 di roadmap Preview. Belum ada perubahan aplikasi atau rilis Production yang dilakukan.
