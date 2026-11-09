@@ -1,11 +1,8 @@
-
-import { connection, NextResponse } from 'next/server'
+import { connection, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { requireAdmin } from '@/lib/supabase/admin'
 
-
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await connection()
 
@@ -20,8 +17,10 @@ export async function GET() {
 
     const clientId = process.env.GOOGLE_CLIENT_ID
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-    const redirectUri =
-      `${process.env.NEXT_PUBLIC_SITE_URL || 'https://grisan.vercel.app'}/api/google-drive/callback`
+    const redirectUri = new URL(
+      '/api/google-drive/callback',
+      request.url
+    ).toString()
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
