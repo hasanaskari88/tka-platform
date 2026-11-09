@@ -297,3 +297,59 @@ Semua perubahan kode dan dokumentasi di atas berada pada `security-hardening-adm
 - [ ] Build dokumen terbaru setelah commit `f39f4e6` masih otomatis diproses Vercel; kode tidak berubah setelah build READY.
 - [ ] Belum ada runtime QA terhadap operasi pembuatan/edit/hapus akun karena UI belum terintegrasi dan allowlist belum diisi.
 - [ ] Pekerjaan ini belum boleh dianggap sebagai penutupan penuh temuan keamanan database. RLS/policy dan trigger signup masih menunggu review serta persetujuan terpisah.
+
+
+---
+
+## Pembaruan operasional terbaru — 9 November 2026
+
+Bagian ini menggantikan catatan branch/deployment yang lebih lama jika terdapat perbedaan.
+
+### Jalur Git yang berlaku
+
+- [x] Satu-satunya branch pengembangan aktif: `homepage-arcade-catalog`.
+- [x] Production tetap pada `main`.
+- [x] Seluruh perubahan keamanan dan cetak kartu telah berada di branch pengembangan tunggal.
+- [x] Commit kode yang diperiksa: `703d3fd4b262cc0672d887063e9c7dfedfad9c54`.
+- [x] Branch `security-hardening-admin-api` sekarang identik dengan branch pengembangan tunggal; bukan jalur kerja terpisah.
+- [x] Branch `security-print-cards-server` tertinggal dua commit dan tidak memiliki perubahan unik; jangan lanjutkan pekerjaan di sana.
+- [ ] Jangan membuat branch baru, merge, cherry-pick, reset, force-push, atau menghapus branch tanpa alasan dan pemeriksaan yang jelas.
+
+### Deployment Preview terbaru
+
+- [x] Deployment ID: `dpl_D346b4BGuByLEWRoL2SmGAe7mEs1`.
+- [x] Commit: `703d3fd4b262cc0672d887063e9c7dfedfad9c54`.
+- [x] Status: READY.
+- [x] Alias tetap: https://grisan-git-homepage-arcade-catalog-heins14.vercel.app/
+- [x] Build diperbaiki dengan menghapus `export const dynamic = 'force-dynamic'` dari `app/api/admin/users/print-cards/route.ts`; konfigurasi itu tidak kompatibel dengan `cacheComponents`.
+
+### Keamanan cetak kartu
+
+- [x] Daftar profil di browser tidak lagi meminta `plain_password`.
+- [x] Data kartu diambil melalui endpoint server setelah admin lolos allowlist.
+- [x] Username dan password tetap dicetak sesuai kebutuhan; `plain_password` masih plaintext di database.
+- [ ] QA cetak satu kartu dan batch pada Preview.
+- [ ] QA penolakan anonim/student untuk endpoint cetak.
+- [ ] QA kondisi password kosong dan pembersihan state setelah print.
+
+### Batas pekerjaan admin users
+
+- [x] PUT/DELETE API telah menggunakan trusted admin server-side.
+- [x] POST server-side tersedia.
+- [ ] Form create user tunggal masih memakai browser-side `auth.signUp()`; integrasikan ke POST.
+- [ ] Bulk import masih melakukan insert langsung dari browser; pindahkan ke endpoint server.
+- [ ] Jangan uji operasi tulis dengan data sekolah asli di Preview karena database Preview dan Production sama.
+
+### Pengurangan build Vercel
+
+- [x] Project setting Ignored Build Step diatur agar commit yang hanya mengubah Markdown atau `docs/` tidak menjalankan build.
+- [x] Perubahan kode/dependency/konfigurasi tetap membangun Preview.
+- [x] Preview tidak dinonaktifkan; satu Preview branch tetap dipakai untuk QA.
+- [ ] Periksa hasil Ignored Build Step pada push dokumentasi pertama sebelum menganggap optimasi terverifikasi.
+
+### Keselamatan tetap berlaku
+
+- Tidak ada perubahan pada `main` atau deployment Production.
+- Tidak ada SQL, migration, perubahan schema/RLS/policy/grant/function/trigger, atau data Supabase yang dilakukan.
+- Google Drive OAuth Preview tetap ditunda.
+- Merge PR #2 tetap menunggu QA dan persetujuan eksplisit.
