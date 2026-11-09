@@ -233,3 +233,31 @@ Keputusan ini menggantikan instruksi lama yang mewajibkan semua pekerjaan baru m
 - Persetujuan pengguna pada percakapan 10 November 2026 mencakup jalur push selektif langsung ke `main` untuk perubahan kecil/risiko rendah. Persetujuan ini bukan izin umum untuk migration/database, perubahan besar, atau mengganti seluruh branch Preview.
 
 **Prioritas operasional:** jangan menambah fitur baru ke Preview sebelum ada kebutuhan batch yang jelas. Untuk setiap permintaan berikutnya, klasifikasikan risiko terlebih dahulu dan pilih jalur paling pendek yang aman.
+
+
+## Protokol eksekusi cepat dan pengamanan rilis — 10 November 2026
+
+Protokol ini adalah instruksi operasional default untuk pekerjaan berikutnya; asisten harus menerapkannya tanpa meminta pengguna mengulang aturan.
+
+### Jalur cepat perubahan berisiko rendah
+1. Audit singkat perubahan yang diminta: file terdampak, dependensi/import, dampak data/API, dan kemungkinan regresi.
+2. Jika perubahan benar-benar kecil dan terisolasi, tidak menyentuh database/migration/RLS, auth/role, scoring/nilai, penyimpanan jawaban, timer/sesi CBT, atau alur proktor, kerjakan langsung pada `main` tanpa Preview dan tanpa branch baru.
+3. Periksa diff sebelum commit. Hindari refactor atau format massal yang tidak diperlukan.
+4. Commit perubahan terfokus ke `main`. Integrasi Git Vercel yang sudah terhubung menjadi jalur deployment otomatis; jangan membuat deployment manual kedua kecuali diperlukan untuk pemulihan.
+5. Pantau status deployment yang cocok dengan SHA commit. Pastikan alias Production tetap menunjuk deployment READY. Setelah build READY, lakukan smoke test sesuai area yang berubah; READY bukan pengganti QA runtime.
+6. Jika build gagal, deployment tidak menjadi rilis READY; baca log, perbaiki penyebab pada `main` dengan commit koreksi terfokus, lalu verifikasi ulang. Jika runtime bermasalah setelah rilis, hentikan perubahan lain, gunakan deployment READY sebelumnya sebagai kandidat rollback, dan minta/ikuti persetujuan pengguna untuk rollback bila tindakan diperlukan.
+7. Catat commit, deployment, hasil pemeriksaan, smoke test, dan tindak lanjut pada roadmap Production yang sama.
+
+### Gerbang wajib ke Preview / persetujuan khusus
+- Perubahan banyak file, lintas halaman, CSS global/layout, dependency besar, auth/security, API kontrak, data siswa, CBT/penilaian/jawaban, atau fitur baru yang kompleks harus disiapkan dan diuji di Preview.
+- Semua migration, SQL, schema, RLS/policy/grant/function/trigger, perubahan data, dan operasi pada koneksi Google Drive/akun nyata memerlukan audit serta persetujuan khusus terpisah.
+- Jangan menyalin seluruh Preview atau merge PR #2 secara otomatis. Pilih perubahan yang telah disetujui dan pertahankan perbaikan khusus Production.
+- Jangan menambah branch, membuat arsip/roadmap/checklist baru, atau menjalankan deployment manual ganda tanpa alasan.
+
+### Status otomatisasi yang diperiksa
+- Project Vercel `grisan` terhubung dengan deployment Git untuk branch `main`; riwayat deployment memperlihatkan commit dokumentasi `e8f017a` otomatis menghasilkan deployment Production yang berstatus CANCELED karena perubahan hanya dokumentasi/konfigurasi Ignored Build Step. Ini bukan build aplikasi yang gagal.
+- Deployment aplikasi READY terakhir yang terverifikasi tetap commit CBT `924a1b4895f911f7c4d6307474e79926aef2084e`, deployment `dpl_4VCs1NvSD5KV9ZuoTnCd3mWsKgkh`, alias `grisan.vercel.app`.
+- Belum ada GitHub Actions workflow pada lokasi `.github/workflows` yang dapat diakses/ditemukan dalam pemeriksaan ini; branch protection juga tidak dapat dibaca melalui integrasi saat ini. Karena itu jangan mengklaim CI gate atau perlindungan branch sudah aktif.
+- Keputusan percepatan: manfaatkan Git-to-Vercel auto deployment yang sudah ada terlebih dahulu. Jangan menambahkan workflow CI/deploy yang membutuhkan token/secret atau men-deploy ulang secara paralel sebelum konfigurasi, hak akses, dan kebutuhan build diverifikasi. Otomatisasi tambahan harus menjadi pemeriksaan kualitas/health check yang tidak dapat mengubah data atau mempromosikan deployment tanpa izin.
+
+**Prinsip utama:** jalur tercepat yang aman adalah satu commit terfokus ke `main` → satu deployment otomatis Vercel → verifikasi status dan smoke test → arsipkan hasil. Kecepatan tidak boleh mengorbankan stabilitas situs dan integritas jawaban/nilai.
