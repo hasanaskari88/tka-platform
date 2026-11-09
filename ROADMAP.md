@@ -941,3 +941,12 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Jangan menyatakan bahwa halaman Preview menghapus fitur Production sebelum menelusuri halaman baru yang menggantikannya.
 - Jangan menyarankan mengulang pembuatan halaman yang sudah ada dan telah diuji di Preview.
 - Prioritaskan hasil nyata yang cepat masuk `main`, dengan catatan versi yang rapi dan pemeriksaan yang proporsional.
+
+
+## Sinkronisasi Preview dengan Production — 10 November 2026
+
+- Preview disinkronkan dengan perubahan Production pada commit `d9881e4ed1c8d8f608aeec7e76cd02a25ed8a0eb` setelah porting Admin terpilih.
+- Halaman Admin yang sekarang sama persis di kedua branch: dashboard, Bank Soal, Konten Website, Pengaturan Dokumen, detail peserta, dan Raport.
+- Perubahan Production pada `app/exam/[id]/page.tsx` dibawa ke Preview karena Preview masih memakai versi dari merge-base; ini menjaga perbaikan alur CBT Production tetap ada.
+- Sinkronisasi mempertahankan implementasi Preview lainnya. Tidak ada migration/SQL yang dijalankan dan tidak ada data Supabase yang diubah.
+- Commit Preview sebelum sinkronisasi: `922b729f5f7fb3411ad3025620a3eb94d428fbe2`; commit Production yang disinkronkan: `d9881e4ed1c8d8f608aeec7e76cd02a25ed8a0eb`.
