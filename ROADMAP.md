@@ -31,6 +31,12 @@ Production adalah versi layanan yang digunakan siswa dan guru. Prioritasnya stab
 | URL utama | https://grisan.vercel.app/ |
 | Region | `iad1` |
 
+### Pembaruan dokumentasi 10 November 2026
+
+- [x] File Production `ROADMAP.md` dibuat pada commit `00d620881aa76e5c42fd7776411a86b02ca536a9`.
+- [x] Vercel mendeteksi commit dokumentasi, tetapi deployment otomatis berstatus CANCELED karena konfigurasi *Ignored Build Step*; tidak ada build aplikasi baru.
+- [x] Deployment READY sebelumnya untuk commit CBT tetap menjadi deployment Production aktif; pembaruan ini hanya menambah dokumentasi, bukan mengubah kode aplikasi.
+
 ## 3. Fungsi Production yang telah dikonfirmasi
 
 ### WYSIWYG editor soal
