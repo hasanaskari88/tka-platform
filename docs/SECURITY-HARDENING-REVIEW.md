@@ -1,141 +1,136 @@
-# Review Keamanan — Admin API dan Role Signup
+# Arsip Keamanan Admin dan Cetak Kartu
 
-Tanggal: 9 November 2026  
-Branch: `security-hardening-admin-api`  
-Status: review kode; tidak ada perubahan database.
+Tanggal pembaruan: 9 November 2026  
+Repository: `hasanaskari88/tka-platform`  
+Branch pengembangan tunggal: `homepage-arcade-catalog`  
+Production branch: `main`  
+Commit kode yang diperiksa: `703d3fd4b262cc0672d887063e9c7dfedfad9c54`  
+Preview: https://grisan-git-homepage-arcade-catalog-heins14.vercel.app/  
+Status deployment: READY
 
-## Tujuan
+> Dokumen ini adalah catatan status terbaru. Semua pekerjaan kode lanjutan dilakukan pada `homepage-arcade-catalog`; jangan membuat branch fitur baru.
 
-Menutup akses tidak sah pada API pengelolaan akun tanpa mengubah database bersama, mempertahankan alur admin yang sah, dan menyiapkan desain perubahan database untuk review terpisah.
+## 1. Batas keselamatan yang disepakati
 
-## Perubahan kode yang disiapkan
+- `main` adalah Production. Tidak boleh diubah, di-merge, atau di-deploy tanpa persetujuan eksplisit pemilik proyek.
+- Semua pengembangan dan QA dilakukan pada `homepage-arcade-catalog` dan satu alamat Preview di atas.
+- Preview dan Production menggunakan proyek Supabase yang sama. Setiap operasi tulis dari Preview berpotensi mengubah data Production.
+- Tidak ada SQL, migration, perubahan RLS/policy/grant/function/trigger, atau perubahan data Supabase yang dilakukan dalam pekerjaan ini.
+- Jangan uji Google Drive OAuth dari Preview selama database masih berbagi dengan Production.
+- Jangan menghapus atau mengubah branch lain secara otomatis. Branch keamanan lama bukan jalur pengembangan aktif.
 
-### 1. Trusted admin allowlist
+## 2. Implementasi keamanan yang sudah tersimpan
+
+### Trusted admin
 
 File: `lib/supabase/trusted-admin.ts`
 
-- Memvalidasi identitas melalui `supabase.auth.getUser()` pada server.
-- Otorisasi menggunakan daftar UUID server-only `ADMIN_USER_IDS`, bukan `profiles.role`.
-- Menolak semua akses bila allowlist belum dikonfigurasi (fail closed).
-- Menolak konfigurasi service-role yang tidak lengkap.
-- Service-role client hanya dibuat setelah pengguna lolos pemeriksaan.
+- Memvalidasi sesi menggunakan `supabase.auth.getUser()` di server.
+- Memeriksa UUID pengguna terhadap environment server-only `ADMIN_USER_IDS`.
+- Fail closed: jika allowlist tidak tersedia atau konfigurasi service-role tidak lengkap, akses ditolak.
+- Service-role client hanya dibuat setelah sesi dan allowlist lolos.
+- Otorisasi API tidak menggunakan `profiles.role` sebagai sumber kepercayaan.
 
-Format variabel:
-`ADMIN_USER_IDS=uuid-admin-1,uuid-admin-2`
+Environment Vercel:
+- Key: `ADMIN_USER_IDS`
+- Target: Preview saja.
+- Branch scope: `homepage-arcade-catalog`.
+- Nilai berisi tujuh UUID admin yang telah diverifikasi sebelumnya. Nilai rahasia tidak boleh ditulis ke dokumentasi, log, atau chat.
 
-Nilai harus berisi hanya UUID akun admin yang diverifikasi langsung oleh pemilik proyek. Jangan mengisi otomatis dari semua baris `profiles.role='admin'`, karena policy database yang sedang diaudit memungkinkan perubahan role oleh client. Variabel ini belum dikonfigurasi pada Vercel.
-
-### 2. API pengelolaan akun
+### Admin users API
 
 File: `app/api/admin/users/route.ts`
 
-- PUT dan DELETE mewajibkan origin same-site, sesi Auth yang valid, dan UUID yang ada di allowlist.
-- Service-role key tidak lagi fallback ke anon key.
-- Validasi UUID, nama, kode kelas, role, dan panjang password.
-- Mencegah admin menghapus akun sendiri.
-- Mencegah akun allowlist dihapus atau diturunkan role melalui endpoint biasa.
-- Delete Auth mengandalkan foreign key `profiles.id_fkey` yang telah diverifikasi menggunakan `ON DELETE CASCADE`.
-- Menambahkan POST server-side untuk pembuatan akun admin; endpoint ini belum digunakan oleh halaman admin sampai integrasi UI diselesaikan.
+- POST, PUT, DELETE memeriksa Origin same-site, sesi Auth, dan allowlist admin tepercaya.
+- Service-role key tidak fallback ke anon key.
+- Input divalidasi; self-delete dicegah.
+- Akun dalam allowlist tidak dapat dihapus atau diturunkan role melalui endpoint ini.
+- POST server-side sudah tersedia, tetapi form pembuatan akun pada UI belum sepenuhnya dialihkan ke endpoint ini.
+- Reset password melalui UI sudah memanggil API server; API memperbarui `profiles.plain_password` dan Auth password.
 
-### 3. Batas yang belum selesai
+### Cetak kartu melalui server tepercaya
 
-- Pembuatan akun dan bulk import pada `app/admin/users/page.tsx` masih perlu dipindahkan ke API server. Pengambilan daftar profil sudah dibatasi ke kolom non-password, dan pembaruan `plain_password` saat reset password kini dilakukan oleh API server.
-- Pendaftaran publik saat ini tidak mengirim role pada UI resmi, tetapi trigger database masih membaca role dari `raw_user_meta_data`. Permintaan Auth yang dibuat manual dapat mengirim metadata role. Ini tidak bisa ditutup tuntas hanya dengan mengubah UI; trigger perlu diperbaiki di database.
-- Admin UI dan helper `requireAdmin()` masih menggunakan `profiles.role`. Perbaikan database dan penyesuaian seluruh route admin masih diperlukan.
-- Bulk import akun masih melakukan operasi langsung dari browser dan perlu diaudit/dipindahkan ke endpoint server.
+File endpoint: `app/api/admin/users/print-cards/route.ts`  
+File UI: `app/admin/users/page.tsx`
 
-## Draft desain database untuk review — JANGAN JALANKAN
+Alur:
+1. Halaman daftar pengguna hanya mengambil `id, username, full_name, class_code, role`; tidak mengambil `plain_password`.
+2. Admin memilih siswa yang akan dicetak.
+3. Browser mengirim ID pilihan ke `POST /api/admin/users/print-cards`.
+4. Server memeriksa Origin, sesi Auth, dan allowlist sebelum membaca kolom kredensial.
+5. Endpoint menerima 1–500 UUID unik dan mengambil hanya `id, username, full_name, class_code, plain_password`.
+6. Respons menggunakan `Cache-Control: no-store`, `Pragma: no-cache`, dan `Vary: Cookie`.
+7. UI menampilkan kartu dengan username dan password yang dapat dibaca, lalu menghapus data kartu dari state setelah event `afterprint`.
 
-K3 hanya mengizinkan review, bukan eksekusi. SQL berikut adalah arah perubahan, bukan migration yang telah disetujui atau siap dijalankan.
+**Password tetap berupa teks biasa di database dan tetap ditampilkan pada kartu.** Ini dipertahankan sesuai kebutuhan operasional sekolah. Endpoint membatasi jalur pengambilan password, tetapi belum mengenkripsi nilai saat tersimpan di database. Jangan menghapus atau meng-hash `plain_password` sebelum ada rancangan pengganti dan pengujian login/cetak yang disetujui.
 
-Trigger signup harus mengabaikan role dari user metadata dan selalu membuat profil baru sebagai student. Role admin hanya boleh diberikan melalui server-side Admin API setelah allowlist diverifikasi.
+## 3. Bukti pemeriksaan dan status QA
 
-Contoh inti perubahan fungsi trigger (perlu dicocokkan dengan definisi fungsi aktual dan seluruh kolom wajib sebelum menjadi migration):
+### Sudah diverifikasi
 
-```sql
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  insert into public.profiles (
-    id,
-    username,
-    full_name,
-    class_code,
-    role
-  )
-  values (
-    new.id,
-    new.raw_user_meta_data ->> 'username',
-    new.raw_user_meta_data ->> 'full_name',
-    upper(new.raw_user_meta_data ->> 'class_code'),
-    'student'
-  )
-  on conflict (id) do nothing;
+- Pengujian endpoint admin users sebelumnya: anonim ditolak 401; student ditolak 403; admin tepercaya melewati otorisasi dan mencapai validasi payload 400 ketika body tidak lengkap.
+- Tidak ada akun dibuat, diubah, atau dihapus dalam pengujian tersebut.
+- Deployment Preview commit `703d3fd` berstatus READY.
+- Build berhasil setelah deklarasi `dynamic = 'force-dynamic'` dihapus dari route cetak kartu karena tidak kompatibel dengan konfigurasi `cacheComponents` proyek.
 
-  return new;
-end;
-$$;
+### Belum diverifikasi secara fungsional
+
+- Cetak satu kartu dengan username dan password yang benar.
+- Cetak beberapa kartu sekaligus.
+- Perilaku kartu ketika `plain_password` kosong.
+- Penolakan endpoint cetak untuk anonim dan student.
+- Penghapusan data kredensial dari state setelah dialog print ditutup.
+
+Build READY bukan bukti bahwa alur cetak runtime sudah lulus. Lakukan QA visual/fungsional pada Preview sebelum menyatakan pekerjaan selesai.
+
+## 4. Pekerjaan terbuka dan urutan berikutnya
+
+1. QA cetak satu kartu dan batch kartu melalui UI Preview. Jangan melakukan operasi tulis ke database.
+2. Uji endpoint cetak sebagai student dengan body kosong; harus ditolak 403 sebelum data dibaca. Uji anonim harus ditolak 401.
+3. Setelah alur cetak lolos, pindahkan pembuatan akun tunggal dari `supabase.auth.signUp()` browser ke `POST /api/admin/users`.
+4. Pindahkan bulk import dari `.from('profiles').insert(...)` browser ke endpoint server dengan validasi per baris dan hasil sukses/gagal yang jelas.
+5. Putuskan alur pemberian role admin secara terpisah. Akun baru dengan role admin tidak otomatis menjadi trusted admin; perubahan allowlist harus dilakukan secara sengaja.
+6. Setelah itu, audit akses database/RLS dan trigger signup hanya melalui review statis dan rancangan SQL. Jangan jalankan SQL pada database bersama tanpa persetujuan terpisah.
+
+Penting: UI pembuatan akun tunggal masih menggunakan browser-side `auth.signUp()` dan mengirim metadata `role`; bulk import masih melakukan insert langsung ke tabel `profiles`. Dua jalur tersebut belum dianggap aman dan perlu dimigrasikan sebelum digunakan sebagai alur administrasi yang telah diamankan.
+
+## 5. Pengaturan deployment Vercel
+
+Project `grisan` menggunakan Git integration. Branch non-production secara default dapat memicu Preview deployment pada setiap push.
+
+Untuk mengurangi build yang tidak perlu, project setting `Ignored Build Step` telah diatur dengan perintah:
+
+```sh
+git diff --quiet HEAD^ HEAD -- . ':(exclude)**/*.md' ':(exclude)docs/**'
 ```
 
-Catatan review:
-- Pastikan kolom yang memiliki NOT NULL/default cocok dengan daftar insert di atas.
-- Pertahankan trigger yang sudah ada; jangan membuat trigger kedua.
-- `search_path` dikunci kosong dan seluruh objek harus memakai schema-qualified name.
-- Admin API melakukan upsert role setelah Auth user dibuat oleh server tepercaya.
-- Review grants dan seluruh policy lama pada `profiles`; policy permissive yang tersisa dapat tetap membatalkan perlindungan.
-- Batasi UPDATE/INSERT kolom role agar client tidak dapat menaikkan privilege.
-- Siapkan policy terpisah untuk siswa dan admin; jangan mengaktifkan RLS atau menghapus policy sebelum matriks akses per fitur lengkap.
+Tujuannya:
+- Perubahan yang hanya menyentuh file Markdown atau folder `docs/` dilewati tanpa menjalankan build/deployment baru.
+- Perubahan kode, konfigurasi, dependency, aset, atau file aplikasi tetap memicu Preview agar bisa diuji.
+- Commit yang berisi dokumentasi sekaligus kode tetap memicu build.
+- Ini tidak mematikan Preview dan tidak mengubah Production.
 
-## Rencana pengujian sebelum rilis
+Jika suatu commit dokumentasi tetap memicu build, periksa log Ignored Build Step sebelum mengubah command. Jangan menonaktifkan semua Preview deployment karena branch ini adalah satu-satunya tempat QA.
 
-1. Tanpa login: PUT/POST/DELETE ditolak.
-2. Login sebagai student: PUT/POST/DELETE ditolak.
-3. Login sebagai UUID yang tidak ada dalam allowlist: ditolak.
-4. Login sebagai admin allowlist: dapat membuat dan mengedit akun melalui server API.
-5. Admin tidak dapat menghapus akun sendiri.
-6. Admin allowlist tidak dapat dihapus atau diturunkan role melalui endpoint biasa.
-7. Password Auth dan `plain_password` hanya berubah melalui server API; pastikan halaman kartu akun tetap bekerja.
-8. Uji pembuatan student/admin dan login masing-masing.
-9. Uji bulk import setelah desain endpoint server selesai.
+## 6. Riwayat kode dan file sumber
 
-## Persetujuan dan larangan
+Seluruh kode aktif berada di branch `homepage-arcade-catalog`. File sumber utama:
 
-- Tidak ada SQL yang dijalankan.
-- Tidak ada perubahan data Supabase.
-- Tidak ada environment variable Vercel yang diubah.
-- Tidak ada merge ke `main`.
-- `ADMIN_USER_IDS` harus diisi hanya setelah pemilik proyek memverifikasi daftar admin yang benar.
-- Semua perubahan harus lolos build dan QA Preview sebelum dipertimbangkan untuk merge.
+- `lib/supabase/trusted-admin.ts`
+- `lib/supabase/admin.ts`
+- `app/api/admin/users/route.ts`
+- `app/api/admin/users/print-cards/route.ts`
+- `app/admin/users/page.tsx`
+- `docs/SECURITY-HARDENING-REVIEW.md` (dokumen ini)
 
+Commit penting:
+- `703d3fd` — menghapus konfigurasi route yang menyebabkan build gagal.
+- Riwayat sebelumnya pada branch keamanan telah dipindahkan secara fast-forward ke branch pengembangan tunggal; tidak perlu cherry-pick atau merge ulang.
 
-## Perluasan perlindungan server admin
+## 7. Larangan rilis dan database
 
-- `lib/supabase/admin.ts` sekarang mendelegasikan pemeriksaan ke `requireTrustedAdmin()`.
-- Semua route Google Drive yang memakai helper `requireAdmin()` otomatis memakai allowlist server-side yang sama.
-- Tidak ada route Google Drive yang diuji atau dihubungkan pada Preview; kebijakan K5 tetap berlaku.
-- Halaman admin/layout client masih menggunakan `profiles.role` untuk mengatur tampilan. Ini bukan pengganti otorisasi server dan masih menunggu perbaikan database/peninjauan akses tabel.
-
-
-## Perubahan lanjutan — cetak kartu melalui server tepercaya
-
-Branch kerja: `security-print-cards-server`
-
-- Ditambahkan `POST /api/admin/users/print-cards`.
-- Endpoint memeriksa Origin, sesi Supabase Auth, dan allowlist `ADMIN_USER_IDS` sebelum membaca data kredensial.
-- Endpoint hanya menerima 1–100 UUID pengguna yang dipilih, menolak ID tidak valid/duplikat, dan mengambil hanya `id, username, full_name, class_code, plain_password`.
-- Respons memakai header `Cache-Control: no-store`; password tidak dimasukkan ke respons daftar profil biasa.
-- Halaman kelola pengguna tidak lagi memakai `.select('*')`; daftar profil hanya mengambil `id, username, full_name, class_code, role`.
-- Tombol cetak meminta data kartu dari endpoint server, lalu mempertahankan desain dan tampilan password kartu seperti sebelumnya.
-- Setelah dialog cetak selesai, data kartu dihapus dari state halaman.
-- Reset password kini memperbarui Auth password dan `profiles.plain_password` di API server, bukan melakukan update `plain_password` dari browser.
-
-### Batas dan pengujian yang masih diperlukan
-
-- `plain_password` sengaja dipertahankan agar password tetap dapat dibaca dan dicetak. Endpoint ini membatasi jalur pengambilannya, tetapi nilai di database masih berupa teks biasa; enkripsi-at-rest merupakan pekerjaan terpisah dan tidak boleh dilakukan sebelum alur cetak serta login diuji.
-- Pembuatan akun dan bulk import masih memakai jalur client-side lama dan belum dianggap aman.
-- Uji cetak kartu nyata, cetak banyak siswa, akun dengan `plain_password` kosong, dan penolakan endpoint untuk anonim/siswa harus dilakukan di Preview. Jangan gunakan data valid untuk operasi tulis karena Preview berbagi Supabase Production.
-- Tidak ada SQL yang dijalankan, data Supabase yang diubah, merge ke `main`, atau deployment Production dalam pekerjaan ini.
+- Jangan merge PR #2 atau branch Preview ke `main` tanpa persetujuan eksplisit.
+- Jangan jalankan migration atau mengubah Supabase.
+- Jangan melakukan uji tulis akun di Preview karena database yang dipakai sama dengan Production.
+- Jangan membuka Google Drive OAuth Preview.
+- Jangan membuat branch pengembangan tambahan.
