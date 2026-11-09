@@ -34,6 +34,8 @@ function ExamEngineContent() {
 
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authCheckFailed, setAuthCheckFailed] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [participantName, setParticipantName] = useState('')
   const [participantIdentifier, setParticipantIdentifier] = useState('')
@@ -45,6 +47,7 @@ function ExamEngineContent() {
   const questionsRef = useRef<any[]>([])
   const isSubmittingRef = useRef<boolean>(false)
   const sessionIdRef = useRef<string | null>(null)
+  const userIdRef = useRef<string | null>(null)
   const flaggedQuestionsRef = useRef<{ [key: string]: boolean }>({})
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
@@ -157,7 +160,11 @@ function ExamEngineContent() {
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
     if (!examId) return
-    
+    setLoading(true)
+    setAuthCheckFailed(false)
+    setLoadError(null)
+
+    try {
     const supabase = createClient()
 
     let user = null
@@ -171,8 +178,7 @@ function ExamEngineContent() {
     } catch (error) {
       console.error('Gagal memeriksa login:', error)
 
-      alert('Gagal memeriksa sesi login. Silakan coba kembali.')
-
+      setAuthCheckFailed(true)
       isSubmittingRef.current = false
       setIsSubmitting(false)
       return
@@ -186,6 +192,8 @@ function ExamEngineContent() {
       router.push('/login')
       return
     }
+
+    userIdRef.current = user.id
 
     // Ambil identitas peserta dari tabel profiles berdasarkan ID akun login.
     const { data: participantProfile, error: profileError } = await supabase
@@ -201,16 +209,6 @@ function ExamEngineContent() {
     setParticipantName(participantProfile?.full_name || 'Peserta Ujian')
     setParticipantIdentifier(participantProfile?.username || '')
     setParticipantClass(participantProfile?.class_code || '')
-
-    // A. Ambil User Aktif
-    const {
-      data: { user: activeUser },
-    } = await supabase.auth.getUser()
-
-    if (!activeUser) {
-      router.push('/login')
-      return
-    }
 
     // B. Fetch Data Ujian
     const { data: examData } = await supabase
@@ -310,7 +308,7 @@ const { data: existingSession, error: sessionError } = await supabase
         .from('exam_sessions')
         .insert({
           exam_id: examId,
-          user_id: activeUser.id,
+          user_id: user.id,
           status: 'ongoing',
           start_time: startTimeIso,
           paused_duration_seconds: 0,
@@ -458,7 +456,12 @@ const { data: existingSession, error: sessionError } = await supabase
     )
 
     setTimeLeft(remainingSeconds)
-    setLoading(false)
+    } catch (error) {
+      console.error('Gagal memuat ruang ujian:', error)
+      setLoadError(error instanceof Error ? error.message : 'Terjadi kendala saat memuat data ujian.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -474,21 +477,15 @@ const { data: existingSession, error: sessionError } = await supabase
 
     const checkSessionStatus = async () => {
       const supabase = createClient()
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) return
-
-      
       const currentId = sessionIdRef.current
-
-      if (!currentId) return
+      const currentUserId = userIdRef.current
+      if (!currentId || !currentUserId) return
 
       const { data: activeSession, error } = await supabase
         .from('exam_sessions')
         .select('id, status')
         .eq('id', currentId)
-        .eq('user_id', user.id)
+        .eq('user_id', currentUserId)
         .maybeSingle()
 
       if (error) {
@@ -496,35 +493,13 @@ const { data: existingSession, error: sessionError } = await supabase
         return
       }
 
-      // Sesi telah dihapus oleh proktor melalui Reset Sesi.
+      // Hasil kosong belum cukup untuk memastikan sesi dihapus.
+      // Pertahankan cadangan jawaban; polling berikutnya akan memeriksa kembali.
       if (!activeSession) {
-  // Hentikan proses submit lama agar tidak memakai sesi yang sudah dihapus.
-  isSubmittingRef.current = false
-  setIsSubmitting(false)
-
-  // Hapus seluruh cadangan jawaban sesi sebelumnya.
-  localStorage.removeItem(`cbt_answers_${examId}`)
-  localStorage.removeItem(`cbt_flags_${examId}`)
-  localStorage.removeItem(`cbt_start_time_${examId}`)
-  if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
-  autosaveTimerRef.current = null
-  flaggedQuestionsRef.current = {}
-
-  // Reset state jawaban dan navigasi.
-  setUserAnswers({})
-  userAnswersRef.current = {}
-
-  setFlaggedQuestions({})
-  setCurrentIndex(0)
-
-  // Kosongkan referensi sesi lama.
-  sessionIdRef.current = null
-  setSessionId(null)
-
-  // Muat ulang untuk membuat sesi baru.
-  window.location.replace(`/exam/${examId}`)
-  return
-}
+        setSessionStatus('missing')
+        console.warn('Sesi CBT belum ditemukan. Jawaban lokal tetap dipertahankan.')
+        return
+      }
 
       setSessionStatus(activeSession.status)
 
@@ -545,6 +520,7 @@ const { data: existingSession, error: sessionError } = await supabase
 
   // 🟢 PROTEKSI RELOAD & BACK BROWSER
   useEffect(() => {
+    if (loading || sessionStatus !== 'ongoing') return
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (!isSubmittingRef.current) {
         e.preventDefault()
@@ -561,6 +537,7 @@ const { data: existingSession, error: sessionError } = await supabase
       timeLeft === null ||
       timeLeft <= 0 ||
       sessionStatus === 'paused' ||
+      sessionStatus === 'missing' ||
       sessionStatus === 'completed'
     ) {
       return
@@ -670,7 +647,7 @@ const { data: existingSession, error: sessionError } = await supabase
     } catch (error) {
       console.error('Gagal memeriksa login:', error)
 
-      alert('Gagal memeriksa sesi login. Silakan coba kembali.')
+      alert('Belum dapat memverifikasi sesi login karena terjadi kendala. Ini belum membuktikan akun Anda keluar. Jawaban lokal tetap disimpan; periksa koneksi lalu coba lagi.')
 
       isSubmittingRef.current = false
       setIsSubmitting(false)
@@ -934,6 +911,24 @@ const { data: existingSession, error: sessionError } = await supabase
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center font-sans">
         <p className="font-semibold text-sm">Memuat ruang ujian CBT...</p>
+      </div>
+    )
+  }
+
+  if (authCheckFailed || loadError) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="text-4xl mb-4">⚠️</div>
+        <h2 className="text-xl font-bold">Ruang ujian belum dapat dimuat</h2>
+        <p className="text-sm text-slate-300 max-w-lg mt-3">
+          {authCheckFailed
+            ? 'Pemeriksaan sesi login mengalami kendala. Ini belum berarti akun Anda logout. Periksa koneksi internet, lalu coba kembali.'
+            : loadError || 'Terjadi kendala saat memuat data ujian.'}
+        </p>
+        <p className="text-xs text-slate-400 max-w-lg mt-2">Cadangan jawaban di perangkat tidak dihapus.</p>
+        <button type="button" onClick={() => loadExamData()} className="mt-6 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold">
+          Coba Periksa Kembali
+        </button>
       </div>
     )
   }
@@ -1477,6 +1472,14 @@ const { data: existingSession, error: sessionError } = await supabase
       </div>
 
       {/* 🔒 OVERLAY LAYAR DIPAUSE / DIHENTIKAN SEMENTARA OLEH PENGAWAS */}
+      {sessionStatus === 'missing' && (
+        <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center font-sans">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-black">Status sesi belum dapat dipastikan</h2>
+          <p className="text-slate-300 text-sm max-w-lg mt-3 leading-relaxed">Jawaban di perangkat tetap dipertahankan. Sistem sedang mencoba memeriksa sesi kembali. Jangan tutup atau muat ulang halaman. Jika status ini tidak berubah, hubungi pengawas ujian.</p>
+        </div>
+      )}
+
       {sessionStatus === 'paused' && (
         <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center font-sans">
           <div className="w-20 h-20 bg-amber-500/20 border-2 border-amber-400 rounded-full flex items-center justify-center text-4xl animate-bounce mb-4">
