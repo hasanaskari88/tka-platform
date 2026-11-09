@@ -216,3 +216,20 @@ Keputusan ini **menggantikan usulan sebelumnya** tentang pembuatan branch rilis 
 - Semua pengembangan berikutnya yang dimaksud pengguna dilakukan di Preview yang sama, dengan cakupan yang sudah disepakati. Perubahan database dan Production tetap memerlukan persetujuan khusus.
 
 **Instruksi operasional:** sebelum perubahan berikutnya, baca kedua roadmap, periksa HEAD Preview terkini, lalu kerjakan hanya di `homepage-arcade-catalog`. Perbarui roadmap yang sama setelah tindakan nyata. Jangan mengulang pertanyaan tentang branch sementara.
+
+
+## Keputusan alur kerja terbaru — 10 November 2026
+
+Keputusan ini menggantikan instruksi lama yang mewajibkan semua pekerjaan baru masuk Preview terlebih dahulu atau melarang push selektif langsung ke `main`.
+
+- `main` adalah acuan utama aplikasi dan tempat rilis/pengujian untuk perubahan kecil dengan risiko rendah.
+- Perubahan kecil, terisolasi, tanpa dampak database, autentikasi, scoring, penyimpanan jawaban, alur CBT, atau dependensi lintas fitur boleh dikerjakan langsung pada `main` setelah ruang lingkupnya jelas. Build dan QA dilakukan pada deployment Production setelah perubahan masuk; pantau hasilnya dan perbaiki segera bila deployment/error ditemukan.
+- Perubahan besar atau berisiko — termasuk perubahan lintas halaman, CSS global, arsitektur, autentikasi, alur ujian/nilai/jawaban, API penting, dan dependensi database — tetap direncanakan serta diuji di branch Preview `homepage-arcade-catalog` sebelum dipertimbangkan untuk rilis.
+- Preview berfungsi sebagai ruang rencana, inventaris, dan persiapan batch; tidak perlu menampung perbaikan kecil yang aman. Jangan menambah pekerjaan Preview hanya demi mengikuti alur yang kaku.
+- Pertahankan hanya dua branch yang ada: `main` dan `homepage-arcade-catalog`. Jangan membuat branch baru atau branch perantara.
+- Jangan merge seluruh PR #2 secara otomatis. Pilih hanya file/commit yang memang disetujui; jaga perubahan Production yang tidak terkait. Perubahan database tetap memerlukan persetujuan khusus.
+- Arsipkan perubahan pada dokumen yang sudah ada: `main/ROADMAP.md` mencatat rilis yang benar-benar masuk Production; `homepage-arcade-catalog/ROADMAP.md` mencatat rencana, inventaris, risiko, dan batch Preview. Riwayat editor tetap di `docs/EDITOR-CHANGELOG.md`. Jangan membuat dokumen arsip/roadmap/checklist baru.
+- Setiap catatan rilis penting mencantumkan tanggal, alasan, file/area, commit sebelum-sesudah, deployment/status, hasil build, QA yang dilakukan, dan tindak lanjut/rollback bila ada. Bedakan tegas antara build READY dan QA runtime yang lulus.
+- Persetujuan pengguna pada percakapan 10 November 2026 mencakup jalur push selektif langsung ke `main` untuk perubahan kecil/risiko rendah. Persetujuan ini bukan izin umum untuk migration/database, perubahan besar, atau mengganti seluruh branch Preview.
+
+**Prioritas operasional:** jangan menambah fitur baru ke Preview sebelum ada kebutuhan batch yang jelas. Untuk setiap permintaan berikutnya, klasifikasikan risiko terlebih dahulu dan pilih jalur paling pendek yang aman.
