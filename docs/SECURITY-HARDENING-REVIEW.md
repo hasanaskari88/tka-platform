@@ -110,3 +110,11 @@ Catatan review:
 - Tidak ada merge ke `main`.
 - `ADMIN_USER_IDS` harus diisi hanya setelah pemilik proyek memverifikasi daftar admin yang benar.
 - Semua perubahan harus lolos build dan QA Preview sebelum dipertimbangkan untuk merge.
+
+
+## Perluasan perlindungan server admin
+
+- `lib/supabase/admin.ts` sekarang mendelegasikan pemeriksaan ke `requireTrustedAdmin()`.
+- Semua route Google Drive yang memakai helper `requireAdmin()` otomatis memakai allowlist server-side yang sama.
+- Tidak ada route Google Drive yang diuji atau dihubungkan pada Preview; kebijakan K5 tetap berlaku.
+- Halaman admin/layout client masih menggunakan `profiles.role` untuk mengatur tampilan. Ini bukan pengganti otorisasi server dan masih menunggu perbaikan database/peninjauan akses tabel.
