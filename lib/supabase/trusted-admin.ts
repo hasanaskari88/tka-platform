@@ -5,6 +5,8 @@ type TrustedAdminResult =
   | {
       authorized: true
       userId: string
+      user: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>> extends never ? never : any>
+      supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
       adminClient: any
     }
   | {
@@ -75,6 +77,8 @@ export async function requireTrustedAdmin(): Promise<TrustedAdminResult> {
   return {
     authorized: true,
     userId: user.id,
+    user,
+    supabase,
     adminClient,
   }
 }
