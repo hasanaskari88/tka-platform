@@ -912,3 +912,32 @@ Protokol ini adalah instruksi operasional default untuk pekerjaan berikutnya; as
 - Artinya, push langsung ke `main` memang dapat dilakukan sesuai jalur cepat yang disetujui, tetapi belum ada pemeriksaan GitHub yang memblokir commit bermasalah sebelum Vercel mulai membangun. Karena itu, pemeriksaan diff sebelum commit dan pemantauan deployment/smoke test setelah commit menjadi wajib.
 - Jangan mengaktifkan proteksi yang mewajibkan PR tanpa keputusan baru, karena itu akan bertentangan dengan jalur langsung ke `main` yang baru disepakati.
 - Tidak ada perubahan kode aplikasi atau konfigurasi branch protection dalam pemeriksaan ini.
+
+
+## Koreksi keputusan dan komitmen kerja terbaru — 10 November 2026
+
+Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya**. Jangan mengulang asumsi yang keliru pada sesi berikutnya.
+
+### Makna perubahan Admin di Preview
+- Perubahan Admin pada Preview dimaksudkan sebagai **penataan ulang/redistribusi fitur ke halaman-halaman baru**, bukan menghapus kemampuan Admin Production.
+- Dashboard yang lebih ringkas bukan bukti bahwa fitur lama hilang. Sebagian fungsi pengelolaan dipindahkan ke halaman khusus (misalnya Bank Soal, Konten Website, Data Peserta, Practice, Raport, dan Pengaturan Dokumen) agar dashboard menjadi pusat ringkasan dan pintasan.
+- Saat membandingkan Main dengan Preview, periksa keseluruhan alur dan seluruh halaman tujuan, bukan hanya membandingkan satu file `app/admin/page.tsx`. Jika satu komponen tidak lagi berada di dashboard, telusuri apakah fungsinya tersedia/lebih lengkap pada halaman baru atau komponen lain.
+- Jangan menyimpulkan fitur Production terhapus hanya karena tidak tampak pada file dashboard Preview. Catat pemetaan: fungsi lama → lokasi baru → bukti implementasi → status. Nyatakan sebagai benar-benar hilang hanya setelah menelusuri seluruh halaman/route/komponen terkait dan memastikan tidak ada pengganti.
+- Pengguna telah meminta pekerjaan Preview yang sudah dicoba/dibangun dimanfaatkan; jangan mengabaikan hasil uji atau meminta pengguna mengulang dari awal. Gunakan riwayat commit, deployment READY, catatan QA, serta perbandingan kode sebagai bukti yang tersedia. Bedakan dengan jujur bagian yang sudah diuji dari yang belum.
+
+### Cara kerja yang dipercepat — Preview sebagai sumber, bukan gerbang wajib
+1. `main` adalah tujuan utama rilis. Untuk pekerjaan berikutnya, periksa hasil implementasi terbaru di `homepage-arcade-catalog` dan riwayat QA/deployment yang sudah ada, lalu manfaatkan kode yang sudah selesai alih-alih membangun ulang.
+2. Jika perubahan/halaman sudah dibuat dan dicoba di Preview, jalur default adalah **porting selektif langsung ke `main`**, termasuk penataan ulang Admin atau penambahan halaman baru. Tidak perlu mengulang tahap Preview atau meminta persetujuan ulang untuk pekerjaan yang sudah jelas diminta pengguna.
+3. Jangan terlalu konservatif atau memperlambat rilis dengan audit berulang. Lakukan perbandingan yang terarah: route dan halaman, komponen yang dipakai, fungsi lama dan lokasi barunya, import/dependensi, kontrak data/API, serta kebutuhan migration. Fokus pada hal yang benar-benar dapat menyebabkan regresi.
+4. Bila ada fitur yang tampak hilang dari satu halaman, cari penggantinya di halaman baru/komponen lain sebelum menyimpulkan kehilangan. Tujuan perubahan adalah menyusun ulang dan melengkapi pengalaman, bukan mengurangi kemampuan yang telah ada.
+5. Pertahankan fitur Production yang tidak termasuk dalam penataan ulang; gabungkan dengan versi Preview bila memang masih diperlukan. Jangan mengganti file besar secara buta jika pemetaan menunjukkan ada kemampuan yang belum dipindahkan.
+6. Setelah pemetaan singkat dan dependensi dipahami, kerjakan porting dalam batch yang masuk akal langsung pada `main`; jangan membuat branch atau PR baru. Gunakan hanya dua branch yang sudah ada.
+7. Database migration/SQL, perubahan schema/RLS/policy/grant/function/trigger/data, kredensial, dan operasi akun/Google Drive nyata tetap memerlukan persetujuan khusus. Untuk area lain, jangan memakai label "berisiko" sebagai alasan otomatis untuk mengulang pekerjaan di Preview; pilih jalur terpendek yang didukung bukti.
+8. Arsipkan kode sebelum perubahan melalui commit SHA stabil Git. Setelah perubahan lolos build dan QA, catat commit sebelum/sesudah, file/route yang dibawa, fungsi yang dipindah/dilengkapi, deployment ID/status, QA yang benar-benar dilakukan, dan tindak lanjut di roadmap yang sudah ada. Git adalah arsip kode lengkap; tidak perlu membuat salinan folder atau dokumen arsip baru.
+9. Build/deployment READY bukan bukti semua fungsi runtime lulus. Namun jangan meminta pengujian ulang yang sudah tercatat dan tidak terdampak; lakukan smoke test hanya untuk alur yang berubah dan regresi yang relevan.
+
+### Instruksi operasional untuk asisten
+- Terapkan keputusan ini otomatis pada semua pekerjaan berikutnya tanpa meminta pengguna mengingatkan.
+- Jangan menyatakan bahwa halaman Preview menghapus fitur Production sebelum menelusuri halaman baru yang menggantikannya.
+- Jangan menyarankan mengulang pembuatan halaman yang sudah ada dan telah diuji di Preview.
+- Prioritaskan hasil nyata yang cepat masuk `main`, dengan catatan versi yang rapi dan pemeriksaan yang proporsional.
