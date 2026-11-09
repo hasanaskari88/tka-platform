@@ -586,3 +586,47 @@ Pemeriksaan ini dilanjutkan langsung dari struktur file GitHub Preview setelah e
 - Risiko dependensi tetap mencakup Google OAuth, refresh token terenkripsi, service-role key, tabel `google_drive_tokens`, folder ID, Drive permissions, batas body/runtime, dan penyimpanan URL gambar di konten soal.
 
 **Batas tindakan:** hanya membaca kode GitHub dan memperbarui roadmap. Tidak ada perubahan aplikasi, database, token, permission, file Drive, konfigurasi, deployment, atau pengujian runtime.
+
+
+### Audit Batch 1: Live Monitor — 10 November 2026
+
+**File:** `app/admin/exam/[id]/monitor/page.tsx`
+
+**Perbandingan branch:**
+- Production `main`: SHA `889ea265e9370540ca9b5ef777e1847f868aac74`.
+- Preview `homepage-arcade-catalog`: SHA `889ea265e9370540ca9b5ef777e1847f868aac74`.
+- File identik pada kedua branch; panjang isi 36.113 karakter.
+- Audit ini membaca versi GitHub Preview/Production, bukan mengklaim membaca file lokal Codespace.
+
+**Perilaku saat ini:**
+1. Memuat satu data ujian dari `exams`, jumlah soal dari `questions`, seluruh sesi ujian untuk `exam_id` dari `exam_sessions`, serta profil dari `profiles`.
+2. Mengambil ulang data setiap 5 detik saat Auto-Refresh aktif; jam/timer live diperbarui setiap detik.
+3. Memiliki dua mode: Semua Sesi Real-Time dan Ringkasan Siswa & Multi-Attempt.
+4. Filter sesi berdasarkan status, kelas, dan pencarian nama/username; mode ringkasan memakai filter kelas dan pencarian.
+5. Menampilkan jumlah peserta, sesi ongoing/paused, rata-rata best score, dan persentase KKM (ambang 75).
+6. Menghitung sisa waktu berdasarkan start time, durasi, waktu pause akumulatif, status pause, dan extra time.
+7. Aksi proktor: pause sesi, resume sesi, force submit, reset sesi (menghapus session dan jawaban terkait melalui asumsi ON DELETE CASCADE), serta fungsi tambah waktu 10 menit.
+8. Ekspor ringkasan multi-attempt ke Excel.
+9. Tautan ke halaman Rekap Sesi.
+
+**Temuan statis dan klasifikasi:**
+
+| Temuan | Klasifikasi | Alasan / arah tindak lanjut |
+|---|---|---|
+| Pemanggilan `select('*')` pada sessions dan profiles | Perlu diperbaiki/audit | Mengambil seluruh kolom dan seluruh profil tanpa filter kelas/peserta; evaluasi kebutuhan kolom, RLS, volume data, dan batas hasil sebelum mengubah query |
+| Auto-refresh seluruh data tiap 5 detik | Penyempurnaan | Potensi beban query saat jumlah sesi/profil besar. Pertimbangkan query lebih ramping atau strategi refresh yang tetap menjaga status live; jangan mengubah mekanisme sesi/CBT tanpa persetujuan |
+| Penanganan error fetchData | Perlu diperbaiki/audit | Query tidak memeriksa/menampilkan error; kegagalan fetch dapat menghasilkan tampilan kosong atau data lama tanpa status kesalahan yang jelas |
+| Status dan timer live | Penting untuk fungsi proktor | Perhitungan waktu memakai `start_time`, `paused_duration_seconds`, `paused_at`, dan `extra_time_seconds`; harus dijaga konsisten dengan alur CBT |
+| Pause/resume | Penting; sensitif | Menulis `exam_sessions.status`, `paused_at`, dan `paused_duration_seconds`; butuh QA CBT dan pemeriksaan RLS sebelum perubahan |
+| Force Submit | Penting; sensitif | Mengubah status ke completed dan menulis `completed_at`, `submitted_at`, `end_time`; harus mempertahankan perilaku submit dan penilaian yang sudah ada |
+| Reset sesi | Penting; tindakan destruktif | Menghapus baris `exam_sessions`; kode mengandalkan ON DELETE CASCADE untuk jawaban. Tidak boleh diubah/diuji pada data nyata tanpa persetujuan dan skenario aman |
+| Fungsi tambah waktu 10 menit | Perlu diperiksa | Fungsi `handleExtendTime` ada dan memperbarui `extra_time_seconds`, tetapi pada file yang diperiksa tidak ditemukan pemanggilan handler dari JSX; kemungkinan fitur belum terhubung ke tombol UI |
+| Estimasi jumlah benar dari score | Perlu diperiksa | Jika `total_correct` kosong, kode memperkirakan jumlah benar dari score/100 dikali jumlah soal; estimasi dapat menyesatkan untuk bobot atau skor parsial |
+| Ambang KKM 75 | Perlu keputusan produk | Ambang 75 ditulis tetap untuk pass rate dan ekspor, bukan dibaca dari konfigurasi ujian; jangan ubah tanpa keputusan pemilik produk |
+| Ekspor Excel | Penyempurnaan | Memakai daftar ringkasan yang sudah difilter kelas/pencarian; perlu QA hasil ekspor bila tampilan/filter diubah |
+
+**Dependensi/risiko:** tabel `exams`, `questions`, `exam_sessions`, `profiles`; kolom status, start/pause/complete timestamps, extra time, score, total_correct; kebijakan RLS; relasi ON DELETE CASCADE untuk answers; perilaku CBT siswa; format ekspor XLSX. Tidak ada perubahan skema, RLS, RPC, scoring, XP, atau data yang dilakukan.
+
+**Batch:** file ini memang bagian **Batch 1: Dashboard Admin dan Live Monitor**. Arah Batch 1 sebaiknya memprioritaskan keterbacaan, ringkasan, navigasi, dan informasi tindak lanjut tanpa mengubah aksi proktor, perhitungan timer, force submit, reset, maupun alur CBT. Temuan data/query dan fitur tambah waktu dicatat untuk audit/perbaikan terpisah jika diperlukan.
+
+**QA:** audit statis GitHub saja; tidak menjalankan Live Monitor, tidak melakukan pause/resume/force submit/reset, tidak menguji refresh terhadap database, dan tidak mengubah kode maupun database. QA runtime tetap menunggu implementasi Batch 1 yang disetujui dan hanya perlu menguji perilaku yang benar-benar berubah.
