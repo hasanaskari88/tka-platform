@@ -469,7 +469,7 @@ function MonitorContent() {
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/admin" className="rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-bold text-slate-200 transition-colors hover:bg-slate-700">← Dashboard</Link>
             <button
-              onClick={() => setAutoRefresh(!autoRefresh)
+              onClick={() => setAutoRefresh(!autoRefresh)}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all border ${
                 autoRefresh
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500 shadow-sm'
