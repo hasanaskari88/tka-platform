@@ -410,3 +410,41 @@ Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pe
 **Dependensi/risiko:** Google OAuth client ID/secret dan daftar redirect URI; `NEXT_PUBLIC_SITE_URL`; `requireAdmin()`; `SUPABASE_SERVICE_ROLE_KEY`; tabel `google_drive_tokens`; fungsi `encryptToken`; cookie OAuth state. Preview dan Production berbagi proyek/database Supabase, sehingga uji koneksi atau penyimpanan token berpotensi memengaruhi koneksi Production.
 
 **Batch/keputusan:** **Pengembangan berikutnya — integrasi Google Drive**, bukan Batch 1 Dashboard Admin dan Live Monitor. Uji runtime ditunda sampai ada rencana aman dan persetujuan khusus. Tidak ada kode, database, token, konfigurasi OAuth, atau deployment yang diubah dalam audit ini.
+
+
+### Audit file pemulai OAuth Google Drive — 10 November 2026
+
+**File:** `app/api/google-drive/connect/route.ts`
+
+**Perbandingan GitHub dan kode yang dikirim:**
+- Production `main`: SHA `55fe87e7589514515af0d10f1b7b10d3feb12205`.
+- Preview `homepage-arcade-catalog`: SHA `0473a5a53bf0254a3eead4e6fa62d3d58851ac87`.
+- Kedua branch berbeda.
+- Kode yang dikirim cocok dengan struktur Production, dengan tambahan import dan pemanggilan `connection()` sebelum blok `try`.
+
+**Perbedaan terverifikasi:**
+1. Production tidak memakai `connection()`. Kode kiriman memanggilnya sebelum `try`; Preview memanggilnya di dalam `try`. Bila pemanggilan ini dipertahankan, letakkan di dalam `try` agar error tertangani.
+2. Production membangun `redirectUri` dari `NEXT_PUBLIC_SITE_URL` dengan fallback `https://grisan.vercel.app`. Preview menggunakan `new URL('/api/google-drive/callback', request.url).toString()`.
+3. Preview menerima `request: NextRequest` untuk membentuk URI berdasarkan host request. Production tidak membutuhkan parameter request.
+4. Parameter OAuth lainnya sama pada kedua versi: `access_type: 'offline'`, `prompt: 'consent'`, scope `drive.file`, `crypto.randomUUID()`, cookie HTTP-only dengan `sameSite: 'lax'`, path `/api/google-drive`, dan masa berlaku 600 detik.
+
+**Kecocokan pasangan connect/callback:**
+- Production connect dan callback sama-sama memakai `NEXT_PUBLIC_SITE_URL` dengan fallback domain Production.
+- Preview connect dan callback sama-sama memakai host dari `request.url`.
+- Karena itu, jangan mencampur route connect dari satu branch dengan callback branch lain tanpa menyamakan redirect URI. URI yang dikirim saat memulai OAuth harus sama dengan URI saat menukar authorization code dan cocok dengan Authorized redirect URI di Google Cloud Console.
+
+**Inventaris dan klasifikasi:**
+
+| Bagian | Penilaian | Keputusan |
+|---|---|---|
+| Pemeriksaan admin sebelum membuat URL OAuth | Penting untuk keamanan | Pertahankan |
+| State acak dan cookie HTTP-only | Penting untuk perlindungan CSRF | Pertahankan |
+| Scope `drive.file` dan mode offline | Penting untuk fungsi integrasi | Pertahankan; jangan memperluas scope tanpa alasan |
+| Penentuan `redirectUri` | Perlu diverifikasi bersama callback dan Google Cloud Console | Pilih kebijakan per lingkungan dan pastikan pasangan route konsisten |
+| `connection()` | Penyempurnaan teknis bila diperlukan oleh Next.js | Jika dipakai, letakkan di dalam `try` |
+
+**Arah tindak lanjut:** audit kedua route connect/callback bersama konfigurasi Google OAuth, daftar Authorized redirect URIs, dan variabel environment. Pastikan alamat Preview memang didaftarkan bila Preview hendak diuji. Jangan menganggap host Preview otomatis diizinkan oleh Google.
+
+**Dependensi/risiko:** Google OAuth client ID/secret dan Authorized redirect URIs; `NEXT_PUBLIC_SITE_URL`; host deployment; `requireAdmin()`; cookie state; callback route. Preview dan Production berbagi database Supabase, sehingga uji OAuth/token berpotensi memengaruhi koneksi Production.
+
+**Batch/keputusan:** **Pengembangan berikutnya — integrasi Google Drive**, bukan Batch 1 Dashboard Admin dan Live Monitor. Tidak ada kode, konfigurasi, token, database, atau deployment yang diubah. Belum dilakukan uji OAuth runtime.
