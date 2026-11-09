@@ -257,3 +257,19 @@ Pemeriksaan GitHub, isi file, riwayat PR, deployment, dan build log dilakukan se
 ### Catatan batas perubahan
 
 Semua perubahan kode dan dokumentasi di atas berada pada `security-hardening-admin-api`. Tidak ada perubahan pada `main`, PR #2, Supabase schema/data/policy/function/trigger, Vercel environment variables, token Google Drive, atau Production deployment.
+
+
+### Verifikasi build dan catatan akhir sesi — 9 November 2026
+
+- [x] Deployment untuk commit kode `6221135` berstatus READY.
+- [x] Build menyelesaikan kompilasi Next.js dan TypeScript tanpa error.
+- [x] Route `/api/admin/users` muncul dalam daftar route hasil build.
+- [x] Build masih menampilkan warning lama pada route Google Drive callback saat prerender; warning tersebut tidak berasal dari perubahan keamanan ini dan belum ditangani karena OAuth Preview tetap ditunda.
+- [x] Build pertama pada commit helper awal gagal karena tipe generik Supabase; perbaikannya dibuat dan build commit berikutnya berhasil.
+- [ ] Commit dokumentasi setelah `6221135` masih perlu deployment/build terbaru; tidak ada perubahan kode setelah commit yang sudah READY.
+- [ ] Belum ada pengujian runtime authenticated/unauthenticated terhadap endpoint.
+- [ ] Endpoint PUT/POST/DELETE akan menolak admin API sampai `ADMIN_USER_IDS` dikonfigurasi. Ini disengaja (fail closed), bukan konfigurasi yang boleh dilewati dengan fallback `profiles.role`.
+- [ ] Halaman admin users belum diubah; fungsi create user masih memakai client-side signup dan update password kartu akun masih dilakukan dari browser. Jadi perbaikan belum lengkap dan belum siap digunakan untuk alur pengelolaan akun.
+- [ ] Sebelum uji admin: pemilik proyek perlu memverifikasi daftar akun admin tepercaya. Jangan mengambil semua baris `profiles.role='admin'` sebagai allowlist secara otomatis.
+- [x] Kode, helper, dokumen review, dan roadmap tersimpan pada branch `security-hardening-admin-api`.
+- [x] Tidak ada SQL, perubahan data, environment variable, merge PR, atau deployment Production yang dilakukan.
