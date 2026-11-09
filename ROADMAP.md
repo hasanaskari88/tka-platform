@@ -736,3 +736,14 @@ Sebelum kode diubah, minta persetujuan eksplisit atas dua file dan ruang lingkup
 - Koreksi tersimpan pada commit Preview `0c008ba0a1c52a5326c2ef64d746f330a24e8918` dengan pesan `fix(admin): correct live monitor refresh button JSX`.
 - Deployment ulang: `dpl_Dd5XveAWQrPnon4hjiLbY8FtATpV` — URL `https://grisan-cvjb3ia72-heins14.vercel.app`. Pada pemeriksaan terakhir status masih **BUILDING**; kompilasi Next.js berhasil dan proses sedang menjalankan pemeriksaan TypeScript. Belum boleh ditandai READY sampai status final terverifikasi.
 - Catatan QA Batch 1 di atas tetap berlaku: belum ada QA browser/runtime, dan belum ada uji aksi proktor pada sesi nyata.
+
+
+### Hasil build Preview — 10 November 2026
+
+- [x] Deployment Preview untuk commit `0c008ba0a1c52a5326c2ef64d746f330a24e8918` berstatus **READY**.
+- [x] Log build mengonfirmasi `Compiled successfully` dan pemeriksaan TypeScript selesai hingga deployment READY.
+- [ ] QA browser oleh pengguna masih diperlukan untuk tampilan dashboard, filter tindak lanjut, tautan monitor/penilaian, Live Monitor dua mode, filter/pencarian, dan tata letak desktop/mobile.
+- [ ] Belum ada pengujian terhadap data sesi siswa nyata atau aksi proktor. Jangan menjalankan aksi pause/resume/force submit/reset pada sesi nyata.
+- Preview URL: https://grisan-git-homepage-arcade-catalog-heins14.vercel.app/
+- Deployment ID: `dpl_Dd5XveAWQrPnon4hjiLbY8FtATpV` (READY).
+- Status Batch 1: **build lulus; QA browser belum selesai; belum siap diminta rilis Production**.
