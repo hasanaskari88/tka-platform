@@ -2340,3 +2340,9 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Peserta dengan nilai tidak lengkap tetap boleh dipilih; dokumen hanya memuat nilai yang tersedia. Pemilihan peserta dan paket dipisahkan agar tidak saling mengubah.
 - Tanda tangan: orang tua paling kiri bila diaktifkan (default aktif); kepala sekolah di kiri guru bila keduanya tampil; bila hanya satu pejabat tampil, kolomnya dipusatkan. Guru cetak massal otomatis mengikuti kelas peserta.
 - Tidak ada perubahan database, RPC, RLS, penilaian, CBT, atau Production. Belum ada Preview build/QA; menunggu batch sebelum deployment untuk menghemat kuota.
+
+
+### Addendum — Perbaikan build Preview cetak massal (2026-11-09)
+- Preview commit `964ea08439449695a214766ad62f5defcce61583` gagal pada parsing JSX di `app/admin/raport/page.tsx` baris 120: penutup callback `map` memiliki kurung kurawal berlebih sebelum kurung tutup.
+- Memperbaiki penutup ekspresi map pada daftar peserta cetak massal. Tidak mengubah aturan filter/pemilihan peserta maupun nilai.
+- Deployment gagal tersebut: `dpl_D5GPMV8rp6KVDBPF3bc76ZsbTFen`, error `Expected '</', got '}'`. Preview ulang diperlukan untuk memastikan kompilasi.
