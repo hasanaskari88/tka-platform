@@ -209,3 +209,32 @@ Catatan penting: meskipun parser DOCX dan fungsi upload gambar masih ada di file
 ### Keputusan prioritas saat ini
 
 **Lanjutkan Batch 1 — Dashboard Admin dan Live Monitor.** File `BulkUploadModal.tsx` sudah diinventarisasi tetapi bukan prioritas sekarang. Jangan mengubah DOCX. Tidak ada kode aplikasi, database, atau konfigurasi yang diubah dalam pembaruan catatan ini.
+
+
+## 10. Komitmen kerja dan tata cara inventaris (disepakati 10 November 2026)
+
+Ini adalah prosedur tetap untuk melanjutkan proyek. Asisten berkomitmen untuk:
+1. **Tidak langsung mengubah kode** saat pengguna mengirim saran atau file. Baca, pahami, dan catat lebih dahulu.
+2. Menilai setiap usulan dengan kategori: **Penting untuk batch aktif / Perlu diperbaiki / Penyempurnaan / Pengembangan berikutnya / Sengaja dinonaktifkan-jangan diubah**.
+3. Untuk setiap catatan, tulis tujuan, alasan penilaian, arah implementasi yang disarankan, dependensi, risiko, dan batch tujuan. Bila belum penting, tetap inventarisasikan secara rinci di backlog dokumen ini agar tidak ditanyakan atau dianalisis ulang.
+4. Sebelum mengusulkan perubahan, periksa catatan roadmap dan status kode/QA yang sudah ada. Jangan mengulang proses atau meminta pengujian yang sudah dinyatakan lulus kecuali kode terkait berubah atau ada bukti masalah baru.
+5. Minta persetujuan yang jelas sebelum implementasi yang mengubah kode. Minta persetujuan terpisah untuk operasi berisiko: database/migration/RLS, merge, dan Production.
+6. Jangan membuat branch baru, roadmap kedua, checklist per fitur, atau catatan pengembangan paralel. Hanya dua file utama bernama `ROADMAP.md`: satu di `homepage-arcade-catalog` untuk Preview/pengembangan dan satu di `main` untuk Production.
+7. Perbarui roadmap yang sesuai setiap kali ada file baru yang diinventarisasi, keputusan prioritas berubah, pekerjaan selesai, QA dikonfirmasi, atau status deployment/rilis berubah.
+8. Jangan mengklaim telah membaca workspace Codespace yang belum dibagikan. File yang dikirim pengguna hanya menjadi bahan audit sampai ada persetujuan perubahan.
+9. Jangan mengubah fungsi yang sengaja dinonaktifkan tanpa keputusan baru dari pengguna. Khusus DOCX pada `BulkUploadModal.tsx`, tetap nonaktif.
+10. Jaga cakupan batch. Temuan di luar batch aktif dicatat untuk nanti, bukan disisipkan diam-diam ke pekerjaan berjalan.
+
+### Format wajib untuk setiap item inventaris
+
+| Field | Yang harus dicatat |
+|---|---|
+| File/fitur | Nama file atau area yang diperiksa |
+| Tujuan/perubahan yang ditemukan | Perilaku atau perubahan yang dimaksud |
+| Penilaian | Penting / Perlu diperbaiki / Penyempurnaan / Pengembangan berikutnya / Jangan diubah |
+| Alasan | Dampak terhadap fungsi inti, keamanan, data, pengguna, atau alasan ditunda |
+| Arah pengembangan | Apa yang kelak dilakukan; cukup spesifik agar tidak dianalisis ulang |
+| Dependensi/risiko | Database, API, auth, scoring, XP, CBT, integrasi, atau risiko lainnya |
+| Keputusan | Batch tujuan dan apakah perlu persetujuan khusus |
+
+**Aturan pencatatan:** satu file dapat memiliki beberapa item dengan keputusan berbeda. Inventaris bukan persetujuan implementasi.
