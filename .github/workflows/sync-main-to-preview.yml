@@ -24,11 +24,29 @@ jobs:
           ref: homepage-arcade-catalog
           fetch-depth: 0
 
-      - name: Merge latest main without overwriting Preview work
+      - name: Merge latest main and preserve Preview roadmap
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main homepage-arcade-catalog
           git checkout homepage-arcade-catalog
-          git merge --no-edit --no-ff origin/main
+
+          if git merge --no-edit --no-ff origin/main; then
+            echo "Main merged cleanly."
+          else
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ "$conflicts" = "ROADMAP.md" ]; then
+              echo "Only ROADMAP.md conflicts; keep Preview's roadmap because it owns Preview planning and QA history."
+              git checkout --ours -- ROADMAP.md
+              git add ROADMAP.md
+              git commit --no-edit
+            else
+              echo "Unexpected conflict(s):"
+              printf '%s\n' "$conflicts"
+              git merge --abort
+              exit 1
+            fi
+          fi
+
           git push origin HEAD:homepage-arcade-catalog
