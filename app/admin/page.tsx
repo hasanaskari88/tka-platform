@@ -1,1861 +1,236 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import Navbar from '@/components/Navbar'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import MathRenderer from '@/components/MathRenderer'
+import { createClient } from '@/lib/supabase/client'
 
-function AdminDashboardContent() {
-  const [exams, setExams] = useState<any[]>([])
-  const [subtests, setSubtests] = useState<any[]>([])
-  const [announcements, setAnnouncements] = useState<any[]>([])
-  const [materials, setMaterials] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  // 🟢 STATE FILTER & SORTING DAFTAR UJIAN (DEFAULT TAB UTAMA: 'EXAM' / Ujian Resmi CBT)
-  const [activeTabMode, setActiveTabMode] = useState<'ALL' | 'EXAM' | 'PRACTICE'>('EXAM')
-  const [selectedSubtestFilter, setSelectedSubtestFilter] = useState<string>('ALL')
-  const [sortBy, setSortBy] = useState<string>('newest')
-
-  // State Form Edit / Tambah Ujian
-  const [editingExamId, setEditingExamId] = useState<string | null>(null)
-  const [title, setTitle] = useState('')
-  const [examAuthorDisplayName, setExamAuthorDisplayName] = useState('')
-  const [selectedSubtest, setSelectedSubtest] = useState('')
-  const [description, setDescription] = useState('')
-  const [duration, setDuration] = useState(15)
-  const [examToken, setExamToken] = useState('')
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
-  const [isPublished, setIsPublished] = useState(true)
-  const [targetMode, setTargetMode] = useState<'BOTH' | 'EXAM_ONLY' | 'PRACTICE_ONLY'>('BOTH')
-
-  // State Toggle Pengaturan CBT
-  const [shuffleQuestions, setShuffleQuestions] = useState(true)
-  const [shuffleOptions, setShuffleOptions] = useState(true)
-  const [showResults, setShowResults] = useState(true)
-  const [showExplanations, setShowExplanations] = useState(true)
-
-  // State Modal Master Subtes
-  const [isSubtestModalOpen, setIsSubtestModalOpen] = useState(false)
-  const [newSubtestName, setNewSubtestName] = useState('')
-  const [editingSubtestId, setEditingSubtestId] = useState<string | null>(null)
-  const [editingSubtestName, setEditingSubtestName] = useState('')
-
-  // 📢 State Modal Kelola Pengumuman & Materi
-  const [isCMSModalOpen, setIsCMSModalOpen] = useState(false)
-  const [cmsTab, setCmsTab] = useState<'announcement' | 'material'>('announcement')
-
-  // Mode View Editor CMS ('split' | 'edit' | 'preview')
-  const [annViewMode, setAnnViewMode] = useState<'split' | 'edit' | 'preview'>('split')
-  const [matViewMode, setMatViewMode] = useState<'split' | 'edit' | 'preview'>('split')
-
-  // Form Pengumuman
-  const [editingAnnId, setEditingAnnId] = useState<string | null>(null)
-  const [annTitle, setAnnTitle] = useState('')
-  const [annContent, setAnnContent] = useState('')
-  const [annCategory, setAnnCategory] = useState('Penting')
-
-  // Form Materi
-  const [editingMatId, setEditingMatId] = useState<string | null>(null)
-  const [matTitle, setMatTitle] = useState('')
-  const [matUrl, setMatUrl] = useState('')
-  const [matDesc, setMatDesc] = useState('')
-  const [matSubject, setMatSubject] = useState('Umum')
-  const [matAuthorDisplayName, setMatAuthorDisplayName] = useState('')
-  const [editingAuthorMatId, setEditingAuthorMatId] = useState<string | null>(null)
-  const [quickAuthorName, setQuickAuthorName] = useState('')
-  const [editingAuthorExamId, setEditingAuthorExamId] = useState<string | null>(null)
-  const [quickExamAuthorName, setQuickExamAuthorName] = useState('')
-
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [msg, setMsg] = useState<string | null>(null)
-
-  const fetchData = async () => {
-    const supabase = createClient()
-
-    // 1. Subtests
-    const { data: subtestData } = await supabase
-      .from('subtests')
-      .select('*')
-      .order('name', { ascending: true })
-
-    if (subtestData) {
-      setSubtests(subtestData)
-      if (subtestData.length > 0 && !selectedSubtest) {
-        setSelectedSubtest(subtestData[0].name)
-      }
-    }
-
-    
-    // 2. Exams
-    const { data: examData, error: examError } = await supabase
-      .from('exams')
-      .select('*, author:profiles!exams_created_by_fkey(full_name)')
-      .order('created_at', { ascending: false })
-
-    if (examError) {
-      console.error('Gagal mengambil data ujian:', examError)
-    } else if (examData) {
-      setExams(examData)
-    }
-
-    // 3. Announcements (Fault-tolerant)
-    try {
-      const { data: annData } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false })
-      if (annData) setAnnouncements(annData)
-    } catch (e) {}
-
-    // 4. Materials (Fault-tolerant)
-    try {
-      const { data: matData, error: matError } = await supabase
-        .from('study_materials')
-        .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
-        .order('created_at', { ascending: false })
-
-      if (matError) {
-        console.error('Gagal mengambil data materi:', matError)
-      } else if (matData) {
-        setMaterials(matData)
-      }
-    } catch (e) {
-      console.error('Gagal mengambil data materi:', e)
-    }
-
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-
-  // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
-  const filteredAndSortedExams = exams
-    .filter((exam) => {
-      // 1. Filter Kategori Tab (Ujian Resmi vs Aktivitas Latihan)
-      if (activeTabMode === 'EXAM') {
-        if (exam.target_mode === 'PRACTICE_ONLY') return false
-      } else if (activeTabMode === 'PRACTICE') {
-        if (exam.target_mode === 'EXAM_ONLY') return false
-      }
-
-      // 2. Filter Subtes
-      if (selectedSubtestFilter !== 'ALL') {
-        if (String(exam.subtest || '').toUpperCase() !== selectedSubtestFilter.toUpperCase()) {
-          return false
-        }
-      }
-
-      return true
-    })
-    .sort((a, b) => {
-      if (sortBy === 'newest') {
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      }
-      if (sortBy === 'oldest') {
-        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      }
-      if (sortBy === 'title') {
-        return (a.title || '').localeCompare(b.title || '')
-      }
-      return 0
-    })
-
-  const generateRandomToken = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let generated = ''
-    for (let i = 0; i < 6; i++) {
-      generated += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    setExamToken(generated)
-  }
-
-  const resetForm = () => {
-    setEditingExamId(null)
-    setTitle('')
-    setExamAuthorDisplayName('')
-    if (subtests.length > 0) setSelectedSubtest(subtests[0].name)
-    setDescription('')
-    setDuration(15)
-    setExamToken('')
-    setStartTime('')
-    setEndTime('')
-    setIsPublished(true)
-    setTargetMode('BOTH')
-    setShuffleQuestions(true)
-    setShuffleOptions(true)
-    setShowResults(true)
-    setShowExplanations(true)
-    setMsg(null)
-  }
-
-  const handleEditClick = (exam: any) => {
-    setEditingExamId(exam.id)
-    setTitle(exam.title || '')
-    setExamAuthorDisplayName(exam.author_display_name || '')
-    setSelectedSubtest(exam.subtest || (subtests[0]?.name || 'KUANTITATIF'))
-    setDescription(exam.description || '')
-    setDuration(exam.duration_minutes || 15)
-    setExamToken(exam.token || exam.token_code || '')
-    setIsPublished(exam.is_published ?? true)
-    setTargetMode(exam.target_mode || 'BOTH')
-    setShuffleQuestions(exam.shuffle_questions ?? true)
-    setShuffleOptions(exam.shuffle_options ?? true)
-    setShowResults(exam.show_results ?? true)
-    setShowExplanations(exam.show_explanations ?? true)
-
-    if (exam.start_time) {
-      const dt = new Date(exam.start_time)
-      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset())
-      setStartTime(dt.toISOString().slice(0, 16))
-    } else {
-      setStartTime('')
-    }
-
-    if (exam.end_time) {
-      const dt = new Date(exam.end_time)
-      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset())
-      setEndTime(dt.toISOString().slice(0, 16))
-    } else {
-      setEndTime('')
-    }
-
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleSaveExam = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    setMsg(null)
-
-    const supabase = createClient()
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
-      setMsg('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
-      setIsSubmitting(false)
-      return
-    }
-    const payload = {
-      title,
-      author_display_name: examAuthorDisplayName.trim() || null,
-      subtest: selectedSubtest.toUpperCase(),
-      description,
-      duration_minutes: Number(duration),
-      token: examToken.trim() ? examToken.trim().toUpperCase() : null,
-      token_code: examToken.trim() ? examToken.trim().toUpperCase() : null,
-      start_time: startTime ? new Date(startTime).toISOString() : null,
-      end_time: endTime ? new Date(endTime).toISOString() : null,
-      is_published: isPublished,
-      target_mode: targetMode,
-      shuffle_questions: shuffleQuestions,
-      shuffle_options: shuffleOptions,
-      show_results: showResults,
-      show_explanations: showExplanations,
-    }
-
-    let error: any = null
-
-    if (editingExamId) {
-      const res = await supabase.from('exams').update(payload).eq('id', editingExamId)
-      error = res.error
-    } else {
-      const res = await supabase.from('exams').insert([
-      { ...payload, created_by: user.id },
-    ])
-      error = res.error
-    }
-
-    if (error) {
-      setMsg(`Error: ${error.message}`)
-    } else {
-      setMsg(editingExamId ? 'Paket ujian berhasil diperbarui!' : 'Ujian baru berhasil ditambahkan!')
-      resetForm()
-      fetchData()
-    }
-    setIsSubmitting(false)
-  }
-const handleQuickExamAuthorSave = async (examId: string) => {
-  const supabase = createClient()
-
-  const { error } = await supabase
-    .from('exams')
-    .update({
-      author_display_name: quickExamAuthorName.trim() || null,
-    })
-    .eq('id', examId)
-
-  if (error) {
-    alert(`Gagal mengubah nama penulis: ${error.message}`)
-    return
-  }
-
-  alert('Nama penulis ujian berhasil diperbarui!')
-  setEditingAuthorExamId(null)
-  setQuickExamAuthorName('')
-  fetchData()
-}
-  const handleDeleteExam = async (id: string, examTitle: string) => {
-    if (!confirm(`Apakah Anda yakin ingin menghapus ujian "${examTitle}" beserta seluruh soalnya?`)) return
-    const supabase = createClient()
-    await supabase.from('exams').delete().eq('id', id)
-    fetchData()
-  }
-
-  const handleTogglePublish = async (exam: any) => {
-    const supabase = createClient()
-    const newStatus = !exam.is_published
-    await supabase.from('exams').update({ is_published: newStatus }).eq('id', exam.id)
-    fetchData()
-  }
-
-  // --- CRUD SUBTESTS ---
-  const handleAddSubtest = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newSubtestName.trim()) return
-    const supabase = createClient()
-    const { error } = await supabase.from('subtests').insert([{ name: newSubtestName.trim().toUpperCase() }])
-    if (error) alert(`Gagal menambah subtes: ${error.message}`)
-    else {
-      setNewSubtestName('')
-      fetchData()
-    }
-  }
-
-  const handleUpdateSubtest = async (id: string) => {
-    if (!editingSubtestName.trim()) return
-    const supabase = createClient()
-    const { error } = await supabase.from('subtests').update({ name: editingSubtestName.trim().toUpperCase() }).eq('id', id)
-    if (error) alert(`Gagal mengubah subtes: ${error.message}`)
-    else {
-      setEditingSubtestId(null)
-      setEditingSubtestName('')
-      fetchData()
-    }
-  }
-
-  const handleDeleteSubtest = async (id: string, name: string) => {
-    if (!confirm(`Hapus opsi subtes "${name}"?`)) return
-    const supabase = createClient()
-    await supabase.from('subtests').delete().eq('id', id)
-    fetchData()
-  }
-
-  // --- 📢 CRUD PENGUMUMAN ---
-  const resetAnnForm = () => {
-    setEditingAnnId(null)
-    setAnnTitle('')
-    setAnnContent('')
-    setAnnCategory('Penting')
-  }
-
-  const handleSaveAnnouncement = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!annTitle.trim() || !annContent.trim()) return alert('Judul dan konten pengumuman wajib diisi!')
-    const supabase = createClient()
-
-    if (editingAnnId) {
-      const { error } = await supabase
-        .from('announcements')
-        .update({ title: annTitle, content: annContent, category: annCategory })
-        .eq('id', editingAnnId)
-
-      if (error) alert(`Gagal memperbarui pengumuman: ${error.message}`)
-      else {
-        alert('✅ Pengumuman berhasil diperbarui!')
-        resetAnnForm()
-        fetchData()
-      }
-    } else {
-      const { error } = await supabase.from('announcements').insert([
-        { title: annTitle, content: annContent, category: annCategory, is_active: true },
-      ])
-      if (error) alert(`Gagal menambah pengumuman: ${error.message}`)
-      else {
-        resetAnnForm()
-        fetchData()
-      }
-    }
-  }
-
-  const handleEditAnnClick = (ann: any) => {
-    setEditingAnnId(ann.id)
-    setAnnTitle(ann.title || '')
-    setAnnContent(ann.content || '')
-    setAnnCategory(ann.category || 'Penting')
-  }
-
-  const handleDeleteAnnouncement = async (id: string) => {
-    if (!confirm('Hapus pengumuman ini?')) return
-    const supabase = createClient()
-    await supabase.from('announcements').delete().eq('id', id)
-    if (editingAnnId === id) resetAnnForm()
-    fetchData()
-  }
-
-  // --- 📚 CRUD MATERI ---
-  const resetMatForm = () => {
-  setEditingMatId(null)
-  setMatTitle('')
-  setMatUrl('')
-  setMatDesc('')
-  setMatSubject('Umum')
-  setMatAuthorDisplayName('')
-}
-
-  const handleSaveMaterial = async (e: React.FormEvent) => {
-  e.preventDefault()
-  if (!matTitle.trim() || !matUrl.trim()) return alert('Judul dan URL Materi wajib diisi!')
-
-  const supabase = createClient()
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-
-  if (userError || !user) {
-    alert('Gagal mendapatkan identitas pengguna. Silakan login kembali.')
-    return
-  }
-
-  const materialData = {
-    title: matTitle,
-    file_url: matUrl,
-    description: matDesc,
-    subject: matSubject,
-    author_display_name: matAuthorDisplayName.trim() || null,
-  }
-
-  if (editingMatId) {
-    const { error } = await supabase
-      .from('study_materials')
-      .update(materialData)
-      .eq('id', editingMatId)
-
-    if (error) alert(`Gagal memperbarui materi: ${error.message}`)
-    else {
-      alert('✅ Modul materi berhasil diperbarui!')
-      resetMatForm()
-      fetchData()
-    }
-  } else {
-    const { error } = await supabase.from('study_materials').insert([
-      {
-        ...materialData,
-        created_by: user.id,
-      },
-    ])
-
-    if (error) alert(`Gagal menambah materi: ${error.message}`)
-    else {
-      resetMatForm()
-      fetchData()
-    }
-  }
-}
-
-  const handleEditMatClick = (mat: any) => {
-    setEditingMatId(mat.id)
-    setMatTitle(mat.title || '')
-    setMatUrl(mat.file_url || '')
-    setMatDesc(mat.description || '')
-    setMatSubject(mat.subject || 'Umum')
-    setMatAuthorDisplayName(mat.author_display_name || '')
-  }
-    const handleQuickAuthorSave = async (matId: string) => {
-      const supabase = createClient()
-    
-      const { error } = await supabase
-        .from('study_materials')
-        .update({
-          author_display_name: quickAuthorName.trim() || null,
-        })
-        .eq('id', matId)
-    
-      if (error) {
-        alert(`Gagal mengubah nama penulis: ${error.message}`)
-        return
-      }
-    
-      alert('Nama penulis berhasil diperbarui!')
-      setEditingAuthorMatId(null)
-      setQuickAuthorName('')
-      fetchData()
-    }
-  const handleDeleteMaterial = async (id: string) => {
-    if (!confirm('Hapus materi ini?')) return
-    const supabase = createClient()
-    await supabase.from('study_materials').delete().eq('id', id)
-    if (editingMatId === id) resetMatForm()
-    fetchData()
-  }
-
-  // Helper Sisip Teks untuk Toolbar
-  const insertAnnText = (str: string) => {
-    setAnnContent((prev) => prev + str)
-  }
-
-  const insertMatText = (str: string) => {
-    setMatDesc((prev) => prev + str)
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      <Navbar />
-
-      <main className="p-8 max-w-6xl mx-auto space-y-8">
-        <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 border-slate-200 gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">
-              Dashboard Admin / CMS
-            </h1>
-            <p className="text-slate-600 mt-1">
-              Kelola paket ujian, token, pengumuman, modul materi, dan visibilitas CBT.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setIsCMSModalOpen(true)}
-              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm flex items-center space-x-1"
-              suppressHydrationWarning
-            >
-              <span>📢</span>
-              <span>Kelola Pengumuman & Materi</span>
-            </button>
-            <button
-              onClick={() => setIsSubtestModalOpen(true)}
-              className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
-              suppressHydrationWarning
-            >
-              <span>⚙️</span>
-              <span>Kelola Dropdown Subtes</span>
-            </button>
-            <Link
-              href="/admin/users"
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition-colors"
-            >
-              👥 Akun & Admin
-            </Link>
-            <Link
-              href="/admin/practice"
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2"
-            >
-              <span>🎮 Kelola Mode Latihan & Game Edukatif →</span>
-            </Link>
-            <Link
-              href="/"
-              className="px-3.5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-semibold rounded-lg transition-colors"
-            >
-              ← Lihat Beranda
-            </Link>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form Buat / Edit Ujian */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit space-y-4">
-            <div className="flex justify-between items-center pb-2 border-b">
-              <h2 className="text-lg font-bold text-slate-800">
-                {editingExamId ? '✏️ Edit Paket Ujian' : '➕ Tambah Ujian Baru'}
-              </h2>
-              {editingExamId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded font-semibold transition-colors"
-                  suppressHydrationWarning
-                >
-                  ✕ Batal Edit
-                </button>
-              )}
-            </div>
-
-            {msg && (
-              <div
-                className={`p-3 rounded-lg text-xs font-medium ${
-                  msg.startsWith('Error')
-                    ? 'bg-red-50 text-red-600 border border-red-200'
-                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                }`}
-              >
-                {msg}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveExam} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Judul Ujian / Paket
-              </label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Contoh: Simulasi TKA Kuantitatif - Sesi 2"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                suppressHydrationWarning
-              />
-            </div>
-          
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                Nama Penulis Tampilan (Alias)
-              </label>
-              <input
-                type="text"
-                value={examAuthorDisplayName}
-                onChange={(e) => setExamAuthorDisplayName(e.target.value)}
-                placeholder="Kosongkan untuk menggunakan nama lengkap akun"
-                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Contoh: Tim Penyusun, atau Guru Kelas 6.
-                Jika kosong, nama lengkap akun akan digunakan.
-              </p>
-            </div>
-              {/* Select Option Subtes Dinamis */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold text-slate-700 uppercase">
-                    Pilihan Subtes
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsSubtestModalOpen(true)}
-                    className="text-[11px] text-amber-600 font-bold hover:underline"
-                    suppressHydrationWarning
-                  >
-                    + Edit Opsi Subtes
-                  </button>
-                </div>
-                <select
-                  value={selectedSubtest}
-                  onChange={(e) => setSelectedSubtest(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm font-semibold text-indigo-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                >
-                  {subtests.map((st) => (
-                    <option key={st.id} value={st.name}>
-                      {st.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Durasi (Menit)
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    min={1}
-                    value={duration}
-                    onChange={(e) => setDuration(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    suppressHydrationWarning
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Mode Peruntukan
-                  </label>
-                  <select
-                    value={targetMode}
-                    onChange={(e: any) => setTargetMode(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-indigo-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    suppressHydrationWarning
-                  >
-                    <option value="BOTH">🌐 Keduanya (CBT & Latihan)</option>
-                    <option value="EXAM_ONLY">🎯 Hanya Ujian Resmi (CBT)</option>
-                    <option value="PRACTICE_ONLY">🎮 Hanya Latihan Mandiri</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Status Visibilitas ke Siswa */}
-              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1">
-                <label className="block text-xs font-bold text-indigo-900 uppercase">
-                  👁 Status Tampilan di Layar Siswa
-                </label>
-                <select
-                  value={isPublished ? 'published' : 'hidden'}
-                  onChange={(e) => setIsPublished(e.target.value === 'published')}
-                  className="w-full px-3 py-1.5 rounded-lg border border-indigo-200 text-xs font-bold text-indigo-800 bg-white"
-                  suppressHydrationWarning
-                >
-                  <option value="published">🟢 Tampilkan di Layar Siswa (Published)</option>
-                  <option value="hidden">🔴 Sembunyikan dari Siswa (Draft / Hidden)</option>
-                </select>
-              </div>
-
-              {/* Token Ujian */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Token Ujian (Dapat Diubah)
-                </label>
-                <div className="flex space-x-2">
-                  <input
-                    type="text"
-                    maxLength={6}
-                    placeholder="Kosongkan jika bebas"
-                    value={examToken}
-                    onChange={(e) => setExamToken(e.target.value.toUpperCase())}
-                    className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-mono font-bold uppercase text-indigo-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    suppressHydrationWarning
-                  />
-                  <button
-                    type="button"
-                    onClick={generateRandomToken}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border transition-colors shrink-0"
-                    title="Acak Token Baru"
-                    suppressHydrationWarning
-                  >
-                    🎲 Acak
-                  </button>
-                </div>
-              </div>
-
-              {/* Jadwal Buka & Tutup */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Jadwal Buka
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    suppressHydrationWarning
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                    Jadwal Tutup
-                  </label>
-                  <input
-                    type="datetime-local"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    suppressHydrationWarning
-                  />
-                </div>
-              </div>
-
-              {/* Toggle Pengaturan Fitur CBT */}
-              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
-                <span className="block text-xs font-bold text-slate-800 uppercase">
-                  ⚙️ Pengaturan Fitur Ujian
-                </span>
-
-                <label className="flex items-center space-x-2 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={shuffleQuestions}
-                    onChange={(e) => setShuffleQuestions(e.target.checked)}
-                    className="rounded text-indigo-600"
-                    suppressHydrationWarning
-                  />
-                  <span className="font-medium text-slate-700">🔀 Acak Urutan Soal</span>
-                </label>
-
-                <label className="flex items-center space-x-2 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={shuffleOptions}
-                    onChange={(e) => setShuffleOptions(e.target.checked)}
-                    className="rounded text-indigo-600"
-                    suppressHydrationWarning
-                  />
-                  <span className="font-medium text-slate-700">🔀 Acak Pilihan Opsi (A/B/C/D)</span>
-                </label>
-
-                <label className="flex items-center space-x-2 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={showResults}
-                    onChange={(e) => setShowResults(e.target.checked)}
-                    className="rounded text-indigo-600"
-                    suppressHydrationWarning
-                  />
-                  <span className="font-medium text-slate-700">📊 Tampilkan Nilai Setelah Selesai</span>
-                </label>
-
-                <label className="flex items-center space-x-2 cursor-pointer text-xs">
-                  <input
-                    type="checkbox"
-                    checked={showExplanations}
-                    onChange={(e) => setShowExplanations(e.target.checked)}
-                    className="rounded text-indigo-600"
-                    suppressHydrationWarning
-                  />
-                  <span className="font-medium text-slate-700">💡 Tampilkan Kunci & Pembahasan</span>
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
-                  Deskripsi / Petunjuk
-                </label>
-                <textarea
-                  rows={2}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Contoh: Latihan soal aljabar dan geometri dasar."
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  suppressHydrationWarning
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className={`w-full py-2.5 text-white font-medium rounded-lg text-sm transition-colors disabled:opacity-50 ${
-                  editingExamId
-                    ? 'bg-amber-600 hover:bg-amber-700'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
-                }`}
-                suppressHydrationWarning
-              >
-                {isSubmitting
-                  ? 'Menyimpan...'
-                  : editingExamId
-                  ? 'Simpan Perubahan Paket Ujian'
-                  : 'Simpan Ujian Baru'}
-              </button>
-            </form>
-          </div>
-
-          {/* Daftar Ujian Aktif (Dengan Tab Kategori: Ujian Resmi -> Aktivitas Latihan -> Semua) */}
-          <div className="lg:col-span-2 space-y-4">
-            
-            {/* BILAH TAB NAVIGASI KATEGORI & FILTER SUBTES */}
-            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                
-                {/* TAB SWITCHER (URUTAN BARU: UJIAN RESMI (CBT) -> AKTIVITAS LATIHAN -> SEMUA) */}
-                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('EXAM')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'EXAM'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    🎯 Ujian Resmi (CBT)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('PRACTICE')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'PRACTICE'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    🎮 Aktivitas Latihan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTabMode('ALL')}
-                    className={`px-3 py-1.5 rounded-lg transition-all ${
-                      activeTabMode === 'ALL'
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    📋 Semua ({exams.length})
-                  </button>
-                </div>
-
-                {/* FILTER SUBTES & SORTING */}
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <select
-                    value={selectedSubtestFilter}
-                    onChange={(e) => setSelectedSubtestFilter(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="ALL">🌐 Semua Subtes</option>
-                    {subtests.map((st) => (
-                      <option key={st.id} value={st.name}>
-                        Subtes: {st.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                  >
-                    <option value="newest">⏱️ Terbaru</option>
-                    <option value="oldest">⏱️ Terlama</option>
-                    <option value="title">🔤 Judul (A-Z)</option>
-                  </select>
-                </div>
-
-              </div>
-            </div>
-
-            <h2 className="text-lg font-bold text-slate-800 flex items-center justify-between">
-              <span>📋 Daftar Ujian Terdaftar ({filteredAndSortedExams.length})</span>
-            </h2>
-
-            
-            {/* MULAI PERBAIKAN DAFTAR UJIAN */}
-            {loading ? (
-              <p className="text-slate-500 text-sm">
-                Memuat daftar ujian...
-              </p>
-            ) : filteredAndSortedExams.length > 0 ? (
-              filteredAndSortedExams.map((exam) => (
-                <div
-                  key={exam.id}
-                  className={`bg-white p-5 rounded-xl border shadow-sm space-y-3 ${
-                    exam.is_published
-                      ? 'border-slate-200'
-                      : 'border-amber-300 bg-amber-50/30'
-                  }`}
-                >
-                  {/* BAGIAN ATAS: INFORMASI DAN TOMBOL */}
-                  <div className="flex flex-col sm:flex-row justify-between gap-4">
-
-                    {/* KOLOM KIRI: INFORMASI UJIAN */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
-                          {exam.subtest}
-                        </span>
-
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePublish(exam)}
-                          className={`px-2 py-0.5 text-[10px] font-bold rounded border cursor-pointer transition-colors ${
-                            exam.is_published
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                          }`}
-                          title="Klik untuk mengubah status visibilitas siswa"
-                        >
-                          {exam.is_published
-                            ? '🟢 Tampil pada Siswa'
-                            : '🔴 Sembunyi dari Siswa'}
-                        </button>
-
-                        <span className="text-xs text-slate-400">
-                          ⏱ {exam.duration_minutes || 15} Menit
-                        </span>
-                      </div>
-
-                      <h3 className="text-base font-bold text-slate-800 mt-1">
-                        {exam.title}
-                      </h3>
-
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {exam.description || 'Tidak ada deskripsi'}
-                      </p>
-
-                      {/* TOMBOL EDIT DAN EDIT PENULIS */}
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        <button
-                          type="button"
-                          onClick={() => handleEditClick(exam)}
-                          className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg"
-                        >
-                          ✏️ Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingAuthorExamId(exam.id)
-                            setQuickExamAuthorName(
-                              exam.author_display_name ||
-                              exam.author?.full_name ||
-                              ''
-                            )
-                          }}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
-                        >
-                          ✍️ Edit Penulis
-                        </button>
-                      </div>
-
-                      {/* FORM EDIT NAMA PENULIS */}
-                      {editingAuthorExamId === exam.id && (
-                        <div className="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
-                          <label className="block text-xs font-bold text-indigo-800">
-                            UBAH NAMA PENULIS UJIAN
-                          </label>
-
-                          <input
-                            type="text"
-                            value={quickExamAuthorName}
-                            onChange={(e) =>
-                              setQuickExamAuthorName(e.target.value)
-                            }
-                            placeholder="Masukkan nama penulis..."
-                            className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleQuickExamAuthorSave(exam.id)
-                              }
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
-                            >
-                              💾 Simpan
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingAuthorExamId(null)
-                                setQuickExamAuthorName('')
-                              }}
-                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg"
-                            >
-                              Batal
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* KOLOM KANAN: TOMBOL KELOLA UJIAN */}
-                    <div className="flex items-start flex-wrap gap-2 shrink-0">
-                      <Link
-                        href={`/admin/exam/${exam.id}/results`}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        📊 Rekap Nilai
-                      </Link>
-
-                      <Link
-                        href={`/admin/exam/${exam.id}/monitor`}
-                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        👁️ Pengawasan Live
-                      </Link>
-
-                      <Link
-                        href={`/admin/exam/${exam.id}`}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        Kelola Soal →
-                      </Link>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDeleteExam(exam.id, exam.title)
-                        }
-                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* BAGIAN BAWAH: TOKEN DAN PENGATURAN UJIAN */}
-                  <div className="flex flex-wrap gap-2 text-[11px] pt-3 border-t border-slate-100 font-medium">
-                    {exam.token || exam.token_code ? (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded font-mono font-bold">
-                        🔑 Token: {exam.token || exam.token_code}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
-                        🔓 Tanpa Token
-                      </span>
-                    )}
-
-                    {exam.shuffle_questions && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
-                        🔀 Soal Diacak
-                      </span>
-                    )}
-
-                    {exam.shuffle_options && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
-                        🔀 Opsi Diacak
-                      </span>
-                    )}
-
-                    {exam.show_results ? (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
-                        📊 Tampil Nilai
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded">
-                        🚫 Nilai Sembunyi
-                      </span>
-                    )}
-
-                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-bold uppercase">
-                      {exam.target_mode === 'PRACTICE_ONLY'
-                        ? '🎮 Latihan Mandiri'
-                        : exam.target_mode === 'EXAM_ONLY'
-                        ? '🎯 Ujian Resmi'
-                        : '🌐 CBT & Latihan'}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="bg-white p-8 text-center rounded-xl border border-slate-200 text-slate-500 text-sm">
-                Tidak ada modul / paket ujian pada kategori tab atau filter subtes ini.
-              </div>
-            )}
-            {/* AKHIR PERBAIKAN DAFTAR UJIAN */}
-          </div>
-        </div>
-      </main>
-
-      {/* 📢 MODAL HIGH-TECH CMS PENGUMUMAN & MATERI */}
-      {isCMSModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
-          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 max-h-[92vh] flex flex-col overflow-hidden">
-            {/* HEAD MODAL */}
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-sm font-extrabold text-slate-800 flex items-center space-x-2">
-                <span>📢</span>
-                <span>CMS Pengumuman & Modul Materi Siswa</span>
-              </h3>
-              <button
-                onClick={() => {
-                  setIsCMSModalOpen(false)
-                  resetAnnForm()
-                  resetMatForm()
-                }}
-                className="text-slate-400 hover:text-slate-600 font-bold text-base"
-                suppressHydrationWarning
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* TAB NAVIGASI MODAL */}
-            <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setCmsTab('announcement')}
-                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
-                  cmsTab === 'announcement' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                📢 Pengumuman Sekolah ({announcements.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setCmsTab('material')}
-                className={`flex-1 py-2 rounded-lg font-bold transition-all ${
-                  cmsTab === 'material' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600'
-                }`}
-              >
-                📚 Link Materi & Modul ({materials.length})
-              </button>
-            </div>
-
-            {/* KONTEN TAB 1: PENGUMUMAN */}
-            {cmsTab === 'announcement' && (
-              <div className="space-y-4 overflow-y-auto pr-1 flex-1">
-                {/* FORM INPUT / EDIT PENGUMUMAN DENGAN DUAL VIEW */}
-                <form onSubmit={handleSaveAnnouncement} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-indigo-900 uppercase text-xs">
-                        {editingAnnId ? '✏️ Edit Pengumuman' : '➕ Tambah Pengumuman Baru'}
-                      </span>
-                      {editingAnnId && (
-                        <button
-                          type="button"
-                          onClick={resetAnnForm}
-                          className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold hover:bg-rose-200"
-                        >
-                          ✕ Batal Edit
-                        </button>
-                      )}
-                    </div>
-
-                    {/* SWITCHER VIEW MODE */}
-                    <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border">
-                      <button
-                        type="button"
-                        onClick={() => setAnnViewMode('edit')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
-                          annViewMode === 'edit' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        ✏️ Editor
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAnnViewMode('split')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
-                          annViewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        🌓 Dual View
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAnnViewMode('preview')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
-                          annViewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        👁️ Live Preview
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="block font-bold text-slate-700 mb-1">JUDUL PENGUMUMAN</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Misal: Ujian Sekolah Dimulai Tanggal 28 Oktober..."
-                        value={annTitle}
-                        onChange={(e) => setAnnTitle(e.target.value)}
-                        className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">KATEGORI</label>
-                      <select
-                        value={annCategory}
-                        onChange={(e) => setAnnCategory(e.target.value)}
-                        className="w-full p-2.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      >
-                        <option value="Penting">Penting</option>
-                        <option value="Informasi">Informasi</option>
-                        <option value="Jadwal">Jadwal Ujian</option>
-                        <option value="Instruksi">Instruksi Guru</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* TOOLBAR FORMATTING TEKS / FORMAT / TABEL / RUMUS */}
-                  <div className="space-y-1">
-                    <label className="block font-bold text-slate-700">KONTEN PENGUMUMAN & DESKRIPSI</label>
-
-                    <div className="flex flex-wrap gap-1 p-1.5 bg-slate-200/80 rounded-xl border border-slate-300">
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('**Teks Tebal**')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
-                        title="Teks Tebal"
-                      >
-                        B
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('*Teks Miring*')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded italic font-bold text-[10px] text-slate-800"
-                        title="Teks Miring"
-                      >
-                        I
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('<u>Teks Garis Bawah</u>')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded underline font-bold text-[10px] text-slate-800"
-                        title="Garis Bawah"
-                      >
-                        U
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('~~Teks Coret~~')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded line-through font-bold text-[10px] text-slate-800"
-                        title="Coret"
-                      >
-                        S
-                      </button>
-
-                      <div className="w-px h-4 bg-slate-300 mx-1 self-center" />
-
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('\n<div align="center">\nTeks Rata Tengah\n</div>\n')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
-                        title="Rata Tengah"
-                      >
-                        ↔ Tengah
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('\n<div align="right">\nTeks Rata Kanan\n</div>\n')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
-                        title="Rata Kanan"
-                      >
-                        ➡️ Kanan
-                      </button>
-
-                      <div className="w-px h-4 bg-slate-300 mx-1 self-center" />
-
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('\n| Judul 1 | Judul 2 |\n|---|---|\n| Baris 1 | Data 1 |\n')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-indigo-700"
-                        title="Sisipkan Tabel"
-                      >
-                        📊 Tabel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText(' $\\frac{a}{b}$ ')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-purple-700"
-                        title="Rumus Pecahan"
-                      >
-                        𝝅 Pecahan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText(' $\\sqrt{x}$ ')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-purple-700"
-                        title="Rumus Akar"
-                      >
-                        √ Akar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertAnnText('\n![Gambar](https://url-gambar.com/foto.jpg)\n')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-emerald-700"
-                        title="Sisipkan Gambar"
-                      >
-                        🖼️ Gambar
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* AREA PENULISAN & LIVE PREVIEW DUAL VIEW */}
-                  {annViewMode === 'edit' && (
-                    <textarea
-                      rows={6}
-                      required
-                      placeholder="Tuliskan isi pengumuman lengkap di sini..."
-                      value={annContent}
-                      onChange={(e) => setAnnContent(e.target.value)}
-                      className="w-full p-3 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
-                    />
-                  )}
-
-                  {annViewMode === 'preview' && (
-                    <div className="p-4 bg-white border border-slate-300 rounded-xl min-h-[140px] text-slate-900">
-                      <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-2">
-                        👁️ Live Preview Tampilan Siswa:
-                      </span>
-                      <MathRenderer content={annContent || '*Belum ada isi pengumuman...*'} />
-                    </div>
-                  )}
-
-                  {annViewMode === 'split' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <textarea
-                        rows={6}
-                        required
-                        placeholder="Tuliskan isi pengumuman lengkap di sini..."
-                        value={annContent}
-                        onChange={(e) => setAnnContent(e.target.value)}
-                        className="w-full p-3 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
-                      />
-                      <div className="p-3 bg-white border border-slate-300 rounded-xl min-h-[140px] max-h-[180px] overflow-y-auto text-slate-900">
-                        <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-2">
-                          👁️ Live Preview Tampilan Siswa:
-                        </span>
-                        <MathRenderer content={annContent || '*Belum ada isi pengumuman...*'} />
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className={`w-full py-2.5 text-white font-bold rounded-xl transition-colors shadow-sm ${
-                      editingAnnId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'
-                    }`}
-                  >
-                    {editingAnnId ? '💾 Perbarui Pengumuman' : '+ Simpan Pengumuman'}
-                  </button>
-                </form>
-
-                {/* DAFTAR PENGUMUMAN DENGAN TOMBOL EDIT & HAPUS */}
-                <div className="space-y-2 pt-2 border-t">
-                  <span className="font-bold text-slate-500 uppercase text-[10px] block">
-                    Daftar Pengumuman Sekolah ({announcements.length}):
-                  </span>
-
-                  {announcements.map((ann) => (
-                    <div
-                      key={ann.id}
-                      className={`p-3 rounded-xl border flex justify-between items-start gap-3 transition-colors ${
-                        editingAnnId === ann.id ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200'
-                      }`}
-                    >
-                      <div className="space-y-1 flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[9px] font-bold rounded uppercase">
-                            📌 {ann.category || 'Penting'}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-mono">
-                            {new Date(ann.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-slate-800 text-xs">{ann.title}</h4>
-                        <div className="text-[11px] text-slate-600 line-clamp-2">
-                          <MathRenderer content={ann.content} />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center space-x-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleEditAnnClick(ann)}
-                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded transition-colors"
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteAnnouncement(ann.id)}
-                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded transition-colors"
-                        >
-                          🗑️ Hapus
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* KONTEN TAB 2: MATERI */}
-            {cmsTab === 'material' && (
-              <div className="space-y-4 overflow-y-auto pr-1 flex-1">
-                {/* FORM INPUT / EDIT MATERI DENGAN DUAL VIEW */}
-                <form onSubmit={handleSaveMaterial} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 border-b pb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-indigo-900 uppercase text-xs">
-                        {editingMatId ? '✏️ Edit Link Materi' : '➕ Tambah Link Materi Baru'}
-                      </span>
-                      {editingMatId && (
-                        <button
-                          type="button"
-                          onClick={resetMatForm}
-                          className="text-[10px] bg-rose-100 text-rose-700 px-2 py-0.5 rounded font-bold hover:bg-rose-200"
-                        >
-                          ✕ Batal Edit
-                        </button>
-                      )}
-                    </div>
-
-                    {/* SWITCHER VIEW MODE */}
-                    <div className="flex items-center space-x-1 bg-white p-0.5 rounded-lg border">
-                      <button
-                        type="button"
-                        onClick={() => setMatViewMode('edit')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
-                          matViewMode === 'edit' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        ✏️ Editor
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMatViewMode('split')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
-                          matViewMode === 'split' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        🌓 Dual View
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setMatViewMode('preview')}
-                        className={`px-2.5 py-1 text-[10px] font-bold rounded ${
-                          matViewMode === 'preview' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-                        }`}
-                      >
-                        👁️ Live Preview
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="block font-bold text-slate-700 mb-1">JUDUL MATERI / MODUL</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Misal: Modul Belajar Matematika Sesi 1 (PDF)..."
-                        value={matTitle}
-                        onChange={(e) => setMatTitle(e.target.value)}
-                        className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">SUBJEK / TOPIK</label>
-                      <input
-                        type="text"
-                        placeholder="Misal: Matematika"
-                        value={matSubject}
-                        onChange={(e) => setMatSubject(e.target.value)}
-                        className="w-full p-2.5 border border-slate-300 rounded-xl font-bold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      NAMA PENULIS TAMPILAN (ALIAS)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Kosongkan untuk menggunakan nama lengkap akun"
-                      value={matAuthorDisplayName}
-                      onChange={(e) => setMatAuthorDisplayName(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-xl font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">
-                      Contoh: Hasan Askari, Tim Penyusun, atau Guru Kelas 2.
-                      Jika kosong, nama lengkap akun akan digunakan.
-                    </p>
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">URL / LINK MATERI (GOOGLE DRIVE / PDF / YOUTUBE)</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="https://drive.google.com/file/d/..."
-                      value={matUrl}
-                      onChange={(e) => setMatUrl(e.target.value)}
-                      className="w-full p-2.5 border border-slate-300 rounded-xl font-mono text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                    />
-                  </div>
-
-                  {/* TOOLBAR FORMATTING DESKRIPSI MATERI */}
-                  <div className="space-y-1">
-                    <label className="block font-bold text-slate-700">DESKRIPSI RINGKAS MATERI</label>
-                    <div className="flex flex-wrap gap-1 p-1.5 bg-slate-200/80 rounded-xl border border-slate-300">
-                      <button
-                        type="button"
-                        onClick={() => insertMatText('**Teks Tebal**')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-slate-800"
-                      >
-                        B
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertMatText('*Teks Miring*')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded italic font-bold text-[10px] text-slate-800"
-                      >
-                        I
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => insertMatText(' $\\frac{a}{b}$ ')}
-                        className="px-2 py-1 bg-white hover:bg-indigo-50 border rounded font-bold text-[10px] text-purple-700"
-                      >
-                        𝝅 Pecahan
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* AREA PENULISAN & LIVE PREVIEW DUAL VIEW */}
-                  {matViewMode === 'edit' && (
-                    <textarea
-                      rows={3}
-                      placeholder="Tuliskan deskripsi materi untuk siswa..."
-                      value={matDesc}
-                      onChange={(e) => setMatDesc(e.target.value)}
-                      className="w-full p-3 border border-slate-300 rounded-xl font-medium bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
-                    />
-                  )}
-
-                  {matViewMode === 'preview' && (
-                    <div className="p-3 bg-white border border-slate-300 rounded-xl min-h-[80px] text-slate-900">
-                      <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-1">
-                        👁️ Live Preview Deskripsi:
-                      </span>
-                      <MathRenderer content={matDesc || '*Belum ada deskripsi...*'} />
-                    </div>
-                  )}
-
-                  {matViewMode === 'split' && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <textarea
-                        rows={3}
-                        placeholder="Tuliskan deskripsi materi untuk siswa..."
-                        value={matDesc}
-                        onChange={(e) => setMatDesc(e.target.value)}
-                        className="w-full p-3 border border-slate-300 rounded-xl font-medium bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600 shadow-inner"
-                      />
-                      <div className="p-3 bg-white border border-slate-300 rounded-xl min-h-[80px] max-h-[120px] overflow-y-auto text-slate-900">
-                        <span className="text-[10px] font-bold text-indigo-600 uppercase block border-b pb-1 mb-1">
-                          👁️ Live Preview Deskripsi:
-                        </span>
-                        <MathRenderer content={matDesc || '*Belum ada deskripsi...*'} />
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    type="submit"
-                    className={`w-full py-2.5 text-white font-bold rounded-xl transition-colors shadow-sm ${
-                      editingMatId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'
-                    }`}
-                  >
-                    {editingMatId ? '💾 Perbarui Modul Materi' : '+ Simpan Link Materi'}
-                  </button>
-                </form>
-
-                {/* DAFTAR MATERI DENGAN TOMBOL EDIT & HAPUS */}
-                <div className="space-y-2 pt-2 border-t">
-                  <span className="font-bold text-slate-500 uppercase text-[10px] block">
-                    Daftar Materi & Modul Belajar ({materials.length}):
-                  </span>
-
-                  {materials.map((mat) => (
-                    <div
-                      key={mat.id}
-                      className={`p-3 rounded-xl border flex justify-between items-start gap-3 transition-colors ${
-                        editingMatId === mat.id ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400' : 'bg-white border-slate-200'
-                      }`}
-                    >
-                      <div className="space-y-1 flex-1">
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded uppercase inline-block">
-                          📖 {mat.subject || 'Umum'}
-                        </span>
-                        <h4 className="font-bold text-slate-800 text-xs">{mat.title}</h4>
-                        <p className="text-[10px] text-slate-400 font-mono truncate max-w-xs">{mat.file_url}</p>
-                        <div className="text-[11px] text-slate-600 line-clamp-1">
-                          <MathRenderer content={mat.description || '-'} />
-                        </div>
-                        {editingAuthorMatId === mat.id && (
-                          <div className="mt-2 p-2 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
-                            <label className="block text-[10px] font-bold text-indigo-800">
-                              UBAH NAMA PENULIS
-                            </label>
-                        
-                            <input
-                              type="text"
-                              value={quickAuthorName}
-                              onChange={(e) => setQuickAuthorName(e.target.value)}
-                              placeholder="Masukkan nama penulis..."
-                              className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white"
-                            />
-                        
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleQuickAuthorSave(mat.id)}
-                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold rounded-lg"
-                              >
-                                💾 Simpan
-                              </button>
-                        
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingAuthorMatId(null)
-                                  setQuickAuthorName('')
-                                }}
-                                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold rounded-lg"
-                              >
-                                Batal
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center space-x-1 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => handleEditMatClick(mat)}
-                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white font-bold text-[10px] rounded transition-colors"
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingAuthorMatId(mat.id)
-                            setQuickAuthorName(mat.author_display_name || mat.author?.full_name || '')
-                          }}
-                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] rounded transition-colors"
-                        >
-                          ✍️ Edit Penulis
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteMaterial(mat.id)}
-                          className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded transition-colors"
-                        >
-                          🗑️ Hapus
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="pt-2 border-t text-right">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsCMSModalOpen(false)
-                  resetAnnForm()
-                  resetMatForm()
-                }}
-                className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-xs rounded-xl transition-colors"
-                suppressHydrationWarning
-              >
-                Tutup Modal
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL KELOLA MASTER SUBTES */}
-      {isSubtestModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 font-sans text-xs">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
-            <div className="flex justify-between items-center border-b pb-3">
-              <h3 className="text-base font-bold text-slate-800">
-                ⚙️ Kelola Pilihan Dropdown Subtes
-              </h3>
-              <button
-                onClick={() => setIsSubtestModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-sm"
-                suppressHydrationWarning
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleAddSubtest} className="flex space-x-2">
-              <input
-                type="text"
-                required
-                placeholder="Nama Subtes Baru (cth: BIOLOGI)"
-                value={newSubtestName}
-                onChange={(e) => setNewSubtestName(e.target.value)}
-                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-xs uppercase font-semibold bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                suppressHydrationWarning
-              />
-              <button
-                type="submit"
-                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
-                suppressHydrationWarning
-              >
-                + Tambah
-              </button>
-            </form>
-
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {subtests.map((st) => (
-                <div
-                  key={st.id}
-                  className="flex justify-between items-center p-2.5 bg-slate-50 border rounded-lg text-xs"
-                >
-                  {editingSubtestId === st.id ? (
-                    <div className="flex items-center space-x-1 flex-1 mr-2">
-                      <input
-                        type="text"
-                        value={editingSubtestName}
-                        onChange={(e) => setEditingSubtestName(e.target.value)}
-                        className="px-2 py-1 border rounded text-xs uppercase font-bold flex-1 bg-white text-slate-900"
-                        suppressHydrationWarning
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateSubtest(st.id)}
-                        className="px-2 py-1 bg-emerald-600 text-white font-bold rounded"
-                        suppressHydrationWarning
-                      >
-                        ✓
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setEditingSubtestId(null)}
-                        className="px-2 py-1 bg-slate-200 text-slate-700 font-bold rounded"
-                        suppressHydrationWarning
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="font-bold text-slate-800">{st.name}</span>
-                      <div className="flex space-x-1">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingSubtestId(st.id)
-                            setEditingSubtestName(st.name)
-                          }}
-                          className="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 font-bold rounded"
-                          suppressHydrationWarning
-                        >
-                          ✏️ Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSubtest(st.id, st.name)}
-                          className="px-2 py-1 bg-red-50 text-red-600 font-bold rounded"
-                          suppressHydrationWarning
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="pt-2 border-t text-right">
-              <button
-                type="button"
-                onClick={() => setIsSubtestModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
-                suppressHydrationWarning
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+type Student = { id:string; full_name:string|null; username:string|null; class_code:string|null; xp:number; level:number; practiceXp:number; practiceAttempts:number; practiceBest:number; examCount:number; examAverage:number }
+type ExamMeta = { id:string; title:string; subtest:string|null; target_mode:string|null; activity_type:string|null }
 
 export default function AdminDashboardPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-          <p className="text-slate-600 font-medium">Memuat dashboard admin...</p>
+  const [students,setStudents]=useState<Student[]>([])
+  const [practiceRows,setPracticeRows]=useState<any[]>([])
+  const [examRows,setExamRows]=useState<any[]>([])
+  const [examMeta,setExamMeta]=useState<ExamMeta[]>([])
+  const [stats,setStats]=useState({exams:0,questions:0,materials:0,announcements:0})
+  const [loading,setLoading]=useState(true)
+  const [warning,setWarning]=useState('')
+  const [pendingWork,setPendingWork]=useState<any[]>([])
+  const [pendingFilter,setPendingFilter]=useState<'ALL'|'UNFINISHED'|'UNGRADED'>('ALL')
+  const [classFilter,setClassFilter]=useState('ALL')
+  const [search,setSearch]=useState('')
+  const [sort,setSort]=useState('name')
+  const [page,setPage]=useState(1)
+  const [pageSize,setPageSize]=useState(20)
+  const [rankScope,setRankScope]=useState<'global'|'exam'>('global')
+  const [rankExamId,setRankExamId]=useState('ALL')
+  const [rankClass,setRankClass]=useState('ALL')
+  const [rankType,setRankType]=useState('ALL')
+
+  useEffect(()=>{
+    let active=true
+    async function load(){
+      const db=createClient()
+      try{
+        const [p,pr,ex,em,ec,qc,qmeta,mc,ac]=await Promise.all([
+          db.from('profiles').select('id,full_name,username,class_code,role,xp,level').eq('role','student').order('full_name'),
+          // select * keeps the dashboard compatible before/after the staged credited_xp migration
+          db.from('practice_attempts').select('*'),
+          db.from('exam_sessions').select('*'),
+          db.from('exams').select('id,title,subtest,target_mode,activity_type'),
+          db.from('exams').select('id',{count:'exact',head:true}),
+          db.from('questions').select('id',{count:'exact',head:true}),
+          db.from('questions').select('id,exam_id,question_type'),
+          db.from('study_materials').select('id',{count:'exact',head:true}),
+          db.from('announcements').select('id',{count:'exact',head:true}),
+        ])
+        if(!active)return
+        if(p.error)throw p.error
+        const problems:string[]=[]
+        if(pr.error)problems.push('riwayat latihan: '+pr.error.message)
+        if(ex.error)problems.push('riwayat ujian: '+ex.error.message)
+        if(em.error)problems.push('metadata paket: '+em.error.message)
+        if(qmeta.error)problems.push('metadata soal: '+qmeta.error.message)
+        const practice=pr.data||[], exams=ex.data||[], meta=em.data||[]
+        const sessionIds=exams.map((session:any)=>session.id)
+        const answerResult=sessionIds.length
+          ? await db.from('answers').select('session_id,question_id,user_answer,selected_answers,selected_option,teacher_score').in('session_id',sessionIds)
+          : {data:[],error:null}
+        if(answerResult.error)problems.push('jawaban ujian: '+answerResult.error.message)
+        if(problems.length)setWarning('Sebagian data belum dapat dibaca — '+problems.join(' | '))
+        setPracticeRows(practice);setExamRows(exams);setExamMeta(meta as ExamMeta[])
+        const metaMap=new Map(meta.map((x:any)=>[x.id,x]))
+        const byPractice=new Map<string,{xp:number;count:number;best:number}>()
+        practice.forEach((r:any)=>{
+          const old=byPractice.get(r.user_id)||{xp:0,count:0,best:0}
+          byPractice.set(r.user_id,{xp:old.xp+(r.status==='completed'?Number(r.total_xp||0):Number(r.credited_xp||0)),count:old.count+(r.status==='completed'?1:0),best:Math.max(old.best,Number(r.score||0))})
+        })
+        const bestByExamStudent=new Map<string,number>()
+        exams.filter((r:any)=>r.status==='completed').forEach((r:any)=>{
+          const key=r.user_id+'|'+r.exam_id
+          const score=Number(r.score_override??r.score??0)
+          bestByExamStudent.set(key,Math.max(bestByExamStudent.get(key)||0,score))
+        })
+        const byExam=new Map<string,{sum:number;count:number}>()
+        bestByExamStudent.forEach((score,key)=>{
+          const userId=key.split('|')[0],old=byExam.get(userId)||{sum:0,count:0}
+          byExam.set(userId,{sum:old.sum+score,count:old.count+1})
+        })
+        const profileMap=new Map((p.data||[]).map((profile:any)=>[profile.id,profile]))
+        const questionRows=qmeta.data||[]
+        const essayQuestionsByExam=new Map<string,any[]>()
+        questionRows.filter((question:any)=>['essay','uraian'].includes(String(question.question_type||'').toLowerCase())).forEach((question:any)=>{
+          const list=essayQuestionsByExam.get(question.exam_id)||[]
+          list.push(question);essayQuestionsByExam.set(question.exam_id,list)
+        })
+        const answerMap=new Map<string,any>()
+        ;(answerResult.data||[]).forEach((answer:any)=>answerMap.set(answer.session_id+'|'+answer.question_id,answer))
+        const pending=exams.flatMap((session:any)=>{
+          const unfinished=session.status!=='completed'
+          const essayQuestions=essayQuestionsByExam.get(session.exam_id)||[]
+          const ungraded=essayQuestions.filter((question:any)=>{
+            const answer=answerMap.get(session.id+'|'+question.id)
+            if(!answer)return false
+            const raw=answer.user_answer??answer.selected_answers??answer.selected_option
+            const hasResponse=Array.isArray(raw)?raw.length>0:typeof raw==='string'?raw.trim().length>0:raw!==null&&raw!==undefined
+            return hasResponse&&(answer.teacher_score===null||answer.teacher_score===undefined||answer.teacher_score==='')
+          })
+          if(!unfinished&&!ungraded.length)return []
+          const profile:any=profileMap.get(session.user_id)
+          return [{id:session.id,examId:session.exam_id,userId:session.user_id,studentName:profile?.full_name||profile?.username||'Peserta',classCode:profile?.class_code||'—',examTitle:meta.find((item:any)=>item.id===session.exam_id)?.title||'Paket ujian',status:session.status,unfinished,ungradedEssayCount:ungraded.length}]
+        }).sort((a:any,b:any)=>Number(b.ungradedEssayCount>0)-Number(a.ungradedEssayCount>0))
+        setPendingWork(pending)
+        setStudents((p.data||[]).map((r:any)=>{
+          const a=byPractice.get(r.id)||{xp:0,count:0,best:0},b=byExam.get(r.id)||{sum:0,count:0}
+          return {id:r.id,full_name:r.full_name,username:r.username,class_code:r.class_code,xp:Number(r.xp||0),level:Number(r.level||1),practiceXp:a.xp,practiceAttempts:a.count,practiceBest:a.best,examCount:b.count,examAverage:b.count?Math.round(b.sum/b.count):0}
+        }))
+        setStats({exams:ec.count||0,questions:qc.count||0,materials:mc.count||0,announcements:ac.count||0})
+      }catch(e:any){if(active)setWarning(e?.message||'Gagal memuat dashboard.')}
+      finally{if(active)setLoading(false)}
+    }
+    void load();return()=>{active=false}
+  },[])
+
+  const classes=useMemo(()=>[...new Set(students.map(s=>s.class_code).filter(Boolean) as string[])].sort(),[students])
+  const scoped=useMemo(()=>students.filter(s=>classFilter==='ALL'||s.class_code===classFilter),[students,classFilter])
+  const visible=useMemo(()=>scoped.filter(s=>{const q=search.toLowerCase().trim();return !q||String(s.full_name||'').toLowerCase().includes(q)||String(s.username||'').toLowerCase().includes(q)}).sort((a,b)=>sort==='xp'?b.xp-a.xp:sort==='practice'?b.practiceXp-a.practiceXp:sort==='exam'?b.examAverage-a.examAverage:String(a.full_name||'').localeCompare(String(b.full_name||''),'id')),[scoped,search,sort])
+  const pageCount=Math.max(1,Math.ceil(visible.length/pageSize)),currentPage=Math.min(page,pageCount),pageRows=visible.slice((currentPage-1)*pageSize,currentPage*pageSize)
+  const studentMap=new Map(students.map(s=>[s.id,s]))
+  const metaMap=new Map(examMeta.map(e=>[e.id,e]))
+  const rankExam=rankScope==='exam'&&rankExamId!=='ALL'?rankExamId:null
+  const eligiblePractice=practiceRows.filter(r=>{
+    const student=studentMap.get(r.user_id),meta=metaMap.get(r.exam_id)
+    if(!student||(rankClass!=='ALL'&&student.class_code!==rankClass))return false
+    if(rankExam&&r.exam_id!==rankExam)return false
+    if(rankType==='EXAM')return false
+    if(rankType==='PRACTICE'&&meta?.target_mode==='EXAM_ONLY')return false
+    if(['QUIZ','FLASHCARD','MAZE_GAME'].includes(rankType)&&meta?.activity_type!==rankType)return false
+    return true
+  })
+  const practiceTotals=new Map<string,number>()
+  eligiblePractice.forEach(r=>practiceTotals.set(r.user_id,(practiceTotals.get(r.user_id)||0)+(r.status==='completed'?Number(r.total_xp||0):Number(r.credited_xp||0))))
+  const practiceRanking=[...practiceTotals].map(([id,xp])=>({student:studentMap.get(id)!,value:xp})).filter((x): x is {student:Student;value:number}=>Boolean(x.student)).sort((a,b)=>b.value-a.value).slice(0,10)
+  const eligibleExams=examRows.filter(r=>{
+    const student=studentMap.get(r.user_id),meta=metaMap.get(r.exam_id)
+    if(!student||r.status!=='completed'||(rankClass!=='ALL'&&student.class_code!==rankClass))return false
+    if(rankExam&&r.exam_id!==rankExam)return false
+    if(rankType==='QUIZ'||rankType==='FLASHCARD'||rankType==='MAZE_GAME')return false
+    if(rankType==='EXAM'&&meta?.target_mode==='PRACTICE_ONLY')return false
+    if(rankType==='PRACTICE'&&meta?.target_mode==='EXAM_ONLY')return false
+    return true
+  })
+  const bestScores=new Map<string,number>()
+  eligibleExams.forEach(r=>{const key=r.user_id+'|'+r.exam_id,score=Number(r.score_override??r.score??0);bestScores.set(key,Math.max(bestScores.get(key)??-1,score))})
+  const examTotals=new Map<string,{sum:number;count:number}>()
+  bestScores.forEach((score,key)=>{const userId=key.split('|')[0],old=examTotals.get(userId)||{sum:0,count:0};examTotals.set(userId,{sum:old.sum+score,count:old.count+1})})
+  const examRanking=[...examTotals].map(([id,v])=>({student:studentMap.get(id)!,value:Math.round(v.sum/v.count),count:v.count})).filter((x): x is {student:Student;value:number;count:number}=>Boolean(x.student)).sort((a,b)=>b.value-a.value).slice(0,10)
+  const completedPractice=practiceRows.filter(r=>r.status==='completed').length,completedExams=examRows.filter(r=>r.status==='completed').length
+
+  const filteredPendingWork=pendingWork.filter(item=>pendingFilter==='ALL'||(pendingFilter==='UNFINISHED'?item.unfinished:item.ungradedEssayCount>0))
+  const liveMonitorSummaries=examRows.reduce((groups:any[],session:any)=>{
+    if(!['ongoing','paused'].includes(session.status))return groups
+    let group=groups.find(item=>item.examId===session.exam_id)
+    if(!group){const exam=examMeta.find(item=>item.id===session.exam_id);group={examId:session.exam_id,title:exam?.title||'Paket ujian',ongoing:0,paused:0};groups.push(group)}
+    if(session.status==='ongoing')group.ongoing+=1
+    if(session.status==='paused')group.paused+=1
+    return groups
+  },[]).sort((a:any,b:any)=>(b.ongoing+b.paused)-(a.ongoing+a.paused))
+  const cards=[{label:'Peserta didik',value:students.length,icon:'👩‍🎓',color:'from-indigo-500 to-blue-600'},{label:'Paket ujian & latihan',value:stats.exams,icon:'📚',color:'from-violet-500 to-purple-600'},{label:'Bank soal',value:stats.questions,icon:'📝',color:'from-amber-500 to-orange-600'},{label:'Materi pembelajaran',value:stats.materials,icon:'📖',color:'from-emerald-500 to-teal-600'}]
+  const summaryXp=scoped.reduce((sum,student)=>sum+student.xp,0)
+  const summaryPractice=scoped.reduce((sum,student)=>sum+student.practiceAttempts,0)
+  const summaryExam=scoped.filter(student=>student.examCount>0)
+  const summaryExamAverage=summaryExam.length?Math.round(summaryExam.reduce((sum,student)=>sum+student.examAverage,0)/summaryExam.length):0
+  const classSummary=classes.map(name=>({name,count:students.filter(student=>student.class_code===name).length})).filter(item=>classFilter==='ALL'||item.name===classFilter)
+  const topPracticeStudents=[...scoped].sort((a,b)=>b.practiceXp-a.practiceXp).slice(0,5).map(student=>({student,value:student.practiceXp}))
+  const topExamStudents=[...scoped].filter(student=>student.examCount>0).sort((a,b)=>b.examAverage-a.examAverage).slice(0,5).map(student=>({student,value:student.examAverage}))
+  const ChartBars=({items,color,suffix}:{items:{student:Student;value:number}[];color:string;suffix:string})=>{
+    const max=Math.max(1,...items.map(x=>x.value))
+    return <div className="mt-3 space-y-3">{items.map((item,i)=><div key={item.student.id}><div className="mb-1 flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate font-semibold text-slate-700">{i+1}. {item.student.full_name||item.student.username||'Siswa'} <span className="text-slate-400">({item.student.class_code||'—'})</span></span><b className="shrink-0">{item.value.toLocaleString('id-ID')} {suffix}</b></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${color}`} style={{width:(item.value/max*100)+'%'}}/></div></div>)}{!items.length&&<p className="py-5 text-center text-xs text-slate-400">Belum ada data pada filter ini.</p>}</div>
+  }
+
+  return <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-amber-50 px-4 py-6 md:px-8 md:py-8"><div className="mx-auto max-w-7xl space-y-7">
+    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">TKA Platform · Admin Center</p><h1 className="mt-1 text-3xl font-black text-slate-900">Dashboard Pengelola</h1><p className="mt-1 text-sm text-slate-500">Ringkasan aktivitas, perkembangan peserta, dan pintasan pengelolaan website.</p></div><Link href="/" className="w-fit rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm">← Lihat Website</Link></header>
+    {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</div>}
+    <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 className="text-lg font-black text-slate-900">Perlu Ditindaklanjuti</h2><p className="text-xs text-slate-600">Pisahkan sesi yang perlu dipantau dan essay yang menunggu penilaian.</p></div>
+        <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} item</span>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {([{value:'ALL',label:'Semua',count:pendingWork.length},{value:'UNFINISHED',label:'Sesi belum selesai',count:pendingWork.filter(item=>item.unfinished).length},{value:'UNGRADED',label:'Essay belum dinilai',count:pendingWork.filter(item=>item.ungradedEssayCount>0).length}] as const).map(option=><button key={option.value} type="button" onClick={()=>setPendingFilter(option.value)} className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${pendingFilter===option.value?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'}`}>{option.label} <span className={pendingFilter===option.value?'text-indigo-100':'text-slate-400'}>({option.count})</span></button>)}
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        {filteredPendingWork.slice(0,8).map(item=><article key={item.id} className="rounded-xl border border-amber-100 bg-white p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-800">{item.studentName}</b><span className="text-[10px] font-bold text-slate-500">{item.classCode}</span></div>
+          <p className="mt-1 text-xs text-slate-600">{item.examTitle}</p>
+          <div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-800">Sesi {item.status}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{item.unfinished&&<Link href={'/admin/exam/'+item.examId+'/monitor'} className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-indigo-700">Pantau Live →</Link>}{item.ungradedEssayCount>0&&<Link href={'/admin/exam/'+item.examId+'/results'} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100">Buka Penilaian →</Link>}</div>
+        </article>)}
+        {!loading&&!filteredPendingWork.length&&<p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-5 text-center text-xs text-slate-500 md:col-span-2">{pendingWork.length?'Tidak ada item pada kategori ini.':'Tidak ada sesi tertunda atau essay yang menunggu penilaian.'}</p>}
+      </div>
+      {filteredPendingWork.length>8&&<p className="mt-2 text-right text-[10px] text-slate-500">Menampilkan 8 dari {filteredPendingWork.length} item pada kategori ini.</p>}
+    </section>
+    <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-black text-slate-900">Live Monitor</h2><p className="text-xs text-slate-500">Paket dengan peserta yang sedang mengerjakan atau dijeda.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{liveMonitorSummaries.length} paket aktif</span></div>
+      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {liveMonitorSummaries.map((item:any)=><article key={item.examId} className="rounded-xl border border-slate-200 p-3"><h3 className="text-sm font-black text-slate-800">{item.title}</h3><div className="mt-2 flex flex-wrap gap-2 text-[11px]"><span className="rounded-md bg-emerald-50 px-2 py-1 font-bold text-emerald-700">{item.ongoing} mengerjakan</span><span className="rounded-md bg-amber-50 px-2 py-1 font-bold text-amber-700">{item.paused} dipause</span></div><Link href={'/admin/exam/'+item.examId+'/monitor'} className="mt-3 inline-flex rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-bold text-white hover:bg-slate-700">Buka Live Monitor →</Link></article>)}
+        {!loading&&!liveMonitorSummaries.length&&<p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-xs text-slate-500 md:col-span-2 xl:col-span-3">Belum ada paket dengan sesi yang sedang berjalan atau dipause.</p>}
+      </div>
+    </section>
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <Link href="/admin/bank-soal" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📝</span><h2 className="mt-2 font-black">Bank Soal & Ujian</h2><p className="mt-1 text-xs text-slate-500">Paket ujian, soal, token, dan subtes.</p></Link>
+      <Link href="/admin/konten" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📢</span><h2 className="mt-2 font-black">Konten Website</h2><p className="mt-1 text-xs text-slate-500">Pengumuman dan materi belajar.</p></Link>
+      <Link href="/admin/users" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">👩‍🎓</span><h2 className="mt-2 font-black">Data Peserta</h2><p className="mt-1 text-xs text-slate-500">Kelola akun, kelas, dan profil siswa.</p></Link>
+      <Link href="/admin/practice" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">🎮</span><h2 className="mt-2 font-black">Mode Latihan</h2><p className="mt-1 text-xs text-slate-500">Kuis, flashcard, dan game edukatif.</p></Link>
+      <Link href="/admin/raport" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📄</span><h2 className="mt-2 font-black">Raport & Sertifikat</h2><p className="mt-1 text-xs text-slate-500">Pilih hasil, tanda tangan, preview, cetak.</p></Link>
+      <Link href="/admin/pengaturan-dokumen" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">⚙️</span><h2 className="mt-2 font-black">Pengaturan Dokumen</h2><p className="mt-1 text-xs text-slate-500">Identitas sekolah dan arsip penandatangan.</p></Link>
+    </section>
+    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{cards.map(c=><div key={c.label} className="overflow-hidden rounded-2xl border border-white bg-white shadow-md shadow-indigo-100/70"><div className={`bg-gradient-to-r ${c.color} px-4 py-3 text-white`}><div className="flex items-center justify-between text-xs font-bold uppercase"><span>{c.label}</span><span className="text-2xl">{c.icon}</span></div><div className="mt-2 text-3xl font-black">{loading?'—':c.value.toLocaleString('id-ID')}</div></div></div>)}</section>
+    <section className="grid grid-cols-2 gap-3 md:grid-cols-4">{[{label:'Latihan selesai',value:completedPractice},{label:'Ujian selesai',value:completedExams},{label:'Pengumuman',value:stats.announcements},{label:'Kelas terdata',value:classes.length}].map((x,i)=><div key={x.label} className={`rounded-xl border p-4 shadow-sm ${['border-emerald-200 bg-emerald-50','border-blue-200 bg-blue-50','border-pink-200 bg-pink-50','border-violet-200 bg-violet-50'][i]}`}><p className="text-xs font-semibold text-slate-600">{x.label}</p><p className="mt-1 text-2xl font-black text-slate-900">{loading?'—':x.value}</p></div>)}</section>
+    <section className="rounded-2xl border border-amber-200 bg-white p-4 shadow-md shadow-amber-100/70 md:p-5"><div><h2 className="text-lg font-black text-slate-900">Peringkat & Grafik Performa</h2><p className="text-xs text-slate-500">Peringkat latihan dihitung dari XP; peringkat ujian memakai nilai terbaik siswa pada setiap paket, bukan menjumlahkan percobaan ulang.</p></div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><label className="text-xs font-semibold text-slate-600">Cakupan<select value={rankScope} onChange={e=>setRankScope(e.target.value as 'global'|'exam')} className="mt-1 w-full rounded-lg border px-3 py-2"><option value="global">Umum / keseluruhan</option><option value="exam">Per sesi / paket soal</option></select></label><label className="text-xs font-semibold text-slate-600">Paket soal<select value={rankExamId} onChange={e=>setRankExamId(e.target.value)} disabled={rankScope!=='exam'} className="mt-1 w-full rounded-lg border px-3 py-2 disabled:bg-slate-100"><option value="ALL">Pilih paket soal</option>{examMeta.map(e=><option key={e.id} value={e.id}>{e.title}</option>)}</select></label><label className="text-xs font-semibold text-slate-600">Kelas<select value={rankClass} onChange={e=>setRankClass(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2"><option value="ALL">Semua kelas</option>{classes.map(c=><option key={c} value={c}>{c}</option>)}</select></label><label className="text-xs font-semibold text-slate-600">Tipe tes<select value={rankType} onChange={e=>setRankType(e.target.value)} className="mt-1 w-full rounded-lg border px-3 py-2"><option value="ALL">Semua tipe</option><option value="EXAM">Ujian resmi</option><option value="PRACTICE">Latihan</option><option value="QUIZ">Kuis</option><option value="FLASHCARD">Flashcard</option><option value="MAZE_GAME">Game Labirin</option></select></label></div>
+      {rankScope==='exam'&&rankExamId==='ALL'&&<p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-800">Pilih satu paket soal agar peringkat per sesi dapat dihitung.</p>}
+      <div className="mt-5 grid gap-5 lg:grid-cols-2"><div className="rounded-xl border p-4"><h3 className="font-black text-emerald-800">🏆 Peringkat Latihan · Grafik XP</h3><ChartBars items={rankScope==='exam'&&rankExamId==='ALL'?[]:practiceRanking} color="bg-emerald-500" suffix="XP"/></div><div className="rounded-xl border p-4"><h3 className="font-black text-indigo-800">📊 Peringkat Ujian · Grafik Nilai</h3><ChartBars items={rankScope==='exam'&&rankExamId==='ALL'?[]:examRanking} color="bg-indigo-500" suffix="/100"/></div></div>
+    </section>
+    <section className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-md shadow-indigo-100/70 md:p-5"><div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><h2 className="text-lg font-black text-slate-900">Peserta Didik</h2><p className="text-xs text-slate-500">Pencarian, pengurutan, dan ringkasan per kelas.</p></div><div className="grid gap-2 sm:grid-cols-3"><select value={classFilter} onChange={e=>{setClassFilter(e.target.value);setPage(1)}} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"><option value="ALL">Semua kelas · Global</option>{classes.map(c=><option key={c} value={c}>{c}</option>)}</select><input value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="Cari nama / username" className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800"/><select value={sort} onChange={e=>{setSort(e.target.value);setPage(1)}} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"><option value="name">Nama A–Z</option><option value="xp">XP total tertinggi</option><option value="practice">XP latihan tertinggi</option><option value="exam">Rata-rata ujian tertinggi</option></select></div></div>
+
+    <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_0.85fr]">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-slate-200">
+        <div className="flex items-center justify-between border-b bg-slate-50 px-3 py-2"><span className="text-xs font-bold text-slate-600">Daftar peserta</span><span className="text-[10px] text-slate-400">Klik nama untuk membuka riwayat</span></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[390px] text-left text-xs"><thead className="bg-slate-100 text-slate-600"><tr><th className="p-3">Peserta didik</th><th className="p-3">Kelas</th><th className="p-3 text-right">Detail</th></tr></thead><tbody className="divide-y divide-slate-100">{pageRows.map(s=><tr key={s.id} className="hover:bg-indigo-50/50"><td className="p-3"><Link href={'/admin/peserta/'+s.id} className="font-bold text-indigo-700 hover:underline">{s.full_name||'Tanpa nama'}</Link><div className="text-[10px] text-slate-400">@{s.username||'-'} · Lv. {s.level} · {s.xp.toLocaleString('id-ID')} XP</div></td><td className="p-3 text-slate-600">{s.class_code||'-'}</td><td className="p-3 text-right"><Link href={'/admin/peserta/'+s.id} className="font-bold text-indigo-600">Riwayat →</Link></td></tr>)}{!loading&&!pageRows.length&&<tr><td colSpan={3} className="p-8 text-center text-slate-400">Belum ada peserta untuk filter ini.</td></tr>}</tbody></table></div>
+      </div>
+      <aside className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3"><p className="text-[10px] font-bold uppercase text-indigo-600">Total XP peserta</p><p className="mt-1 text-xl font-black text-indigo-900">{loading?'—':summaryXp.toLocaleString('id-ID')}</p></div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3"><p className="text-[10px] font-bold uppercase text-emerald-700">Latihan selesai</p><p className="mt-1 text-xl font-black text-emerald-900">{loading?'—':summaryPractice.toLocaleString('id-ID')}</p></div>
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3"><p className="text-[10px] font-bold uppercase text-amber-700">Rata-rata ujian terbaik</p><p className="mt-1 text-xl font-black text-amber-900">{loading?'—':summaryExamAverage||'—'}</p></div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="text-[10px] font-bold uppercase text-slate-500">Peserta terpilih</p><p className="mt-1 text-xl font-black text-slate-900">{loading?'—':scoped.length}</p></div>
         </div>
-      }
-    >
-      <AdminDashboardContent />
-    </Suspense>
-  )
+        <div className="rounded-xl border border-slate-200 p-3"><div className="flex items-center justify-between gap-2"><h3 className="text-xs font-black text-slate-800">Sebaran peserta per kelas</h3><span className="text-[10px] text-slate-400">{classFilter==='ALL'?'Semua kelas':classFilter}</span></div><div className="mt-3 space-y-2">{classSummary.map(item=><div key={item.name}><div className="mb-1 flex justify-between text-[10px]"><span className="font-semibold text-slate-600">{item.name}</span><b className="text-slate-800">{item.count}</b></div><div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-indigo-500" style={{width:(item.count/Math.max(1,...classSummary.map(x=>x.count))*100)+'%'}}/></div></div>)}{!classSummary.length&&<p className="py-3 text-center text-xs text-slate-400">Belum ada data kelas.</p>}</div></div>
+        <div className="rounded-xl border border-slate-200 p-3"><h3 className="text-xs font-black text-slate-800">5 peserta dengan XP latihan tertinggi</h3><ChartBars items={topPracticeStudents} color="bg-emerald-500" suffix="XP"/></div>
+        <div className="rounded-xl border border-slate-200 p-3"><h3 className="text-xs font-black text-slate-800">5 peserta dengan rata-rata nilai ujian tertinggi</h3><ChartBars items={topExamStudents} color="bg-indigo-500" suffix="/100"/></div>
+      </aside>
+    </div>
+    <div className="mt-3 flex flex-col justify-between gap-2 text-xs text-slate-500 sm:flex-row sm:items-center"><span>{visible.length} peserta · halaman {currentPage}/{pageCount}</span><div className="flex items-center gap-2"><select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}} className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"><option value={10}>10 / halaman</option><option value={20}>20 / halaman</option><option value={50}>50 / halaman</option><option value={100}>100 / halaman</option></select><button type="button" disabled={currentPage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Sebelumnya</button><button type="button" disabled={currentPage>=pageCount} onClick={()=>setPage(p=>Math.min(pageCount,p+1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Berikutnya</button></div></div></section>
+  </div></main>
 }
