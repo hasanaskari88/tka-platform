@@ -727,3 +727,12 @@ Sebelum kode diubah, minta persetujuan eksplisit atas dua file dan ruang lingkup
 - [ ] Tidak ada aksi proktor destruktif yang diuji; jangan menguji reset/force submit/pause/resume pada sesi siswa nyata.
 
 **Langkah berikutnya:** verifikasi deployment Preview dan build; setelah READY, lakukan QA browser terbatas sesuai daftar QA Batch 1. Status ini tidak berarti Batch 1 sudah lulus QA atau siap dirilis ke Production.
+
+
+### Catatan build dan koreksi sintaks — 10 November 2026
+
+- Deployment pertama untuk commit `9c26c8066b89c634e3fb7ea15097a0ac36ee0b91` berstatus **ERROR**. Log build menunjukkan kesalahan parser JSX pada tombol Auto-Refresh di `app/admin/exam/[id]/monitor/page.tsx:473`: penutup ekspresi event handler terlewat saat penyusunan layout.
+- Kesalahan tersebut diperbaiki dengan menambahkan penutup `}` pada handler; tidak mengubah perilaku Auto-Refresh.
+- Koreksi tersimpan pada commit Preview `0c008ba0a1c52a5326c2ef64d746f330a24e8918` dengan pesan `fix(admin): correct live monitor refresh button JSX`.
+- Deployment ulang: `dpl_Dd5XveAWQrPnon4hjiLbY8FtATpV` — URL `https://grisan-cvjb3ia72-heins14.vercel.app`. Pada pemeriksaan terakhir status masih **BUILDING**; kompilasi Next.js berhasil dan proses sedang menjalankan pemeriksaan TypeScript. Belum boleh ditandai READY sampai status final terverifikasi.
+- Catatan QA Batch 1 di atas tetap berlaku: belum ada QA browser/runtime, dan belum ada uji aksi proktor pada sesi nyata.
