@@ -1,11 +1,11 @@
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseAdminClient, type User } from '@supabase/supabase-js'
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
 
 type TrustedAdminResult =
   | {
       authorized: true
       userId: string
-      user: NonNullable<Awaited<ReturnType<typeof createServerSupabaseClient>> extends never ? never : any>
+      user: User
       supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
       adminClient: any
     }
