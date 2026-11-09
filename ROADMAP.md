@@ -950,3 +950,16 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Perubahan Production pada `app/exam/[id]/page.tsx` dibawa ke Preview karena Preview masih memakai versi dari merge-base; ini menjaga perbaikan alur CBT Production tetap ada.
 - Sinkronisasi mempertahankan implementasi Preview lainnya. Tidak ada migration/SQL yang dijalankan dan tidak ada data Supabase yang diubah.
 - Commit Preview sebelum sinkronisasi: `922b729f5f7fb3411ad3025620a3eb94d428fbe2`; commit Production yang disinkronkan: `d9881e4ed1c8d8f608aeec7e76cd02a25ed8a0eb`.
+
+
+
+## Sinkronisasi otomatis Main → Preview — 10 November 2026
+
+- Workflow `.github/workflows/sync-main-to-preview.yml` telah diperbaiki di Main agar konflik tunggal `ROADMAP.md` diselesaikan dengan mempertahankan roadmap Preview; konflik kode lain tetap menghentikan job.
+- Run sinkronisasi pertama gagal karena konflik roadmap: `42713464301`. Tidak ada konflik kode pada run tersebut.
+- Run setelah perbaikan berhasil: `42714873123`; run setelah pencatatan roadmap Main berhasil: `42715095462`.
+- Commit merge Preview pertama: `267cc112fd59017943f1d2ce4b3ae5c8a24ece02`; commit merge berikutnya setelah catatan Main: `362b2e4a9d7f93e03236ee3ec476f22bf842a73d`.
+- HEAD Main yang telah tersinkron: `6a63586d528fb773de00e178dc8cb9b845dde9e6`.
+- Verifikasi akhir: Preview **ahead 204 / behind 0**, merge base sama dengan HEAD Main. Perubahan khusus Preview tetap ada.
+- `ROADMAP.md` Preview dipertahankan sebagai sumber rencana dan catatan QA Preview; tidak diganti dengan roadmap Production.
+- Sinkronisasi ini hanya operasi Git. Tidak ada migration/SQL, perubahan data Supabase, operasi akun Google Drive, atau deployment Production yang dijalankan.
