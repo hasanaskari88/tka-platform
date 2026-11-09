@@ -273,3 +273,14 @@ Semua perubahan kode dan dokumentasi di atas berada pada `security-hardening-adm
 - [ ] Sebelum uji admin: pemilik proyek perlu memverifikasi daftar akun admin tepercaya. Jangan mengambil semua baris `profiles.role='admin'` sebagai allowlist secara otomatis.
 - [x] Kode, helper, dokumen review, dan roadmap tersimpan pada branch `security-hardening-admin-api`.
 - [x] Tidak ada SQL, perubahan data, environment variable, merge PR, atau deployment Production yang dilakukan.
+
+
+### Perluasan pemeriksaan admin server — 9 November 2026
+
+- [x] `lib/supabase/admin.ts` kini memakai `requireTrustedAdmin()`.
+- [x] Semua route Google Drive yang memakai `requireAdmin()` ikut memakai allowlist admin tepercaya.
+- [x] Tidak ada pengujian OAuth atau operasi Google Drive yang dilakukan; K5 tetap dipatuhi.
+- [x] Pemeriksaan build untuk commit `6006bf6` telah melewati kompilasi dan TypeScript; proses page-data/build lanjutan sedang berjalan saat pencatatan.
+- [ ] Build untuk commit berikutnya `f39f4e6` dan dokumentasi terbaru perlu dipastikan READY.
+- [ ] Integrasi UI admin users ke POST server-side dan penghapusan update password dari browser masih menjadi pekerjaan terbuka.
+- [ ] Konfigurasi allowlist admin masih menunggu verifikasi pemilik proyek.
