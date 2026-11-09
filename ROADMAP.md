@@ -27,7 +27,7 @@ Dokumen ini menggantikan checklist lama yang saling bertumpuk. Riwayat QA editor
 | Preview | `homepage-arcade-catalog` — `c5972884d9c8e2b2c2d0d2cffa6d806afa5b5f4e` |
 | Deployment Preview | READY — `dpl_VVx5g4KeAuBmdSicGzbh4gbpueeu` |
 | Selisih branch | Preview berada di depan `main`, 0 commit di belakang (jumlah commit tidak dijadikan ukuran kesiapan rilis) |
-| Pull Request | PR #2 masih OPEN; metadata GitHub terbaru menyatakan `mergeable: true` (tidak ada konflik merge yang dilaporkan) |
+| Pull Request | PR #2 masih OPEN; metadata `mergeable` berubah antara `true` dan `false` pada pembacaan berurutan. Status mergeability dianggap belum pasti dan harus diperiksa kembali setelah ruang lingkup kode ditetapkan. |
 | Perbedaan file | 29 file berubah pada perbandingan `main...homepage-arcade-catalog` |
 
 Preview bukan berarti semua perubahan di dalamnya sudah disetujui untuk Production. PR #2 memuat beberapa kelompok pekerjaan yang lebih luas daripada judul PR-nya.
@@ -139,7 +139,7 @@ Catatan baru dari pengguna dicatat di sini terlebih dahulu. Catatan tidak otomat
 **Status: BELUM SIAP MERGE.**
 
 Alasan yang terukur:
-1. PR #2 memuat 29 file dari beberapa kelompok pekerjaan. GitHub saat pemeriksaan terakhir menyatakan mergeable, tetapi ruang lingkup dan ketergantungan database belum siap untuk disetujui rilis.
+1. PR #2 memuat 29 file dari beberapa kelompok pekerjaan. status mergeability dari GitHub belum konsisten, dan ruang lingkup serta ketergantungan database belum siap untuk disetujui rilis.
 2. Perubahan engine latihan bergantung pada migration yang belum diverifikasi.
 3. Status allowlist admin dan uji runtime endpoint belum terkonfirmasi.
 4. Kondisi lokal Codespace belum terlihat dalam GitHub sehingga rekonsiliasi belum lengkap.
