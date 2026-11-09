@@ -823,3 +823,18 @@ Jangan mengubah Batch 1 yang sudah build READY hanya untuk mengganti bentuk kont
 - Kandidat A tetap dibatasi pada Homepage dan dependensi visual yang benar-benar diperlukan. PR langsung dari branch Preview saat ini akan mencakup perubahan lain yang belum disetujui, sehingga **tidak dibuat**.
 - Belum ada branch baru atau PR kandidat karena proses proyek saat ini menetapkan tidak membuat branch baru. Menyiapkan PR terisolasi membutuhkan pengecualian eksplisit untuk membuat branch rilis sementara; alternatif push langsung ke `main` tidak direkomendasikan untuk rilis ini.
 - Tidak ada kode aplikasi, database, deployment, atau konfigurasi Production yang diubah.
+
+
+## Keputusan proses yang ditegaskan pengguna — 10 November 2026
+
+Keputusan ini **menggantikan usulan sebelumnya** tentang branch rilis sementara untuk Kandidat A.
+
+- Pengguna menegaskan agar tidak membuat branch baru/perantara karena akan menambah kompleksitas dan memperlebar selisih branch.
+- Lanjutkan pekerjaan yang dimaksud (Kandidat A — Homepage) langsung di branch Preview yang sudah ada: `homepage-arcade-catalog`. Tidak perlu branch tambahan.
+- Tidak membuat PR atau merge ke `main` dalam pekerjaan Preview ini. Jangan mengubah Production atau database.
+- Jangan membuat dokumen roadmap/arsip/checklist baru. Catatan ini sengaja disisipkan di roadmap Preview yang sudah ada.
+- Snapshot GitHub saat catatan ini ditulis: Preview `fa4722737228087fb531ccc7f7f45a0e924ff5ef`; Main `e34abf3f8383a028b66c5c2e1cba7c7216660267`; status `diverged`; Preview 195 commit ahead dan 7 commit behind; merge base `9979e3523e3d296d51cb1b650c97e1f9edebac27`.
+- Snapshot sebelumnya yang menyebut 194/6 dan rekomendasi meminta izin membuat branch rilis adalah catatan historis. **Keputusan branch rilis sementara tersebut dibatalkan dan tidak boleh diajukan kembali.**
+- Lanjutkan pengembangan di Preview yang sama sesuai lingkup Kandidat A. Periksa dampak CSS global dan lakukan QA yang relevan; jangan memasukkan pekerjaan Admin/Practice atau migration ke pekerjaan Homepage.
+
+**Instruksi operasional:** semua commit pengembangan selanjutnya untuk lingkup ini diarahkan ke `homepage-arcade-catalog`. Tidak ada branch baru, PR, merge, atau deployment Production.
