@@ -246,3 +246,83 @@ Ini adalah prosedur tetap untuk melanjutkan proyek. Asisten berkomitmen untuk:
 - [x] Commit pembuatan: `00d620881aa76e5c42fd7776411a86b02ca536a9`.
 - [x] Vercel mendeteksi commit dokumentasi, tetapi build otomatis diabaikan oleh konfigurasi *Ignored Build Step* (deployment tercatat CANCELED). Tidak ada kode aplikasi yang berubah dan deployment CBT READY sebelumnya tetap aktif.
 - [x] Pembaruan dokumen Production berikutnya mencatat status ini; tidak perlu melakukan tindakan deployment tambahan untuk file dokumentasi.
+
+
+## 12. Inventaris dashboard dan rekonsiliasi branch — 10 November 2026
+
+### Snapshot GitHub terbaru yang diperiksa
+
+Snapshot ini memperbarui angka perbandingan pada bagian 2 yang berasal dari audit sebelumnya. Angka lama tetap menjadi riwayat audit, tetapi tidak dipakai sebagai posisi branch terkini.
+
+| Item | Nilai terverifikasi |
+|---|---|
+| HEAD Production saat perbandingan | `main` — `22f0f005921dcc5bc3e2f595951e3dc11de394e7` |
+| HEAD Preview saat perbandingan | `homepage-arcade-catalog` — `fd4988e8434364342223e2ea1eb931084210f4a7` |
+| Status perbandingan | `diverged` |
+| Commit Preview lebih maju | 176 |
+| Commit Preview tertinggal dari main | 3 |
+| File berbeda pada perbandingan | 30 |
+| Merge base | `9979e3523e3d296d51cb1b650c97e1f9edebac27` |
+
+**Makna:** Preview tidak sekadar berada di depan Production. Kedua branch sudah bercabang: terdapat 3 commit di `main` yang belum ada di Preview. Karena itu, sebelum memilih kandidat rilis atau menyusun batch, kita perlu memeriksa perubahan dari kedua sisi dan mengidentifikasi kemungkinan konflik. Jumlah commit bukan ukuran kesiapan fitur.
+
+### Inventaris — `app/admin/page.tsx`
+
+**Sumber file yang diperiksa:** isi yang dikirim pengguna dan file GitHub Preview. Keduanya cocok. File Production juga diperiksa sebagai pembanding. Tidak ada file Codespace lain yang diasumsikan telah diperiksa.
+
+| Field | Hasil pemeriksaan |
+|---|---|
+| File/fitur | `app/admin/page.tsx` — Dashboard Pengelola |
+| Versi Production | Dashboard lama sekitar 82 ribu karakter; memuat pengelolaan paket ujian, subtes, pengumuman, materi, filter ujian/latihan, dan CMS di dashboard |
+| Versi Preview | Dashboard ringkasan sekitar 27,5 ribu karakter; berisi statistik, pekerjaan tertunda, peringkat, filter peserta, pagination, dan pintasan ke halaman admin terpisah |
+| Perbedaan terukur | GitHub compare menunjukkan 191 penambahan dan 1.852 penghapusan (2.043 baris berubah) |
+| Penilaian | **Penting untuk Batch 1 — perlu rekonsiliasi fungsi sebelum implementasi/rilis** |
+| Alasan | Ringkasan dashboard dan pekerjaan tertunda sesuai tujuan Batch 1. Namun, perubahan ini juga mengganti struktur dashboard secara besar dan mengalihkan beberapa fungsi lama ke halaman terpisah. Perlu dipastikan semua fungsi lama tetap tersedia pada rute pengganti. |
+| Keputusan | Pertahankan sebagai kandidat Batch 1 di Preview; belum disetujui untuk perubahan kode atau Production |
+
+#### Fungsi yang ditemukan pada versi Preview
+
+- Ringkasan jumlah peserta, paket ujian/latihan, bank soal, dan materi.
+- Panel `Perlu Ditindaklanjuti`: sesi yang belum selesai dan essay yang belum dinilai.
+- Filter daftar pekerjaan tertunda.
+- Peringkat XP latihan dan nilai ujian dengan filter cakupan, paket, kelas, dan tipe tes.
+- Pencarian peserta, pengurutan, pagination, ringkasan kelas, serta grafik performa.
+- Pintasan ke Bank Soal & Ujian, Konten Website, Data Peserta, Mode Latihan, Raport & Sertifikat, dan Pengaturan Dokumen.
+
+#### Temuan yang perlu ditindaklanjuti sebelum menyatakan dashboard siap
+
+1. **Fungsi dashboard lama:** periksa rute pengganti untuk pengelolaan subtes, paket ujian, pengumuman, dan materi. Jangan menganggap fungsi hilang sebelum halaman tujuan diperiksa; jangan pula menganggap sudah pindah hanya karena ada tautan menu.
+2. **Live Monitor:** pada file ini belum terlihat tautan atau komponen bernama Live Monitor/Live Monitoring. Panel tindak lanjut mengarahkan pengguna ke halaman hasil ujian `/admin/exam/[id]/results`. Pastikan apakah halaman hasil tersebut memang memenuhi kebutuhan pemantauan langsung atau masih ada bagian lain yang harus diinventarisasi.
+3. **Beban query:** dashboard mengambil seluruh baris `practice_attempts` dan `exam_sessions` melalui `select('*')`, seluruh metadata soal, lalu jawaban untuk kumpulan session ID. Ini perlu diperiksa terhadap volume data, batas hasil Supabase, dan pola RLS sebelum dipakai pada skala produksi. Belum ada bukti bahwa query ini gagal; ini catatan risiko performa dan kelengkapan data.
+4. **Ketergantungan data:** pembacaan `credited_xp`, `total_xp`, `score_override`, `teacher_score`, status sesi, tipe soal essay/uraian, serta `target_mode` dan `activity_type` memengaruhi ringkasan dan peringkat. Jangan mengubah rumus XP, nilai, atau skema sebagai bagian dari pekerjaan UI tanpa audit dan persetujuan terpisah.
+5. **Kelengkapan hasil:** karena query memuat banyak baris, periksa apakah pagination/default row limit dapat membuat ringkasan atau peringkat hanya menghitung sebagian data. Jangan mengubahnya dengan RPC/migration sebelum kebutuhan dan risikonya disepakati.
+
+#### Arah penyesuaian yang disarankan
+
+- Pertahankan konsep panel tindak lanjut dan ringkasan sebagai inti Batch 1.
+- Buat daftar pemetaan fungsi lama → halaman tujuan Preview, khususnya subtes, paket ujian, pengumuman, dan materi.
+- Verifikasi kebutuhan Live Monitor secara terpisah dari panel tugas tertunda.
+- Audit query dan RLS secara baca/statis terlebih dahulu; tidak melakukan perubahan database.
+- Pisahkan perubahan UI dari perubahan perhitungan XP/nilai/CBT. Perubahan perhitungan memerlukan persetujuan khusus.
+
+**Dependensi/risiko:** tabel `profiles`, `practice_attempts`, `exam_sessions`, `exams`, `questions`, `answers`; RLS dan batas query Supabase; perhitungan XP/nilai; halaman hasil ujian; navigasi halaman admin. Tidak ada perubahan schema, RPC, policy, data, atau kode yang dilakukan dalam audit ini.
+
+### Status Batch 1 setelah inventaris dashboard
+
+- [x] File `app/admin/page.tsx` dari pengguna telah diperiksa.
+- [x] Versi Preview dan Production telah dibandingkan.
+- [ ] Pemetaan fungsi lama ke halaman pengganti belum selesai.
+- [ ] Kebutuhan Live Monitor belum dikonfirmasi dari keseluruhan file/halaman terkait.
+- [ ] Audit query dan kelengkapan data belum selesai.
+- [ ] Implementasi belum disetujui dan tidak ada kode yang diubah.
+
+**Keputusan sementara:** file ini penting untuk Batch 1, tetapi belum boleh langsung diganti/diubah sebelum pemetaan fungsi dan risiko query selesai.
+
+### Aturan pencatatan perbedaan branch dan batch
+
+Mulai snapshot ini, inventaris lintas branch memakai tiga lapisan:
+1. **Snapshot branch:** SHA HEAD `main`, SHA HEAD Preview, merge base, status ahead/behind, dan daftar file berbeda.
+2. **Inventaris per file:** versi Production, versi Preview, tujuan/perilaku, perbedaan, dependensi, risiko, keputusan batch, dan status QA.
+3. **Riwayat rilis:** ketika perubahan benar-benar masuk Production, catat commit rilis, deployment, file/batch yang masuk, ringkasan, dan hasil QA. Tandai item Preview yang sudah dirilis; sisanya tetap menjadi backlog Preview.
+
+Jangan menyimpulkan Preview sudah sinkron hanya dari jumlah commit. Periksa perbandingan file dan perubahan di kedua sisi setiap kali akan menentukan kandidat rilis.
