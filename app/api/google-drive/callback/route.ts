@@ -1,11 +1,8 @@
-
 import { connection, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
 import { encryptToken } from '@/lib/google-drive/token-encryption'
-
-
 
 function finish(
   request: NextRequest,
@@ -89,8 +86,11 @@ export async function GET(request: NextRequest) {
       throw new Error('Konfigurasi server belum lengkap.')
     }
 
-    const redirectUri =
-      `${process.env.NEXT_PUBLIC_SITE_URL || 'https://grisan.vercel.app'}/api/google-drive/callback`
+    // Gunakan host yang sama dengan tempat OAuth dimulai.
+    const redirectUri = new URL(
+      '/api/google-drive/callback',
+      request.url
+    ).toString()
 
     const oauth2Client = new google.auth.OAuth2(
       clientId,
