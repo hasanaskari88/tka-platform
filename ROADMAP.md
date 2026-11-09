@@ -324,3 +324,24 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - HEAD Preview sebelum: `cb29aec2d6f7461ec7746b32e4e23b6a69325657`; sesudah: `267cc112fd59017943f1d2ce4b3ae5c8a24ece02`.
 - Hasil verifikasi: Preview sudah memuat Main sebagai ancestor; compare menunjukkan `ahead 203 / behind 0`. Perubahan khusus Preview tetap dipertahankan.
 - Workflow hanya menyinkronkan kode Git. Tidak menjalankan migration/SQL, mengubah data Supabase, mengubah token Google Drive, atau mempromosikan deployment Production.
+
+
+
+## Promosi Preview ke Main dengan perlindungan alur peserta — 10 November 2026
+
+- Strategi operasional disederhanakan: pengujian dilakukan sambil website digunakan; temuan dicatat dan perbaikannya langsung masuk ke `main`.
+- Commit Main sebelum promosi: `1cd2679e4f913a43811803e3b8c0ac31b4e7143c`.
+- Commit Preview yang dipromosikan: `dbee96b5245cb91462fb1e0ec3dcf3752fa92c63`.
+- Commit merge Main: `b629e2794d34285bfd01b69bd01e3329969839ce`.
+- Perubahan Preview lainnya dibawa ke Main sebagai satu merge Git, dengan riwayat kedua branch tetap tersambung.
+- Untuk menjaga alur latihan peserta Production pada tahap pertama, empat file berikut dipertahankan persis dari Main sebelum promosi:
+  - `app/practice/page.tsx`
+  - `app/practice/[id]/page.tsx`
+  - `components/games/FlashcardEngine.tsx`
+  - `components/games/MazeGameEngine.tsx`
+- Alur ujian peserta Production sudah berada pada versi Main yang tersinkron ke Preview sebelumnya; tidak ada file inti ujian peserta yang diganti dalam promosi ini.
+- `ROADMAP.md` Main dipertahankan sebagai catatan rilis Production. Workflow mengembalikan roadmap Preview setelah sinkronisasi sehingga catatan QA Preview tidak hilang.
+- File migration SQL yang ada di Preview ikut menjadi bagian repositori, tetapi **tidak dijalankan**. Tidak ada perubahan schema/RLS/data Supabase, token Google Drive, atau operasi akun eksternal.
+- Verifikasi Git pascapromosi: Preview memuat Main sebagai ancestor (behind 0); dua commit di atas Main adalah sinkronisasi dan pemulihan roadmap Preview.
+- Status deployment Vercel dan QA runtime alur ujian/latihan harus dicatat setelah hasil aktual tersedia. Merge commit bukan klaim bahwa seluruh aplikasi sudah lulus pengujian.
+- Pola uji berjalan: lakukan smoke test satu siklus ujian dan satu siklus latihan; kumpulkan temuan dari penggunaan nyata; perbaiki langsung di Main; workflow otomatis menyinkronkan hasilnya ke Preview.
