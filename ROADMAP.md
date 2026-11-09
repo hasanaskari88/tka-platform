@@ -201,3 +201,18 @@ File `app/admin/page.tsx` Preview telah dibandingkan dengan Production pada 10 N
 - Kandidat A tetap dibatasi pada Homepage dan dependensi visual yang benar-benar diperlukan. PR langsung dari branch Preview saat ini akan mencakup perubahan lain yang belum disetujui, sehingga **tidak dibuat**.
 - Belum ada branch baru atau PR kandidat karena proses proyek saat ini menetapkan tidak membuat branch baru. Menyiapkan PR terisolasi membutuhkan pengecualian eksplisit untuk membuat branch rilis sementara; alternatif push langsung ke `main` tidak direkomendasikan untuk rilis ini.
 - Tidak ada kode aplikasi, database, deployment, atau konfigurasi Production yang diubah.
+
+
+## Keputusan proses yang ditegaskan pengguna — 10 November 2026
+
+Keputusan ini **menggantikan usulan sebelumnya** tentang pembuatan branch rilis sementara untuk Kandidat A.
+
+- Tidak membuat branch baru, branch sementara, atau branch perantara. Jangan meminta pengecualian untuk aturan ini lagi.
+- Pekerjaan lanjutan Kandidat A (Homepage) tetap dilakukan langsung pada branch Preview yang sudah ada: `homepage-arcade-catalog`.
+- Tidak membuat PR/merge ke `main` sebagai bagian dari pekerjaan Preview ini. Production tetap tidak disentuh; rilis ke Production hanya dibahas jika pengguna kemudian memintanya secara eksplisit.
+- Jangan menyalin seluruh Preview ke `main`, jangan melakukan push langsung ke `main`, dan jangan mencoba mengakali perbedaan branch dengan membuat jalur rilis lain.
+- Catatan keputusan disisipkan di roadmap yang sudah ada. Jangan membuat roadmap, arsip, atau checklist baru untuk keputusan ini.
+- Snapshot pembandingan terbaru saat catatan ini ditulis: Preview `fa4722737228087fb531ccc7f7f45a0e924ff5ef`; Main `e34abf3f8383a028b66c5c2e1cba7c7216660267`; status `diverged`; Preview 195 commit ahead dan 7 commit behind; merge base `9979e3523e3d296d51cb1b650c97e1f9edebac27`. Angka ini hanya snapshot, bukan alasan untuk membuat branch tambahan.
+- Semua pengembangan berikutnya yang dimaksud pengguna dilakukan di Preview yang sama, dengan cakupan yang sudah disepakati. Perubahan database dan Production tetap memerlukan persetujuan khusus.
+
+**Instruksi operasional:** sebelum perubahan berikutnya, baca kedua roadmap, periksa HEAD Preview terkini, lalu kerjakan hanya di `homepage-arcade-catalog`. Perbarui roadmap yang sama setelah tindakan nyata. Jangan mengulang pertanyaan tentang branch sementara.
