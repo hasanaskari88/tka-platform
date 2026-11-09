@@ -107,7 +107,7 @@ function AdminUsersContent() {
     new Set(profiles.map((p) => p.class_code || p.class_label).filter(Boolean))
   )
 
-  // 2. Tambah Akun Baru
+  // 2. Tambah Akun Baru — seluruh pembuatan akun dilakukan oleh API server.
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsCreating(true)
@@ -119,51 +119,32 @@ function AdminUsersContent() {
       return
     }
 
-    const supabase = createClient()
-    const cleanUsername = newUsername.trim().toLowerCase()
-    const fakeEmail = `${cleanUsername}@grisan.com`
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: fakeEmail,
-      password: userPassword,
-      options: {
-        data: {
-          username: cleanUsername,
-          full_name: fullName.trim(),
-          class_code: classCode.trim().toUpperCase(),
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: newUsername.trim().toLowerCase(),
+          fullName: fullName.trim(),
+          classCode: classCode.trim().toUpperCase(),
+          password: userPassword,
           role: userRole,
-        },
-      },
-    })
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Akun gagal dibuat.')
 
-    if (authError) {
-      setCreateMsg(`Error Auth: ${authError.message}`)
-      setIsCreating(false)
-      return
-    }
-
-    if (authData.user) {
-      await supabase.from('profiles').upsert(
-        {
-          id: authData.user.id,
-          username: cleanUsername,
-          full_name: fullName.trim(),
-          class_code: classCode.trim().toUpperCase(),
-          role: userRole,
-          plain_password: userPassword,
-        },
-        { onConflict: 'id' }
-      )
-
-      setCreateMsg(`Akun "${cleanUsername}" (${userRole.toUpperCase()}) berhasil dibuat!`)
+      setCreateMsg(result.message || 'Akun berhasil dibuat!')
       setNewUsername('')
       setFullName('')
       setUserPassword('')
       setConfirmUserPassword('')
-      fetchUsers()
+      await fetchUsers()
+    } catch (error: any) {
+      setCreateMsg(`Error: ${error.message || 'Gagal membuat akun.'}`)
+    } finally {
+      setIsCreating(false)
     }
-
-    setIsCreating(false)
   }
 
   // 3. Edit User
@@ -276,48 +257,55 @@ function AdminUsersContent() {
     document.body.removeChild(link)
   }
 
-  // 6. Bulk Import
+  // 6. Bulk Import — browser hanya membaca CSV; validasi dan pembuatan akun di server.
   const handleProcessBulkImport = async () => {
     if (!bulkInputText.trim()) return alert('Masukkan teks CSV atau isi file lebih dulu!')
     setIsProcessingBulk(true)
-    setBulkMessage('Memproses pendaftaran massal...')
+    setBulkMessage('Memvalidasi dan memproses pendaftaran massal...')
 
-    const lines = bulkInputText.trim().split('\n')
-    const rowsToInsert: any[] = []
+    try {
+      const lines = bulkInputText
+        .split(/\\r?\\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+      const users: any[] = []
 
-    lines.forEach((line, index) => {
-      if (index === 0 && line.toLowerCase().includes('username')) return
+      lines.forEach((line, index) => {
+        if (index === 0 && line.toLowerCase().includes('username')) return
+        const cols = line.split(',').map((value) => value.trim())
+        if (cols.length >= 4) {
+          users.push({
+            username: cols[0],
+            fullName: cols[1],
+            classCode: cols[2],
+            password: cols[3],
+            role: cols[4] ? cols[4].toLowerCase() : 'student',
+          })
+        }
+      })
 
-      const cols = line.split(',').map((c) => c.trim())
-      if (cols.length >= 4) {
-        const uName = cols[0].toLowerCase()
-        rowsToInsert.push({
-          username: uName,
-          full_name: cols[1],
-          class_code: cols[2].toUpperCase(),
-          plain_password: cols[3],
-          role: cols[4] ? cols[4].toLowerCase() : 'student',
-        })
+      if (users.length === 0) {
+        setBulkMessage('Format data tidak valid. Pastikan format: username,nama_lengkap,kode_kelas,password,role.')
+        return
       }
-    })
 
-    if (rowsToInsert.length === 0) {
-      setIsProcessingBulk(false)
-      return setBulkMessage('Format data tidak valid. Pastikan dipisahkan dengan tanda koma.')
-    }
+      const response = await fetch('/api/admin/users/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users }),
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Import gagal.')
 
-    const supabase = createClient()
-    const { error } = await supabase.from('profiles').insert(rowsToInsert)
-
-    if (error) {
-      setBulkMessage(`Gagal import: ${error.message}`)
-    } else {
-      setBulkMessage(`✅ Berhasil mengimpor ${rowsToInsert.length} akun pengguna!`)
+      setBulkMessage(`✅ ${result.message || `Berhasil mengimpor ${result.count} akun.`}`)
       setBulkInputText('')
-      fetchUsers()
+      await fetchUsers()
       setTimeout(() => setIsBulkModalOpen(false), 1500)
+    } catch (error: any) {
+      setBulkMessage(`Gagal import: ${error.message || 'Terjadi kesalahan.'}`)
+    } finally {
+      setIsProcessingBulk(false)
     }
-    setIsProcessingBulk(false)
   }
 
   // 7. Filter Profil
