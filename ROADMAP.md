@@ -694,3 +694,36 @@ Pemeriksaan ini dilanjutkan langsung dari struktur file GitHub Preview setelah e
 
 ### Gerbang persetujuan
 Sebelum kode diubah, minta persetujuan eksplisit atas dua file dan ruang lingkup di atas. Jika disetujui, perubahan hanya dilakukan pada branch Preview `homepage-arcade-catalog`; tidak membuat branch baru, tidak menyentuh Production, dan tidak melakukan perubahan database/config. Kode lokal Codespace yang belum diserahkan tetap tidak diasumsikan sama dengan GitHub.
+
+
+## Pelaksanaan Batch 1 — Dashboard Admin dan Live Monitor (10 November 2026)
+
+**Status:** implementasi awal selesai pada branch Preview; menunggu build dan QA runtime. Tidak ada perubahan Production.
+
+### Commit implementasi
+
+| File | Commit | Perubahan |
+|---|---|---|
+| `app/admin/page.tsx` | `43e285ea55ed3cd089284cf766526066cd4650f6` | Filter tindak lanjut Semua / Sesi belum selesai / Essay belum dinilai; aksi `Pantau Live` untuk sesi belum selesai; aksi `Buka Penilaian` untuk essay yang belum dinilai; ringkasan Live Monitor per paket dengan jumlah ongoing dan paused |
+| `app/admin/exam/[id]/monitor/page.tsx` | `9c26c8066b89c634e3fb7ea15097a0ac36ee0b91` | Tata letak header, statistik, mode, dan filter dirapikan agar lebih responsif; ditambahkan navigasi kembali ke Dashboard |
+
+### Batas perubahan yang diverifikasi secara statis
+
+- Kedua file diubah hanya pada branch `homepage-arcade-catalog`.
+- Query dashboard/monitor tidak diubah; tidak ada perubahan database, schema, RLS, policy, grant, RPC, trigger, atau data.
+- Rumus XP/scoring/KKM, timer, auto-refresh 5 detik, ticker 1 detik, dua mode monitor, filter, ekspor, serta handler aksi proktor tetap ada.
+- Tidak menambahkan tombol untuk mengaktifkan `handleExtendTime`; tidak mengubah aksi pause/resume/force submit/reset.
+- Dashboard menampilkan tautan monitor dan penilaian secara terpisah sesuai kondisi item.
+- Pemeriksaan pasca-commit menemukan state filter kategori, ringkasan Live Monitor, kedua jenis tautan, tautan Dashboard, timer/refresh, dan handler proktor tetap ada pada file terbaru.
+
+### QA dan hal yang belum diklaim
+
+- [x] Verifikasi ulang isi kedua file dari GitHub setelah commit.
+- [x] Pemeriksaan statis bahwa filter kategori dan tautan yang direncanakan tersedia.
+- [x] Pemeriksaan statis bahwa interval 5 detik dan 1 detik serta handler proktor tetap dipertahankan.
+- [ ] Build `npm run build` belum dijalankan oleh asisten.
+- [ ] Deployment Preview untuk commit terbaru belum diverifikasi.
+- [ ] QA browser dashboard dan Live Monitor (desktop/mobile, data nyata/safe test) belum dilakukan.
+- [ ] Tidak ada aksi proktor destruktif yang diuji; jangan menguji reset/force submit/pause/resume pada sesi siswa nyata.
+
+**Langkah berikutnya:** verifikasi deployment Preview dan build; setelah READY, lakukan QA browser terbatas sesuai daftar QA Batch 1. Status ini tidak berarti Batch 1 sudah lulus QA atau siap dirilis ke Production.
