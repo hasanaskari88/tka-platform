@@ -378,3 +378,35 @@ Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pe
 - Tidak ada perubahan schema, RLS, RPC, trigger, data, kode, atau QA baru dalam audit ini.
 
 **Bukti dan batasan:** audit membandingkan file GitHub pada dua branch dan meninjau fungsi terkait secara statis. Belum membuktikan keadaan workspace lokal Codespace saat ini atau hasil uji runtime.
+
+
+### Audit file callback Google Drive — 10 November 2026
+
+**File:** `app/api/google-drive/callback/route.ts`
+
+**Perbandingan GitHub dan kode yang dikirim:**
+- Production `main`: SHA `a583469a89a1a8d223d75c437f8e7509d7b359f6`.
+- Preview `homepage-arcade-catalog`: SHA `b312a83f98a4f5ee95e5bc5d2fc8fa0943099452`.
+- Kedua branch berbeda.
+- Kode yang dikirim pengguna paling dekat dengan versi Production: alur OAuth, pemeriksaan state, otorisasi admin, pertukaran code, pembacaan token lama, enkripsi refresh token, dan upsert Supabase sama. Kode kiriman menambahkan import `connection` dan memanggil `await connection()` sebelum blok `try`.
+
+**Perbedaan perilaku yang terverifikasi:**
+1. Kode kiriman memanggil `connection()` di luar `try`. Preview memanggilnya di dalam `try`, sehingga error dari pemanggilan tersebut ikut masuk ke penanganan error callback. Jika kelak ada perubahan, pertahankan pemanggilan di dalam `try`.
+2. Production menyusun `redirectUri` dari `NEXT_PUBLIC_SITE_URL` dengan fallback domain Production `https://grisan.vercel.app`. Preview menyusun URI dari host `request.url`. Perbedaan ini penting karena redirect URI yang dipakai saat menukar authorization code harus cocok dengan URI yang didaftarkan/digunakan saat memulai OAuth. Host Preview dinamis belum tentu terdaftar pada Google Cloud Console.
+3. Kedua versi mempertahankan pola keamanan utama: validasi cookie/state, pemeriksaan admin, penggunaan service-role hanya di server setelah otorisasi, penyimpanan refresh token terenkripsi, dan mempertahankan refresh token lama bila Google tidak mengirim token baru.
+
+**Inventaris dan klasifikasi:**
+
+| Bagian | Penilaian | Keputusan |
+|---|---|---|
+| Pemeriksaan OAuth state dan CSRF | Penting untuk fungsi dan keamanan integrasi | Pertahankan; jangan longgarkan |
+| Pemeriksaan `requireAdmin()` | Penting untuk keamanan | Pertahankan |
+| Enkripsi dan penyimpanan refresh token | Penting untuk keamanan dan koneksi | Pertahankan; tidak diuji tulis |
+| Pemanggilan `connection()` | Perlu dirapikan bila kode ini kelak dipilih | Tempatkan di dalam `try` agar kegagalan tertangani |
+| Penentuan `redirectUri` Production vs Preview | Perlu diverifikasi sebelum integrasi diuji | Cocokkan dengan route connect dan daftar Authorized redirect URIs Google; jangan mengasumsikan host Preview terdaftar |
+
+**Arah tindak lanjut:** sebelum Google Drive OAuth diaktifkan atau diuji, audit bersama `connect/route.ts`, konfigurasi OAuth Google, variabel `NEXT_PUBLIC_SITE_URL`, dan alamat callback yang benar-benar didaftarkan. Tentukan satu kebijakan redirect URI yang konsisten untuk Production dan Preview. Jangan mengubah token, koneksi Google Drive, atau database bersama sebagai bagian dari audit ini.
+
+**Dependensi/risiko:** Google OAuth client ID/secret dan daftar redirect URI; `NEXT_PUBLIC_SITE_URL`; `requireAdmin()`; `SUPABASE_SERVICE_ROLE_KEY`; tabel `google_drive_tokens`; fungsi `encryptToken`; cookie OAuth state. Preview dan Production berbagi proyek/database Supabase, sehingga uji koneksi atau penyimpanan token berpotensi memengaruhi koneksi Production.
+
+**Batch/keputusan:** **Pengembangan berikutnya — integrasi Google Drive**, bukan Batch 1 Dashboard Admin dan Live Monitor. Uji runtime ditunda sampai ada rencana aman dan persetujuan khusus. Tidak ada kode, database, token, konfigurasi OAuth, atau deployment yang diubah dalam audit ini.
