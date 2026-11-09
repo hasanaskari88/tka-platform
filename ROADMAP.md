@@ -347,3 +347,34 @@ Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pe
 4. Kebutuhan Live Monitor tetap menjadi pemeriksaan terpisah; bagian halaman lama yang dikirim ini belum membuktikan kebutuhan pemantauan langsung pada dashboard Preview.
 
 **Batas bukti:** pemeriksaan ini membandingkan isi yang dikirim pengguna dengan file GitHub `main` dan `homepage-arcade-catalog`. Ini tidak memberi akses ke workspace Codespace saat ini dan tidak membuktikan daftar perubahan lokal terkini. Tidak ada kode aplikasi atau database yang diubah.
+
+
+### Audit file hasil ujian dan penilaian — 10 November 2026
+
+**File:** `app/admin/exam/[id]/results/page.tsx`
+
+**Perbandingan branch:**
+- Preview `homepage-arcade-catalog`: SHA `c456fcc7e19d4a43b2f16ac07719fe3f06faec14`.
+- Production `main`: SHA `c456fcc7e19d4a43b2f16ac07719fe3f06faec14`.
+- Kedua file identik; bagian yang dikirim pengguna cocok dengan implementasi yang sudah ada di kedua branch. Tidak ada perubahan kode yang dilakukan.
+
+**Inventaris fungsi yang tampak pada file:**
+- Rekap nilai, analisis butir, dan daftar sesi ujian.
+- Penilaian essay/uraian per peserta serta mode penilaian per soal untuk seluruh peserta.
+- Nilai bonus dan override nilai akhir.
+- Filter jenis soal dan status nilai.
+- Pengaturan kop, KKM, tanggal/tempat terbit, penandatangan (kepala sekolah/guru), dan tanda tangan orang tua/wali.
+- Live preview rapor/sertifikat, cetak sertifikat tunggal/massal, serta cetak rapor massal.
+
+**Temuan statis yang perlu disimpan:**
+1. Filter status non-essay memakai `evaluateAnswer`. Jawaban kosong dikeluarkan sebelum cabang status, sehingga pilihan “Semua Status” untuk soal otomatis tidak menampilkan jawaban kosong. Ini perlu dipastikan sebagai perilaku yang diinginkan; jangan mengubah tanpa persetujuan.
+2. Filter essay mendasarkan “Belum Dinilai” pada `teacher_score` yang belum tersimpan, bukan pada apakah siswa sudah menjawab. Skor tersimpan 0 tetap dianggap sudah dinilai dan masuk “Salah / Nilai 0”.
+3. Fungsi simpan massal per soal memproses peserta satu per satu: memperbarui `answers.teacher_score`, menghitung ulang skor, lalu memperbarui `exam_sessions.score`. Jika proses gagal di tengah loop, sebagian peserta mungkin sudah tersimpan sementara peserta berikutnya belum. Perlu perhatian saat audit ketahanan penyimpanan; jangan mengubah alur nilai/DB tanpa persetujuan khusus.
+4. Penilaian dan rekap bergantung pada `questions`, `exam_sessions`, `profiles`, dan `answers`; query memakai `select('*')`. Kelengkapan data, RLS, batas jumlah baris, dan konsistensi hasil harus dipertimbangkan sebelum optimasi.
+
+**Klasifikasi dan batch:**
+- Pengaturan dokumen, preview, dan cetak: **Penyempurnaan**; bukan target Batch 1.
+- Filter status nilai dan penyimpanan penilaian massal: **Perlu diperbaiki / audit lanjutan**, tetapi di luar Batch 1 Dashboard Admin dan Live Monitor. Pertahankan rumus nilai dan perilaku tersimpan sampai ada persetujuan khusus.
+- Tidak ada perubahan schema, RLS, RPC, trigger, data, kode, atau QA baru dalam audit ini.
+
+**Bukti dan batasan:** audit membandingkan file GitHub pada dua branch dan meninjau fungsi terkait secara statis. Belum membuktikan keadaan workspace lokal Codespace saat ini atau hasil uji runtime.
