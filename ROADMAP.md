@@ -26,7 +26,7 @@ Dokumen ini menggantikan checklist lama yang saling bertumpuk. Riwayat QA editor
 | Deployment Production | READY — `dpl_3mSqU3a8j2bgcZD7zwSZ3tNa3d1F` |
 | Preview | `homepage-arcade-catalog` — `c5972884d9c8e2b2c2d0d2cffa6d806afa5b5f4e` |
 | Deployment Preview | READY — `dpl_VVx5g4KeAuBmdSicGzbh4gbpueeu` |
-| Selisih branch | Preview 170 commit di depan, 0 di belakang |
+| Selisih branch | Preview berada di depan `main`, 0 commit di belakang (jumlah commit tidak dijadikan ukuran kesiapan rilis) |
 | Pull Request | PR #2 masih OPEN; metadata GitHub terbaru menyatakan `mergeable: true` (tidak ada konflik merge yang dilaporkan) |
 | Perbedaan file | 29 file berubah pada perbandingan `main...homepage-arcade-catalog` |
 
