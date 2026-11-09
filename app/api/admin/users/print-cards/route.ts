@@ -37,9 +37,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null)
     const rawIds = body && Array.isArray(body.userIds) ? body.userIds : null
 
-    if (!rawIds || rawIds.length === 0 || rawIds.length > 100) {
+    if (!rawIds || rawIds.length === 0 || rawIds.length > 500) {
       return jsonNoStore(
-        { error: 'Pilih antara 1 sampai 100 pengguna untuk dicetak.' },
+        { error: 'Pilih antara 1 sampai 500 pengguna untuk dicetak.' },
         400
       )
     }
