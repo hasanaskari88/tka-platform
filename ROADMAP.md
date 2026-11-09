@@ -326,3 +326,24 @@ Mulai snapshot ini, inventaris lintas branch memakai tiga lapisan:
 3. **Riwayat rilis:** ketika perubahan benar-benar masuk Production, catat commit rilis, deployment, file/batch yang masuk, ringkasan, dan hasil QA. Tandai item Preview yang sudah dirilis; sisanya tetap menjadi backlog Preview.
 
 Jangan menyimpulkan Preview sudah sinkron hanya dari jumlah commit. Periksa perbandingan file dan perubahan di kedua sisi setiap kali akan menentukan kandidat rilis.
+
+
+### Koreksi inventaris setelah pemeriksaan isi lengkap pengguna — 10 November 2026
+
+Pemeriksaan ulang terhadap kedua bagian `app/admin/page.tsx` yang dikirim pengguna menemukan bahwa isi tersebut adalah versi dashboard lama yang memuat CMS pengumuman, CMS materi, master subtes, dan pengelolaan bank soal/ujian.
+
+Pencocokan penanda kode dengan file GitHub menunjukkan:
+- **Production (`main`)**: 82.037 karakter; memiliki CMS modal, master subtes, alias penulis, dan struktur halaman lama yang sesuai dengan bagian yang dikirim.
+- **Preview (`homepage-arcade-catalog`)**: 27.538 karakter; merupakan dashboard ringkasan baru dengan panel “Perlu Ditindaklanjuti”; tidak memiliki CMS modal/master subtes di file ini.
+
+Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pengguna cocok dengan file Preview **perlu dikoreksi**. Isi yang dikirim cocok dengan versi Production/halaman lama, bukan dashboard Preview saat ini. Fungsi CMS dan master subtes tidak boleh dianggap hilang dari produk hanya karena tidak ada lagi di `app/admin/page.tsx` Preview; pemetaan ke rute pengganti tetap harus diverifikasi.
+
+**Penilaian:** penting untuk rekonsiliasi Batch 1, bukan izin mengembalikan halaman lama atau mengubah kode.
+
+**Arah tindak lanjut:**
+1. Petakan fungsi lama (paket ujian/bank soal, subtes, pengumuman, materi) ke halaman tujuan yang tersedia di Preview.
+2. Verifikasi apakah semua alur edit/simpan/hapus dan alias penulis tetap tersedia di halaman tujuan.
+3. Pisahkan fungsi yang memang dipindahkan dari fungsi yang benar-benar hilang; jangan menganggap salah satunya tanpa memeriksa rute tujuan.
+4. Kebutuhan Live Monitor tetap menjadi pemeriksaan terpisah; bagian halaman lama yang dikirim ini belum membuktikan kebutuhan pemantauan langsung pada dashboard Preview.
+
+**Batas bukti:** pemeriksaan ini membandingkan isi yang dikirim pengguna dengan file GitHub `main` dan `homepage-arcade-catalog`. Ini tidak memberi akses ke workspace Codespace saat ini dan tidak membuktikan daftar perubahan lokal terkini. Tidak ada kode aplikasi atau database yang diubah.
