@@ -491,3 +491,44 @@ Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pe
 **Arah pengembangan:** pertahankan alur upload inti dan otorisasi. Jika integrasi dibuka kembali, audit batas request, validasi gambar berbasis decoding, kebijakan akses publik, penanganan file yatim, dan kompatibilitas URL secara terpisah. Jangan mengubah scope OAuth, tabel, token, folder, permission, atau perilaku penyimpanan tanpa persetujuan khusus.
 
 **Klasifikasi/batch:** alur dasar upload merupakan **Pengembangan berikutnya — integrasi Google Drive**; penguatan validasi, batas request, permission, dan cleanup termasuk **Perlu diperbaiki/audit lanjutan** sebelum pemakaian luas. Bukan Batch 1 Dashboard Admin dan Live Monitor. Tidak ada kode, database, token, file Drive, permission, konfigurasi, atau deployment yang diubah dan tidak ada uji upload runtime.
+
+
+### Audit file daftar gambar Google Drive — 10 November 2026
+
+**File:** `app/api/google-drive/images/route.ts`
+
+**Perbandingan GitHub dan kode yang dikirim:**
+- Production `main`: SHA `1b4495c2e429783a33c29cb87fcbe357f918be4a`.
+- Preview `homepage-arcade-catalog`: SHA `fe9c8178f6c9c96709953928cb87a51e615f96c7`.
+- Production dan Preview berbeda.
+- Kode kiriman tidak identik dengan salah satu branch: polanya memakai redirect URI Production berbasis `NEXT_PUBLIC_SITE_URL`, tetapi menambahkan `connection()` bernama `connection` sebelum blok `try`.
+- Preview mengimpor `connection as waitForRequest`, memanggilnya di dalam `try`, dan membentuk callback URI dari `request.url`. Production tidak memanggil `connection()` dan memakai `NEXT_PUBLIC_SITE_URL` dengan fallback Production.
+
+**Inventaris fungsi:**
+1. Memastikan admin melalui `requireAdmin()`.
+2. Memastikan variabel OAuth, encryption key, Supabase URL, dan service-role key tersedia.
+3. Mengambil `refresh_token_encrypted` dan `drive_folder_id` dari `google_drive_tokens` dengan ID `primary`.
+4. Jika belum ada folder, mengembalikan daftar kosong dengan sukses.
+5. Mendekripsi refresh token dan membuat Google Drive client.
+6. Membaca `pageToken` dari query string.
+7. Meminta daftar file gambar dalam folder aplikasi, maksimal 100 per halaman, diurutkan berdasarkan nama dan tidak termasuk file yang masuk trash.
+8. Mengembalikan metadata gambar, URL thumbnail, webViewLink, dan nextPageToken.
+
+**Temuan dan risiko statis:**
+
+| Bagian | Penilaian | Alasan dan arah tindak lanjut |
+|---|---|---|
+| Otorisasi admin | Penting untuk keamanan | Pertahankan; route memakai service-role key untuk membaca token dan Drive |
+| Redirect URI | Penting untuk konsistensi OAuth | Harus tetap konsisten dengan connect/callback yang digunakan untuk membuat token. Jangan mencampur route antar-branch |
+| Pemanggilan `connection()` sebelum `try` pada kode kiriman | Perlu diperbaiki/audit | Jika fungsi melempar error, penanganan `catch` route tidak akan menangkapnya. Pada Preview, pemanggilan ada di dalam `try` |
+| Paginasi | Penting untuk fungsi daftar | API mengambil 100 file per halaman dan mengembalikan `nextPageToken`; UI pemanggil perlu meneruskan token untuk halaman berikutnya. Belum diverifikasi dari komponen pemanggil |
+| Filter folder dan MIME | Penting untuk fungsi daftar | Query membatasi ke folder aplikasi, tipe gambar, dan file yang tidak di-trash. Tidak menghapus atau mengubah file Drive |
+| Akses thumbnail | Perlu diverifikasi | Route membuat URL thumbnail, tetapi tidak memeriksa permission tiap file. Upload baru memberi izin anyone-reader; gambar lama/ditambahkan manual mungkin memiliki permission berbeda |
+| Pengurutan berdasarkan nama | Penyempurnaan | Daftar tidak diurutkan berdasarkan tanggal terbaru; pertimbangkan kebutuhan UI sebelum mengubah |
+| Error handling | Penyempurnaan/audit | Error detail hanya dicatat di server dan respons memberi pesan umum; perlu pemeriksaan log saat uji runtime yang disetujui |
+
+**Dependensi/risiko:** Google Drive API; OAuth redirect URI; refresh token terenkripsi; `GOOGLE_TOKEN_ENCRYPTION_KEY`; `SUPABASE_SERVICE_ROLE_KEY`; tabel `google_drive_tokens`; folder ID; izin akses file dan thumbnail; komponen UI yang memanggil route dan mengelola `nextPageToken`. Preview dan Production menggunakan database Supabase yang sama sehingga jangan menguji atau mengganti token/folder pada Preview tanpa rencana aman yang disetujui.
+
+**Arah pengembangan:** pilih satu strategi redirect URI yang konsisten pada seluruh route OAuth untuk masing-masing environment. Pertahankan paginasi dan filter folder. Sebelum aktivasi, telusuri komponen pemanggil route untuk memastikan paginasi, empty state, thumbnail gagal dimuat, serta akses gambar lama tertangani. Jangan mengubah permission, token, folder, database, atau konfigurasi selama inventarisasi.
+
+**Klasifikasi/batch:** **Pengembangan berikutnya — integrasi Google Drive**; penanganan `connection()`, konsistensi redirect URI, serta akses thumbnail menjadi **Perlu diperbaiki/audit lanjutan** sebelum uji integrasi. Bukan Batch 1 Dashboard Admin dan Live Monitor. Tidak ada kode, database, token, file Drive, permission, konfigurasi, atau deployment yang diubah; tidak ada uji runtime.
