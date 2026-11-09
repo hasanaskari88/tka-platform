@@ -448,3 +448,46 @@ Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pe
 **Dependensi/risiko:** Google OAuth client ID/secret dan Authorized redirect URIs; `NEXT_PUBLIC_SITE_URL`; host deployment; `requireAdmin()`; cookie state; callback route. Preview dan Production berbagi database Supabase, sehingga uji OAuth/token berpotensi memengaruhi koneksi Production.
 
 **Batch/keputusan:** **Pengembangan berikutnya — integrasi Google Drive**, bukan Batch 1 Dashboard Admin dan Live Monitor. Tidak ada kode, konfigurasi, token, database, atau deployment yang diubah. Belum dilakukan uji OAuth runtime.
+
+
+### Audit file upload gambar Google Drive — 10 November 2026
+
+**File:** `app/api/google-drive/upload/route.ts`
+
+**Perbandingan GitHub dan kode yang dikirim:**
+- Production `main`: SHA `4d414c629401dcb1abe12a91ee719df05b932efa`.
+- Preview `homepage-arcade-catalog`: SHA `4d414c629401dcb1abe12a91ee719df05b932efa`.
+- Kedua branch identik; kode yang dikirim juga cocok dengan keduanya.
+- Tidak ada perbedaan kode upload antara Production dan Preview pada snapshot yang diperiksa.
+
+**Inventaris fungsi yang ditemukan:**
+1. Otorisasi admin melalui `requireAdmin()` sebelum proses upload.
+2. Menerima satu file dari field form `file`.
+3. Mengizinkan MIME type JPG, PNG, WEBP, dan GIF; ukuran harus lebih dari 0 dan maksimal 8 MiB.
+4. Memeriksa signature dasar file: JPEG, PNG, GIF, dan WEBP.
+5. Menyaring nama file melalui `safeFileName()`.
+6. Membaca konfigurasi OAuth, kunci enkripsi, URL Supabase, dan service-role key.
+7. Mengambil refresh token terenkripsi dan `drive_folder_id` dari baris `google_drive_tokens` dengan ID `primary`.
+8. Mendekripsi refresh token, menginisialisasi Google OAuth client dan Drive API.
+9. Membuat folder `TKA Platform - Gambar Soal` bila belum ada, lalu menyimpan ID folder ke Supabase.
+10. Mengunggah gambar ke folder tersebut, membuat izin `anyone` sebagai `reader`, lalu mengembalikan URL thumbnail dan metadata file.
+
+**Temuan dan risiko statis:**
+
+| Bagian | Penilaian | Alasan dan arah tindak lanjut |
+|---|---|---|
+| Pemeriksaan admin | Penting untuk fungsi dan keamanan | Pertahankan sebelum membaca/mengunggah file |
+| Daftar MIME, batas ukuran, signature dasar | Penting; perlu penguatan | Pertahankan batas 8 MiB dan jenis file. Pemeriksaan signature saat ini hanya mengenali header dasar, belum memvalidasi seluruh struktur/dekode gambar |
+| Pembacaan `request.formData()` sebelum batas ukuran request | Perlu diperbaiki/audit | Batas `file.size` diperiksa setelah body multipart diparsing. Evaluasi batas request di platform dan strategi pembatasan body sebelum parsing; jangan menganggap batas file ini otomatis membatasi seluruh request |
+| `safeFileName()` | Penyempurnaan | Sudah menyaring karakter nama; pertimbangkan nama unik agar dua file dengan nama sama tidak membingungkan. Bukan blocker fungsi inti |
+| Service-role dan tabel token | Penting untuk keamanan | Tetap server-only; jangan mengekspos token atau service-role ke browser |
+| Folder ID disimpan ke tabel token | Penting untuk integrasi | Pertahankan; penulisan terjadi saat folder baru dibuat. Tidak diuji karena database bersama |
+| Izin `anyone: reader` | Keputusan produk/keamanan yang perlu disadari | File dapat diakses publik oleh siapa pun yang memperoleh tautan. Cocok untuk gambar yang memang harus tampil pada halaman/soal siswa, tetapi jangan gunakan untuk gambar/dokumen rahasia. Perubahan ke akses privat memerlukan desain penyajian gambar dan persetujuan |
+| Kegagalan setelah upload sebelum izin publik | Perlu diperbaiki/audit ketahanan | Jika upload sukses tetapi pembuatan permission gagal, file mungkin tertinggal di Drive tanpa URL sukses. Rancang penanganan/cleanup yang aman; jangan hapus file Drive apa pun saat audit |
+| URL thumbnail Drive | Penyempurnaan/audit kompatibilitas | Pastikan format thumbnail dapat dimuat pada konteks editor, siswa, cetak, dan ekspor; belum ada uji runtime pada audit ini |
+
+**Dependensi/risiko:** Google Drive API dan OAuth client; refresh token terenkripsi; `GOOGLE_TOKEN_ENCRYPTION_KEY`; `SUPABASE_SERVICE_ROLE_KEY`; tabel `google_drive_tokens`; folder ID; izin publik Drive; limit ukuran request Vercel/Next.js; komponen editor dan halaman siswa yang memakai URL gambar. Preview dan Production memakai database Supabase yang sama sehingga upload atau pembuatan folder dari Preview dapat menulis ke koneksi/folder yang digunakan Production.
+
+**Arah pengembangan:** pertahankan alur upload inti dan otorisasi. Jika integrasi dibuka kembali, audit batas request, validasi gambar berbasis decoding, kebijakan akses publik, penanganan file yatim, dan kompatibilitas URL secara terpisah. Jangan mengubah scope OAuth, tabel, token, folder, permission, atau perilaku penyimpanan tanpa persetujuan khusus.
+
+**Klasifikasi/batch:** alur dasar upload merupakan **Pengembangan berikutnya — integrasi Google Drive**; penguatan validasi, batas request, permission, dan cleanup termasuk **Perlu diperbaiki/audit lanjutan** sebelum pemakaian luas. Bukan Batch 1 Dashboard Admin dan Live Monitor. Tidak ada kode, database, token, file Drive, permission, konfigurasi, atau deployment yang diubah dan tidak ada uji upload runtime.
