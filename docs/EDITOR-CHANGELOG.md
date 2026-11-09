@@ -2320,7 +2320,7 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 
 
 
-## 2026-11-09 — Perbaikan dashboard dan cetak raport/sertifikat (batch, belum deploy)
+## 2026-11-09 — Perbaikan dashboard dan cetak raport/sertifikat (batch, Preview READY)
 - Dashboard: menambahkan daftar dan grafik 5 peserta dengan rata-rata nilai ujian terbaik tertinggi, mengikuti filter kelas yang sedang dipilih.
 - Dashboard: menambahkan panel "Perlu Ditindaklanjuti" untuk sesi ujian yang belum berstatus completed dan sesi completed yang masih memiliki jawaban essay berisi teks tetapi belum memiliki teacher_score. Tautan membuka halaman hasil/penilaian paket terkait.
 - Cetak massal: mengganti pemilihan "Pilih semua nilai" menjadi checklist paket/subtes. Checklist memilih nilai paket tersebut pada semua peserta yang dipilih; pemilihan per-siswa tetap menggunakan tabel nilai.
@@ -2328,3 +2328,6 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Tanda tangan lengkap: urutan kiri ke kanan Orang Tua/Wali, Kepala Sekolah (dengan "Mengetahui"), Guru/Wali Kelas; tempat dan tanggal ditempatkan di atas kolom guru.
 - Kop dokumen disusun ulang dengan lima baris identitas resmi yang diminta; nama UPTD dibuat lebih besar dan alamat lebih kecil.
 - Perubahan hanya pada kode frontend dan dokumentasi. Tidak ada perubahan database, RPC, RLS, penilaian, atau alur CBT. Belum dilakukan Preview build, deploy, QA visual, atau uji cetak fisik.
+
+- Preview Vercel: https://grisan-2pmibm7of-heins14.vercel.app — deployment `dpl_C3YGgf2KxyrUkZFP5NQBeMYNNYNN`, commit `c60e2569a0723f08e7d301def068d9ef9098403a`, status READY; build Next.js/TypeScript berhasil.
+- Status QA: belum diuji visual/runtime oleh pengguna dan belum diuji cetak fisik A4. Tidak ada merge ke main atau perubahan Production.
