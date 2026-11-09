@@ -310,3 +310,17 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Fitur Production yang tetap dipertahankan: halaman pengguna `/admin/users` beserta API Production, halaman Practice, Live Monitor, layout/admin guard, hasil ujian/penilaian, dan integrasi Google Drive. Tidak dilakukan penggantian massal terhadap API pengguna, library Supabase, CSS global, atau mesin game.
 - **Batas database:** tidak ada migration/SQL atau perubahan Supabase yang dijalankan. Halaman Raport dan Pengaturan Dokumen sudah tersedia, tetapi penyimpanan identitas sekolah/penandatangan membutuhkan migration dan RPC yang belum diterapkan pada Production; halaman akan menampilkan peringatan sampai perubahan database disetujui dan dijalankan terpisah.
 - Build dan QA runtime belum dikonfirmasi pada saat pencatatan ini. Status commit bukan klaim bahwa seluruh halaman telah lulus QA.
+
+
+
+## Otomatisasi sinkronisasi Main → Preview — 10 November 2026
+
+- Workflow aktif: `.github/workflows/sync-main-to-preview.yml`.
+- Tujuan: setiap push ke `main` otomatis menggabungkan perubahan Main ke `homepage-arcade-catalog`, tanpa membuat branch/PR tambahan.
+- Perbaikan: percobaan pertama (`42713464301`) gagal karena konflik konten `ROADMAP.md`; log memastikan tidak ada konflik kode pada percobaan tersebut.
+- Workflow diperbaiki pada commit `a6ec3b45519120c1b3b427515c660e3e27d8b999`: jika satu-satunya konflik adalah `ROADMAP.md`, pertahankan roadmap Preview karena dokumen itu menyimpan rencana dan QA Preview. Konflik file lain tetap menghentikan sinkronisasi agar tidak memilih kode secara otomatis.
+- Eksekusi berhasil: run `42714873123`, job `129493670281`, status **success**.
+- HEAD Main saat sinkronisasi: `a6ec3b45519120c1b3b427515c660e3e27d8b999`.
+- HEAD Preview sebelum: `cb29aec2d6f7461ec7746b32e4e23b6a69325657`; sesudah: `267cc112fd59017943f1d2ce4b3ae5c8a24ece02`.
+- Hasil verifikasi: Preview sudah memuat Main sebagai ancestor; compare menunjukkan `ahead 203 / behind 0`. Perubahan khusus Preview tetap dipertahankan.
+- Workflow hanya menyinkronkan kode Git. Tidak menjalankan migration/SQL, mengubah data Supabase, mengubah token Google Drive, atau mempromosikan deployment Production.
