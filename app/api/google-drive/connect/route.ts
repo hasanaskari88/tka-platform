@@ -1,5 +1,5 @@
 
-import { NextResponse } from 'next/server'
+import { connection, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { requireAdmin } from '@/lib/supabase/admin'
 
@@ -7,6 +7,8 @@ import { requireAdmin } from '@/lib/supabase/admin'
 
 export async function GET() {
   try {
+    await connection()
+
     const admin = await requireAdmin()
 
     if (!admin.authorized) {
