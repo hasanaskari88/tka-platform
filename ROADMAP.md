@@ -298,3 +298,15 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Jangan menyatakan bahwa halaman Preview menghapus fitur Production sebelum menelusuri halaman baru yang menggantikannya.
 - Jangan menyarankan mengulang pembuatan halaman yang sudah ada dan telah diuji di Preview.
 - Prioritaskan hasil nyata yang cepat masuk `main`, dengan catatan versi yang rapi dan pemeriksaan yang proporsional.
+
+
+## Porting Admin dari Preview ke Production — 10 November 2026
+
+- **Sebelum:** `1391a3310cd8dacd9146a952e00bf7c54066071b`
+- **Sesudah:** `d9881e4ed1c8d8f608aeec7e76cd02a25ed8a0eb`
+- **Commit:** `feat(admin): reorganize dashboard and add dedicated admin pages`
+- Porting selektif: `app/admin/page.tsx`, `app/admin/bank-soal/page.tsx`, `app/admin/konten/page.tsx`, `app/admin/pengaturan-dokumen/page.tsx`, `app/admin/peserta/[id]/page.tsx`, dan `app/admin/raport/page.tsx`.
+- Fungsi dashboard yang dipindah ke halaman khusus: pengelolaan paket/soal/subtes, konten/pengumuman/materi, riwayat peserta, raport, dan pengaturan dokumen.
+- Fitur Production yang tetap dipertahankan: halaman pengguna `/admin/users` beserta API Production, halaman Practice, Live Monitor, layout/admin guard, hasil ujian/penilaian, dan integrasi Google Drive. Tidak dilakukan penggantian massal terhadap API pengguna, library Supabase, CSS global, atau mesin game.
+- **Batas database:** tidak ada migration/SQL atau perubahan Supabase yang dijalankan. Halaman Raport dan Pengaturan Dokumen sudah tersedia, tetapi penyimpanan identitas sekolah/penandatangan membutuhkan migration dan RPC yang belum diterapkan pada Production; halaman akan menampilkan peringatan sampai perubahan database disetujui dan dijalankan terpisah.
+- Build dan QA runtime belum dikonfirmasi pada saat pencatatan ini. Status commit bukan klaim bahwa seluruh halaman telah lulus QA.
