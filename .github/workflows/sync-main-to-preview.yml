@@ -32,12 +32,15 @@ jobs:
           git fetch origin main homepage-arcade-catalog
           git checkout homepage-arcade-catalog
 
+          # Preview owns its own QA/planning history. Save it even when Main can fast-forward.
+          cp ROADMAP.md /tmp/preview-roadmap.md
+
           if git merge --no-edit --no-ff origin/main; then
             echo "Main merged cleanly."
           else
             conflicts="$(git diff --name-only --diff-filter=U)"
             if [ "$conflicts" = "ROADMAP.md" ]; then
-              echo "Only ROADMAP.md conflicts; keep Preview's roadmap because it owns Preview planning and QA history."
+              echo "Only ROADMAP.md conflicts; resolve temporarily and restore Preview's roadmap below."
               git checkout --ours -- ROADMAP.md
               git add ROADMAP.md
               git commit --no-edit
@@ -47,6 +50,13 @@ jobs:
               git merge --abort
               exit 1
             fi
+          fi
+
+          # Restore Preview roadmap if Main's history made the merge a clean fast-forward.
+          cp /tmp/preview-roadmap.md ROADMAP.md
+          if ! git diff --quiet -- ROADMAP.md; then
+            git add ROADMAP.md
+            git commit -m "docs: preserve Preview roadmap after Main sync"
           fi
 
           git push origin HEAD:homepage-arcade-catalog
