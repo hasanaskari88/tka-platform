@@ -2346,3 +2346,13 @@ Status: implementasi visual dikirim ke branch `homepage-arcade-catalog`; menungg
 - Preview commit `964ea08439449695a214766ad62f5defcce61583` gagal pada parsing JSX di `app/admin/raport/page.tsx` baris 120: penutup callback `map` memiliki kurung kurawal berlebih sebelum kurung tutup.
 - Memperbaiki penutup ekspresi map pada daftar peserta cetak massal. Tidak mengubah aturan filter/pemilihan peserta maupun nilai.
 - Deployment gagal tersebut: `dpl_D5GPMV8rp6KVDBPF3bc76ZsbTFen`, error `Expected '</', got '}'`. Preview ulang diperlukan untuk memastikan kompilasi.
+
+
+### Addendum — Preview READY untuk dashboard admin dan cetak massal (2026-11-09)
+- Perbaikan JSX diterapkan pada commit kode `23bb4f0ee0ee992f2e3b570006e1b58447b29043`.
+- Vercel Preview `dpl_92pQwTScRP8C7YqZAvB6urPQakSq` berstatus **READY**: https://grisan-f6kaf57go-heins14.vercel.app.
+- Next.js compile berhasil; TypeScript selesai; 33 route diproses dan deployment selesai. Build selesai dalam sekitar 28 detik setelah mulai build.
+- Log menampilkan pesan `NEXT_PRERENDER_INTERRUPTED` pada route API Google Drive callback ketika prerender, sebagaimana catatan terdahulu. Build tetap selesai dan deployment READY; perlu uji runtime OAuth/galeri Drive terpisah jika digunakan.
+- Preview ini hanya membuktikan kompilasi/deployment. QA visual dashboard, data runtime, alur paket→peserta cetak massal, susunan tanda tangan, dan cetak A4 belum dilakukan pengguna.
+- Roadmap tersisa: QA integrasi RichTextEditor (simpan/buka ulang semua tipe soal dan renderer); paste gambar Microsoft Word; konversi Office Math/OMML; QA kompatibilitas soal lama, tabel, Arab/Jawa, hasil siswa, koreksi, analisis, export, dan print; rencana editor jawaban essay siswa; QA resume/autosave ujian; serta QA cetak dokumen/raport A4.
+- Migration practice progress/XP, school document settings, dan teacher signatories masih staged dan belum diterapkan ke database aktif. Tidak ada merge ke `main`, deployment Production, atau perubahan database pada batch ini.
