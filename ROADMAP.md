@@ -532,3 +532,57 @@ Dengan demikian, pernyataan pada inventaris sebelumnya bahwa isi yang dikirim pe
 **Arah pengembangan:** pilih satu strategi redirect URI yang konsisten pada seluruh route OAuth untuk masing-masing environment. Pertahankan paginasi dan filter folder. Sebelum aktivasi, telusuri komponen pemanggil route untuk memastikan paginasi, empty state, thumbnail gagal dimuat, serta akses gambar lama tertangani. Jangan mengubah permission, token, folder, database, atau konfigurasi selama inventarisasi.
 
 **Klasifikasi/batch:** **Pengembangan berikutnya — integrasi Google Drive**; penanganan `connection()`, konsistensi redirect URI, serta akses thumbnail menjadi **Perlu diperbaiki/audit lanjutan** sebelum uji integrasi. Bukan Batch 1 Dashboard Admin dan Live Monitor. Tidak ada kode, database, token, file Drive, permission, konfigurasi, atau deployment yang diubah; tidak ada uji runtime.
+
+
+### Audit lanjutan Google Drive: komponen editor dan route proxy gambar — 10 November 2026
+
+Pemeriksaan ini dilanjutkan langsung dari struktur file GitHub Preview setelah empat route utama selesai diinventarisasi. Pengguna tidak perlu mengirim ulang file route.
+
+**File yang diperiksa dan perbandingan branch:**
+
+| File | Production SHA | Preview SHA | Status |
+|---|---|---|---|
+| `app/api/google-drive/image/[id]/route.ts` | `ad5c7e349c13c6f1109e469d4040cf1588365908` | `ad5c7e349c13c6f1109e469d4040cf1588365908` | Identik |
+| `components/editor/ImageDialog.tsx` | `51e761e847f2bdd381b88f7b90157b42461832d8` | `51e761e847f2bdd381b88f7b90157b42461832d8` | Identik |
+| `components/editor/RichTextEditor.tsx` | `9030c09d60ed1c9f8db62beaacfa2b3f4fd7fb7e` | `9030c09d60ed1c9f8db62beaacfa2b3f4fd7fb7e` | Identik |
+| `components/editor/ResizableImage.tsx` | `eb546dcec40171f655289ecabecd95951d1864a6` | `eb546dcec40171f655289ecabecd95951d1864a6` | Identik |
+
+**1. Komponen galeri dan upload — `components/editor/ImageDialog.tsx`**
+- Dialog memiliki tiga sumber gambar: upload baru, pustaka/galeri Google Drive, dan URL eksternal.
+- Saat mode galeri dibuka, komponen memanggil `GET /api/google-drive/images`, membaca `files` dan `nextPageToken`.
+- Tombol muat berikutnya meneruskan `pageToken` dan menggabungkan hasil ke daftar yang sudah ada.
+- Upload baru mengirim multipart field `file` ke `POST /api/google-drive/upload`.
+- Setelah upload berhasil, komponen memasukkan `result.file.imageUrl` ke dokumen Tiptap.
+- Pemilihan gambar dari galeri juga menggunakan URL gambar dari hasil API; perlu uji tampilan thumbnail pada kondisi izin Drive yang berbeda.
+- URL eksternal dibatasi ke HTTP/HTTPS dan memiliki penanganan khusus untuk tautan hasil pencarian Yahoo Images.
+
+**2. Paste gambar dari Microsoft Word — `components/editor/RichTextEditor.tsx`**
+- Fungsi `uploadPastedImage()` mengirim file ke endpoint upload yang sama.
+- Jalur paste Word menangani gambar data URL, file hasil ekstraksi RTF, gambar fallback rumus Word/WMF yang dikonversi, dan file gambar tambahan.
+- Beberapa upload dijalankan paralel dengan `Promise.all`.
+- Jika upload gambar tertentu gagal pada jalur ekstraksi Word, gambar tersebut dapat dilewati/dihapus dari hasil paste dan dicatat melalui console warning. Ini perlu diperhatikan agar kegagalan upload tidak membuat guru mengira semua gambar berhasil tersimpan.
+- Kode editor dan jalur paste ini identik pada Production dan Preview.
+
+**3. Route proxy — `app/api/google-drive/image/[id]/route.ts`**
+- Route ini belum termasuk empat route yang sebelumnya dikirim, dan ditemukan melalui inventaris tree branch Preview.
+- Route mewajibkan admin, memvalidasi bentuk ID, mengambil refresh token dari tabel `google_drive_tokens`, meminta metadata file dari Drive, memastikan MIME type dimulai dengan `image/`, lalu mengunduh media dan mengembalikan byte gambar.
+- Header respons meliputi Content-Type, Content-Length, `Cache-Control: private, max-age=300`, dan `X-Content-Type-Options: nosniff`.
+- Pada komponen pemanggil yang diperiksa (`ImageDialog`, `RichTextEditor`, dan `ResizableImage`), URL yang digunakan berasal dari `imageUrl` thumbnail Drive atau URL gambar yang dipilih; tidak ditemukan pemanggilan ke route proxy `/api/google-drive/image/[id]` pada file-file tersebut. Belum diklaim sebagai pencarian menyeluruh seluruh repo.
+- Risiko desain: karena route mewajibkan admin, route ini tidak dapat langsung dipakai sebagai sumber gambar untuk halaman siswa. Selain itu, ID hanya divalidasi formatnya dan route tidak membatasi file agar berasal dari folder aplikasi; pemanggil yang berwenang dapat meminta file gambar Drive lain jika mengetahui ID-nya. Route membaca seluruh media ke memori tanpa batas ukuran eksplisit. Jangan mengubah route sebelum dipastikan apakah memang dimaksudkan untuk jalur gambar privat.
+
+**Temuan lintas alur:**
+1. Alur aktif yang terlihat pada editor adalah upload ke Drive → izin publik saat upload → URL thumbnail → disimpan sebagai `src` gambar dalam konten editor.
+2. Galeri membaca daftar file dari folder aplikasi dan memakai URL thumbnail yang sama.
+3. Route proxy privat terpisah dan belum terbukti digunakan oleh komponen editor yang diperiksa.
+4. Paginasi API telah ditangani oleh `ImageDialog` melalui `nextPageToken`.
+5. URL eksternal tetap bisa disisipkan, jadi tidak semua gambar di dokumen otomatis disimpan di Drive.
+6. Perlu QA terarah untuk upload satu gambar, galeri dengan lebih dari 100 file, thumbnail file lama, gambar yang gagal mendapat permission publik, paste Word dengan beberapa gambar, dan tampilan gambar pada siswa/cetak/ekspor. QA sebelumnya untuk editor umum tidak otomatis membuktikan seluruh skenario Google Drive aktif karena integrasi ini belum diuji runtime.
+
+**Klasifikasi dan batch:**
+- `ImageDialog.tsx` dan `RichTextEditor.tsx`: **Penting untuk integrasi Google Drive bila fitur diaktifkan**, tetapi keseluruhan integrasi tetap **Pengembangan berikutnya**, bukan Batch 1.
+- Paginasi galeri: perilaku sudah ada dan harus dipertahankan; perlu QA, bukan perubahan yang diasumsikan perlu.
+- Penanganan kegagalan paste/upload: **Perlu diperbaiki/audit lanjutan** agar kegagalan gambar terlihat jelas dan tidak diam-diam menghilangkan gambar dari konten.
+- `image/[id]` proxy: **Perlu keputusan desain/audit keamanan**; jangan dipakai untuk siswa atau dihapus sebelum tujuan route dipastikan.
+- Risiko dependensi tetap mencakup Google OAuth, refresh token terenkripsi, service-role key, tabel `google_drive_tokens`, folder ID, Drive permissions, batas body/runtime, dan penyimpanan URL gambar di konten soal.
+
+**Batas tindakan:** hanya membaca kode GitHub dan memperbarui roadmap. Tidak ada perubahan aplikasi, database, token, permission, file Drive, konfigurasi, deployment, atau pengujian runtime.
