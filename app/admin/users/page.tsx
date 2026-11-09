@@ -216,14 +216,8 @@ function AdminUsersContent() {
       if (!res.ok) {
         setEditMsg(`Error: ${resData.error}`)
       } else {
-        if (editPassword.trim()) {
-          const supabase = createClient()
-          await supabase
-            .from('profiles')
-            .update({ plain_password: editPassword.trim() })
-            .eq('id', editingUser.id)
-        }
-
+        // API server sudah memperbarui Auth password dan plain_password
+        // setelah memverifikasi admin tepercaya.
         setEditMsg('Data pengguna berhasil diperbarui!')
         setTimeout(() => {
           setEditingUser(null)
