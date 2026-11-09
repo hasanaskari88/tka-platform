@@ -1,5 +1,5 @@
 
-import { NextRequest, NextResponse } from 'next/server'
+import { connection, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
@@ -7,6 +7,8 @@ import { decryptToken } from '@/lib/google-drive/token-encryption'
 
 export async function GET(request: NextRequest) {
   try {
+    await connection()
+
     // 1. Pastikan pengguna adalah admin
     const admin = await requireAdmin()
 
