@@ -379,3 +379,39 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Halaman admin pada pemeriksaan HTTP masih menampilkan status awal pemeriksaan hak akses; ini bukan pengujian interaksi setelah login.
 - Build dan TypeScript berhasil. QA browser setelah login untuk dropdown, sidebar, deep-link penilaian, fokus sesi Live Monitor, submit manual, dan tombol simpan masih perlu dilakukan pengguna. Karena itu fitur belum dinyatakan lulus QA runtime penuh.
 - Commit dokumentasi roadmap setelah catatan ini tidak mengubah aplikasi; deployment dokumentasi mengikuti aturan *Ignored Build Step* yang sudah dicatat di atas.
+
+
+## Tindak lanjut feedback dashboard dan sidebar global — 10 November 2026
+
+**Temuan data Supabase (read-only; tidak ada data yang diubah):**
+- Ujian: `a192ca93-7de5-406f-85cd-82e654149c70`, judul **Uji coba esay**, durasi 15 menit.
+- Terdapat 2 sesi selesai untuk peserta Zeus (`budi`).
+- Sesi `54b01971-8760-4c85-8da4-3b59798d38ff` (9 Nov 2026 21:04 UTC) memiliki 2 jawaban essay yang belum dinilai (`teacher_score IS NULL`).
+- Sesi sebelumnya `ed03d417-3e86-4e6a-a379-d9519bb03482` sudah dinilai (skor 5 dan 3).
+- Secara keseluruhan ada 12 soal essay/uraian, 4 baris jawaban essay, 2 jawaban belum dinilai pada 1 sesi.
+- Penyebab teknis dashboard: query sebelumnya mengambil seluruh jawaban untuk seluruh sesi; tabel `answers` berisi 8.440 baris dan hasil REST dibatasi 1.000 baris per permintaan. Jawaban essay terbaru berisiko tidak masuk ke hasil query.
+- Perbaikan: query dashboard sekarang mengambil jawaban hanya untuk ID soal essay/uraian, bukan semua jawaban dari semua sesi. Tidak ada perubahan nilai.
+
+**Sidebar global:**
+- `components/admin/AdminSidebar.tsx` dibuat sebagai komponen bersama.
+- `app/admin/layout.tsx` memasang sidebar untuk semua halaman di bawah `/admin`; menu aktif mengikuti pathname, dapat diciutkan di desktop, dan menjadi navigasi ringkas di layar kecil.
+- Sidebar dashboard lokal dihapus agar tidak tampil ganda.
+
+**Commit kode:**
+- `28314ae7a99f88d57e46f1fc9103c1ef787ea7f5` — komponen sidebar bersama.
+- `7e79799c13f4cba805096da4fc9928ee30e7a178` — integrasi sidebar pada layout admin.
+- `2723e31f1ad34e5c8d2cde68bf09868dbf38d278` — dashboard mengambil jawaban essay saja; juga menghapus sidebar lokal dashboard.
+- `85a32628341d45cc6c014bccd7a638010013484c` — membungkus sidebar yang membaca pathname dengan Suspense.
+
+**Deployment:**
+- `dpl_Cy34g2vYWF1JqiFfYDeb6uCNLV4C` untuk commit `2723e31`: **READY**, alias `https://grisan.vercel.app`.
+- `dpl_CqMPTJmB3z6McgobvthZrWhp166D` untuk commit `85a3262`: build sedang berjalan saat catatan ini ditulis.
+- Smoke HTTP untuk `/admin` dan halaman hasil ujian tersebut menghasilkan 200; pemeriksaan tidak memiliki sesi login, jadi tidak menguji tampilan setelah otorisasi maupun interaksi browser.
+
+**QA yang masih perlu dilakukan setelah login:**
+1. Dashboard menampilkan Zeus pada daftar essay belum dinilai dengan jumlah 2.
+2. Tombol `Nilai Essay Peserta Ini` membuka sesi Zeus yang tepat dan modal penilaian.
+3. Sidebar terlihat di semua halaman admin, menu aktif benar, ciut/lebar, serta navigasi mobile.
+4. Periksa penyimpanan nilai essay seperti biasa.
+
+Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Production lanjutan yang sebelumnya diparkir tetap ditunda sampai QA ini selesai.
