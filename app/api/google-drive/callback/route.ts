@@ -24,24 +24,16 @@ function finish(
 }
 
 export async function GET(request: NextRequest) {
-  // Pastikan route berjalan saat ada request, bukan saat prerender.
   await connection()
 
   try {
-    // 1. Periksa state untuk mencegah CSRF
     const returnedState = request.nextUrl.searchParams.get('state')
-    const savedState = request.cookies.get(
-      'google_drive_oauth_state'
-    )?.value
+    const savedState = request.cookies.get('google_drive_oauth_state')?.value
 
     if (!returnedState || !savedState || returnedState !== savedState) {
-      return finish(
-        request,
-        '/admin?googleDrive=invalid_state'
-      )
+      return finish(request, '/admin/pengaturan-google-drive?googleDrive=invalid_state')
     }
 
-    // 2. Pastikan pengguna masih admin
     const admin = await requireAdmin()
 
     if (!admin.authorized) {
@@ -49,84 +41,52 @@ export async function GET(request: NextRequest) {
         request,
         admin.status === 401
           ? '/login?googleDrive=unauthorized'
-          : '/admin?googleDrive=forbidden'
+          : '/admin/pengaturan-google-drive?googleDrive=forbidden'
       )
     }
 
-    // 3. Periksa apakah Google mengembalikan error
     const googleError = request.nextUrl.searchParams.get('error')
 
     if (googleError) {
-      return finish(
-        request,
-        '/admin?googleDrive=cancelled'
-      )
+      return finish(request, '/admin/pengaturan-google-drive?googleDrive=cancelled')
     }
 
     const code = request.nextUrl.searchParams.get('code')
 
     if (!code) {
-      return finish(
-        request,
-        '/admin?googleDrive=missing_code'
-      )
+      return finish(request, '/admin/pengaturan-google-drive?googleDrive=missing_code')
     }
 
-    // 4. Siapkan OAuth Google
     const clientId = process.env.GOOGLE_CLIENT_ID
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (
-      !clientId ||
-      !clientSecret ||
-      !supabaseUrl ||
-      !serviceRoleKey
-    ) {
+    if (!clientId || !clientSecret || !supabaseUrl || !serviceRoleKey) {
       throw new Error('Konfigurasi server belum lengkap.')
     }
 
-    // Gunakan host yang sama dengan tempat OAuth dimulai.
-    const redirectUri = new URL(
-      '/api/google-drive/callback',
-      request.url
-    ).toString()
-
-    const oauth2Client = new google.auth.OAuth2(
-      clientId,
-      clientSecret,
-      redirectUri
-    )
-
-    // 5. Tukarkan authorization code dengan token
+    const redirectUri = new URL('/api/google-drive/callback', request.url).toString()
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri)
     const { tokens } = await oauth2Client.getToken(code)
 
-    // 6. Hubungkan Supabase Admin Client khusus server
-    const supabaseAdmin = createSupabaseClient(
-      supabaseUrl,
-      serviceRoleKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    )
+    const supabaseAdmin = createSupabaseClient(supabaseUrl, serviceRoleKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    })
 
-    // 7. Ambil data koneksi sebelumnya jika ada
-    const { data: existing, error: readError } =
-      await supabaseAdmin
-        .from('google_drive_tokens')
-        .select('refresh_token_encrypted, drive_folder_id')
-        .eq('id', 'primary')
-        .maybeSingle()
+    const { data: existing, error: readError } = await supabaseAdmin
+      .from('google_drive_tokens')
+      .select('refresh_token_encrypted, drive_folder_id')
+      .eq('id', 'primary')
+      .maybeSingle()
 
     if (readError) {
       throw new Error('Gagal membaca data koneksi Google Drive.')
     }
 
-    // 8. Gunakan refresh token baru atau pertahankan token lama
     let encryptedRefreshToken = existing?.refresh_token_encrypted
 
     if (tokens.refresh_token) {
@@ -134,12 +94,9 @@ export async function GET(request: NextRequest) {
     }
 
     if (!encryptedRefreshToken) {
-      throw new Error(
-        'Google tidak memberikan refresh token. Silakan ulangi koneksi.'
-      )
+      throw new Error('Google tidak memberikan refresh token. Silakan ulangi koneksi.')
     }
 
-    // 9. Simpan token terenkripsi
     const { error: saveError } = await supabaseAdmin
       .from('google_drive_tokens')
       .upsert(
@@ -157,16 +114,9 @@ export async function GET(request: NextRequest) {
       throw new Error('Gagal menyimpan koneksi Google Drive.')
     }
 
-    return finish(
-      request,
-      '/admin?googleDrive=connected'
-    )
+    return finish(request, '/admin/pengaturan-google-drive?googleDrive=connected')
   } catch (error) {
     console.error('Google Drive callback error:', error)
-
-    return finish(
-      request,
-      '/admin?googleDrive=error'
-    )
+    return finish(request, '/admin/pengaturan-google-drive?googleDrive=error')
   }
 }

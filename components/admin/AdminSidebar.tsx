@@ -12,6 +12,7 @@ const menuItems = [
   { href: '/admin/practice', icon: '🎮', label: 'Mode Latihan' },
   { href: '/admin/raport', icon: '📄', label: 'Raport & Sertifikat' },
   { href: '/admin/pengaturan-dokumen', icon: '⚙️', label: 'Pengaturan Dokumen' },
+  { href: '/admin/pengaturan-google-drive', icon: '☁️', label: 'Google Drive' },
 ]
 
 export default function AdminSidebar() {
