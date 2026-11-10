@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 type Student = { id:string; full_name:string|null; username:string|null; class_code:string|null; xp:number; level:number; practiceXp:number; practiceAttempts:number; practiceBest:number; examCount:number; examAverage:number }
-type ExamMeta = { id:string; title:string; subtest:string|null; target_mode:string|null; activity_type:string|null }
+type ExamMeta = { id:string; title:string; subtest:string|null; target_mode:string|null; activity_type:string|null; duration_minutes:number|null }
 
 export default function AdminDashboardPage() {
   const [students,setStudents]=useState<Student[]>([])
@@ -17,6 +17,9 @@ export default function AdminDashboardPage() {
   const [warning,setWarning]=useState('')
   const [pendingWork,setPendingWork]=useState<any[]>([])
   const [pendingFilter,setPendingFilter]=useState<'ALL'|'UNFINISHED'|'UNGRADED'>('ALL')
+  const [pendingOpen,setPendingOpen]=useState(false)
+  const [liveOpen,setLiveOpen]=useState(false)
+  const [menuCollapsed,setMenuCollapsed]=useState(false)
   const [classFilter,setClassFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [sort,setSort]=useState('name')
@@ -37,7 +40,7 @@ export default function AdminDashboardPage() {
           // select * keeps the dashboard compatible before/after the staged credited_xp migration
           db.from('practice_attempts').select('*'),
           db.from('exam_sessions').select('*'),
-          db.from('exams').select('id,title,subtest,target_mode,activity_type'),
+          db.from('exams').select('id,title,subtest,target_mode,activity_type,duration_minutes'),
           db.from('exams').select('id',{count:'exact',head:true}),
           db.from('questions').select('id',{count:'exact',head:true}),
           db.from('questions').select('id,exam_id,question_type'),
@@ -86,6 +89,14 @@ export default function AdminDashboardPage() {
         const answerMap=new Map<string,any>()
         ;(answerResult.data||[]).forEach((answer:any)=>answerMap.set(answer.session_id+'|'+answer.question_id,answer))
         const pending=exams.flatMap((session:any)=>{
+          const examInfo=meta.find((item:any)=>item.id===session.exam_id)
+          const durationSeconds=(Number(examInfo?.duration_minutes)||15)*60
+          const startMs=session.start_time?new Date(session.start_time).getTime():0
+          const pausedTotal=Number(session.paused_duration_seconds)||0
+          const pausedAtMs=session.paused_at?new Date(session.paused_at).getTime():null
+          const currentPause=pausedAtMs?Math.max(0,Math.floor((Date.now()-pausedAtMs)/1000)):0
+          const elapsed=startMs?Math.max(0,Math.floor((Date.now()-startMs)/1000)-pausedTotal-currentPause):0
+          const isExpired=session.status==='ongoing'&&(!startMs||durationSeconds+Number(session.extra_time_seconds||0)-elapsed<=0)
           const unfinished=session.status!=='completed'
           const essayQuestions=essayQuestionsByExam.get(session.exam_id)||[]
           const ungraded=essayQuestions.filter((question:any)=>{
@@ -97,7 +108,7 @@ export default function AdminDashboardPage() {
           })
           if(!unfinished&&!ungraded.length)return []
           const profile:any=profileMap.get(session.user_id)
-          return [{id:session.id,examId:session.exam_id,userId:session.user_id,studentName:profile?.full_name||profile?.username||'Peserta',classCode:profile?.class_code||'—',examTitle:meta.find((item:any)=>item.id===session.exam_id)?.title||'Paket ujian',status:session.status,unfinished,ungradedEssayCount:ungraded.length}]
+          return [{id:session.id,examId:session.exam_id,userId:session.user_id,studentName:profile?.full_name||profile?.username||'Peserta',classCode:profile?.class_code||'—',examTitle:examInfo?.title||'Paket ujian',status:session.status,unfinished,isExpired,ungradedEssayCount:ungraded.length}]
         }).sort((a:any,b:any)=>Number(b.ungradedEssayCount>0)-Number(a.ungradedEssayCount>0))
         setPendingWork(pending)
         setStudents((p.data||[]).map((r:any)=>{
@@ -168,42 +179,43 @@ export default function AdminDashboardPage() {
     return <div className="mt-3 space-y-3">{items.map((item,i)=><div key={item.student.id}><div className="mb-1 flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate font-semibold text-slate-700">{i+1}. {item.student.full_name||item.student.username||'Siswa'} <span className="text-slate-400">({item.student.class_code||'—'})</span></span><b className="shrink-0">{item.value.toLocaleString('id-ID')} {suffix}</b></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${color}`} style={{width:(item.value/max*100)+'%'}}/></div></div>)}{!items.length&&<p className="py-5 text-center text-xs text-slate-400">Belum ada data pada filter ini.</p>}</div>
   }
 
-  return <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-amber-50 px-4 py-6 md:px-8 md:py-8"><div className="mx-auto max-w-7xl space-y-7">
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">TKA Platform · Admin Center</p><h1 className="mt-1 text-3xl font-black text-slate-900">Dashboard Pengelola</h1><p className="mt-1 text-sm text-slate-500">Ringkasan aktivitas, perkembangan peserta, dan pintasan pengelolaan website.</p></div><Link href="/" className="w-fit rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 shadow-sm">← Lihat Website</Link></header>
+  const menuItems=[{href:'/admin',icon:'🏠',label:'Dashboard'},{href:'/admin/bank-soal',icon:'📝',label:'Bank Soal & Ujian'},{href:'/admin/konten',icon:'📢',label:'Konten Website'},{href:'/admin/users',icon:'👩‍🎓',label:'Data Peserta'},{href:'/admin/practice',icon:'🎮',label:'Mode Latihan'},{href:'/admin/raport',icon:'📄',label:'Raport & Sertifikat'},{href:'/admin/pengaturan-dokumen',icon:'⚙️',label:'Pengaturan Dokumen'}]
+  return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-amber-50 md:flex">
+    <aside className={`shrink-0 border-b border-slate-200 bg-white/95 p-3 shadow-sm md:min-h-screen md:border-b-0 md:border-r md:sticky md:top-0 md:h-screen md:overflow-y-auto transition-all ${menuCollapsed?'md:w-20':'md:w-64'}`}>
+      <div className="mb-4 flex items-center justify-between gap-2"><span className={`font-black text-indigo-700 ${menuCollapsed?'md:hidden':''}`}>TKA ADMIN</span><button type="button" onClick={()=>setMenuCollapsed(v=>!v)} className="rounded-lg border px-2 py-1 text-sm font-bold text-slate-600" aria-label={menuCollapsed?'Perluas menu':'Ciutkan menu'}>{menuCollapsed?'☰':'←'}</button></div>
+      <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-1">{menuItems.map(item=><Link key={item.href} href={item.href} title={item.label} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition ${item.href==='/admin'?'bg-indigo-600 text-white':'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'}`}><span className="text-lg">{item.icon}</span><span className={menuCollapsed?'md:hidden':''}>{item.label}</span></Link>)}</nav>
+      <Link href="/" className="mt-4 hidden rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 md:block">{menuCollapsed?'↗':'← Lihat Website'}</Link>
+    </aside>
+    <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8"><div className="mx-auto max-w-7xl space-y-7">
+    <header><p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">TKA Platform · Admin Center</p><h1 className="mt-1 text-3xl font-black text-slate-900">Dashboard Pengelola</h1><p className="mt-1 text-sm text-slate-500">Ringkasan aktivitas, perkembangan peserta, dan pintasan pengelolaan website.</p></header>
     {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</div>}
     <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><h2 className="text-lg font-black text-slate-900">Perlu Ditindaklanjuti</h2><p className="text-xs text-slate-600">Pisahkan sesi yang perlu dipantau dan essay yang menunggu penilaian.</p></div>
-        <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} item</span>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <button type="button" onClick={()=>setPendingOpen(v=>!v)} aria-expanded={pendingOpen} className="flex w-full items-center justify-between gap-3 text-left">
+        <span><span className="block text-lg font-black text-slate-900">Perlu Ditindaklanjuti</span><span className="block text-xs text-slate-600">Sesi macet/waktu habis dan essay yang menunggu penilaian.</span></span>
+        <span className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} item</span><span className="text-lg text-slate-500">{pendingOpen?'▲':'▼'}</span></span>
+      </button>
+      {pendingOpen&&<div className="mt-4">
+      <div className="flex flex-wrap gap-2">
         {([{value:'ALL',label:'Semua',count:pendingWork.length},{value:'UNFINISHED',label:'Sesi belum selesai',count:pendingWork.filter(item=>item.unfinished).length},{value:'UNGRADED',label:'Essay belum dinilai',count:pendingWork.filter(item=>item.ungradedEssayCount>0).length}] as const).map(option=><button key={option.value} type="button" onClick={()=>setPendingFilter(option.value)} className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${pendingFilter===option.value?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'}`}>{option.label} <span className={pendingFilter===option.value?'text-indigo-100':'text-slate-400'}>({option.count})</span></button>)}
       </div>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {filteredPendingWork.slice(0,8).map(item=><article key={item.id} className="rounded-xl border border-amber-100 bg-white p-3">
           <div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-800">{item.studentName}</b><span className="text-[10px] font-bold text-slate-500">{item.classCode}</span></div>
           <p className="mt-1 text-xs text-slate-600">{item.examTitle}</p>
-          <div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className="rounded-md bg-orange-100 px-2 py-1 text-[10px] font-bold text-orange-800">Sesi {item.status}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div>
-          <div className="mt-3 flex flex-wrap gap-2">{item.unfinished&&<Link href={'/admin/exam/'+item.examId+'/monitor'} className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-indigo-700">Pantau Live →</Link>}{item.ungradedEssayCount>0&&<Link href={'/admin/exam/'+item.examId+'/results'} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100">Buka Penilaian →</Link>}</div>
+          <div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className={`rounded-md px-2 py-1 text-[10px] font-bold ${item.isExpired?'bg-rose-100 text-rose-800':'bg-orange-100 text-orange-800'}`}>{item.isExpired?'Waktu Habis — perlu submit manual':`Sesi ${item.status}`}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div>
+          <div className="mt-3 flex flex-wrap gap-2">{item.unfinished&&<Link href={'/admin/exam/'+item.examId+'/monitor?sessionId='+item.id} className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-indigo-700">{item.isExpired?'Buka untuk Submit Manual →':'Pantau Sesi →'}</Link>}{item.ungradedEssayCount>0&&<Link href={'/admin/exam/'+item.examId+'/results?sessionId='+item.id+'&tab=grading'} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100">Nilai Essay Peserta Ini →</Link>}</div>
         </article>)}
         {!loading&&!filteredPendingWork.length&&<p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-5 text-center text-xs text-slate-500 md:col-span-2">{pendingWork.length?'Tidak ada item pada kategori ini.':'Tidak ada sesi tertunda atau essay yang menunggu penilaian.'}</p>}
       </div>
       {filteredPendingWork.length>8&&<p className="mt-2 text-right text-[10px] text-slate-500">Menampilkan 8 dari {filteredPendingWork.length} item pada kategori ini.</p>}
+      </div>}
     </section>
     <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm md:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-black text-slate-900">Live Monitor</h2><p className="text-xs text-slate-500">Paket dengan peserta yang sedang mengerjakan atau dijeda.</p></div><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{liveMonitorSummaries.length} paket aktif</span></div>
-      <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+      <button type="button" onClick={()=>setLiveOpen(v=>!v)} aria-expanded={liveOpen} className="flex w-full items-center justify-between gap-3 text-left"><span><span className="block text-lg font-black text-slate-900">Live Monitor</span><span className="block text-xs text-slate-500">Paket dengan peserta yang sedang mengerjakan atau dijeda.</span></span><span className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">{liveMonitorSummaries.length} paket aktif</span><span className="text-lg text-slate-500">{liveOpen?'▲':'▼'}</span></span></button>
+      {liveOpen&&<div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
         {liveMonitorSummaries.map((item:any)=><article key={item.examId} className="rounded-xl border border-slate-200 p-3"><h3 className="text-sm font-black text-slate-800">{item.title}</h3><div className="mt-2 flex flex-wrap gap-2 text-[11px]"><span className="rounded-md bg-emerald-50 px-2 py-1 font-bold text-emerald-700">{item.ongoing} mengerjakan</span><span className="rounded-md bg-amber-50 px-2 py-1 font-bold text-amber-700">{item.paused} dipause</span></div><Link href={'/admin/exam/'+item.examId+'/monitor'} className="mt-3 inline-flex rounded-lg bg-slate-900 px-3 py-2 text-[11px] font-bold text-white hover:bg-slate-700">Buka Live Monitor →</Link></article>)}
         {!loading&&!liveMonitorSummaries.length&&<p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-xs text-slate-500 md:col-span-2 xl:col-span-3">Belum ada paket dengan sesi yang sedang berjalan atau dipause.</p>}
-      </div>
-    </section>
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      <Link href="/admin/bank-soal" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📝</span><h2 className="mt-2 font-black">Bank Soal & Ujian</h2><p className="mt-1 text-xs text-slate-500">Paket ujian, soal, token, dan subtes.</p></Link>
-      <Link href="/admin/konten" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📢</span><h2 className="mt-2 font-black">Konten Website</h2><p className="mt-1 text-xs text-slate-500">Pengumuman dan materi belajar.</p></Link>
-      <Link href="/admin/users" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">👩‍🎓</span><h2 className="mt-2 font-black">Data Peserta</h2><p className="mt-1 text-xs text-slate-500">Kelola akun, kelas, dan profil siswa.</p></Link>
-      <Link href="/admin/practice" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">🎮</span><h2 className="mt-2 font-black">Mode Latihan</h2><p className="mt-1 text-xs text-slate-500">Kuis, flashcard, dan game edukatif.</p></Link>
-      <Link href="/admin/raport" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">📄</span><h2 className="mt-2 font-black">Raport & Sertifikat</h2><p className="mt-1 text-xs text-slate-500">Pilih hasil, tanda tangan, preview, cetak.</p></Link>
-      <Link href="/admin/pengaturan-dokumen" className="rounded-2xl border border-blue-200 bg-gradient-to-br from-white to-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><span className="text-2xl">⚙️</span><h2 className="mt-2 font-black">Pengaturan Dokumen</h2><p className="mt-1 text-xs text-slate-500">Identitas sekolah dan arsip penandatangan.</p></Link>
+      </div>}
     </section>
     <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">{cards.map(c=><div key={c.label} className="overflow-hidden rounded-2xl border border-white bg-white shadow-md shadow-indigo-100/70"><div className={`bg-gradient-to-r ${c.color} px-4 py-3 text-white`}><div className="flex items-center justify-between text-xs font-bold uppercase"><span>{c.label}</span><span className="text-2xl">{c.icon}</span></div><div className="mt-2 text-3xl font-black">{loading?'—':c.value.toLocaleString('id-ID')}</div></div></div>)}</section>
     <section className="grid grid-cols-2 gap-3 md:grid-cols-4">{[{label:'Latihan selesai',value:completedPractice},{label:'Ujian selesai',value:completedExams},{label:'Pengumuman',value:stats.announcements},{label:'Kelas terdata',value:classes.length}].map((x,i)=><div key={x.label} className={`rounded-xl border p-4 shadow-sm ${['border-emerald-200 bg-emerald-50','border-blue-200 bg-blue-50','border-pink-200 bg-pink-50','border-violet-200 bg-violet-50'][i]}`}><p className="text-xs font-semibold text-slate-600">{x.label}</p><p className="mt-1 text-2xl font-black text-slate-900">{loading?'—':x.value}</p></div>)}</section>
@@ -232,5 +244,5 @@ export default function AdminDashboardPage() {
       </aside>
     </div>
     <div className="mt-3 flex flex-col justify-between gap-2 text-xs text-slate-500 sm:flex-row sm:items-center"><span>{visible.length} peserta · halaman {currentPage}/{pageCount}</span><div className="flex items-center gap-2"><select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}} className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"><option value={10}>10 / halaman</option><option value={20}>20 / halaman</option><option value={50}>50 / halaman</option><option value={100}>100 / halaman</option></select><button type="button" disabled={currentPage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Sebelumnya</button><button type="button" disabled={currentPage>=pageCount} onClick={()=>setPage(p=>Math.min(pageCount,p+1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Berikutnya</button></div></div></section>
-  </div></main>
+  </div></main></div>
 }
