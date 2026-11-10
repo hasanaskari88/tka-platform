@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
-import { useParams } from 'next/navigation'
+import { useEffect, useState, useRef, Suspense } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import MathRenderer from '@/components/MathRenderer'
@@ -186,6 +186,8 @@ interface DocumentSettings {
 function ExamResultsContent() {
   const params = useParams()
   const examId = params?.id as string
+  const searchParams = useSearchParams()
+  const autoOpenedSession = useRef<string | null>(null)
 
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
@@ -768,6 +770,18 @@ const getFilteredGradingQuestions = () => {
     }
     setSelectedSessionForDetail(session)
   }
+
+  useEffect(() => {
+    const targetSessionId = searchParams.get('sessionId')
+    if (loading || !targetSessionId || autoOpenedSession.current === targetSessionId) return
+    const targetSession = sessions.find((session) => session.id === targetSessionId)
+    if (!targetSession) return
+    autoOpenedSession.current = targetSessionId
+    setMainActiveTab('grading')
+    setGradingQuestionFilter('essay')
+    handleOpenDetailModal(targetSession)
+  }, [loading, sessions, questions, searchParams])
+
 const goToGradingSession = (nextIndex: number) => {
   if (nextIndex < 0 || nextIndex >= sortedSessions.length) return
 
