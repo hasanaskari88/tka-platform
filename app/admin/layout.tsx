@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminSidebar from '@/components/admin/AdminSidebar'
@@ -68,7 +68,9 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-slate-50 md:flex">
-      <AdminSidebar />
+      <Suspense fallback={<div className="hidden shrink-0 md:block md:w-64" />}>
+        <AdminSidebar />
+      </Suspense>
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   )
