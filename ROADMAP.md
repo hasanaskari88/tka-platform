@@ -415,3 +415,12 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 4. Periksa penyimpanan nilai essay seperti biasa.
 
 Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Production lanjutan yang sebelumnya diparkir tetap ditunda sampai QA ini selesai.
+
+
+### Verifikasi akhir deployment perbaikan feedback — 10 November 2026
+
+- Commit kode final `85a32628341d45cc6c014bccd7a638010013484c` berhasil dideploy.
+- Deployment `dpl_CqMPTJmB3z6McgobvthZrWhp166D` berstatus **READY** dan alias Production mencakup `https://grisan.vercel.app`.
+- Build log menunjukkan kompilasi berhasil dan `next build` selesai; tidak ada error build.
+- Pemeriksaan HTTP pada `/admin` dan `/admin/exam/a192ca93-7de5-406f-85cd-82e654149c70/results` menghasilkan **200 OK**. Halaman mengembalikan layar pemeriksaan otorisasi karena pemeriksaan HTTP tidak membawa sesi login; ini bukan QA interaksi setelah login.
+- Perlu QA pengguna setelah login untuk memastikan Zeus muncul dengan 2 essay belum dinilai, tombol membuka sesi yang benar, dan sidebar tampil pada semua halaman admin.
