@@ -370,3 +370,12 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Deployment pertama untuk perubahan Footer (`dpl_7G9bjrqTnQHuELAYuBbXYbzB6i9x`) gagal pada prerender karena `usePathname()` belum berada di dalam `Suspense`; ini bukan kegagalan TypeScript.
 - Koreksi dibuat pada commit `52722b519299ae08cc718ee7882b8440c23eef47`: komponen Footer yang membaca pathname sekarang dirender di dalam `Suspense`.
 - Deployment koreksi `dpl_2uK22YQkEU72UPaKmyYP6NEg9889` sedang dibangun ketika catatan ini diperbarui. Status akhir build dan alias Production belum terkonfirmasi.
+
+
+### Hasil deployment dan smoke HTTP — 10 November 2026
+
+- Koreksi Footer pada commit `52722b519299ae08cc718ee7882b8440c23eef47` berhasil dibangun oleh Vercel: deployment `dpl_2uK22YQkEU72UPaKmyYP6NEg9889`, status **READY**, alias `https://grisan.vercel.app/`.
+- Smoke HTTP pada `https://grisan.vercel.app/` dan `https://grisan.vercel.app/admin` menghasilkan status **200 OK**.
+- Halaman admin pada pemeriksaan HTTP masih menampilkan status awal pemeriksaan hak akses; ini bukan pengujian interaksi setelah login.
+- Build dan TypeScript berhasil. QA browser setelah login untuk dropdown, sidebar, deep-link penilaian, fokus sesi Live Monitor, submit manual, dan tombol simpan masih perlu dilakukan pengguna. Karena itu fitur belum dinyatakan lulus QA runtime penuh.
+- Commit dokumentasi roadmap setelah catatan ini tidak mengubah aplikasi; deployment dokumentasi mengikuti aturan *Ignored Build Step* yang sudah dicatat di atas.
