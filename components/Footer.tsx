@@ -1,9 +1,10 @@
 'use client'
 
+import { Suspense } from 'react'
 import { useTheme } from '@/context/ThemeContext'
 import { usePathname } from 'next/navigation'
 
-export default function Footer() {
+function FooterContent() {
   const { theme, chromeVisible } = useTheme()
   const pathname = usePathname()
 
@@ -124,5 +125,13 @@ export default function Footer() {
         </div>
       </div>
     </footer>
+  )
+}
+
+export default function Footer() {
+  return (
+    <Suspense fallback={null}>
+      <FooterContent />
+    </Suspense>
   )
 }
