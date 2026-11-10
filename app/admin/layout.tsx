@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export default function AdminLayout({
   children,
@@ -65,5 +66,10 @@ export default function AdminLayout({
     return null
   }
 
-  return <>{children}</>
+  return (
+    <div className="min-h-screen bg-slate-50 md:flex">
+      <AdminSidebar />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  )
 }
