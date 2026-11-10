@@ -363,3 +363,10 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Build Vercel untuk commit terakhir sedang berjalan saat catatan ini dibuat; hasil TypeScript dan status READY belum dikonfirmasi. QA browser/runtime belum dilakukan.
 - Setelah deployment selesai, verifikasi dashboard, buka-tutup kedua dropdown, menu samping desktop/mobile, tautan penilaian essay ke peserta yang benar, fokus sesi pada Live Monitor, submit manual, dan visibilitas tombol simpan tanpa footer.
 - Tindak lanjut smoke-check Production sebelumnya tetap diparkir dan dilanjutkan setelah pekerjaan ini selesai.
+
+
+### Koreksi build Footer — 10 November 2026
+
+- Deployment pertama untuk perubahan Footer (`dpl_7G9bjrqTnQHuELAYuBbXYbzB6i9x`) gagal pada prerender karena `usePathname()` belum berada di dalam `Suspense`; ini bukan kegagalan TypeScript.
+- Koreksi dibuat pada commit `52722b519299ae08cc718ee7882b8440c23eef47`: komponen Footer yang membaca pathname sekarang dirender di dalam `Suspense`.
+- Deployment koreksi `dpl_2uK22YQkEU72UPaKmyYP6NEg9889` sedang dibangun ketika catatan ini diperbarui. Status akhir build dan alias Production belum terkonfirmasi.
