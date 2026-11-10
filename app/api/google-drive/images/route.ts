@@ -5,8 +5,10 @@ import { requireAdmin } from '@/lib/supabase/admin'
 import { decryptToken } from '@/lib/google-drive/token-encryption'
 
 export async function GET(request: NextRequest) {
+  // Letakkan di luar try agar sinyal prerender Next.js tidak tertangkap catch.
+  await waitForRequest()
+
   try {
-    await waitForRequest()
 
     // 1. Pastikan pengguna adalah admin
     const admin = await requireAdmin()

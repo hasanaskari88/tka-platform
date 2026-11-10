@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { connection, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
@@ -24,6 +24,9 @@ function finish(
 }
 
 export async function GET(request: NextRequest) {
+  // Pastikan route berjalan saat ada request, bukan saat prerender.
+  await connection()
+
   try {
     // 1. Periksa state untuk mencegah CSRF
     const returnedState = request.nextUrl.searchParams.get('state')
