@@ -345,3 +345,21 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Verifikasi Git pascapromosi: Preview memuat Main sebagai ancestor (behind 0); dua commit di atas Main adalah sinkronisasi dan pemulihan roadmap Preview.
 - Status deployment Vercel dan QA runtime alur ujian/latihan harus dicatat setelah hasil aktual tersedia. Merge commit bukan klaim bahwa seluruh aplikasi sudah lulus pengujian.
 - Pola uji berjalan: lakukan smoke test satu siklus ujian dan satu siklus latihan; kumpulkan temuan dari penggunaan nyata; perbaiki langsung di Main; workflow otomatis menyinkronkan hasilnya ke Preview.
+
+
+## Perbaikan dashboard tindak lanjut, Live Monitor, dan penilaian manual — 10 November 2026
+
+**Status implementasi:** perubahan langsung pada `main`; menunggu hasil akhir deployment dan QA runtime.
+
+- Commit sebelum perubahan: `b629e2794d34285bfd01b69bd01e3329969839ce`.
+- Commit implementasi berurutan:
+  - `3a0912fe0d29f6942b7636b2b0d30a41c07f37a3` — dashboard: menu samping yang dapat diciutkan, dropdown Perlu Ditindaklanjuti dan Live Monitor, penanda waktu sesi habis, serta tautan yang membawa ID sesi/peserta.
+  - `1b8472130abda681fad02fac7a48ae3dc3b5fcd1` — halaman hasil: tautan dashboard dapat membuka tab penilaian dan modal peserta yang dipilih dengan filter essay.
+  - `6b8af4b4fafa1b646ad4607721bd1ab8ecda7a0f` — Live Monitor: fokus dan sorot baris sesi dari parameter `sessionId`.
+  - `bf28d6cba24f0495293530dc9b48eeefdac6be45` — footer global disembunyikan khusus pada halaman hasil/penilaian ujian.
+- File berubah: `app/admin/page.tsx`, `app/admin/exam/[id]/results/page.tsx`, `app/admin/exam/[id]/monitor/page.tsx`, `components/Footer.tsx`.
+- Timer sesi dashboard memakai durasi ujian, total jeda, jeda aktif, dan tambahan waktu; sesi kedaluwarsa hanya ditandai untuk tindak lanjut. Submit tetap manual melalui Live Monitor.
+- Tidak ada perubahan scoring, penyimpanan jawaban, schema, migration, RLS, RPC, atau data Supabase.
+- Build Vercel untuk commit terakhir sedang berjalan saat catatan ini dibuat; hasil TypeScript dan status READY belum dikonfirmasi. QA browser/runtime belum dilakukan.
+- Setelah deployment selesai, verifikasi dashboard, buka-tutup kedua dropdown, menu samping desktop/mobile, tautan penilaian essay ke peserta yang benar, fokus sesi pada Live Monitor, submit manual, dan visibilitas tombol simpan tanpa footer.
+- Tindak lanjut smoke-check Production sebelumnya tetap diparkir dan dilanjutkan setelah pekerjaan ini selesai.
