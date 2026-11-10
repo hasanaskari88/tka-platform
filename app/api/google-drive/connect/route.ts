@@ -1,11 +1,9 @@
-import { connection, NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { requireAdmin } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
   try {
-    await connection()
-
     const admin = await requireAdmin()
 
     if (!admin.authorized) {
