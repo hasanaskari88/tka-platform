@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
@@ -11,6 +11,8 @@ function MonitorContent() {
   const params = useParams()
   const examId = params?.id as string
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const targetSessionId = searchParams.get('sessionId')
 
   const [exam, setExam] = useState<any>(null)
   const [questionsCount, setQuestionsCount] = useState<number>(0)
@@ -79,6 +81,19 @@ function MonitorContent() {
     setLastUpdated(new Date())
     setLoading(false)
   }
+
+  useEffect(() => {
+    if (!targetSessionId || loading || viewMode !== 'live') return
+    const target = sessions.find((session) => session.id === targetSessionId)
+    if (!target) return
+    setFilterStatus('ALL')
+    setFilterClass('ALL')
+    setSearchQuery('')
+    const timer = window.setTimeout(() => {
+      document.getElementById('session-' + targetSessionId)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 150)
+    return () => window.clearTimeout(timer)
+  }, [targetSessionId, loading, sessions, viewMode])
 
   // Load awal & Interval Auto-Refresh (setiap 5 detik)
   useEffect(() => {
@@ -625,7 +640,7 @@ function MonitorContent() {
                       const correctCount = getDisplayCorrect(s)
 
                       return (
-                        <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                        <tr id={'session-' + s.id} key={s.id} className={`transition-colors ${s.id===targetSessionId?'bg-amber-100 ring-2 ring-inset ring-amber-400':'hover:bg-slate-50/80'}`}>
                           <td className="p-3 text-center font-bold text-slate-500">{idx + 1}</td>
                           <td className="p-3">
                             <span className="font-bold text-slate-800 block">{student.full_name}</span>
