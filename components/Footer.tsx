@@ -1,11 +1,13 @@
 'use client'
 
 import { useTheme } from '@/context/ThemeContext'
+import { usePathname } from 'next/navigation'
 
 export default function Footer() {
   const { theme, chromeVisible } = useTheme()
+  const pathname = usePathname()
 
-  if (!chromeVisible) return null
+  if (!chromeVisible || /^\/admin\/exam\/[^/]+\/results\/?$/.test(pathname)) return null
 
   const themeFooterMap = {
     space: {
