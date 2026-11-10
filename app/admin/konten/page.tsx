@@ -11,7 +11,7 @@ type Material = { id: string; title: string; file_url: string; description: stri
 function getEmbeddablePreviewUrl(rawUrl: string) {
   try {
     const url = new URL(rawUrl)
-    const driveFile = url.pathname.match(/\\/file\\/d\\/([^/]+)/)
+    const driveFile = url.pathname.match(/\/file\/d\/([^/]+)/)
     if (url.hostname === 'drive.google.com' && driveFile?.[1]) {
       return `https://drive.google.com/file/d/${driveFile[1]}/preview`
     }
@@ -21,7 +21,7 @@ function getEmbeddablePreviewUrl(rawUrl: string) {
       return `https://drive.google.com/file/d/${driveId}/preview`
     }
 
-    const docsFile = url.pathname.match(/\\/(document|spreadsheets|presentation|drawings)\\/d\\/([^/]+)/)
+    const docsFile = url.pathname.match(/\/(document|spreadsheets|presentation|drawings)\/d\/([^/]+)/)
     if (url.hostname === 'docs.google.com' && docsFile?.[1] && docsFile?.[2]) {
       return `https://docs.google.com/${docsFile[1]}/d/${docsFile[2]}/preview`
     }
