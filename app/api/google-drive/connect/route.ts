@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { connection, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { requireAdmin } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
+  // Pastikan route berjalan saat ada request, bukan saat prerender.
+  await connection()
+
   try {
     const admin = await requireAdmin()
 
