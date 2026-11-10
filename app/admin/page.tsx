@@ -19,7 +19,6 @@ export default function AdminDashboardPage() {
   const [pendingFilter,setPendingFilter]=useState<'ALL'|'UNFINISHED'|'UNGRADED'>('ALL')
   const [pendingOpen,setPendingOpen]=useState(false)
   const [liveOpen,setLiveOpen]=useState(false)
-  const [menuCollapsed,setMenuCollapsed]=useState(false)
   const [classFilter,setClassFilter]=useState('ALL')
   const [search,setSearch]=useState('')
   const [sort,setSort]=useState('name')
@@ -55,9 +54,13 @@ export default function AdminDashboardPage() {
         if(em.error)problems.push('metadata paket: '+em.error.message)
         if(qmeta.error)problems.push('metadata soal: '+qmeta.error.message)
         const practice=pr.data||[], exams=ex.data||[], meta=em.data||[]
-        const sessionIds=exams.map((session:any)=>session.id)
-        const answerResult=sessionIds.length
-          ? await db.from('answers').select('session_id,question_id,user_answer,selected_answers,selected_option,teacher_score').in('session_id',sessionIds)
+        const essayQuestionIds=(qmeta.data||[])
+          .filter((question:any)=>['essay','uraian'].includes(String(question.question_type||'').toLowerCase()))
+          .map((question:any)=>question.id)
+        // Ambil jawaban essay saja. Mengambil semua jawaban dari seluruh sesi dapat
+        // melewati batas 1.000 baris PostgREST dan membuat jawaban essay terbaru terpotong.
+        const answerResult=essayQuestionIds.length
+          ? await db.from('answers').select('session_id,question_id,user_answer,selected_answers,selected_option,teacher_score').in('question_id',essayQuestionIds)
           : {data:[],error:null}
         if(answerResult.error)problems.push('jawaban ujian: '+answerResult.error.message)
         if(problems.length)setWarning('Sebagian data belum dapat dibaca — '+problems.join(' | '))
@@ -179,14 +182,8 @@ export default function AdminDashboardPage() {
     return <div className="mt-3 space-y-3">{items.map((item,i)=><div key={item.student.id}><div className="mb-1 flex items-center justify-between gap-2 text-xs"><span className="min-w-0 truncate font-semibold text-slate-700">{i+1}. {item.student.full_name||item.student.username||'Siswa'} <span className="text-slate-400">({item.student.class_code||'—'})</span></span><b className="shrink-0">{item.value.toLocaleString('id-ID')} {suffix}</b></div><div className="h-3 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${color}`} style={{width:(item.value/max*100)+'%'}}/></div></div>)}{!items.length&&<p className="py-5 text-center text-xs text-slate-400">Belum ada data pada filter ini.</p>}</div>
   }
 
-  const menuItems=[{href:'/admin',icon:'🏠',label:'Dashboard'},{href:'/admin/bank-soal',icon:'📝',label:'Bank Soal & Ujian'},{href:'/admin/konten',icon:'📢',label:'Konten Website'},{href:'/admin/users',icon:'👩‍🎓',label:'Data Peserta'},{href:'/admin/practice',icon:'🎮',label:'Mode Latihan'},{href:'/admin/raport',icon:'📄',label:'Raport & Sertifikat'},{href:'/admin/pengaturan-dokumen',icon:'⚙️',label:'Pengaturan Dokumen'}]
-  return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-amber-50 md:flex">
-    <aside className={`shrink-0 border-b border-slate-200 bg-white/95 p-3 shadow-sm md:min-h-screen md:border-b-0 md:border-r md:sticky md:top-0 md:h-screen md:overflow-y-auto transition-all ${menuCollapsed?'md:w-20':'md:w-64'}`}>
-      <div className="mb-4 flex items-center justify-between gap-2"><span className={`font-black text-indigo-700 ${menuCollapsed?'md:hidden':''}`}>TKA ADMIN</span><button type="button" onClick={()=>setMenuCollapsed(v=>!v)} className="rounded-lg border px-2 py-1 text-sm font-bold text-slate-600" aria-label={menuCollapsed?'Perluas menu':'Ciutkan menu'}>{menuCollapsed?'☰':'←'}</button></div>
-      <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-1">{menuItems.map(item=><Link key={item.href} href={item.href} title={item.label} className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition ${item.href==='/admin'?'bg-indigo-600 text-white':'text-slate-700 hover:bg-indigo-50 hover:text-indigo-700'}`}><span className="text-lg">{item.icon}</span><span className={menuCollapsed?'md:hidden':''}>{item.label}</span></Link>)}</nav>
-      <Link href="/" className="mt-4 hidden rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 md:block">{menuCollapsed?'↗':'← Lihat Website'}</Link>
-    </aside>
-    <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8"><div className="mx-auto max-w-7xl space-y-7">
+  return <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-amber-50">
+    <div className="mx-auto max-w-7xl space-y-7 px-4 py-6 md:px-8 md:py-8">
     <header><p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600">TKA Platform · Admin Center</p><h1 className="mt-1 text-3xl font-black text-slate-900">Dashboard Pengelola</h1><p className="mt-1 text-sm text-slate-500">Ringkasan aktivitas, perkembangan peserta, dan pintasan pengelolaan website.</p></header>
     {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</div>}
     <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5">
@@ -244,5 +241,6 @@ export default function AdminDashboardPage() {
       </aside>
     </div>
     <div className="mt-3 flex flex-col justify-between gap-2 text-xs text-slate-500 sm:flex-row sm:items-center"><span>{visible.length} peserta · halaman {currentPage}/{pageCount}</span><div className="flex items-center gap-2"><select value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(1)}} className="rounded-lg border border-slate-300 bg-white px-2 py-1.5"><option value={10}>10 / halaman</option><option value={20}>20 / halaman</option><option value={50}>50 / halaman</option><option value={100}>100 / halaman</option></select><button type="button" disabled={currentPage<=1} onClick={()=>setPage(p=>Math.max(1,p-1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Sebelumnya</button><button type="button" disabled={currentPage>=pageCount} onClick={()=>setPage(p=>Math.min(pageCount,p+1))} className="rounded-lg border px-3 py-1.5 disabled:opacity-40">Berikutnya</button></div></div></section>
-  </div></main></div>
+    </div>
+  </div>
 }
