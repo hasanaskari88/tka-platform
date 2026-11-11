@@ -2,13 +2,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme, ThemeMode } from '@/context/ThemeContext'
 import Link from 'next/link'
 
 export default function Navbar() {
   const router = useRouter()
+  const pathname = usePathname()
 
   const {
     theme,
@@ -107,7 +108,7 @@ export default function Navbar() {
     'flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl border border-indigo-200 bg-gradient-to-b from-indigo-50 to-violet-50 px-0.5 py-2 text-[10px] font-black leading-tight text-indigo-700 shadow-sm transition active:scale-95'
 
   // Sembunyikan Navbar ketika Mode Fokus aktif
-  if (!chromeVisible) {
+  if (pathname.startsWith('/admin') || !chromeVisible) {
     return null
   }
 

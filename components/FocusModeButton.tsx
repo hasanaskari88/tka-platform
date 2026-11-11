@@ -2,11 +2,13 @@
 'use client'
 
 import { useTheme } from '@/context/ThemeContext'
+import { usePathname } from 'next/navigation'
 
 export default function FocusModeButton() {
+  const pathname = usePathname()
   const { chromeVisible, setChromeVisible } = useTheme()
 
-  if (chromeVisible) return null
+  if (pathname.startsWith('/admin') || chromeVisible) return null
 
   return (
     <button

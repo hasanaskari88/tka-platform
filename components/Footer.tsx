@@ -8,7 +8,7 @@ function FooterContent() {
   const { theme, chromeVisible } = useTheme()
   const pathname = usePathname()
 
-  if (!chromeVisible || /^\/admin\/exam\/[^/]+\/results\/?$/.test(pathname)) return null
+  if (!chromeVisible || pathname.startsWith('/admin')) return null
 
   const themeFooterMap = {
     space: {
