@@ -232,14 +232,32 @@ export default function PracticeHubPage() {
     if (type === 'QUIZ' || type === 'CBT' || type === 'EXAM') return 'QUIZ'
     return 'OTHER'
   }
-  const activityMeta: Record<string, { label: string; icon: string; card: string; pill: string; button: string }> = {
-    QUIZ: { label: 'Kuis & Latihan', icon: '🧠', card: 'from-sky-500 via-blue-600 to-indigo-700', pill: 'border-cyan-100/60 bg-cyan-100/20 text-white', button: 'from-lime-300 to-emerald-400 text-emerald-950 hover:from-lime-200 hover:to-emerald-300' },
-    MAZE_GAME: { label: 'Petualangan Maze', icon: '🗺️', card: 'from-emerald-500 via-green-600 to-teal-800', pill: 'border-lime-100/60 bg-lime-100/20 text-white', button: 'from-violet-500 to-indigo-500 text-white hover:from-violet-400 hover:to-indigo-400' },
-    FLASHCARD: { label: 'Kartu Kilat', icon: '⚡', card: 'from-rose-500 via-pink-600 to-fuchsia-800', pill: 'border-pink-100/60 bg-white/20 text-white', button: 'from-amber-300 to-yellow-400 text-amber-950 hover:from-amber-200 hover:to-yellow-300' },
-    OTHER: { label: 'Aktivitas', icon: '✨', card: 'from-violet-500 via-purple-600 to-indigo-800', pill: 'border-violet-100/60 bg-white/20 text-white', button: 'from-cyan-300 to-sky-400 text-sky-950 hover:from-cyan-200 hover:to-sky-300' },
+  const activityMeta: Record<string, { label: string; icon: string; pill: string; button: string }> = {
+    QUIZ: { label: 'Kuis & Latihan', icon: '🧠', pill: 'border-cyan-100/70 bg-cyan-100/20 text-white', button: 'from-lime-300 to-emerald-400 text-emerald-950 hover:from-lime-200 hover:to-emerald-300' },
+    MAZE_GAME: { label: 'Petualangan Maze', icon: '🗺️', pill: 'border-lime-100/70 bg-lime-100/20 text-white', button: 'from-violet-400 to-indigo-500 text-white hover:from-violet-300 hover:to-indigo-400' },
+    FLASHCARD: { label: 'Kartu Kilat', icon: '⚡', pill: 'border-pink-100/70 bg-white/20 text-white', button: 'from-amber-300 to-yellow-400 text-amber-950 hover:from-amber-200 hover:to-yellow-300' },
+    OTHER: { label: 'Aktivitas', icon: '✨', pill: 'border-violet-100/70 bg-white/20 text-white', button: 'from-cyan-300 to-sky-400 text-sky-950 hover:from-cyan-200 hover:to-sky-300' },
   }
-  // Variasi dekorasi berdasarkan ID agar stabil saat pencarian, filter, dan pengurutan.
-  const getMissionVariant = (id: string) => Array.from(String(id)).reduce((total, char) => total + char.charCodeAt(0), 0) % 4
+
+  // Variasi warna kartu stabil berdasarkan ID, bukan posisi dalam daftar.
+  const missionPalettes = [
+    { card: 'from-fuchsia-500 via-purple-600 to-indigo-800', glow: 'bg-fuchsia-200/30', edge: 'border-fuchsia-200/70', accent: 'text-fuchsia-100', art: '✦' },
+    { card: 'from-orange-400 via-rose-500 to-pink-700', glow: 'bg-amber-200/35', edge: 'border-amber-200/80', accent: 'text-amber-100', art: '✺' },
+    { card: 'from-cyan-500 via-blue-600 to-indigo-800', glow: 'bg-cyan-200/35', edge: 'border-cyan-200/80', accent: 'text-cyan-100', art: '✧' },
+    { card: 'from-lime-400 via-emerald-600 to-teal-800', glow: 'bg-lime-200/30', edge: 'border-lime-200/80', accent: 'text-lime-100', art: '✹' },
+    { card: 'from-violet-500 via-purple-600 to-fuchsia-800', glow: 'bg-violet-200/35', edge: 'border-violet-200/80', accent: 'text-violet-100', art: '✷' },
+    { card: 'from-amber-400 via-orange-500 to-red-700', glow: 'bg-yellow-100/35', edge: 'border-yellow-200/80', accent: 'text-yellow-100', art: '★' },
+    { card: 'from-teal-400 via-cyan-600 to-blue-800', glow: 'bg-teal-100/35', edge: 'border-teal-100/80', accent: 'text-teal-100', art: '❋' },
+    { card: 'from-pink-500 via-rose-600 to-red-800', glow: 'bg-pink-100/35', edge: 'border-pink-100/80', accent: 'text-pink-100', art: '✿' },
+  ]
+  const getMissionVariant = (id: string) => Array.from(String(id)).reduce((total, char) => total + char.charCodeAt(0), 0) % missionPalettes.length
+
+  const activityCounts = exams.reduce((counts: Record<string, number>, exam) => {
+    const type = normalizedActivityType(exam.activity_type)
+    counts[type] = (counts[type] || 0) + 1
+    return counts
+  }, { ALL: exams.length, QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0, OTHER: 0 })
+
   const filteredExams = exams
     .filter((exam) => {
       const type = normalizedActivityType(exam.activity_type)
@@ -329,9 +347,29 @@ export default function PracticeHubPage() {
                   Misi Latihan Mandiri
                 </h2>
               </div>
-              <span className={`rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm ${visual.badge}`}>
-                {filteredExams.length} / {exams.length} MISI
+              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm ${visual.badge}`}>
+                <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
+                {filteredExams.length} <span className="opacity-60">/ {exams.length}</span> misi tampil
               </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {[
+                { id: 'ALL', label: 'Semua Misi', icon: '🎮', count: activityCounts.ALL, active: 'border-slate-900 bg-slate-900 text-white shadow-lg shadow-slate-900/20' },
+                { id: 'QUIZ', label: 'Kuis', icon: '🧠', count: activityCounts.QUIZ, active: 'border-blue-600 bg-blue-600 text-white shadow-lg shadow-blue-600/25' },
+                { id: 'MAZE_GAME', label: 'Maze', icon: '🗺️', count: activityCounts.MAZE_GAME, active: 'border-emerald-600 bg-emerald-600 text-white shadow-lg shadow-emerald-600/25' },
+                { id: 'FLASHCARD', label: 'Flashcard', icon: '⚡', count: activityCounts.FLASHCARD, active: 'border-pink-600 bg-pink-600 text-white shadow-lg shadow-pink-600/25' },
+                { id: 'OTHER', label: 'Lainnya', icon: '✨', count: activityCounts.OTHER, active: 'border-violet-600 bg-violet-600 text-white shadow-lg shadow-violet-600/25' },
+              ].map((chip) => {
+                const selected = missionType === chip.id
+                return (
+                  <button key={chip.id} type="button" onClick={() => setMissionType(chip.id)} aria-pressed={selected}
+                    className={`group inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-extrabold transition duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-cyan-300/30 ${selected ? chip.active : `${visual.surfaceBorder} ${visual.surface} ${visual.heading} hover:border-cyan-400`}`}>
+                    <span>{chip.icon}</span><span>{chip.label}</span>
+                    <span className={`min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums ${selected ? 'bg-white/20 text-white' : 'bg-slate-500/10'}`}>{chip.count}</span>
+                  </button>
+                )
+              })}
             </div>
 
             <div className={`grid grid-cols-1 gap-2 rounded-2xl border p-3 sm:grid-cols-[minmax(0,1fr)_180px_160px] ${visual.surfaceBorder} ${visual.surface}`}>
@@ -359,22 +397,22 @@ export default function PracticeHubPage() {
                 {filteredExams.map((exam) => {
                   const type = normalizedActivityType(exam.activity_type)
                   const style = activityMeta[type]
-                  const variant = getMissionVariant(exam.id)
-                  const variantDecorations = ['border-t-4 border-t-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]', 'border-l-4 border-l-amber-300 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]', 'border-b-4 border-b-cyan-200 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]', 'border-r-4 border-r-fuchsia-200 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]']
-                  const variantArt = ['✦', '✧', '✺', '✹'][variant]
+                  const palette = missionPalettes[getMissionVariant(exam.id)]
                   return (
                     <article
                       key={exam.id}
-                      className={`group relative flex min-h-[230px] flex-col justify-between overflow-hidden rounded-[1.45rem] border border-white/20 bg-gradient-to-br ${style.card} p-4 text-white shadow-lg shadow-indigo-950/15 transition duration-300 hover:-translate-y-1 hover:shadow-xl ${variantDecorations[variant]}`}
+                      className={`group relative flex min-h-[238px] flex-col justify-between overflow-hidden rounded-[1.5rem] border-2 ${palette.edge} bg-gradient-to-br ${palette.card} p-4 text-white shadow-lg shadow-slate-950/20 transition duration-300 hover:-translate-y-1 hover:shadow-2xl`}
                     >
-                      <div className="absolute -right-4 -top-8 text-8xl opacity-15 transition duration-300 group-hover:rotate-12 group-hover:scale-110">{variantArt}</div>
-                      <div className="absolute -bottom-9 -right-3 text-7xl opacity-15">{style.icon}</div>
+                      <div className={`pointer-events-none absolute -right-8 -top-10 h-36 w-36 rounded-full blur-2xl transition duration-300 group-hover:scale-125 ${palette.glow}`} />
+                      <div className="pointer-events-none absolute -bottom-8 -right-2 text-8xl text-white/20 transition duration-300 group-hover:-rotate-12 group-hover:scale-110">{palette.art}</div>
+                      <div className="pointer-events-none absolute right-4 top-16 text-5xl opacity-15">{style.icon}</div>
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-white/70 via-white/10 to-transparent" />
                       <div className="relative">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide backdrop-blur ${style.pill}`}>{style.icon} {style.label}</span>
-                          <span className="inline-flex rounded-full border border-white/25 bg-slate-950/15 px-2.5 py-1 text-[10px] font-bold text-white/95">{exam.subtest || 'MISI UMUM'}</span>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide shadow-sm backdrop-blur-md ${style.pill}`}><span className="text-xs">{style.icon}</span>{style.label}</span>
+                          <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/35 bg-slate-950/25 px-2.5 py-1 text-[10px] font-extrabold text-white shadow-sm backdrop-blur-md"><span aria-hidden="true">📚</span><span className="truncate">{exam.subtest || 'MISI UMUM'}</span></span>
                         </div>
-                        <h3 className="mt-3 text-lg font-black leading-snug sm:text-xl">{exam.title}</h3>
+                        <h3 className="mt-3 max-w-[92%] text-lg font-black leading-snug drop-shadow-sm sm:text-xl">{exam.title}</h3>
                         <p className="mt-2 line-clamp-3 text-sm leading-5 text-white/90">
                           {exam.description || 'Latihan interaktif dengan jawaban dan pembahasan instan.'}
                         </p>
@@ -382,8 +420,8 @@ export default function PracticeHubPage() {
 
                       <div className="relative mt-6">
                         <div className="mb-3 flex items-center gap-2 text-[10px] font-extrabold uppercase tracking-wide text-white/90">
-                          <span className="h-2.5 w-2.5 rounded-full bg-lime-300 shadow-[0_0_10px_rgba(190,242,100,0.9)]" />
-                          Siap dimainkan
+                          <span className={`h-2.5 w-2.5 rounded-full bg-lime-300 shadow-[0_0_12px_rgba(190,242,100,0.95)]`} />
+                          <span className={palette.accent}>SIAP DIMAINKAN</span>
                         </div>
                         <Link
                           href={`/practice/${exam.id}`}
