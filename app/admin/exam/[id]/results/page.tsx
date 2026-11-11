@@ -321,13 +321,13 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
     // 4. Ambil Profil Seluruh Siswa (Untuk pencocokan Nama & Kelas)
     const { data: profileData } = await supabase.from('profiles').select('*')
 
-    // 5. Ambil seluruh jawaban dengan pagination agar tidak terpotong
-    // oleh batas maksimum baris dalam satu respons Supabase/PostgREST.
+    // 5. Ambil seluruh jawaban per sesi dengan pagination.
+    // Tidak menggunakan created_at karena kolom tersebut tidak tersedia di tabel answers.
     const sessionIds = (sessionData || []).map((s) => s.id)
     const answerData: any[] = []
     const answerPageSize = 500
 
-    if (sessionIds.length > 0) {
+    for (const sessionId of sessionIds) {
       let answerOffset = 0
       let hasMoreAnswers = true
 
@@ -335,13 +335,13 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         const { data: answerPage, error: answerPageError } = await supabase
           .from('answers')
           .select('*')
-          .in('session_id', sessionIds)
-          .order('created_at', { ascending: true })
+          .eq('session_id', sessionId)
+          .order('question_id', { ascending: true })
           .range(answerOffset, answerOffset + answerPageSize - 1)
 
         if (answerPageError) {
           throw new Error(
-            `Gagal memuat jawaban peserta (baris mulai ${answerOffset}): ${answerPageError.message}`
+            `Gagal memuat jawaban peserta (sesi ${sessionId}, baris mulai ${answerOffset}): ${answerPageError.message}`
           )
         }
 
