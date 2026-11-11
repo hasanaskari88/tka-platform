@@ -110,6 +110,8 @@ export default function PracticeHubPage() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
+  const [globalRank, setGlobalRank] = useState<number | null>(null)
+  const [classRank, setClassRank] = useState<number | null>(null)
   const [missionSearch, setMissionSearch] = useState('')
   const [missionType, setMissionType] = useState('ALL')
   const [missionSort, setMissionSort] = useState('NEWEST')
@@ -123,6 +125,7 @@ export default function PracticeHubPage() {
       .select('id, full_name, username, class_code, xp, level, role')
       .not('class_code', 'ilike', 'guru')
       .order('xp', { ascending: false })
+      .order('id', { ascending: true })
       .limit(15)
 
     if ((filterVal === 'MY_CLASS' || filterVal === 'CLASS') && activeProfile?.class_code) {
@@ -138,6 +141,52 @@ export default function PracticeHubPage() {
       )
       setLeaderboard(cleanUsers)
     }
+  }
+
+  const fetchPlayerRanks = async (profile: any) => {
+    if (!profile?.id) {
+      setGlobalRank(null)
+      setClassRank(null)
+      return
+    }
+
+    const supabase = createClient()
+    const playerXp = Number(profile.xp || 0)
+
+    const getRank = async (classCode?: string) => {
+      let higherQuery = supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .not('class_code', 'ilike', 'guru')
+        .gt('xp', playerXp)
+
+      let tieQuery = supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .not('class_code', 'ilike', 'guru')
+        .eq('xp', playerXp)
+        .lt('id', profile.id)
+
+      if (classCode) {
+        higherQuery = higherQuery.eq('class_code', classCode)
+        tieQuery = tieQuery.eq('class_code', classCode)
+      }
+
+      const [higherResult, tieResult] = await Promise.all([higherQuery, tieQuery])
+      if (higherResult.error || tieResult.error) return null
+
+      return (higherResult.count || 0) + (tieResult.count || 0) + 1
+    }
+
+    const [overall, inClass] = await Promise.all([
+      getRank(),
+      profile.class_code && String(profile.class_code).trim().toLowerCase() !== 'guru'
+        ? getRank(String(profile.class_code))
+        : Promise.resolve(null),
+    ])
+
+    setGlobalRank(overall)
+    setClassRank(inClass)
   }
 
   useEffect(() => {
@@ -193,7 +242,10 @@ export default function PracticeHubPage() {
         setExams(filteredExams)
       }
 
-      await fetchLeaderboard(leaderboardFilter, profile)
+      await Promise.all([
+        fetchLeaderboard(leaderboardFilter, profile),
+        fetchPlayerRanks(profile),
+      ])
       setLoading(false)
     }
 
@@ -224,6 +276,38 @@ export default function PracticeHubPage() {
   const level = userProfile?.level || 1
   const xp = userProfile?.xp || 0
   const xpProgress = Math.min(100, Math.max(8, (xp % 200) / 2))
+  const rankTitles = [
+    { min: 1, max: 1, title: 'Legenda Getasan', icon: '👑', color: 'border-amber-300/50 bg-amber-300/15 text-amber-100' },
+    { min: 2, max: 2, title: 'Sang Maestro', icon: '💎', color: 'border-cyan-300/50 bg-cyan-300/15 text-cyan-100' },
+    { min: 3, max: 3, title: 'Ksatria Emas', icon: '🏆', color: 'border-yellow-300/50 bg-yellow-300/15 text-yellow-100' },
+    { min: 4, max: 4, title: 'Sang Juara', icon: '🔥', color: 'border-orange-300/50 bg-orange-300/15 text-orange-100' },
+    { min: 5, max: 5, title: 'Bintang Utama', icon: '⭐', color: 'border-violet-300/50 bg-violet-300/15 text-violet-100' },
+    { min: 6, max: 8, title: 'Elite Getasan', icon: '⚡', color: 'border-sky-300/50 bg-sky-300/15 text-sky-100' },
+    { min: 9, max: 15, title: 'Kesatria Muda', icon: '🛡️', color: 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' },
+    { min: 16, max: 24, title: 'Penjelajah Hebat', icon: '🚀', color: 'border-indigo-300/50 bg-indigo-300/15 text-indigo-100' },
+    { min: 25, max: 40, title: 'Bintang Potensial', icon: '🌟', color: 'border-pink-300/50 bg-pink-300/15 text-pink-100' },
+    { min: 41, max: 60, title: 'Pejuang Prestasi', icon: '🎯', color: 'border-teal-300/50 bg-teal-300/15 text-teal-100' },
+    { min: 61, max: Number.POSITIVE_INFINITY, title: 'Petualang Tangguh', icon: '🌱', color: 'border-lime-300/50 bg-lime-300/15 text-lime-100' },
+  ]
+  const getRankTitle = (rank: number | null) =>
+    rankTitles.find((item) => rank !== null && rank >= item.min && rank <= item.max) ||
+    { title: 'Petualang Getasan', icon: '🧭', color: 'border-white/20 bg-white/10 text-white' }
+  const globalTitle = getRankTitle(globalRank)
+  const classTitle = getRankTitle(classRank)
+  const earnedBadges = Array.isArray(userProfile?.badges)
+    ? userProfile.badges.map((badge: any, index: number) => {
+        if (typeof badge === 'string') {
+          return { id: badge, title: badge, icon: '🏅', description: '' }
+        }
+        if (!badge || typeof badge !== 'object') return null
+        return {
+          id: badge.id || badge.name || badge.title || index,
+          title: badge.name || badge.title || badge.label || badge.badge_name || 'Badge',
+          icon: badge.icon || badge.emoji || '🏅',
+          description: badge.description || badge.desc || '',
+        }
+      }).filter(Boolean)
+    : []
 
   const normalizedActivityType = (value: unknown) => {
     const type = String(value || 'QUIZ').trim().toUpperCase()
@@ -293,8 +377,8 @@ export default function PracticeHubPage() {
                 <span className="block text-amber-300 drop-shadow-sm">Petualang? 🚀</span>
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-indigo-50 sm:text-base">
-                Halo, {userProfile?.full_name || 'Petualang SD Getasan'}! Pilih misi, asah kemampuan,
-                kumpulkan XP, dan naikkan levelmu. Setiap soal adalah langkah menuju prestasi!
+                Halo, {userProfile?.full_name || 'Adik Hebat'}! 👋 Teruslah melangkah, teruslah belajar,
+                dan tunjukkan kemampuan terbaikmu. Setiap usaha adalah kebanggaan!
               </p>
               <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold">
                 <span className="rounded-xl border border-white/20 bg-white/10 px-3 py-2">🧠 Asah Otak</span>
@@ -304,25 +388,49 @@ export default function PracticeHubPage() {
             </div>
 
             <div className={`relative rounded-[1.7rem] border ${visual.heroPanel} p-5 shadow-2xl backdrop-blur-md`}>
-              <div className="absolute -right-2 -top-3 rotate-12 rounded-xl bg-amber-300 px-3 py-1 text-xs font-black text-amber-950 shadow-lg">
-                PLAYER
+              <div className="absolute -right-2 -top-3 rotate-12 rounded-xl border border-amber-200/70 bg-gradient-to-r from-amber-300 to-yellow-200 px-3 py-1 text-[10px] font-black uppercase tracking-wide text-amber-950 shadow-lg">
+                Identitas Pemain
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-300 to-blue-500 text-4xl shadow-lg">
-                  🦉
+                  {globalTitle.icon}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-blue-100">PETUALANG GETASAN</p>
-                  <p className="mt-1 text-2xl font-black text-amber-300">{xp} XP</p>
-                  <span className="mt-1 inline-block rounded-lg bg-violet-500/50 px-2.5 py-1 text-xs font-black">
-                    LEVEL {level}
-                  </span>
+                  <p className="truncate text-sm font-black text-blue-100">{userProfile?.full_name || 'Pemain Getasan'}</p>
+                  <p className="mt-1 text-lg font-black text-amber-300">{globalTitle.title}</p>
+                  <p className="mt-1 text-[10px] font-bold text-blue-100">
+                    {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Pejuang prestasi Getasan'}
+                  </p>
                 </div>
               </div>
-              <div className="mt-5">
-                <div className="mb-2 flex justify-between text-[11px] font-bold text-blue-100">
-                  <span>PROGRES PETUALANGAN</span>
-                  <span>{xp} XP</span>
+
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-blue-200/20 bg-blue-950/50 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-blue-200">🌐 Peringkat Global</p>
+                  <p className="mt-1 text-2xl font-black text-cyan-200">{globalRank ? `#${globalRank}` : '—'}</p>
+                  <p className="text-[10px] font-bold text-blue-100">{globalRank ? globalTitle.title : 'Belum tersedia'}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200/20 bg-emerald-950/50 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-200">🏫 {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Peringkat Kelas'}</p>
+                  <p className="mt-1 text-2xl font-black text-emerald-200">{classRank ? `#${classRank}` : '—'}</p>
+                  <p className="text-[10px] font-bold text-emerald-100">{classRank ? classTitle.title : 'Belum tersedia'}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-2xl font-black text-amber-300">{xp.toLocaleString('id-ID')} XP</p>
+                  <span className="mt-1 inline-block rounded-lg bg-violet-500/50 px-2.5 py-1 text-xs font-black">LEVEL {level}</span>
+                </div>
+                <span className="rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-[10px] font-bold text-blue-100">
+                  {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Siswa Getasan'}
+                </span>
+              </div>
+
+              <div className="mt-4">
+                <div className="mb-2 flex justify-between text-[10px] font-bold text-blue-100">
+                  <span>PROGRES XP BERIKUTNYA</span>
+                  <span>{Math.round(xpProgress)}%</span>
                 </div>
                 <div className="h-3 overflow-hidden rounded-full border border-white/20 bg-slate-950/60 p-[2px]">
                   <div
@@ -330,7 +438,26 @@ export default function PracticeHubPage() {
                     style={{ width: `${xpProgress}%` }}
                   />
                 </div>
-                <p className="mt-2 text-[10px] text-blue-200">Terus berlatih untuk meningkatkan pencapaianmu!</p>
+                <p className="mt-2 text-[10px] text-blue-200">{xp % 200} / 200 XP pada progres saat ini.</p>
+              </div>
+
+              <div className="mt-4 border-t border-white/15 pt-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-blue-100">🏅 Koleksi Badge</p>
+                  <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-100">{earnedBadges.length} terkumpul</span>
+                </div>
+                {earnedBadges.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {earnedBadges.slice(0, 6).map((badge: any) => (
+                      <span key={badge.id} title={badge.description || badge.title} className="inline-flex items-center gap-1 rounded-lg border border-amber-200/25 bg-amber-300/10 px-2 py-1.5 text-[10px] font-bold text-amber-100">
+                        <span>{badge.icon}</span><span>{badge.title}</span>
+                      </span>
+                    ))}
+                    {earnedBadges.length > 6 && <span className="rounded-lg bg-white/10 px-2 py-1.5 text-[10px] font-bold text-blue-100">+{earnedBadges.length - 6} badge</span>}
+                  </div>
+                ) : (
+                  <p className="text-[10px] leading-4 text-blue-200">Perjalanan hebat dimulai dari satu latihan. Badge pencapaianmu akan tampil di sini saat tersedia.</p>
+                )}
               </div>
             </div>
           </div>
@@ -511,6 +638,30 @@ export default function PracticeHubPage() {
                   </optgroup>
                 )}
               </select>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-blue-200/20 bg-blue-950/10 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-blue-500">🌐 Global</p>
+                  <p className="mt-1 text-xl font-black text-cyan-500">{globalRank ? `#${globalRank}` : '—'}</p>
+                  <p className="text-[10px] font-semibold text-slate-500">Semua kelas</p>
+                </div>
+                <div className="rounded-xl border border-emerald-200/30 bg-emerald-950/5 p-3">
+                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-600">🏫 {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Kelas'}</p>
+                  <p className="mt-1 text-xl font-black text-emerald-600">{classRank ? `#${classRank}` : '—'}</p>
+                  <p className="text-[10px] font-semibold text-slate-500">Peringkat kelasmu</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-indigo-500/10 px-3 py-2">
+                <p className="text-[10px] font-bold text-indigo-700">
+                  {leaderboardFilter === 'ALL'
+                    ? '🌐 Menampilkan peringkat global'
+                    : leaderboardFilter === 'MY_CLASS' || leaderboardFilter === 'CLASS'
+                      ? `🏫 Menampilkan peringkat kelas ${userProfile?.class_code || ''}`
+                      : `🏫 Menampilkan peringkat kelas ${leaderboardFilter}`}
+                </p>
+                <span className="shrink-0 text-[9px] font-black text-indigo-600">TOP 15</span>
+              </div>
 
               <div className="space-y-2">
                 {leaderboard.length > 0 ? (
