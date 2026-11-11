@@ -380,7 +380,25 @@ export default function PracticeHubPage() {
                 Halo, {userProfile?.full_name || 'Adik Hebat'}! 👋 Teruslah melangkah, teruslah belajar,
                 dan tunjukkan kemampuan terbaikmu. Setiap usaha adalah kebanggaan!
               </p>
-              <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold">
+              <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-3 shadow-inner backdrop-blur-sm">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-amber-100">🏅 Koleksi Badge</p>
+                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-50">{earnedBadges.length} terkumpul</span>
+                </div>
+                {earnedBadges.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {earnedBadges.slice(0, 6).map((badge: any) => (
+                      <span key={badge.id} title={badge.description || badge.title} className="inline-flex items-center gap-1 rounded-lg border border-amber-200/30 bg-amber-300/15 px-2.5 py-1.5 text-[10px] font-bold text-amber-50">
+                        <span>{badge.icon}</span><span>{badge.title}</span>
+                      </span>
+                    ))}
+                    {earnedBadges.length > 6 && <span className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[10px] font-bold text-blue-50">+{earnedBadges.length - 6} badge</span>}
+                  </div>
+                ) : (
+                  <p className="text-[10px] leading-4 text-blue-100">Perjalanan hebat dimulai dari satu latihan. Badge pencapaianmu akan tampil di sini saat tersedia.</p>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
                 <span className="rounded-xl border border-white/20 bg-white/10 px-3 py-2">🧠 Asah Otak</span>
                 <span className="rounded-xl border border-white/20 bg-white/10 px-3 py-2">🏅 Kumpulkan XP</span>
                 <span className="rounded-xl border border-white/20 bg-white/10 px-3 py-2">📚 Pahami Materi</span>
@@ -401,19 +419,6 @@ export default function PracticeHubPage() {
                   <p className="mt-1 text-[10px] font-bold text-blue-100">
                     {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Pejuang prestasi Getasan'}
                   </p>
-                </div>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-blue-200/20 bg-blue-950/50 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-blue-200">🌐 Peringkat Global</p>
-                  <p className="mt-1 text-2xl font-black text-cyan-200">{globalRank ? `#${globalRank}` : '—'}</p>
-                  <p className="text-[10px] font-bold text-blue-100">{globalRank ? globalTitle.title : 'Belum tersedia'}</p>
-                </div>
-                <div className="rounded-xl border border-emerald-200/20 bg-emerald-950/50 p-3">
-                  <p className="text-[9px] font-black uppercase tracking-wider text-emerald-200">🏫 {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Peringkat Kelas'}</p>
-                  <p className="mt-1 text-2xl font-black text-emerald-200">{classRank ? `#${classRank}` : '—'}</p>
-                  <p className="text-[10px] font-bold text-emerald-100">{classRank ? classTitle.title : 'Belum tersedia'}</p>
                 </div>
               </div>
 
@@ -441,24 +446,7 @@ export default function PracticeHubPage() {
                 <p className="mt-2 text-[10px] text-blue-200">{xp % 200} / 200 XP pada progres saat ini.</p>
               </div>
 
-              <div className="mt-4 border-t border-white/15 pt-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-[10px] font-black uppercase tracking-wider text-blue-100">🏅 Koleksi Badge</p>
-                  <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-100">{earnedBadges.length} terkumpul</span>
-                </div>
-                {earnedBadges.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {earnedBadges.slice(0, 6).map((badge: any) => (
-                      <span key={badge.id} title={badge.description || badge.title} className="inline-flex items-center gap-1 rounded-lg border border-amber-200/25 bg-amber-300/10 px-2 py-1.5 text-[10px] font-bold text-amber-100">
-                        <span>{badge.icon}</span><span>{badge.title}</span>
-                      </span>
-                    ))}
-                    {earnedBadges.length > 6 && <span className="rounded-lg bg-white/10 px-2 py-1.5 text-[10px] font-bold text-blue-100">+{earnedBadges.length - 6} badge</span>}
-                  </div>
-                ) : (
-                  <p className="text-[10px] leading-4 text-blue-200">Perjalanan hebat dimulai dari satu latihan. Badge pencapaianmu akan tampil di sini saat tersedia.</p>
-                )}
-              </div>
+
             </div>
           </div>
         </section>
@@ -609,7 +597,7 @@ export default function PracticeHubPage() {
               </div>
               {userProfile?.role === 'admin' && (
                 <span className="mt-3 inline-flex rounded-full bg-fuchsia-300/20 px-3 py-1 text-[10px] font-extrabold text-fuchsia-100 ring-1 ring-fuchsia-200/30">
-                  ⚙️ Akses Admin
+                  🏟️ Grisan Arena
                 </span>
               )}
             </div>
