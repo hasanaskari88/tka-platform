@@ -1,10 +1,10 @@
-
 'use client'
 
+import { Suspense } from 'react'
 import { useTheme } from '@/context/ThemeContext'
 import { usePathname } from 'next/navigation'
 
-export default function FocusModeButton() {
+function FocusModeButtonContent() {
   const pathname = usePathname()
   const { chromeVisible, setChromeVisible } = useTheme()
 
@@ -19,5 +19,13 @@ export default function FocusModeButton() {
     >
       ☰ Tampilkan Menu
     </button>
+  )
+}
+
+export default function FocusModeButton() {
+  return (
+    <Suspense fallback={null}>
+      <FocusModeButtonContent />
+    </Suspense>
   )
 }
