@@ -25,7 +25,7 @@ export default function AdminSidebar() {
     <aside className={`z-30 shrink-0 border-b border-slate-200 bg-white p-2 shadow-sm transition-[width] duration-200 md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-b-0 md:border-r md:p-3 ${collapsed ? 'md:w-16' : 'md:w-60'}`}>
       <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-indigo-50 px-2.5 py-3">
         <div className={`flex min-w-0 items-center gap-2 ${collapsed ? 'md:justify-center' : ''}`}>
-          <img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-8 w-8 shrink-0 rounded-lg object-contain" />
+          <img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
           <span className={`min-w-0 text-xs font-black leading-tight text-indigo-900 ${collapsed ? 'md:hidden' : ''}`}>SD NEGERI GETASAN<span className="block text-[9px] font-semibold text-indigo-500">ADMIN CENTER</span></span>
         </div>
         <button type="button" onClick={() => setCollapsed(v => !v)} className="hidden rounded-lg p-1.5 text-slate-500 hover:bg-white hover:text-indigo-700 md:inline-flex" aria-label={collapsed ? 'Perluas menu' : 'Ciutkan menu'} title={collapsed ? 'Perluas menu' : 'Ciutkan menu'}>
