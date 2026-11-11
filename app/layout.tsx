@@ -16,6 +16,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   title: 'CBT SD NEGERI GETASAN',
   description: 'Platform Ujian CBT Interaktif SD Negeri Getasan',
+  icons: {
+    icon: '/logo-sd-getasan.png',
+    shortcut: '/logo-sd-getasan.png',
+    apple: '/logo-sd-getasan.png',
+  },
 }
 
 export default function RootLayout({
