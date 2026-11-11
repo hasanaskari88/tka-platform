@@ -103,7 +103,7 @@ export default function PracticeHubPage() {
     },
   }
   const visual = themeVisuals[theme] || themeVisuals.school
-  const darkTheme = ['space', 'jungle', 'ocean', 'disney'].includes(theme)
+  const darkTheme = ['space', 'jungle', 'ocean', 'disney', 'gaming'].includes(theme)
   const [exams, setExams] = useState<any[]>([])
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [availableClasses, setAvailableClasses] = useState<string[]>([])
@@ -399,11 +399,15 @@ export default function PracticeHubPage() {
             ) : (
               <div className={`rounded-3xl border-2 border-dashed ${visual.surfaceBorder} ${visual.surface} px-6 py-12 text-center shadow-xl`}>
                 {exams.length > 0 && <div className="mb-4"><span className="text-3xl">🔍</span><p className={`mt-2 text-sm font-bold ${visual.heading}`}>Misi tidak ditemukan</p><p className={`mt-1 text-xs ${visual.muted}`}>Coba ubah kata kunci atau filter aktivitas.</p><button type="button" onClick={() => { setMissionSearch(''); setMissionType('ALL') }} className={`mt-3 rounded-xl px-4 py-2 text-xs font-black ${visual.badge}`}>Reset pencarian</button></div>}
-                <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${visual.badge} text-3xl`}>🗺️</div>
-                <h3 className={`mt-4 text-lg font-black ${visual.heading}`}>Misi sedang disiapkan!</h3>
-                <p className={`mx-auto mt-2 max-w-sm text-sm leading-6 ${visual.muted}`}>
-                  Belum ada modul latihan mandiri yang dipublikasikan. Coba cek kembali nanti, ya!
-                </p>
+                {exams.length === 0 && (
+                  <>
+                    <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${visual.badge} text-3xl`}>🗺️</div>
+                    <h3 className={`mt-4 text-lg font-black ${visual.heading}`}>Misi sedang disiapkan!</h3>
+                    <p className={`mx-auto mt-2 max-w-sm text-sm leading-6 ${visual.muted}`}>
+                      Belum ada modul latihan mandiri yang dipublikasikan. Coba cek kembali nanti, ya!
+                    </p>
+                  </>
+                )}
               </div>
             )}
 
