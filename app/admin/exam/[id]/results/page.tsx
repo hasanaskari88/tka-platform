@@ -413,7 +413,14 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         correctCount = Math.round((finalScore / 100) * totalQ)
       }
 
-      const finishTime = session.end_time || session.submitted_at || session.completed_at || session.created_at
+      const finishTime = session.end_time || session.submitted_at || session.completed_at || null
+      const answeredCount = (questionData || []).filter((q) => {
+        const answer = userAnswers.find((a) => a.question_id === q.id)
+        const rawAnswer = answer
+          ? (answer.user_answer ?? answer.selected_answers ?? answer.selected_option)
+          : null
+        return !evaluateAnswer(q, rawAnswer).isUnanswered
+      }).length
 
       // f. Kembalikan objek data siswa yang rapi untuk tabel rekapitulasi
       return {
@@ -426,8 +433,9 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         full_name: student.full_name,
         username: student.username,
         class_code: student.class_code || '-',
-        status: session.status || 'completed',
+        status: session.status || 'ongoing',
         completed_at: finishTime,
+        answered_count: answeredCount,
         correct_count: correctCount,
         total_questions: totalQ,
         earned_score: Math.round(finalScore),
@@ -1603,6 +1611,7 @@ const handleSaveAllQuestionScores = async () => {
                       <th className="p-3 text-center w-12">No</th>
                       <th className="p-3">Nama Siswa & Username</th>
                       <th className="p-3 text-center">Kelas</th>
+                      <th className="p-3 text-center">Status & Progres</th>
                       <th className="p-3 text-center">Waktu Selesai</th>
                       <th className="p-3 text-center">Benar / Total</th>
                       <th className="p-3 text-center">Nilai Akhir</th>
@@ -1632,10 +1641,30 @@ const handleSaveAllQuestionScores = async () => {
                               {session.class_code}
                             </span>
                           </td>
+                          <td className="p-3 text-center">
+                            <div className="flex flex-col items-center gap-1">
+                              <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold border ${
+                                session.status === 'completed'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : session.status === 'paused'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : 'bg-sky-50 text-sky-700 border-sky-200'
+                              }`}>
+                                {session.status === 'completed'
+                                  ? 'Selesai'
+                                  : session.status === 'paused'
+                                  ? 'Dijeda'
+                                  : 'Sedang Dikerjakan'}
+                              </span>
+                              <span className="text-[11px] font-semibold text-slate-500">
+                                {session.answered_count} / {session.total_questions} dijawab
+                              </span>
+                            </div>
+                          </td>
                           <td className="p-3 text-center text-slate-600">
                             {session.completed_at
                               ? new Date(session.completed_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
-                              : '-'}
+                              : 'Belum selesai'}
                           </td>
                           <td className="p-3 text-center font-bold text-slate-700">
                             {session.correct_count} / {session.total_questions}
