@@ -22,7 +22,7 @@ export default function AdminSidebar() {
   let previousGroup = ''
 
   return (
-    <aside className={`z-30 shrink-0 border-b border-slate-200 bg-white p-2 shadow-sm transition-[width] duration-200 md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-b-0 md:border-r md:p-3 ${collapsed ? 'md:w-16' : 'md:w-60'}`}>
+    <aside className={`z-30 shrink-0 border-b border-slate-200 bg-white p-2 shadow-sm transition-[width] duration-200 md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-b-0 md:border-r md:p-2 ${collapsed ? 'md:w-16' : 'md:w-52'}`}>
       <div className="mb-3 flex items-center justify-between gap-2 rounded-xl bg-indigo-50 px-2.5 py-3">
         <div className={`flex min-w-0 items-center gap-2 ${collapsed ? 'md:justify-center' : ''}`}>
           <img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
