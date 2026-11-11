@@ -446,3 +446,12 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Status saat diperiksa: **READY**.
 - Deployment URL: `https://grisan-d00453ukt-heins14.vercel.app`; alias Production yang diharapkan tetap `https://grisan.vercel.app`.
 - Build/deployment READY memastikan build berhasil, tetapi bukan bukti QA data/ranking setelah login. Smoke test visual setelah login masih perlu dilakukan untuk memeriksa peringkat diri, filter Global/Kelas, seri XP, badge, dan tampilan mobile/desktop.
+
+
+### Penyempurnaan hero dan identitas leaderboard — 11 November 2026
+- Commit aplikasi: `3ffbe9055532be8578ce9145bca4057b103eaf1b`.
+- Menghapus dua kartu peringkat Global/Kelas dari panel kanan hero agar komposisi panel identitas lebih ringkas dan seimbang.
+- Memindahkan Koleksi Badge dari panel kanan ke kolom kiri hero, tepat di bawah sapaan dan sebelum chip “Asah Otak / Kumpulkan XP / Pahami Materi”.
+- Mengganti label khusus admin di leaderboard dari “Akses Admin” menjadi “Grisan Arena”.
+- Tidak mengubah perhitungan peringkat, data badge, XP/level, filter leaderboard, database, atau mesin latihan.
+- Menunggu pemeriksaan deployment Production dan smoke test tampilan.
