@@ -1,13 +1,13 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme, ThemeMode } from '@/context/ThemeContext'
 import Link from 'next/link'
 
-export default function Navbar() {
+function NavbarContent() {
   const router = useRouter()
   const pathname = usePathname()
 
@@ -537,5 +537,13 @@ export default function Navbar() {
         </div>
       </nav>
     </header>
+  )
+}
+
+export default function Navbar() {
+  return (
+    <Suspense fallback={null}>
+      <NavbarContent />
+    </Suspense>
   )
 }
