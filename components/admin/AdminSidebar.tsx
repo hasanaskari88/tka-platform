@@ -45,9 +45,19 @@ export default function AdminSidebar() {
           </div>
         })}
       </nav>
-      <Link href="/" title="Lihat Website" className={`mt-4 flex items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2.5 text-xs font-semibold text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 ${collapsed ? 'md:justify-center md:px-1.5' : ''}`}>
-        <ExternalLink size={15} className="shrink-0" /><span className={collapsed ? 'md:hidden' : ''}>Lihat Website</span>
-      </Link>
+      <div className="mt-5 border-t border-slate-100 pt-3">
+        <p className={`mb-2 hidden px-2 text-[9px] font-black tracking-[0.12em] text-slate-400 md:block ${collapsed ? 'md:hidden' : ''}`}>
+          AKSES CEPAT
+        </p>
+        <Link
+          href="/"
+          title="Buka Beranda Website"
+          className={`flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-2.5 text-xs font-bold text-indigo-700 transition hover:border-indigo-300 hover:bg-indigo-100 ${collapsed ? 'md:justify-center md:px-1.5' : ''}`}
+        >
+          <ExternalLink size={15} className="shrink-0" />
+          <span className={collapsed ? 'md:hidden' : ''}>Beranda Website</span>
+        </Link>
+      </div>
     </aside>
   )
 }

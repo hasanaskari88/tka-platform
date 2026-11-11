@@ -67,11 +67,11 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 md:flex">
+    <div className="min-h-screen w-full bg-slate-50 md:flex">
       <Suspense fallback={<div className="hidden shrink-0 md:block md:w-64" />}>
         <AdminSidebar />
       </Suspense>
-      <div className="min-w-0 flex-1">{children}</div>
+      <main className="min-h-screen min-w-0 flex-1">{children}</main>
     </div>
   )
 }
