@@ -321,11 +321,40 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
     // 4. Ambil Profil Seluruh Siswa (Untuk pencocokan Nama & Kelas)
     const { data: profileData } = await supabase.from('profiles').select('*')
 
-    // 5. Ambil Seluruh Jawaban Siswa dari Tabel `answers` berdasarkan Session IDs
+    // 5. Ambil seluruh jawaban dengan pagination agar tidak terpotong
+    // oleh batas maksimum baris dalam satu respons Supabase/PostgREST.
     const sessionIds = (sessionData || []).map((s) => s.id)
-    const { data: answerData } = sessionIds.length > 0
-      ? await supabase.from('answers').select('*').in('session_id', sessionIds)
-      : { data: [] }
+    const answerData: any[] = []
+    const answerPageSize = 500
+
+    if (sessionIds.length > 0) {
+      let answerOffset = 0
+      let hasMoreAnswers = true
+
+      while (hasMoreAnswers) {
+        const { data: answerPage, error: answerPageError } = await supabase
+          .from('answers')
+          .select('*')
+          .in('session_id', sessionIds)
+          .order('created_at', { ascending: true })
+          .range(answerOffset, answerOffset + answerPageSize - 1)
+
+        if (answerPageError) {
+          throw new Error(
+            `Gagal memuat jawaban peserta (baris mulai ${answerOffset}): ${answerPageError.message}`
+          )
+        }
+
+        const currentPage = answerPage || []
+        answerData.push(...currentPage)
+        hasMoreAnswers = currentPage.length === answerPageSize
+        answerOffset += answerPageSize
+      }
+    }
+
+    console.info(
+      `[Hasil Ujian] Berhasil memuat ${answerData.length} jawaban dari ${sessionIds.length} sesi.`
+    )
 
     // -----------------------------------------------------------------------
     // 🔹 SEKSI 3: PEMBUATAN STRUKTUR PETA MEMORI (MAP LOOKUP O(1))
@@ -591,7 +620,11 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
   // 🔹 SEKSI 7: TRIGGER AUTOMATIS SAAT HALAMAN DIBUKA / EXAM ID BERUBAH
   // -------------------------------------------------------------------------
   useEffect(() => {
-    loadData()
+    loadData().catch((error) => {
+      console.error('[Hasil Ujian] Gagal memuat data:', error)
+      setLoading(false)
+      window.alert(error instanceof Error ? error.message : 'Gagal memuat data hasil ujian.')
+    })
   }, [examId])
 
   const calculateAutoScore = (
