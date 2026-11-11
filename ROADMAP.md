@@ -424,3 +424,25 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Build log menunjukkan kompilasi berhasil dan `next build` selesai; tidak ada error build.
 - Pemeriksaan HTTP pada `/admin` dan `/admin/exam/a192ca93-7de5-406f-85cd-82e654149c70/results` menghasilkan **200 OK**. Halaman mengembalikan layar pemeriksaan otorisasi karena pemeriksaan HTTP tidak membawa sesi login; ini bukan QA interaksi setelah login.
 - Perlu QA pengguna setelah login untuk memastikan Zeus muncul dengan 2 essay belum dinilai, tombol membuka sesi yang benar, dan sidebar tampil pada semua halaman admin.
+
+
+## Identitas pemain, gelar kehormatan, dan peringkat global/kelas — 11 November 2026
+
+**Implementasi langsung di Main**
+- File aplikasi yang diubah: `app/practice/page.tsx`.
+- Commit: `6b30430fd62704fe7596391aabf50d251f578938` — `feat(practice): add player identity and dual rankings`.
+- Identitas pemain menampilkan sapaan motivasi, nama, kelas, gelar kehormatan, XP, level, progres XP, peringkat global, dan peringkat kelas.
+- Gelar utama mengikuti peringkat global: peringkat 1–5 memiliki gelar unik; rentang 6–8, 9–15, 16–24, 25–40, 41–60, dan 61+ memakai gelar bertingkat yang positif.
+- Peringkat global dan kelas dihitung untuk seluruh populasi yang dapat dibaca oleh kebijakan akses Supabase, bukan hanya dari 15 nama yang ditampilkan. Pengurutan seri dibuat konsisten dengan XP menurun lalu ID menaik.
+- Panel Papan Juara tetap memiliki filter Global/Kelas dan sekarang menjelaskan lingkup daftar yang sedang ditampilkan, sambil tetap memperlihatkan posisi global dan kelas pemain.
+- Koleksi badge ditampilkan dari nilai `profiles.badges` yang sudah ada apabila berbentuk array string atau array objek. Tidak ada badge baru yang dikarang, tidak ada aturan pemberian badge yang diubah, dan tidak ada perubahan database.
+- Variasi warna kartu aktivitas yang telah ada dipertahankan; mesin permainan, filter, pengurutan, XP/level, penilaian, dan halaman lain tidak diubah.
+- Batas verifikasi badge: format JSONB dan mekanisme pemberian badge belum terkonfirmasi di kode yang dapat ditemukan. Jika bentuk data aktual bukan array string/objek, tampilan koleksi mungkin belum menampilkan isinya; pemeriksaan format dan penyempurnaan lanjutan harus dilakukan tanpa mengubah aturan perolehan badge kecuali disetujui.
+- Tidak ada SQL, migration, perubahan schema/RLS, atau perubahan data Supabase.
+
+**Deployment**
+- Vercel Production deployment: `dpl_Hi9RaCqb7f1XDHDgprTWntEmAFdD`.
+- Commit: `6b30430fd62704fe7596391aabf50d251f578938`.
+- Status saat diperiksa: **READY**.
+- Deployment URL: `https://grisan-d00453ukt-heins14.vercel.app`; alias Production yang diharapkan tetap `https://grisan.vercel.app`.
+- Build/deployment READY memastikan build berhasil, tetapi bukan bukti QA data/ranking setelah login. Smoke test visual setelah login masih perlu dilakukan untuk memeriksa peringkat diri, filter Global/Kelas, seri XP, badge, dan tampilan mobile/desktop.
