@@ -110,6 +110,9 @@ export default function PracticeHubPage() {
   const [userProfile, setUserProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
+  const [missionSearch, setMissionSearch] = useState('')
+  const [missionType, setMissionType] = useState('ALL')
+  const [missionSort, setMissionSort] = useState('NEWEST')
 
   const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
     const supabase = createClient()
@@ -222,29 +225,33 @@ export default function PracticeHubPage() {
   const xp = userProfile?.xp || 0
   const xpProgress = Math.min(100, Math.max(8, (xp % 200) / 2))
 
-  const missionStyles = [
-    {
-      card: 'from-sky-500 via-blue-600 to-indigo-700',
-      pill: 'border-cyan-200/60 bg-cyan-100/20 text-white',
-      icon: '🧮',
-      art: '✨',
-      button: 'from-lime-300 to-emerald-400 text-emerald-950 hover:from-lime-200 hover:to-emerald-300',
-    },
-    {
-      card: 'from-emerald-500 via-green-600 to-teal-700',
-      pill: 'border-lime-200/60 bg-lime-100/20 text-white',
-      icon: '🗺️',
-      art: '🌿',
-      button: 'from-violet-500 to-indigo-500 text-white hover:from-violet-400 hover:to-indigo-400',
-    },
-    {
-      card: 'from-rose-500 via-pink-600 to-fuchsia-700',
-      pill: 'border-pink-200/60 bg-white/20 text-white',
-      icon: '⚡',
-      art: '🌟',
-      button: 'from-amber-300 to-yellow-400 text-amber-950 hover:from-amber-200 hover:to-yellow-300',
-    },
-  ]
+  const normalizedActivityType = (value: unknown) => {
+    const type = String(value || 'QUIZ').trim().toUpperCase()
+    if (type === 'MAZE_GAME' || type === 'MAZE') return 'MAZE_GAME'
+    if (type === 'FLASHCARD' || type === 'FLASH_CARDS') return 'FLASHCARD'
+    if (type === 'QUIZ' || type === 'CBT' || type === 'EXAM') return 'QUIZ'
+    return 'OTHER'
+  }
+  const activityMeta: Record<string, { label: string; icon: string; card: string; pill: string; button: string }> = {
+    QUIZ: { label: 'Kuis & Latihan', icon: '🧠', card: 'from-sky-500 via-blue-600 to-indigo-700', pill: 'border-cyan-100/60 bg-cyan-100/20 text-white', button: 'from-lime-300 to-emerald-400 text-emerald-950 hover:from-lime-200 hover:to-emerald-300' },
+    MAZE_GAME: { label: 'Petualangan Maze', icon: '🗺️', card: 'from-emerald-500 via-green-600 to-teal-800', pill: 'border-lime-100/60 bg-lime-100/20 text-white', button: 'from-violet-500 to-indigo-500 text-white hover:from-violet-400 hover:to-indigo-400' },
+    FLASHCARD: { label: 'Kartu Kilat', icon: '⚡', card: 'from-rose-500 via-pink-600 to-fuchsia-800', pill: 'border-pink-100/60 bg-white/20 text-white', button: 'from-amber-300 to-yellow-400 text-amber-950 hover:from-amber-200 hover:to-yellow-300' },
+    OTHER: { label: 'Aktivitas', icon: '✨', card: 'from-violet-500 via-purple-600 to-indigo-800', pill: 'border-violet-100/60 bg-white/20 text-white', button: 'from-cyan-300 to-sky-400 text-sky-950 hover:from-cyan-200 hover:to-sky-300' },
+  }
+  // Variasi dekorasi berdasarkan ID agar stabil saat pencarian, filter, dan pengurutan.
+  const getMissionVariant = (id: string) => Array.from(String(id)).reduce((total, char) => total + char.charCodeAt(0), 0) % 4
+  const filteredExams = exams
+    .filter((exam) => {
+      const type = normalizedActivityType(exam.activity_type)
+      const query = missionSearch.trim().toLowerCase()
+      const searchable = [exam.title, exam.description, exam.subtest, type].join(' ').toLowerCase()
+      return (!query || searchable.includes(query)) && (missionType === 'ALL' || type === missionType)
+    })
+    .sort((a, b) => {
+      if (missionSort === 'TITLE') return String(a.title || '').localeCompare(String(b.title || ''), 'id')
+      if (missionSort === 'OLDEST') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    })
 
   return (
     <div className={`min-h-screen overflow-hidden bg-transparent font-sans ${visual.page}`}>
@@ -323,28 +330,51 @@ export default function PracticeHubPage() {
                 </h2>
               </div>
               <span className={`rounded-full border px-3 py-1.5 text-xs font-extrabold shadow-sm ${visual.badge}`}>
-                {exams.length} MISI TERSEDIA
+                {filteredExams.length} / {exams.length} MISI
               </span>
             </div>
 
-            {exams.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
-                {exams.map((exam, index) => {
-                  const style = missionStyles[index % missionStyles.length]
+            <div className={`grid grid-cols-1 gap-2 rounded-2xl border p-3 sm:grid-cols-[minmax(0,1fr)_180px_160px] ${visual.surfaceBorder} ${visual.surface}`}>
+              <label className="relative block">
+                <span className="sr-only">Cari aktivitas</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base">🔎</span>
+                <input type="search" value={missionSearch} onChange={(event) => setMissionSearch(event.target.value)} placeholder="Cari misi atau mata pelajaran..." className={`w-full rounded-xl border px-3 py-3 pl-10 text-sm font-semibold outline-none transition focus:ring-4 ${visual.filter}`} />
+              </label>
+              <label>
+                <span className="sr-only">Filter jenis aktivitas</span>
+                <select value={missionType} onChange={(event) => setMissionType(event.target.value)} className={`w-full rounded-xl border px-3 py-3 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
+                  <option value="ALL">🎮 Semua Aktivitas</option><option value="QUIZ">🧠 Kuis & Latihan</option><option value="MAZE_GAME">🗺️ Maze</option><option value="FLASHCARD">⚡ Flashcard</option><option value="OTHER">✨ Aktivitas Lain</option>
+                </select>
+              </label>
+              <label>
+                <span className="sr-only">Urutkan aktivitas</span>
+                <select value={missionSort} onChange={(event) => setMissionSort(event.target.value)} className={`w-full rounded-xl border px-3 py-3 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
+                  <option value="NEWEST">🕒 Terbaru</option><option value="OLDEST">📅 Terlama</option><option value="TITLE">🔤 Nama A–Z</option>
+                </select>
+              </label>
+            </div>
+
+            {filteredExams.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                {filteredExams.map((exam) => {
+                  const type = normalizedActivityType(exam.activity_type)
+                  const style = activityMeta[type]
+                  const variant = getMissionVariant(exam.id)
+                  const variantDecorations = ['border-t-4 border-t-white/70 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]', 'border-l-4 border-l-amber-300 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]', 'border-b-4 border-b-cyan-200 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]', 'border-r-4 border-r-fuchsia-200 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12)]']
+                  const variantArt = ['✦', '✧', '✺', '✹'][variant]
                   return (
                     <article
                       key={exam.id}
-                      className={`group relative flex min-h-[280px] flex-col justify-between overflow-hidden rounded-[1.7rem] bg-gradient-to-br ${style.card} p-5 text-white shadow-lg shadow-indigo-950/10 transition duration-300 hover:-translate-y-1 hover:shadow-xl`}
+                      className={`group relative flex min-h-[230px] flex-col justify-between overflow-hidden rounded-[1.45rem] border border-white/20 bg-gradient-to-br ${style.card} p-4 text-white shadow-lg shadow-indigo-950/15 transition duration-300 hover:-translate-y-1 hover:shadow-xl ${variantDecorations[variant]}`}
                     >
-                      <div className="absolute -right-5 -top-7 text-8xl opacity-15 transition duration-300 group-hover:rotate-12 group-hover:scale-110">
-                        {style.art}
-                      </div>
-                      <div className="absolute -bottom-10 -right-4 text-8xl opacity-15">{style.icon}</div>
+                      <div className="absolute -right-4 -top-8 text-8xl opacity-15 transition duration-300 group-hover:rotate-12 group-hover:scale-110">{variantArt}</div>
+                      <div className="absolute -bottom-9 -right-3 text-7xl opacity-15">{style.icon}</div>
                       <div className="relative">
-                        <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wider backdrop-blur ${style.pill}`}>
-                          {exam.subtest || 'MISI UMUM'}
-                        </span>
-                        <h3 className="mt-4 text-xl font-black leading-snug">{exam.title}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[10px] font-black tracking-wide backdrop-blur ${style.pill}`}>{style.icon} {style.label}</span>
+                          <span className="inline-flex rounded-full border border-white/25 bg-slate-950/15 px-2.5 py-1 text-[10px] font-bold text-white/95">{exam.subtest || 'MISI UMUM'}</span>
+                        </div>
+                        <h3 className="mt-3 text-lg font-black leading-snug sm:text-xl">{exam.title}</h3>
                         <p className="mt-2 line-clamp-3 text-sm leading-5 text-white/90">
                           {exam.description || 'Latihan interaktif dengan jawaban dan pembahasan instan.'}
                         </p>
@@ -357,7 +387,7 @@ export default function PracticeHubPage() {
                         </div>
                         <Link
                           href={`/practice/${exam.id}`}
-                          className={`flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r px-4 py-3 text-center text-xs font-black shadow-lg transition hover:scale-[1.02] active:scale-[0.98] ${style.button}`}
+                          className={`flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r px-4 py-2.5 text-center text-xs font-black shadow-lg transition hover:scale-[1.02] active:scale-[0.98] ${style.button}`}
                         >
                           🚀 MULAI MISI <span aria-hidden="true">→</span>
                         </Link>
@@ -368,6 +398,7 @@ export default function PracticeHubPage() {
               </div>
             ) : (
               <div className={`rounded-3xl border-2 border-dashed ${visual.surfaceBorder} ${visual.surface} px-6 py-12 text-center shadow-xl`}>
+                {exams.length > 0 && <div className="mb-4"><span className="text-3xl">🔍</span><p className={`mt-2 text-sm font-bold ${visual.heading}`}>Misi tidak ditemukan</p><p className={`mt-1 text-xs ${visual.muted}`}>Coba ubah kata kunci atau filter aktivitas.</p><button type="button" onClick={() => { setMissionSearch(''); setMissionType('ALL') }} className={`mt-3 rounded-xl px-4 py-2 text-xs font-black ${visual.badge}`}>Reset pencarian</button></div>}
                 <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${visual.badge} text-3xl`}>🗺️</div>
                 <h3 className={`mt-4 text-lg font-black ${visual.heading}`}>Misi sedang disiapkan!</h3>
                 <p className={`mx-auto mt-2 max-w-sm text-sm leading-6 ${visual.muted}`}>
