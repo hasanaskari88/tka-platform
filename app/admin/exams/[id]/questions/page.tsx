@@ -33,7 +33,7 @@ async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuest
   const inline=async(node:Node):Promise<string>=>{
    if(node.nodeType===Node.TEXT_NODE){const text=docxMath(node.textContent||'');if(!text)return '';const rtl=/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/.test(text);return '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'+(rtl?'<w:rtl/>':'')+'</w:rPr><w:t xml:space="preserve">'+docxEsc(text)+'</w:t></w:r>'}
    if(!(node instanceof HTMLElement))return '';const tag=node.tagName.toLowerCase();if(tag==='br')return '<w:r><w:br/></w:r>';if(tag==='img')return addImage(node.getAttribute('src')||'',node.getAttribute('alt')||'gambar');if(node.classList.contains('katex-mathml'))return ''
-   const inner=(await Promise.all(Array.from(node.childNodes).map(inline))).join('');if(tag==='strong'||tag==='b')return inner.replace(/<w:r>/g,'<w:r><w:rPr><w:b/></w:rPr>');if(tag==='em'||tag==='i')return inner.replace(/<w:r>/g,'<w:r><w:rPr><w:i/></w:rPr>');if(tag==='u')return inner.replace(/<w:r>/g,'<w:r><w:rPr><w:u w:val="single"/></w:rPr>');return inner
+   const inner=(await Promise.all(Array.from(node.childNodes).map(inline))).join('');if(tag==='strong'||tag==='b')return inner.replace(/<w:rPr>/g,'<w:rPr><w:b/>');if(tag==='em'||tag==='i')return inner.replace(/<w:rPr>/g,'<w:rPr><w:i/>');if(tag==='u')return inner.replace(/<w:rPr>/g,'<w:rPr><w:u w:val="single"/>');return inner
   }
   for(const node of Array.from(root.childNodes)){
    if(node instanceof HTMLElement&&node.tagName.toLowerCase()==='table'){const rows:string[]=[];for(const tr of Array.from(node.querySelectorAll('tr'))){const cells:string[]=[];for(const cell of Array.from(tr.children)){const runs=(await Promise.all(Array.from(cell.childNodes).map(inline))).join('');cells.push('<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/></w:tcPr><w:p>'+runs+'</w:p></w:tc>')}rows.push('<w:tr>'+cells.join('')+'</w:tr>')}out.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')}
@@ -55,7 +55,7 @@ async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuest
  const dr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+rels.join('')+'</Relationships>'
  const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>'
  const entries=[{name:'[Content_Types].xml',data:docxEncoder.encode(ct)},{name:'_rels/.rels',data:docxEncoder.encode(root)},{name:'word/document.xml',data:docxEncoder.encode(doc)},{name:'word/styles.xml',data:docxEncoder.encode(styles)},{name:'word/_rels/document.xml.rels',data:docxEncoder.encode(dr)},...media]
- const blob=new Blob([docxZip(entries).buffer as ArrayBuffer],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),base=(settings.title||examTitle||'Naskah-Soal').replace(/[\\/:*?"<>|]+/g,'-').trim()||'Naskah-Soal',url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=base+'.docx';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
+ const blob=new Blob([docxZip(entries).buffer as ArrayBuffer],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),base=(settings.title||examTitle||'Naskah-Soal').replace(/[\\/:*?"<>|]+/g,'-').trim()||'Naskah-Soal',url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=base+'.docx';document.body.appendChild(a);a.click();a.remove();window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 
@@ -1232,6 +1232,7 @@ function BankSoalContent() {
                 <button type="button" disabled={isDocxExporting} onClick={handleExportDocx} className="col-span-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold">{isDocxExporting ? 'Membuat Word…' : '⬇ Unduh DOCX (Word)'}</button>
               </div>
               <p className="text-[10px] text-slate-500">Pada dialog cetak perangkat, pilih “Simpan sebagai PDF” untuk menyimpan berkas PDF.</p>
+              <p className="text-[10px] text-slate-500">DOCX dapat diedit di Word. Rumus ditulis sebagai teks matematika linear; gambar disematkan jika sumber gambar mengizinkan akses. Tabel dan teks Arab tetap disertakan.</p>
             </div>
 
             <div className="flex-1 overflow-y-auto bg-slate-700 p-3 sm:p-5">
