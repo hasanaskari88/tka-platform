@@ -556,3 +556,15 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Deployment Production: `dpl_2tg89TaMDUXs4R6TaY9HJ6sPFAKF`, status **READY**, alias terverifikasi `https://grisan.vercel.app/`, branch `main`.
 - Build Next.js dan TypeScript berhasil. Pengujian aksi duplikasi langsung setelah login belum dilakukan; khususnya perlu uji paket dengan 0 soal, paket dengan banyak soal, serta verifikasi bahwa histori sumber tidak berubah.
 - Tindak lanjut: ganti Auto Import PG acak pada pengelola soal dengan pemilih paket sumber, pratinjau soal, seleksi manual, dan deteksi duplikasi berdasarkan isi pertanyaan.
+
+
+### Duplikasi paket dan impor soal terpilih — 13 November 2026
+
+- Duplikasi paket: commit `5a56c15fe78242a5a5da2df657211ae111c35945`; deployment Production `dpl_2tg89TaMDUXs4R6TaY9HJ6sPFAKF` berstatus **READY** dengan alias `https://grisan.vercel.app/`.
+- Impor soal terpilih: commit `e104fdcc26a230deea694716ac72c779ca110d1c`; mengganti pemilihan acak lima soal dengan pemilihan paket sumber, pratinjau isi soal, pencarian, centang soal, dan deteksi teks pertanyaan yang sudah ada pada paket tujuan.
+- Impor mempertahankan semua kolom soal yang tersedia pada schema: teks, gambar, opsi, kunci tunggal/ganda, pembahasan, tingkat kesulitan, tipe, skor maksimum, indikator, level kognitif, serta konfigurasi maze/flashcard. ID soal baru dibuat otomatis.
+- Pemilihan paket sumber dibatasi ke paket Quiz dan mode yang sama (ujian dengan ujian; latihan dengan latihan). Pengelola latihan/games lainnya tidak diubah.
+- Perbaikan normalisasi spasi untuk deteksi duplikasi: commit `4135ee4ef97ecda916ef3f26389a9c3311df629d`.
+- Deployment Production untuk source terbaru: `dpl_69CydgJLknJzwPyu4nJhQXhWaX8F`, sedang dibangun ketika catatan ini ditulis. Status READY dan alias harus diperiksa sebelum menyatakan rilis selesai.
+- Tidak ada perubahan schema, migration, RLS, policy, grant, function, trigger, atau data lama. Impor hanya menambahkan record soal baru dan tidak menghapus soal lama.
+- QA runtime setelah login belum dilakukan. Uji paket sumber kosong, pilihan satu/banyak soal, soal dengan gambar/rumus/opsi, deteksi duplikat, dan pemisahan mode ujian/latihan.
