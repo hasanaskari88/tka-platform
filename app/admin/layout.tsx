@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 
@@ -11,45 +11,74 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const router = useRouter()
+  const pathname = usePathname()
   const [authorized, setAuthorized] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function checkAdminAccess() {
-      const supabase = createClient()
-      
-      // 1. Cek Sesi Login User
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      setLoading(true)
+      setAuthorized(false)
 
-      if (!user) {
-        // Jika belum login, lempar ke halaman login
-        router.replace('/login')
-        return
-      }
+      try {
+        const supabase = createClient()
 
-      // 2. Ambil Data Profil User dari Supabase
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-      // 3. Cek apakah role user adalah 'admin'
-      if (profile && profile.role === 'admin') {
-        setAuthorized(true)
-      } else {
-        alert('Akses Ditolak: Halaman ini khusus untuk Admin / Guru!')
+        if (!user) {
+          router.replace('/login')
+          return
+        }
+
+        // Guru kelas aktif boleh membuka halaman Rekap Nilai saja.
+        // Endpoint server memeriksa penugasan teacher_signatories.user_id.
+        const isRekapNilaiPath =
+          pathname === '/admin/rekap-nilai' ||
+          pathname.startsWith('/admin/rekap-nilai/')
+
+        if (isRekapNilaiPath) {
+          const response = await fetch('/api/admin/rekap-nilai/access', {
+            method: 'GET',
+            cache: 'no-store',
+          })
+
+          if (response.ok) {
+            setAuthorized(true)
+          } else {
+            const payload = await response.json().catch(() => null)
+            alert(payload?.error || 'Akses Rekap Nilai hanya untuk admin atau guru kelas yang memiliki penugasan aktif.')
+            router.replace('/')
+          }
+          return
+        }
+
+        // Halaman admin lainnya tetap menggunakan pemeriksaan role yang lama.
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        if (profile && profile.role === 'admin') {
+          setAuthorized(true)
+        } else {
+          alert('Akses Ditolak: Halaman ini khusus untuk Admin / Guru!')
+          router.replace('/')
+        }
+      } catch (error) {
+        console.error('Pemeriksaan akses admin gagal:', error)
+        alert('Hak akses gagal diperiksa. Silakan muat ulang halaman.')
         router.replace('/')
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
-    checkAdminAccess()
-  }, [router])
+    void checkAdminAccess()
+  }, [router, pathname])
 
-  // Tampilan Loading saat pemeriksaan hak akses berlangsung
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans">
@@ -61,7 +90,6 @@ export default function AdminLayout({
     )
   }
 
-  // Jika tidak berhak, jangan tampilkan isi halaman
   if (!authorized) {
     return null
   }
