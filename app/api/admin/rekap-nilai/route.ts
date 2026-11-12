@@ -35,32 +35,24 @@ async function getAccess(): Promise<Access | NextResponse> {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // Admin utama harus masuk allowlist server. Guru dikenali melalui penugasan
-  // wali kelas aktif yang dikelola dari halaman Pengaturan Dokumen.
+  // Penugasan kelas hanya dipakai untuk menentukan filter awal di halaman.
+  // Semua akun admin/guru tetap dapat melihat seluruh kelas dan mengganti filter.
   const trustedIds = (process.env.ADMIN_USER_IDS || '').split(',').map(x => x.trim()).filter(Boolean)
   const isGlobalAdmin = trustedIds.includes(user.id)
-  let assignedClassCodes: string[] = []
+  const { data: assignments, error: assignmentError } = await adminClient
+    .from('teacher_signatories')
+    .select('class_code')
+    .eq('user_id', user.id)
+    .eq('position', 'class_teacher')
+    .eq('is_active', true)
 
-  if (!isGlobalAdmin) {
-    const { data: assignments, error: assignmentError } = await adminClient
-      .from('teacher_signatories')
-      .select('class_code')
-      .eq('user_id', user.id)
-      .eq('position', 'class_teacher')
-      .eq('is_active', true)
-
-    if (assignmentError) {
-      return NextResponse.json({ error: 'Penugasan kelas tidak dapat diverifikasi.' }, { status: 500 })
-    }
-
-    assignedClassCodes = [...new Set((assignments || [])
-      .map((row: any) => String(row.class_code || '').trim())
-      .filter(Boolean))]
-
-    if (assignedClassCodes.length === 0) {
-      return NextResponse.json({ error: 'Akun ini belum memiliki penugasan wali kelas aktif.' }, { status: 403 })
-    }
+  if (assignmentError) {
+    return NextResponse.json({ error: 'Penugasan kelas tidak dapat dibaca untuk pengaturan filter awal.' }, { status: 500 })
   }
+
+  const assignedClassCodes = [...new Set((assignments || [])
+    .map((row: any) => String(row.class_code || '').trim())
+    .filter(Boolean))]
 
   return { adminClient, isGlobalAdmin, assignedClassCodes }
 }
@@ -88,7 +80,6 @@ export async function GET() {
         .select('id,full_name,username,class_code')
         .eq('role', 'student')
         .order('full_name')
-      if (!isGlobalAdmin) query = query.in('class_code', assignedClassCodes)
       return query
     })
 
@@ -132,7 +123,7 @@ export async function DELETE(request: Request) {
   try {
     const access = await getAccess()
     if (access instanceof NextResponse) return access
-    const { adminClient, isGlobalAdmin, assignedClassCodes } = access
+    const { adminClient } = access
     const body = await request.json()
     const items = Array.isArray(body.items) ? body.items : []
 
@@ -157,18 +148,6 @@ export async function DELETE(request: Request) {
     const rows = [...(selectedRows[0].data || []), ...(selectedRows[1].data || [])]
     if (rows.length !== items.length) {
       return NextResponse.json({ error: 'Sebagian riwayat tidak ditemukan. Muat ulang halaman.' }, { status: 409 })
-    }
-
-    if (!isGlobalAdmin) {
-      const userIds = [...new Set(rows.map((row: any) => row.user_id).filter(Boolean))]
-      const { data: profiles, error: profileError } = await adminClient
-        .from('profiles').select('id,class_code').in('id', userIds)
-      if (profileError) throw profileError
-      const allowed = new Set(assignedClassCodes)
-      const unauthorized = (profiles || []).some((profile: any) => !allowed.has(String(profile.class_code || '').trim()))
-      if (unauthorized || (profiles || []).length !== userIds.length) {
-        return NextResponse.json({ error: 'Penghapusan ditolak: ada riwayat di luar kelas ampuan.' }, { status: 403 })
-      }
     }
 
     const [deletedExam, deletedPractice] = await Promise.all([
