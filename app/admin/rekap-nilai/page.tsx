@@ -347,7 +347,7 @@ export default function RekapNilaiPage() {
               </table> : <table className="w-full min-w-[850px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Peserta</th><th className="px-3 py-3">Kelas</th><th className="px-3 py-3 text-center">Jumlah riwayat</th><th className="px-3 py-3 text-right">Nilai terbaik</th><th className="px-3 py-3 text-right">Nilai terbaru</th><th className="px-3 py-3">Aktivitas terakhir</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {subtestRows.map(row => <SubtestTableRows key={row.userId} row={row} expanded={expanded.includes(row.userId)} onToggle={() => toggleExpanded(row.userId)} selected={selected} onSelect={toggleSelected} kkm={kkm} />)}
+                  {subtestRows.map(row => <SubtestTableRows key={row.userId} row={row} expanded={expanded.includes(row.userId)} onToggle={() => toggleExpanded(row.userId)} selected={selected} onSelect={toggleSelected} kkm={kkm} sortBy={sortBy} />)}
                   {subtestRows.length === 0 && <tr><td colSpan={7} className="px-3 py-12 text-center text-slate-400">Belum ada riwayat pada subtes ini.</td></tr>}
                 </tbody>
               </table>}
