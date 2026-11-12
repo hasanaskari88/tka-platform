@@ -498,3 +498,5 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - File berubah: lib/supabase/rekap-nilai-access.ts, app/api/admin/rekap-nilai/route.ts, app/api/admin/rekap-nilai/access/route.ts, app/admin/layout.tsx.
 - Commit berurutan: 4457c440ebada6adf056812cec8855623061ef02, 6895ddbf5792cb1c688b96f8d41b5b869eefd9a5, c25bf0fb767539f6683563a2bc7e56270f80b864, d664f847dab31a2784026fd688af555337795f40.
 - Belum menjalankan build atau QA browser. Akses guru bergantung pada teacher_signatories.user_id yang benar-benar terhubung ke akun login dan penugasan masih aktif. Akses admin bergantung pada ID akun tercantum di ADMIN_USER_IDS.
+
+- Koreksi build-safety: pemeriksaan pathname pada layout admin dibungkus Suspense, agar penggunaan usePathname tidak memicu kegagalan prerender pada build Next.js. Commit: 14a17b1fd38939d90a3914a9bce7105f5b4fff07.
