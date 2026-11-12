@@ -1759,6 +1759,7 @@ function QuestionManagerContent() {
                         </div>
                       </div>
                     ) : (
+                      <>
                     <div className="text-slate-800 text-sm font-medium">
                       <MathRenderer content={q.question_text} />
                     </div>
@@ -1844,6 +1845,8 @@ function QuestionManagerContent() {
                         <p>{q.explanation || 'Tidak ada pedoman penskoran khusus.'}</p>
                       </div>
                     )}
+                    )}
+                      </>
                     )}
                   </div>
                 )
