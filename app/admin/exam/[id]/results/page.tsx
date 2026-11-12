@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
 import MathRenderer from '@/components/MathRenderer'
+import RichTextEditor from '@/components/editor/RichTextEditor'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 
@@ -48,6 +49,26 @@ function SmartLogo({
 }
 
 // 🟢 HELPER EVALUASI MULTI-TIPE SOAL
+function normalizeGradingAnswerContent(value: any): string {
+  const raw = Array.isArray(value) ? value.join(', ') : String(value ?? '')
+  if (!raw.trim()) return ''
+
+  // Konten HTML dari editor siswa dipertahankan agar formatnya dapat dibaca Tiptap.
+  // Jawaban teks lama dibungkus sebagai paragraf dan di-escape agar tidak dianggap markup.
+  if (/<[a-z][^>]*>/i.test(raw)) return raw
+
+  const escaped = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n/g, '<br>')
+
+  return '<p>' + escaped + '</p>'
+}
+
 function evaluateAnswer(q: any, rawAns: any) {
   if (rawAns === null || rawAns === undefined || rawAns === '') {
     return { isCorrect: false, isUnanswered: true, isEssay: q.question_type === 'essay' || q.question_type === 'uraian', ratio: 0, userChoices: [], displayVal: 'Kosong' }
@@ -206,6 +227,8 @@ function ExamResultsContent() {
 
   // Filter Kelas & Bulk Modal
   const [filterClass, setFilterClass] = useState('ALL')
+  const [assignedClassCodes, setAssignedClassCodes] = useState<string[]>([])
+  const classFilterInitializedRef = useRef(false)
   const [showBulkRaporModal, setShowBulkRaporModal] = useState<boolean>(false)
   const [showBulkCertModal, setShowBulkCertModal] = useState<boolean>(false) // 👈 TAMBAHKAN BARIS INI
 
@@ -293,6 +316,42 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
     // -----------------------------------------------------------------------
     if (!examId) return // Pembatalan jika ID Ujian tidak ditemukan di URL
     const supabase = createClient() // Inisialisasi client Supabase
+
+    // Tentukan kelas default dari penugasan wali kelas yang terhubung ke akun login.
+    const { data: authData } = await supabase.auth.getUser()
+    let currentTeacherClasses: string[] = []
+
+    if (authData.user) {
+      const { data: assignmentRows, error: assignmentError } = await supabase
+        .from('teacher_signatories')
+        .select('class_code')
+        .eq('user_id', authData.user.id)
+        .eq('position', 'class_teacher')
+        .eq('is_active', true)
+
+      if (!assignmentError) {
+        currentTeacherClasses = Array.from(
+          new Set(
+            (assignmentRows || [])
+              .map((row: any) => String(row.class_code || '').trim())
+              .filter(Boolean)
+          )
+        )
+      }
+    }
+
+    setAssignedClassCodes(currentTeacherClasses)
+
+    // Satu kelas: langsung pilih kelas tersebut. Beberapa kelas: tampilkan gabungannya.
+    // Admin tanpa penugasan wali kelas tetap melihat semua kelas.
+    if (!classFilterInitializedRef.current) {
+      if (currentTeacherClasses.length === 1) {
+        setFilterClass(currentTeacherClasses[0])
+      } else if (currentTeacherClasses.length > 1) {
+        setFilterClass('ASSIGNED')
+      }
+      classFilterInitializedRef.current = true
+    }
 
     // -----------------------------------------------------------------------
     // 🔹 SEKSI 2: QUERY DATA UTAMA DARI DATABASE (PARALEL/BERURUTAN)
@@ -995,8 +1054,15 @@ const handleSaveAllQuestionScores = async () => {
     return
   }
 
+  const gradingScopeLabel =
+    filterClass === 'ALL'
+      ? 'semua kelas'
+      : filterClass === 'ASSIGNED'
+        ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})`
+        : `kelas ${filterClass}`
+
   const confirmSave = window.confirm(
-    'Apakah Anda yakin ingin menyimpan seluruh nilai peserta untuk soal ini?'
+    `Simpan nilai soal ini untuk ${sortedSessions.length} peserta pada ${gradingScopeLabel}?`
   )
 
   if (!confirmSave) return
@@ -1196,7 +1262,11 @@ const handleSaveAllQuestionScores = async () => {
       s.full_name.toLowerCase().includes(term) ||
       s.username.toLowerCase().includes(term) ||
       s.class_code.toLowerCase().includes(term)
-    const matchClass = filterClass === 'ALL' || s.class_code === filterClass
+    const matchClass =
+      filterClass === 'ALL' ||
+      (filterClass === 'ASSIGNED'
+        ? assignedClassCodes.includes(s.class_code)
+        : s.class_code === filterClass)
     return matchSearch && matchClass
   })
 
@@ -1770,7 +1840,72 @@ const handleSaveAllQuestionScores = async () => {
                 </div>
               </div>
             </div>
-           {/* PILIHAN MODE PENILAIAN */}
+
+            {/* FILTER KELAS DAN PENGURUTAN KHUSUS RUANG PENILAIAN */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label className="block">
+                  <span className="block text-xs font-bold text-slate-600 mb-2">
+                    FILTER KELAS
+                  </span>
+                  <select
+                    value={filterClass}
+                    onChange={(e) => setFilterClass(e.target.value)}
+                    className="w-full p-3 border border-slate-300 rounded-xl bg-white text-sm font-semibold"
+                  >
+                    <option value="ALL">Semua Kelas</option>
+                    {assignedClassCodes.length > 1 && (
+                      <option value="ASSIGNED">Semua Kelas yang Saya Ampu</option>
+                    )}
+                    {uniqueClasses
+                      .filter((classCode) => classCode && classCode !== '-')
+                      .sort((a, b) => a.localeCompare(b, 'id'))
+                      .map((classCode) => (
+                        <option key={classCode} value={classCode}>
+                          Kelas {classCode}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="block text-xs font-bold text-slate-600 mb-2">
+                    URUTKAN PESERTA
+                  </span>
+                  <select
+                    value={sortByStudent}
+                    onChange={(e) => setSortByStudent(e.target.value as typeof sortByStudent)}
+                    className="w-full p-3 border border-slate-300 rounded-xl bg-white text-sm font-semibold"
+                  >
+                    <option value="name">Nama A–Z / Z–A</option>
+                    <option value="class">Kelas</option>
+                    <option value="score">Nilai</option>
+                    <option value="date">Waktu pengerjaan</option>
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="block text-xs font-bold text-slate-600 mb-2">
+                    ARAH PENGURUTAN
+                  </span>
+                  <select
+                    value={sortOrderStudent}
+                    onChange={(e) => setSortOrderStudent(e.target.value as 'asc' | 'desc')}
+                    className="w-full p-3 border border-slate-300 rounded-xl bg-white text-sm font-semibold"
+                  >
+                    <option value="asc">Menaik (A–Z / kecil–besar)</option>
+                    <option value="desc">Menurun (Z–A / besar–kecil)</option>
+                  </select>
+                </label>
+              </div>
+              <p className="text-xs text-slate-500 mt-3">
+                {assignedClassCodes.length > 0
+                  ? `Penugasan akun ini: ${assignedClassCodes.join(', ')}. Filter awal mengikuti kelas yang diampu.`
+                  : 'Akun admin tanpa penugasan wali kelas menampilkan semua kelas secara default.'}
+              </p>
+            </div>
+
+            {/* PILIHAN MODE PENILAIAN */}
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
               <h3 className="font-bold text-slate-800 mb-3">
                 Pilih Cara Penilaian
@@ -2105,9 +2240,12 @@ const handleSaveAllQuestionScores = async () => {
                                       JAWABAN PESERTA
                                     </p>
 
-                                    <p className="text-sm text-slate-700 whitespace-pre-wrap break-words">
-                                      {item.answerText}
-                                    </p>
+                                    <RichTextEditor
+                                      content={normalizeGradingAnswerContent(item.answerText)}
+                                      editable={false}
+                                      minHeight={72}
+                                      className="border-slate-200 shadow-none"
+                                    />
                                   </div>
                                 ) : (
                                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
