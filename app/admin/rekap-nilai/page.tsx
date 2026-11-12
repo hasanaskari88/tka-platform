@@ -35,7 +35,8 @@ export default function RekapNilaiPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
-  const [mode, setMode] = useState<'student' | 'subtest'>('student')
+  const [mode, setMode] = useState<'student' | 'subtest' | 'package'>('student')
+  const [packageFilter, setPackageFilter] = useState('ALL')
   const [classFilter, setClassFilter] = useState('ALL')
   const classFilterInitializedRef = useRef(false)
   const [subtestFilter, setSubtestFilter] = useState('ALL')
@@ -121,6 +122,7 @@ export default function RekapNilaiPage() {
     const classOk = classFilter === 'ALL' || (classFilter === 'ASSIGNED' ? assignedClasses.includes(attempt.classCode) : attempt.classCode === classFilter)
     const subtestOk = subtestFilter === 'ALL' || attempt.subtest === subtestFilter
     const activityOk = activityFilter === 'ALL' || attempt.kind === activityFilter
+    const packageOk = packageFilter === 'ALL' || attempt.examId === packageFilter
     const scoreOk = scoreFilter === 'ALL' ||
       (scoreFilter === 'UNSCORED' ? attempt.score === null :
         attempt.score !== null && (scoreFilter === 'BELOW' ? attempt.score < kkm :
@@ -130,8 +132,30 @@ export default function RekapNilaiPage() {
     const term = search.trim().toLocaleLowerCase('id')
     const searchOk = !term || attempt.studentName.toLocaleLowerCase('id').includes(term) ||
       attempt.username.toLocaleLowerCase('id').includes(term) || attempt.title.toLocaleLowerCase('id').includes(term)
-    return classOk && subtestOk && activityOk && scoreOk && searchOk
-  }), [attempts, classFilter, assignedClasses, subtestFilter, activityFilter, scoreFilter, kkm, search])
+    return classOk && subtestOk && activityOk && packageOk && scoreOk && searchOk
+  }), [attempts, classFilter, assignedClasses, subtestFilter, activityFilter, packageFilter, scoreFilter, kkm, search])
+
+  const packageRows = useMemo(() => {
+    const grouped = new Map<string, Attempt[]>()
+    visibleAttempts.forEach(attempt => {
+      const key = attempt.kind + ':' + attempt.examId
+      grouped.set(key, [...(grouped.get(key) || []), attempt])
+    })
+    return [...grouped.entries()].map(([key, history]) => {
+      const scored = history.filter(item => item.score !== null)
+      const scores = scored.map(item => Number(item.score))
+      const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null
+      return {
+        key, title: history[0].title, subtest: history[0].subtest, kind: history[0].kind,
+        attempts: history.length, participants: new Set(history.map(item => item.userId)).size,
+        completed: scored.length, average,
+        highest: scores.length ? Math.max(...scores) : null,
+        lowest: scores.length ? Math.min(...scores) : null,
+        passed: scores.filter(score => score >= kkm).length,
+        history: [...history].sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()),
+      }
+    }).sort((a,b) => a.title.localeCompare(b.title, 'id') || a.kind.localeCompare(b.kind))
+  }, [visibleAttempts, kkm])
 
   const studentsInScope = useMemo(() => students.filter(student => {
     const cls = String(student.class_code || '').trim()
@@ -215,17 +239,17 @@ export default function RekapNilaiPage() {
 
   const exportExcel = () => {
     const workbook = XLSX.utils.book_new()
-    const summary = (mode === 'student' ? participantRows : subtestRows).map((row: any, index: number) => ({
+    const summary = (mode === 'student' ? participantRows : mode === 'package' ? packageRows : subtestRows).map((row: any, index: number) => ({
       No: index + 1,
-      Nama: mode === 'student' ? row.student.full_name : row.studentName,
-      Username: mode === 'student' ? row.student.username : row.username,
-      Kelas: mode === 'student' ? row.student.class_code : row.classCode,
-      'Jumlah Riwayat': mode === 'student' ? row.attempts.length : row.history.length,
-      'Paket/Subtes Selesai': mode === 'student' ? row.completedPackages : row.history.filter((a: Attempt) => a.score !== null).length,
-      'Rata-rata Nilai Terbaik': mode === 'student' ? (row.average === null ? '' : Number(row.average.toFixed(1))) : (row.best ?? ''),
-      'Waktu Terakhir': dateLabel(mode === 'student' ? row.latestDate : row.latest?.date || null),
+      Nama: mode === 'student' ? row.student.full_name : mode === 'package' ? row.title : row.studentName,
+      Username: mode === 'student' ? row.student.username : mode === 'package' ? '' : row.username,
+      Kelas: mode === 'student' ? row.student.class_code : mode === 'package' ? '' : row.classCode,
+      'Jumlah Riwayat': mode === 'student' ? row.attempts.length : mode === 'package' ? row.attempts : row.history.length,
+      'Paket/Subtes Selesai': mode === 'student' ? row.completedPackages : mode === 'package' ? row.completed : row.history.filter((a: Attempt) => a.score !== null).length,
+      'Rata-rata Nilai Terbaik': mode === 'student' ? (row.average === null ? '' : Number(row.average.toFixed(1))) : mode === 'package' ? (row.average === null ? '' : Number(row.average.toFixed(1))) : (row.best ?? ''),
+      'Waktu Terakhir': dateLabel(mode === 'student' ? row.latestDate : mode === 'package' ? row.history[0]?.date || null : row.latest?.date || null),
     }))
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summary), mode === 'student' ? 'Per Peserta' : 'Per Subtes')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(summary), mode === 'student' ? 'Per Peserta' : mode === 'package' ? 'Per Paket' : 'Per Subtes')
     const detail = visibleAttempts.map((a,index) => ({
       No:index+1, Nama:a.studentName, Kelas:a.classCode, Subtes:a.subtest, Kegiatan:a.kind === 'exam' ? 'Ujian' : 'Latihan',
       Paket:a.title, Status:a.status, Nilai:a.score ?? '', Waktu:dateLabel(a.date), ID_Riwayat:a.id
@@ -273,7 +297,7 @@ export default function RekapNilaiPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <button onClick={() => void loadData(true)} disabled={refreshing || loading} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''}/> Muat ulang</button>
-            <button onClick={exportExcel} disabled={loading || (mode === 'student' ? participantRows.length === 0 : subtestRows.length === 0)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"><Download size={15}/> Ekspor Excel</button>
+            <button onClick={exportExcel} disabled={loading || (mode === 'student' ? participantRows.length === 0 : mode === 'package' ? packageRows.length === 0 : subtestRows.length === 0)} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"><Download size={15}/> Ekspor Excel</button>
           </div>
         </div>
 
@@ -292,11 +316,12 @@ export default function RekapNilaiPage() {
             <div className="flex rounded-xl bg-slate-100 p-1">
               <button onClick={() => {setMode('student');setSelected([]);setExpanded([])}} className={'rounded-lg px-3 py-2 text-sm font-bold ' + (mode === 'student' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500')}>Per Peserta</button>
               <button onClick={() => {setMode('subtest');setSelected([]);setExpanded([])}} className={'rounded-lg px-3 py-2 text-sm font-bold ' + (mode === 'subtest' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500')}>Per Subtes</button>
+              <button onClick={() => {setMode('package');setSelected([]);setExpanded([])}} className={'rounded-lg px-3 py-2 text-sm font-bold ' + (mode === 'package' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500')}>Per Paket</button>
             </div>
             <div className="text-xs text-slate-500">KKM mengikuti Pengaturan Dokumen sekolah</div>
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-7">
             <label className="text-xs font-semibold text-slate-500">Kelas
               <select value={classFilter} onChange={e => {setClassFilter(e.target.value);setSelected([])}} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
                 <option value="ALL">Semua kelas</option>
@@ -312,6 +337,11 @@ export default function RekapNilaiPage() {
             <label className="text-xs font-semibold text-slate-500">Jenis kegiatan
               <select value={activityFilter} onChange={e => setActivityFilter(e.target.value as any)} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
                 <option value="ALL">Ujian & latihan</option><option value="exam">Ujian</option><option value="practice">Latihan</option>
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-slate-500">Paket soal
+              <select value={packageFilter} onChange={e => {setPackageFilter(e.target.value);setSelected([])}} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
+                <option value="ALL">Semua paket</option>{exams.map(exam => <option key={exam.id} value={exam.id}>{exam.title}</option>)}
               </select>
             </label>
             <label className="text-xs font-semibold text-slate-500">Filter nilai
@@ -349,6 +379,12 @@ export default function RekapNilaiPage() {
                   {participantRows.map(row => <ParticipantTableRows key={row.student.id} row={row} expanded={expanded.includes(row.student.id)} onToggle={() => toggleExpanded(row.student.id)} selected={selected} onSelect={toggleSelected} kkm={kkm} sortBy={sortBy} />)}
                   {participantRows.length === 0 && <tr><td colSpan={7} className="px-3 py-12 text-center text-slate-400">Tidak ada peserta yang sesuai dengan filter.</td></tr>}
                 </tbody>
+              </table> : mode === 'package' ? <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Paket soal</th><th className="px-3 py-3">Jenis</th><th className="px-3 py-3 text-center">Peserta</th><th className="px-3 py-3 text-center">Riwayat</th><th className="px-3 py-3 text-right">Rata-rata</th><th className="px-3 py-3 text-right">Tertinggi</th><th className="px-3 py-3 text-center">Tuntas KKM</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
+                <tbody className="divide-y divide-slate-100">
+                  {packageRows.map(row => <PackageTableRows key={row.key} row={row} expanded={expanded.includes(row.key)} onToggle={() => toggleExpanded(row.key)} selected={selected} onSelect={toggleSelected} kkm={kkm} sortBy={sortBy} />)}
+                  {packageRows.length === 0 && <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-400">Belum ada riwayat untuk paket dan filter yang dipilih.</td></tr>}
+                </tbody>
               </table> : <table className="w-full min-w-[850px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Peserta</th><th className="px-3 py-3">Kelas</th><th className="px-3 py-3 text-center">Jumlah riwayat</th><th className="px-3 py-3 text-right">Nilai terbaik</th><th className="px-3 py-3 text-right">Nilai terbaru</th><th className="px-3 py-3">Aktivitas terakhir</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
@@ -370,6 +406,23 @@ export default function RekapNilaiPage() {
 
 function Stat({ icon, label, value, note }: { icon: React.ReactNode; label: string; value: string | number; note: string }) {
   return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between text-slate-500"><span className="text-xs font-semibold">{label}</span><span className="text-indigo-600">{icon}</span></div><div className="mt-2 text-2xl font-black text-slate-900">{value}</div><div className="mt-1 truncate text-[11px] text-slate-400">{note}</div></div>
+}
+
+function PackageTableRows({ row, expanded, onToggle, selected, onSelect, kkm, sortBy }: any) {
+  const passRate = row.completed ? Math.round(row.passed / row.completed * 100) : 0
+  return <>
+    <tr className="hover:bg-slate-50">
+      <td className="px-3 py-3"><div className="font-bold text-slate-800">{row.title}</div><div className="text-[11px] text-slate-400">{row.subtest}</div></td>
+      <td className="px-3 py-3 text-slate-600">{row.kind === 'exam' ? 'Ujian' : 'Latihan'}</td>
+      <td className="px-3 py-3 text-center text-slate-700">{row.participants}</td>
+      <td className="px-3 py-3 text-center text-slate-700">{row.attempts}</td>
+      <td className="px-3 py-3 text-right font-black text-slate-800">{scoreLabel(row.average)}</td>
+      <td className="px-3 py-3 text-right font-bold text-emerald-700">{scoreLabel(row.highest)}</td>
+      <td className="px-3 py-3 text-center"><span className="font-bold text-emerald-700">{row.passed}/{row.completed}</span><span className="block text-[10px] text-slate-400">{passRate}%</span></td>
+      <td className="px-3 py-3 text-center"><button onClick={onToggle} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{expanded ? <ChevronDown size={14}/> : <ChevronRight size={14}/>} Detail</button></td>
+    </tr>
+    {expanded && <tr><td colSpan={8} className="px-3 pb-3"><HistoryRows history={row.history} selected={selected} onSelect={onSelect} kkm={kkm} sortBy={sortBy}/></td></tr>}
+  </>
 }
 
 function HistoryRows({ history, selected, onSelect, kkm, sortBy }: { history: Attempt[]; selected: string[]; onSelect: (attempt: Attempt) => void; kkm: number; sortBy: string }) {
