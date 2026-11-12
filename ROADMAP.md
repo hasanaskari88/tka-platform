@@ -620,3 +620,13 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Commit aplikasi: `0ffc464f0095e3d9fcb87bf64b6799b687bb1425`; koreksi refresh handler `651cb6ad43dcae97961cf09dfa04965c48d1a803`; koreksi preview ganda `951db9696719fe2cc96c2caebe99362fe3ce6b06`; layout Bank Soal `2644a630e1a323672cb0997facd399376431f244`.
 - Catatan: deployment awal gagal karena blok pratinjau DOCX ganda dengan styled-jsx. Blok duplikat telah dihapus pada commit `951db969`; deployment commit tersebut perlu dipastikan READY sebelum rilis dinyatakan berhasil.
 - Belum dilakukan QA browser setelah login. Perlu menguji Quick Edit, duplikasi, impor paket, pembatasan histori, unduhan DOCX dan pembukaan di Word, serta tampilan Bank Soal desktop/mobile.
+
+
+### Quick Edit inline tanpa toolbar — 13 November 2026
+
+- Quick Edit pada `/admin/exam/[id]` dipindahkan dari dialog mengambang ke area langsung di dalam kartu soal yang dipilih.
+- Editor memakai RichTextEditor/Tiptap yang sama, tetapi toolbar disembunyikan khusus pada mode Quick Edit. Konten rich text yang sudah ada tetap dapat diedit; mode ini tidak menolak soal berisi rumus, tabel, atau gambar.
+- Perubahan pertanyaan, opsi/pernyataan, pembahasan, kunci jawaban, bobot, indikator, dan level kognitif tetap disimpan sebagai satu kesatuan dengan tombol Simpan/Batal.
+- `RichTextEditor` mendapat prop opsional `showToolbar` dengan default `true`, sehingga editor lengkap yang sudah ada tidak berubah.
+- Commit: `56ba5619ac6155cfe7bed739a8e394af8edd7734` dan `2ed11b24e5c0b589c1818a8658c5c9e66899ae25`.
+- Build Vercel dan QA interaksi setelah login masih perlu diverifikasi. Tidak ada perubahan schema/database, histori jawaban, scoring, atau halaman latihan.
