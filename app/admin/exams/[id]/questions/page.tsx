@@ -561,14 +561,36 @@ function BankSoalContent() {
     setQuickEditSaving(true)
     try {
       const supabase = createClient()
-      const { count, error: countError } = await supabase
-        .from('answers')
-        .select('id', { count: 'exact', head: true })
-        .eq('question_id', quickEditQuestion.id)
-      if (countError) throw new Error(`Tidak dapat memeriksa riwayat jawaban: ${countError.message}`)
-      if ((count || 0) > 0) {
+      const targetMode = exam?.target_mode || 'BOTH'
+      let examAnswerCount = 0
+      let practiceAnswerCount = 0
+
+      if (targetMode !== 'PRACTICE_ONLY') {
+        const { count, error } = await supabase
+          .from('answers')
+          .select('id', { count: 'exact', head: true })
+          .eq('question_id', quickEditQuestion.id)
+        if (error) throw new Error(`Tidak dapat memeriksa riwayat ujian: ${error.message}`)
+        examAnswerCount = count || 0
+      }
+
+      if (targetMode !== 'EXAM_ONLY') {
+        const { count, error } = await supabase
+          .from('practice_attempt_answers')
+          .select('id', { count: 'exact', head: true })
+          .eq('question_id', quickEditQuestion.id)
+        if (error) throw new Error(`Tidak dapat memeriksa riwayat latihan: ${error.message}`)
+        practiceAnswerCount = count || 0
+      }
+
+      const totalHistoricalAnswers = examAnswerCount + practiceAnswerCount
+      if (totalHistoricalAnswers > 0) {
+        const historySummary = [
+          examAnswerCount > 0 ? `${examAnswerCount} jawaban ujian` : '',
+          practiceAnswerCount > 0 ? `${practiceAnswerCount} jawaban latihan` : '',
+        ].filter(Boolean).join(' dan ')
         const proceed = confirm(
-          `Soal ini sudah memiliki ${count} jawaban siswa.\\n\\n` +
+          `Soal ini sudah memiliki ${historySummary}.\\n\\n` +
           'Perubahan isi, kunci, atau skor tidak menghapus jawaban dan nilai tersimpan, tetapi dapat memengaruhi penilaian jika jawaban dihitung ulang di kemudian hari. Lanjutkan?'
         )
         if (!proceed) return
