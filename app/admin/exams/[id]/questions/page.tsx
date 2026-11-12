@@ -503,7 +503,7 @@ function BankSoalContent() {
   const handleSaveQuickEdit = async () => {
     if (!quickEditQuestion || !quickEditData || quickEditSaving) return
     const plainText = String(quickEditData.question_text || '').replace(/<[^>]*>/g, '').replace(/&nbsp;|&#160;/g, ' ').trim()
-    if (!plainText && !/<img\\b/i.test(quickEditData.question_text || '')) {
+    if (!plainText && !/<img\b/i.test(quickEditData.question_text || '')) {
       alert('Teks pertanyaan wajib diisi.')
       return
     }
