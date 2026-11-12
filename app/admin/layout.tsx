@@ -5,11 +5,18 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+function AdminLoading() {
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans">
+      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
+      <p className="text-slate-600 font-medium text-sm">
+        Memeriksa hak akses admin...
+      </p>
+    </div>
+  )
+}
+
+function AdminLayoutContent({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
   const [authorized, setAuthorized] = useState(false)
@@ -22,7 +29,6 @@ export default function AdminLayout({
 
       try {
         const supabase = createClient()
-
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -33,7 +39,7 @@ export default function AdminLayout({
         }
 
         // Guru kelas aktif boleh membuka halaman Rekap Nilai saja.
-        // Endpoint server memeriksa penugasan teacher_signatories.user_id.
+        // Endpoint server memeriksa teacher_signatories.user_id.
         const isRekapNilaiPath =
           pathname === '/admin/rekap-nilai' ||
           pathname.startsWith('/admin/rekap-nilai/')
@@ -79,20 +85,8 @@ export default function AdminLayout({
     void checkAdminAccess()
   }, [router, pathname])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center font-sans">
-        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-        <p className="text-slate-600 font-medium text-sm">
-          Memeriksa hak akses admin...
-        </p>
-      </div>
-    )
-  }
-
-  if (!authorized) {
-    return null
-  }
+  if (loading) return <AdminLoading />
+  if (!authorized) return null
 
   return (
     <div className="min-h-screen w-full bg-slate-50 md:flex">
@@ -101,5 +95,13 @@ export default function AdminLayout({
       </Suspense>
       <main className="min-h-screen min-w-0 flex-1">{children}</main>
     </div>
+  )
+}
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<AdminLoading />}>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
   )
 }
