@@ -568,3 +568,20 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Deployment Production untuk source terbaru: `dpl_69CydgJLknJzwPyu4nJhQXhWaX8F`, sedang dibangun ketika catatan ini ditulis. Status READY dan alias harus diperiksa sebelum menyatakan rilis selesai.
 - Tidak ada perubahan schema, migration, RLS, policy, grant, function, trigger, atau data lama. Impor hanya menambahkan record soal baru dan tidak menghapus soal lama.
 - QA runtime setelah login belum dilakukan. Uji paket sumber kosong, pilihan satu/banyak soal, soal dengan gambar/rumus/opsi, deteksi duplikat, dan pemisahan mode ujian/latihan.
+
+
+### Quick Edit dan ekspor naskah soal — 13 November 2026
+
+- Quick Edit: commit fitur `643568b98358ae3a6467de29d33014413769b4d5`; perbaikan validasi gambar `0288afddf3bfa52fe279a02b898d37ad5e0b279d`; perlindungan histori ujian dan latihan `960c85d8ee6b90be2c5864517946b2271ba7a228`.
+- Quick Edit menyediakan pengubahan teks soal, pilihan/pernyataan, kunci PG tunggal/ganda dan matriks Benar/Salah, pembahasan, skor maksimum, indikator, serta level kognitif. Kolom khusus lain tidak ditimpa.
+- Sebelum penyimpanan, sistem menghitung histori pada `answers` dan/atau `practice_attempt_answers` sesuai `target_mode`. Guru mendapat peringatan bila ada jawaban historis; jawaban/nilai lama tidak dihapus atau dihitung ulang otomatis.
+- Ekspor PDF/naskah cetak: commit `5be232fd7f5e448f780bf228671f2c418d28e6ac`; pembatasan hanya untuk paket ujian dan render gambar pilihan: commit `816e9d7de1ea686e3c28291a4e856262eeb02ffb`.
+- Pratinjau naskah menyediakan nama/alamat sekolah, judul, petunjuk, orientasi A4 potret/lanskap, identitas peserta, pilihan kunci jawaban dan pembahasan untuk naskah guru. Cetak melalui dialog browser dan pilih Simpan sebagai PDF. Konten soal dirender memakai `MathRenderer`, termasuk gambar utama dan gambar pilihan yang tersedia.
+- Deployment Production terbaru: `dpl_5JGebRkDrXwfC93oDLLDVWq3tG24`, status **READY**, alias `https://grisan.vercel.app/`, branch `main`. Build Next.js dan TypeScript berhasil.
+- QA browser setelah login dan uji hasil cetak pada beberapa browser/perangkat belum dilakukan; perlu cek pemenggalan halaman, rumus KaTeX, gambar, tabel, Arab/RTL, dan soal esai/matriks.
+- DOCX masih tahap berikutnya. Belum dipasang dependency atau dibuat file palsu ber-ekstensi DOCX. Jalur implementasi harus menghasilkan Office Open XML yang valid, menjaga kompatibilitas package-lock, dan menguji gambar/tabel/rumus sebelum dirilis.
+- Tidak ada perubahan schema, data, RLS, policy, grant, function, trigger, atau sistem Practice selain perlindungan histori yang sesuai tabel latihan.
+
+### Catatan keamanan yang belum ditangani
+
+- Audit Supabase masih menunjukkan RLS nonaktif pada `announcements` dan `study_materials`. Sesuai arahan, tidak ada perubahan keamanan yang dilakukan. Temuan ini tetap perlu dijadwalkan sebagai pekerjaan terpisah dengan perancangan policy yang benar.
