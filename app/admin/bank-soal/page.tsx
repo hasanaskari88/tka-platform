@@ -641,7 +641,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
       <Navbar />
 
-      <main className="p-8 max-w-6xl mx-auto space-y-8">
+      <main className="w-full min-w-0 max-w-none px-4 py-6 sm:px-6 lg:px-8 space-y-8">
         <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 border-slate-200 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-800">
@@ -1016,18 +1016,18 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                 </div>
 
                 {/* FILTER SUBTES & SORTING */}
-                <div className="flex flex-col sm:flex-row items-stretch gap-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-stretch gap-2 w-full min-w-0 sm:flex-1 sm:justify-end">
                   <input
                     type="search"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Cari judul, subtes, penulis..."
-                    className="min-w-0 sm:w-56 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="min-w-[180px] flex-1 basis-48 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   />
                   <select
                     value={publicationFilter}
                     onChange={(e) => setPublicationFilter(e.target.value as 'ALL' | 'PUBLISHED' | 'HIDDEN')}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                    className="min-w-[145px] flex-1 basis-36 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
                   >
                     <option value="ALL">Semua status</option>
                     <option value="PUBLISHED">Published</option>
@@ -1036,7 +1036,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                   <select
                     value={scheduleFilter}
                     onChange={(e) => setScheduleFilter(e.target.value as typeof scheduleFilter)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="min-w-[145px] flex-1 basis-36 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   >
                     <option value="ALL">Semua jadwal</option>
                     <option value="UPCOMING">Belum dibuka</option>
@@ -1048,7 +1048,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                   <select
                     value={selectedSubtestFilter}
                     onChange={(e) => setSelectedSubtestFilter(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="min-w-[145px] flex-1 basis-36 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   >
                     <option value="ALL">🌐 Semua Subtes</option>
                     {subtests.map((st) => (
@@ -1061,7 +1061,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                    className="min-w-[145px] flex-1 basis-36 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
                   >
                     <option value="newest">⏱️ Terbaru</option>
                     <option value="oldest">⏱️ Terlama</option>
