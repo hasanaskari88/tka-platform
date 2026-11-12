@@ -41,7 +41,7 @@ export default function RekapNilaiPage() {
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'exam' | 'practice'>('ALL')
   const [scoreFilter, setScoreFilter] = useState('ALL')
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState<'name' | 'class' | 'score' | 'date'>('name')
+  const [sortBy, setSortBy] = useState<'name' | 'class' | 'score' | 'date' | 'title'>('name')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [expanded, setExpanded] = useState<string[]>([])
   const [selected, setSelected] = useState<string[]>([])
@@ -155,6 +155,7 @@ export default function RekapNilaiPage() {
         item.attempts.sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
         return item
       })
+      if (sortBy === 'title') packageList.sort((a, b) => a.title.localeCompare(b.title, 'id'))
       const bestScores = packageList.map(p => p.best).filter((v): v is number => v !== null)
       const average = bestScores.length ? bestScores.reduce((sum, v) => sum + v, 0) / bestScores.length : null
       const latestDate = history.map(a => a.date).filter(Boolean).sort().reverse()[0] || null
@@ -166,6 +167,7 @@ export default function RekapNilaiPage() {
       if (sortBy === 'class') result = (a.student.class_code || '').localeCompare(b.student.class_code || '', 'id')
       if (sortBy === 'score') result = (a.average ?? -1) - (b.average ?? -1)
       if (sortBy === 'date') result = new Date(a.latestDate || 0).getTime() - new Date(b.latestDate || 0).getTime()
+      if (sortBy === 'title') result = a.packages.map((p: PackageSummary) => p.title).sort((x: string, y: string) => x.localeCompare(y, 'id')).join(' ').localeCompare(b.packages.map((p: PackageSummary) => p.title).sort((x: string, y: string) => x.localeCompare(y, 'id')).join(' '), 'id')
       return sortOrder === 'asc' ? result : -result
     })
   }, [studentsInScope, visibleAttempts, search, sortBy, sortOrder])
@@ -183,6 +185,7 @@ export default function RekapNilaiPage() {
       let result = sortBy === 'name' ? a.studentName.localeCompare(b.studentName, 'id') :
         sortBy === 'class' ? a.classCode.localeCompare(b.classCode, 'id') :
         sortBy === 'date' ? new Date(a.latest.date || 0).getTime() - new Date(b.latest.date || 0).getTime() :
+        sortBy === 'title' ? a.history.map(item => item.title).sort((x,y) => x.localeCompare(y, 'id')).join(' ').localeCompare(b.history.map(item => item.title).sort((x,y) => x.localeCompare(y, 'id')).join(' '), 'id') :
         (a.best ?? -1) - (b.best ?? -1)
       return sortOrder === 'asc' ? result : -result
     })
@@ -319,7 +322,7 @@ export default function RekapNilaiPage() {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
               <Filter size={14}/><span>Urutkan:</span>
-              <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700"><option value="name">Nama</option><option value="class">Kelas</option><option value="score">Nilai</option><option value="date">Tanggal</option></select>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700"><option value="name">Nama</option><option value="class">Kelas</option><option value="title">Judul tes/latihan</option><option value="score">Nilai</option><option value="date">Tanggal</option></select>
               <button onClick={() => setSortOrder(v => v === 'asc' ? 'desc' : 'asc')} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700">{sortOrder === 'asc' ? 'Naik ↑' : 'Turun ↓'}</button>
             </div>
             <div className="text-xs text-slate-500">{visibleAttempts.length} riwayat cocok dengan filter</div>
@@ -338,7 +341,7 @@ export default function RekapNilaiPage() {
               mode === 'student' ? <table className="w-full min-w-[850px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Peserta</th><th className="px-3 py-3">Kelas</th><th className="px-3 py-3 text-center">Paket selesai</th><th className="px-3 py-3 text-center">Riwayat</th><th className="px-3 py-3 text-right">Rata-rata terbaik</th><th className="px-3 py-3">Aktivitas terakhir</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {participantRows.map(row => <ParticipantTableRows key={row.student.id} row={row} expanded={expanded.includes(row.student.id)} onToggle={() => toggleExpanded(row.student.id)} selected={selected} onSelect={toggleSelected} kkm={kkm} />)}
+                  {participantRows.map(row => <ParticipantTableRows key={row.student.id} row={row} expanded={expanded.includes(row.student.id)} onToggle={() => toggleExpanded(row.student.id)} selected={selected} onSelect={toggleSelected} kkm={kkm} sortBy={sortBy} />)}
                   {participantRows.length === 0 && <tr><td colSpan={7} className="px-3 py-12 text-center text-slate-400">Tidak ada peserta yang sesuai dengan filter.</td></tr>}
                 </tbody>
               </table> : <table className="w-full min-w-[850px] text-left text-sm">
@@ -364,9 +367,12 @@ function Stat({ icon, label, value, note }: { icon: React.ReactNode; label: stri
   return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between text-slate-500"><span className="text-xs font-semibold">{label}</span><span className="text-indigo-600">{icon}</span></div><div className="mt-2 text-2xl font-black text-slate-900">{value}</div><div className="mt-1 truncate text-[11px] text-slate-400">{note}</div></div>
 }
 
-function HistoryRows({ history, selected, onSelect, kkm }: { history: Attempt[]; selected: string[]; onSelect: (attempt: Attempt) => void; kkm: number }) {
+function HistoryRows({ history, selected, onSelect, kkm, sortBy }: { history: Attempt[]; selected: string[]; onSelect: (attempt: Attempt) => void; kkm: number; sortBy: string }) {
+  const orderedHistory = [...history].sort((a, b) => sortBy === 'title'
+    ? a.title.localeCompare(b.title, 'id')
+    : new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
   return <div className="space-y-1.5 rounded-xl bg-slate-50 p-3">
-    {history.map(attempt => {
+    {orderedHistory.map(attempt => {
       const key = attempt.kind + ':' + attempt.id
       return <div key={key} className="flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
         <input type="checkbox" checked={selected.includes(key)} onChange={() => onSelect(attempt)} className="h-4 w-4 rounded border-slate-300"/>
@@ -379,7 +385,7 @@ function HistoryRows({ history, selected, onSelect, kkm }: { history: Attempt[];
   </div>
 }
 
-function ParticipantTableRows({ row, expanded, onToggle, selected, onSelect, kkm }: any) {
+function ParticipantTableRows({ row, expanded, onToggle, selected, onSelect, kkm, sortBy }: any) {
   return <>
     <tr className="hover:bg-slate-50">
       <td className="px-3 py-3"><div className="font-bold text-slate-800">{row.student.full_name || 'Tanpa nama'}</div><div className="text-[11px] text-slate-400">{row.student.username || '—'}</div></td>
@@ -390,11 +396,11 @@ function ParticipantTableRows({ row, expanded, onToggle, selected, onSelect, kkm
       <td className="px-3 py-3 text-xs text-slate-500">{dateLabel(row.latestDate)}</td>
       <td className="px-3 py-3 text-center"><button onClick={onToggle} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{expanded ? <ChevronDown size={14}/> : <ChevronRight size={14}/>} Detail</button></td>
     </tr>
-    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><div className="mb-2 flex flex-wrap gap-2">{row.packages.map((p: PackageSummary) => <span key={p.key} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] text-indigo-800">{p.subtest}: <b>{scoreLabel(p.best)}</b> <span className="text-indigo-500">({p.attempts.length}x)</span></span>)}</div><HistoryRows history={row.attempts} selected={selected} onSelect={onSelect} kkm={kkm}/></td></tr>}
+    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><div className="mb-2 flex flex-wrap gap-2">{row.packages.map((p: PackageSummary) => <span key={p.key} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] text-indigo-800">{p.subtest}: <b>{scoreLabel(p.best)}</b> <span className="text-indigo-500">({p.attempts.length}x)</span></span>)}</div><HistoryRows history={row.attempts} selected={selected} onSelect={onSelect} kkm={kkm} sortBy={sortBy}/></td></tr>}
   </>
 }
 
-function SubtestTableRows({ row, expanded, onToggle, selected, onSelect, kkm }: any) {
+function SubtestTableRows({ row, expanded, onToggle, selected, onSelect, kkm, sortBy }: any) {
   return <>
     <tr className="hover:bg-slate-50">
       <td className="px-3 py-3"><div className="font-bold text-slate-800">{row.studentName}</div><div className="text-[11px] text-slate-400">{row.username || '—'}</div></td>
@@ -405,6 +411,6 @@ function SubtestTableRows({ row, expanded, onToggle, selected, onSelect, kkm }: 
       <td className="px-3 py-3 text-xs text-slate-500">{dateLabel(row.latest?.date || null)}</td>
       <td className="px-3 py-3 text-center"><button onClick={onToggle} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{expanded ? <ChevronDown size={14}/> : <ChevronRight size={14}/>} Detail</button></td>
     </tr>
-    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><HistoryRows history={row.history} selected={selected} onSelect={onSelect} kkm={kkm}/></td></tr>}
+    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><HistoryRows history={row.history} selected={selected} onSelect={onSelect} kkm={kkm} sortBy={sortBy}/></td></tr>}
   </>
 }
