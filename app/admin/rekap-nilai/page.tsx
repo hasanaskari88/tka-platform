@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import * as XLSX from 'xlsx'
 import {
@@ -37,6 +37,7 @@ export default function RekapNilaiPage() {
   const [error, setError] = useState('')
   const [mode, setMode] = useState<'student' | 'subtest'>('student')
   const [classFilter, setClassFilter] = useState('ALL')
+  const classFilterInitializedRef = useRef(false)
   const [subtestFilter, setSubtestFilter] = useState('ALL')
   const [activityFilter, setActivityFilter] = useState<'ALL' | 'exam' | 'practice'>('ALL')
   const [scoreFilter, setScoreFilter] = useState('ALL')
@@ -61,9 +62,13 @@ export default function RekapNilaiPage() {
       setAssignedClasses(payload.assignedClassCodes || [])
       setIsGlobalAdmin(Boolean(payload.isGlobalAdmin))
       setKkm(Number(payload.kkm ?? 70))
-      if (!classFilter || classFilter === 'ALL') {
-        if (!payload.isGlobalAdmin && payload.assignedClassCodes?.length === 1) setClassFilter(payload.assignedClassCodes[0])
-        else if (!payload.isGlobalAdmin && payload.assignedClassCodes?.length > 1) setClassFilter('ASSIGNED')
+      // Sama seperti halaman penilaian manual: kelas ampuan hanya menjadi
+      // pilihan awal, bukan pembatasan data. Inisialisasi hanya sekali agar
+      // pilihan filter pengguna tidak tertimpa saat memuat ulang.
+      if (!classFilterInitializedRef.current) {
+        if (payload.assignedClassCodes?.length === 1) setClassFilter(payload.assignedClassCodes[0])
+        else if (payload.assignedClassCodes?.length > 1) setClassFilter('ASSIGNED')
+        classFilterInitializedRef.current = true
       }
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat memuat data.')
@@ -272,7 +277,7 @@ export default function RekapNilaiPage() {
           </div>
         </div>
 
-        {!isGlobalAdmin && !loading && <div className="flex items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800"><GraduationCap size={18} className="mt-0.5 shrink-0"/><div><b>Tampilan kelas ampuan</b><p className="mt-0.5">Data otomatis dibatasi untuk kelas: {assignedClasses.join(', ') || 'belum ada penugasan'}.</p></div></div>}
+        {!loading && assignedClasses.length > 0 && <div className="flex items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-800"><GraduationCap size={18} className="mt-0.5 shrink-0"/><div><b>Filter awal mengikuti kelas ampuan</b><p className="mt-0.5">Kelas yang otomatis dipilih: {assignedClasses.join(', ')}. Anda tetap dapat mengganti pilihan ke kelas lain atau semua kelas.</p></div></div>}
         {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -294,9 +299,9 @@ export default function RekapNilaiPage() {
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-6">
             <label className="text-xs font-semibold text-slate-500">Kelas
               <select value={classFilter} onChange={e => {setClassFilter(e.target.value);setSelected([])}} className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800">
-                {isGlobalAdmin && <option value="ALL">Semua kelas</option>}
-                {!isGlobalAdmin && assignedClasses.length > 1 && <option value="ASSIGNED">Semua kelas ampuan</option>}
-                {classes.filter(c => isGlobalAdmin || assignedClasses.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="ALL">Semua kelas</option>
+                {assignedClasses.length > 1 && <option value="ASSIGNED">Semua kelas ampuan</option>}
+                {classes.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </label>
             <label className="text-xs font-semibold text-slate-500">Subtes
