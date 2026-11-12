@@ -786,6 +786,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                     suppressHydrationWarning
                   />
                   </div>
+                  </div>
                   <p className="text-[10px] text-sky-800">Zona waktu: WIB (Asia/Jakarta). Jadwal buka dan tutup wajib diisi; jadwal tutup harus setelah jadwal buka.</p>
                 </>}
               </div>
