@@ -1845,7 +1845,6 @@ function QuestionManagerContent() {
                         <p>{q.explanation || 'Tidak ada pedoman penskoran khusus.'}</p>
                       </div>
                     )}
-                    )}
                       </>
                     )}
                   </div>
