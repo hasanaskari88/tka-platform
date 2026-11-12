@@ -486,3 +486,15 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Penugasan hanya menjadi preferensi filter awal, bukan pembatasan data. Daftar pilihan tetap menampilkan semua kelas dan opsi **Semua kelas**.
 - Pilihan filter pengguna tidak ditimpa ketika halaman dimuat ulang.
 - API mengembalikan seluruh kelas dan tidak membatasi penghapusan riwayat berdasarkan kelas.
+
+
+### Perbaikan otorisasi Rekap Nilai — 12 November 2026
+
+- Menambahkan helper server lib/supabase/rekap-nilai-access.ts untuk memverifikasi sesi, admin tepercaya melalui ADMIN_USER_IDS, atau guru kelas dengan penugasan aktif pada teacher_signatories.user_id (position = 'class_teacher', is_active = true).
+- Endpoint GET Rekap Nilai hanya mengizinkan dua kategori tersebut. Setelah lolos otorisasi, API tetap mengambil seluruh kelas dan seluruh riwayat; penugasan guru tidak dipakai sebagai filter server.
+- Menambahkan endpoint pemeriksaan akses ringan app/api/admin/rekap-nilai/access/route.ts.
+- app/admin/layout.tsx mengizinkan guru kelas aktif membuka /admin/rekap-nilai saja. Halaman admin lainnya tetap memakai pemeriksaan role yang sebelumnya berlaku.
+- Penghapusan riwayat tetap tidak dibatasi berdasarkan kelas. Otorisasi DELETE memakai pemeriksaan admin/guru kelas aktif yang sama.
+- File berubah: lib/supabase/rekap-nilai-access.ts, app/api/admin/rekap-nilai/route.ts, app/api/admin/rekap-nilai/access/route.ts, app/admin/layout.tsx.
+- Commit berurutan: 4457c440ebada6adf056812cec8855623061ef02, 6895ddbf5792cb1c688b96f8d41b5b869eefd9a5, c25bf0fb767539f6683563a2bc7e56270f80b864, d664f847dab31a2784026fd688af555337795f40.
+- Belum menjalankan build atau QA browser. Akses guru bergantung pada teacher_signatories.user_id yang benar-benar terhubung ke akun login dan penugasan masih aktif. Akses admin bergantung pada ID akun tercantum di ADMIN_USER_IDS.
