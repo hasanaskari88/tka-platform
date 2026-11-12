@@ -1013,5 +1013,6 @@ File migration: `supabase/migrations/20261112000100_teacher_signatories_user_lin
 
 - Migration file Preview: `80b7e6b1b58dde124a78173fee83a0b7140c898c`.
 - Implementasi halaman Penilaian Manual Preview: `995377aea0435c72def348594b31335e3170a4fa`.
+- Konfirmasi simpan nilai massal kini menyebut jumlah peserta dan cakupan kelas yang sedang dipilih: `07de4412b9fab151384c4a6411db18af4c4369c7`.
 - Build dan deployment Preview: belum diverifikasi pada saat catatan ini ditulis.
 - Production branch `main`: tidak diubah.
