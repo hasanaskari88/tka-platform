@@ -18,6 +18,7 @@ function BankSoalManagementContent() {
   const [sortBy, setSortBy] = useState<string>('newest')
   const [searchTerm, setSearchTerm] = useState('')
   const [publicationFilter, setPublicationFilter] = useState<'ALL' | 'PUBLISHED' | 'HIDDEN'>('ALL')
+  const [scheduleFilter, setScheduleFilter] = useState<'ALL' | 'UPCOMING' | 'OPEN' | 'CLOSED' | 'NO_SCHEDULE' | 'INCOMPLETE'>('ALL')
 
   // State Form Edit / Tambah Ujian
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
@@ -157,6 +158,29 @@ function BankSoalManagementContent() {
       timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short',
     })
 
+  // Status jadwal dihitung dari timestamp absolut; tampilan waktunya tetap WIB.
+  const getExamScheduleStatus = (exam: any) => {
+    if (!exam.is_published) return 'HIDDEN'
+    if (!exam.start_time && !exam.end_time) return 'NO_SCHEDULE'
+    if (!exam.start_time || !exam.end_time) return 'INCOMPLETE'
+    const now = Date.now()
+    const start = new Date(exam.start_time).getTime()
+    const end = new Date(exam.end_time).getTime()
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 'INCOMPLETE'
+    if (now < start) return 'UPCOMING'
+    if (now > end) return 'CLOSED'
+    return 'OPEN'
+  }
+
+  const getExamScheduleLabel = (exam: any) => {
+    const status = getExamScheduleStatus(exam)
+    const labels: Record<string, string> = {
+      HIDDEN: 'Disembunyikan', NO_SCHEDULE: 'Siap dibuka', INCOMPLETE: 'Jadwal perlu diperbaiki',
+      UPCOMING: 'Belum dibuka', OPEN: 'Sedang berlangsung', CLOSED: 'Sudah ditutup',
+    }
+    return labels[status] || 'Status tidak diketahui'
+  }
+
 
   // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
   const filteredAndSortedExams = exams
@@ -173,6 +197,8 @@ function BankSoalManagementContent() {
 
       if (publicationFilter === 'PUBLISHED' && !exam.is_published) return false
       if (publicationFilter === 'HIDDEN' && exam.is_published) return false
+
+      if (scheduleFilter !== 'ALL' && getExamScheduleStatus(exam) !== scheduleFilter) return false
 
       const normalizedSearch = searchTerm.trim().toLowerCase()
       if (normalizedSearch) {
@@ -904,6 +930,18 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                     <option value="HIDDEN">Hidden</option>
                   </select>
                   <select
+                    value={scheduleFilter}
+                    onChange={(e) => setScheduleFilter(e.target.value as typeof scheduleFilter)}
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  >
+                    <option value="ALL">Semua jadwal</option>
+                    <option value="UPCOMING">Belum dibuka</option>
+                    <option value="OPEN">Sedang berlangsung</option>
+                    <option value="CLOSED">Sudah ditutup</option>
+                    <option value="NO_SCHEDULE">Tanpa jadwal</option>
+                    <option value="INCOMPLETE">Jadwal perlu diperbaiki</option>
+                  </select>
+                  <select
                     value={selectedSubtestFilter}
                     onChange={(e) => setSelectedSubtestFilter(e.target.value)}
                     className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
@@ -977,6 +1015,14 @@ const handleQuickExamAuthorSave = async (examId: string) => {
 
                         <span className="text-xs text-slate-400">
                           ⏱ {exam.duration_minutes || 15} Menit
+                        </span>
+                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                          getExamScheduleStatus(exam) === 'OPEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          getExamScheduleStatus(exam) === 'UPCOMING' ? 'bg-sky-50 text-sky-700 border-sky-200' :
+                          getExamScheduleStatus(exam) === 'CLOSED' || getExamScheduleStatus(exam) === 'INCOMPLETE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                          'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}>
+                          {getExamScheduleLabel(exam)}
                         </span>
                       </div>
 
