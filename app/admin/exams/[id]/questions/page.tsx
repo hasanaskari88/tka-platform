@@ -238,7 +238,7 @@ function BankSoalContent() {
 
   // 🟢 3. IMPORT TERPILIH: PILIH PAKET SUMBER, PRATINJAU, DAN PILIH SOAL
   const normalizeQuestionText = (value: string) =>
-    String(value || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase()
+    String(value || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
 
   const handleOpenBankImport = async () => {
     setIsBankImportModalOpen(true)
