@@ -7,6 +7,58 @@ import MathRenderer from '@/components/MathRenderer'
 import RichTextEditor from '@/components/editor/RichTextEditor'
 import Link from 'next/link'
 
+
+type DocxSettings = { schoolName: string; schoolAddress: string; title: string; instructions: string; orientation: string; includeAnswerKey: boolean; includeExplanations: boolean }
+type DocxQuestion = { id: string; question_text?: string | null; image_url?: string | null; options?: any; question_type?: string | null; correct_option?: string | null; correct_answer?: string | null; correct_answers?: any; explanation?: string | null }
+const docxEncoder = new TextEncoder()
+function docxEsc(v: unknown) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;') }
+function docxMath(v: string) { return v.replace(/\$\$?|\\\(|\\\)|\\\[|\\\]/g,'').replace(/\\frac\s*\{([^{}]*)\}\s*\{([^{}]*)\}/g,'($1)/($2)').replace(/\\sqrt\s*\{([^{}]*)\}/g,'√($1)').replace(/\\times\b/g,'×').replace(/\\cdot\b/g,'·').replace(/\\div\b/g,'÷').replace(/\\pi\b/g,'π').replace(/\\leq?\b/g,'≤').replace(/\\geq?\b/g,'≥').replace(/\\neq\b/g,'≠').replace(/\\pm\b/g,'±').replace(/\^\{([^{}]*)\}/g,'^$1').replace(/_\{([^{}]*)\}/g,'_$1').replace(/\\text\s*\{([^{}]*)\}/g,'$1').replace(/[{}]/g,'') }
+function docxCrc(bytes: Uint8Array) { let c=0xffffffff; for(const b of bytes){c^=b;for(let i=0;i<8;i++)c=(c>>>1)^(c&1?0xedb88320:0)} return (c^0xffffffff)>>>0 }
+function docxZip(entries: {name:string;data:Uint8Array}[]) {
+ const u16=(n:number)=>new Uint8Array([n&255,n>>>8&255]),u32=(n:number)=>new Uint8Array([n&255,n>>>8&255,n>>>16&255,n>>>24&255])
+ const join=(parts:Uint8Array[])=>{const out=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));let at=0;for(const p of parts){out.set(p,at);at+=p.length}return out}
+ const local:Uint8Array[]=[],central:Uint8Array[]=[];let offset=0
+ for(const e of entries){const name=docxEncoder.encode(e.name),data=e.data,crc=docxCrc(data);const file=join([u32(0x04034b50),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),name,data]);local.push(file);central.push(join([u32(0x02014b50),u16(20),u16(20),u16(0x0800),u16(0),u16(0),u16(0),u32(crc),u32(data.length),u32(data.length),u16(name.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset),name]));offset+=file.length}
+ const dir=join(central),end=join([u32(0x06054b50),u16(0),u16(0),u16(entries.length),u16(entries.length),u32(dir.length),u32(offset),u16(0)]);return join([...local,dir,end])
+}
+function docxP(value:string,bold=false,center=false,size=22){return '<w:p><w:pPr>'+(center?'<w:jc w:val="center"/>':'')+'<w:spacing w:after="100"/></w:pPr><w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="'+size+'"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/></w:rPr><w:t xml:space="preserve">'+docxEsc(value)+'</w:t></w:r></w:p>'}
+async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuestion[],examTitle:string,subtest:string,duration:number|null) {
+ const media:{name:string;data:Uint8Array}[]=[],rels:string[]=[],types=new Set<string>();let imageNo=0,drawNo=0
+ const addImage=async(src:string,alt:string)=>{
+  try{const response=await fetch(src,{mode:'cors',credentials:'omit'});if(!response.ok)throw Error();const blob=await response.blob(),mime=blob.type.toLowerCase();const ext=mime==='image/png'?'png':mime==='image/gif'?'gif':mime==='image/bmp'?'bmp':'jpg';if(!['image/png','image/jpeg','image/jpg','image/gif','image/bmp'].includes(mime))throw Error();const name='image'+(++imageNo)+'.'+ext,rid='rId'+(imageNo+1),type=mime==='image/jpg'?'image/jpeg':mime;types.add('<Default Extension="'+ext+'" ContentType="'+type+'"/>');media.push({name:'word/media/'+name,data:new Uint8Array(await blob.arrayBuffer())});rels.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/'+name+'"/>');const id=++drawNo,w=4200000,h=2600000;return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+w+'" cy="'+h+'"/><wp:docPr id="'+id+'" name="'+docxEsc(alt)+'"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="'+id+'" name="'+name+'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>'
+  }catch{return '<w:r><w:t>'+docxEsc('[Gambar '+alt+' tidak dapat disematkan: akses gambar dibatasi]')+'</w:t></w:r>'}
+ }
+ const rich=async(html:string)=>{
+  if(!html)return '';const root=document.createElement('div');root.innerHTML=html;const out:string[]=[]
+  const inline=async(node:Node):Promise<string>=>{
+   if(node.nodeType===Node.TEXT_NODE){const text=docxMath(node.textContent||'');if(!text)return '';const rtl=/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/.test(text);return '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>'+(rtl?'<w:rtl/>':'')+'</w:rPr><w:t xml:space="preserve">'+docxEsc(text)+'</w:t></w:r>'}
+   if(!(node instanceof HTMLElement))return '';const tag=node.tagName.toLowerCase();if(tag==='br')return '<w:r><w:br/></w:r>';if(tag==='img')return addImage(node.getAttribute('src')||'',node.getAttribute('alt')||'gambar');if(node.classList.contains('katex-mathml'))return ''
+   const inner=(await Promise.all(Array.from(node.childNodes).map(inline))).join('');if(tag==='strong'||tag==='b')return inner.replace(/<w:r>/g,'<w:r><w:rPr><w:b/></w:rPr>');if(tag==='em'||tag==='i')return inner.replace(/<w:r>/g,'<w:r><w:rPr><w:i/></w:rPr>');if(tag==='u')return inner.replace(/<w:r>/g,'<w:r><w:rPr><w:u w:val="single"/></w:rPr>');return inner
+  }
+  for(const node of Array.from(root.childNodes)){
+   if(node instanceof HTMLElement&&node.tagName.toLowerCase()==='table'){const rows:string[]=[];for(const tr of Array.from(node.querySelectorAll('tr'))){const cells:string[]=[];for(const cell of Array.from(tr.children)){const runs=(await Promise.all(Array.from(cell.childNodes).map(inline))).join('');cells.push('<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/></w:tcPr><w:p>'+runs+'</w:p></w:tc>')}rows.push('<w:tr>'+cells.join('')+'</w:tr>')}out.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')}
+   else{const runs=await inline(node);if(runs)out.push('<w:p><w:pPr><w:spacing w:after="80"/></w:pPr>'+runs+'</w:p>')}
+  }return out.join('')
+ }
+ const body:string[]=[docxP(settings.schoolName||'Nama Sekolah',true,true,30),docxP(settings.schoolAddress||'',false,true,18),docxP(settings.title||examTitle||'Naskah Soal',true,true,28),docxP((subtest||'Mata Pelajaran')+' · '+questions.length+' Soal · Waktu '+(duration||'—')+' menit',false,true,20),docxP('________________________________________________________________________________',false,true,16),docxP('Nama: .............................................................................       Kelas: ........................'),docxP('Nomor: ...........................................................................       Tanggal: ......................'),docxP('Petunjuk: '+(settings.instructions||'Bacalah setiap soal dengan teliti.'),false,false,20)]
+ for(let i=0;i<questions.length;i++){const q=questions[i],type=q.question_type||'multiple_choice',options=Array.isArray(q.options)?q.options:[];body.push(docxP((i+1)+'.',true));body.push(await rich(q.question_text||''));if(q.image_url)body.push('<w:p>'+await addImage(q.image_url,'ilustrasi soal')+'</w:p>')
+  if(type==='true_false_matrix'){const rows:string[]=[];for(const [index,opt] of options.entries()){const key=String(opt.key??opt.id??index+1),label=await rich(opt.text||''),image=opt.image_url?'<w:p>'+await addImage(opt.image_url,'gambar pernyataan '+key)+'</w:p>':'';rows.push('<w:tr><w:tc><w:tcPr><w:tcW w:w="7000" w:type="dxa"/></w:tcPr>'+label+image+'</w:tc><w:tc>'+docxP('Benar')+'</w:tc><w:tc>'+docxP('Salah')+'</w:tc></w:tr>')}body.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')}
+  else if(options.length){for(const [index,opt] of options.entries()){const key=String(opt.key??String.fromCharCode(65+index)),value=typeof opt==='string'?opt:opt.text||opt.title||'';body.push(docxP(key+'. ')+await rich(value));if(typeof opt==='object'&&opt.image_url)body.push('<w:p>'+await addImage(opt.image_url,'gambar pilihan '+key)+'</w:p>')}}
+  else if(type==='essay'){body.push(docxP('................................................................................................................'));body.push(docxP('................................................................................................................'));body.push(docxP('................................................................................................................'))}
+  if(settings.includeAnswerKey){const answers=q.correct_answers,key=type==='true_false_matrix'&&answers&&typeof answers==='object'?Object.entries(answers).map(([k,v])=>k+': '+String(v)).join('; '):Array.isArray(answers)?answers.join(', '):String(q.correct_answer||q.correct_option||'');body.push(docxP('Kunci: '+(key||'Belum diisi'),true,false,18));if(settings.includeExplanations&&q.explanation){body.push(docxP('Pembahasan:',true,false,18));body.push(await rich(q.explanation))}}
+  body.push(docxP(''))
+ }
+ const pw=settings.orientation==='landscape'?16838:11906,ph=settings.orientation==='landscape'?11906:16838
+ const doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>'+body.join('')+'<w:sectPr><w:pgSz w:w="'+pw+'" w:h="'+ph+'"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="500" w:footer="500"/></w:sectPr></w:body></w:document>'
+ const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'+Array.from(types).join('')+'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'
+ const root='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'
+ const dr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+rels.join('')+'</Relationships>'
+ const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>'
+ const entries=[{name:'[Content_Types].xml',data:docxEncoder.encode(ct)},{name:'_rels/.rels',data:docxEncoder.encode(root)},{name:'word/document.xml',data:docxEncoder.encode(doc)},{name:'word/styles.xml',data:docxEncoder.encode(styles)},{name:'word/_rels/document.xml.rels',data:docxEncoder.encode(dr)},...media]
+ const blob=new Blob([docxZip(entries).buffer as ArrayBuffer],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),base=(settings.title||examTitle||'Naskah-Soal').replace(/[\\/:*?"<>|]+/g,'-').trim()||'Naskah-Soal',url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=base+'.docx';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url)
+}
+
+
 function BankSoalContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -24,6 +76,7 @@ function BankSoalContent() {
   const [quickEditData, setQuickEditData] = useState<any>(null)
   const [quickEditSaving, setQuickEditSaving] = useState(false)
   const [isPaperPreviewOpen, setIsPaperPreviewOpen] = useState(false)
+  const [isDocxExporting, setIsDocxExporting] = useState(false)
   const [paperSettings, setPaperSettings] = useState({
     schoolName: 'SD NEGERI GETASAN',
     schoolAddress: 'Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang (50774)',
@@ -62,6 +115,19 @@ function BankSoalContent() {
     target_x: 3,
     target_y: 3,
   })
+
+  const handleExportDocx = async () => {
+    if (isDocxExporting || !questions.length) return
+    setIsDocxExporting(true)
+    try {
+      await exportQuestionPaperDocx(paperSettings, questions, exam?.title || 'Naskah Soal', exam?.subtest || 'Mata Pelajaran', exam?.duration_minutes || null)
+    } catch (error: any) {
+      console.error('DOCX export failed:', error)
+      alert(error?.message || 'Gagal membuat file Word. Silakan coba kembali.')
+    } finally {
+      setIsDocxExporting(false)
+    }
+  }
 
   // 🟢 1. FETCH DATA EXAM & SOAL
   const fetchExamAndQuestions = async () => {
@@ -1160,9 +1226,10 @@ function BankSoalContent() {
               </div>
               <label className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={paperSettings.includeAnswerKey} onChange={(e) => setPaperSettings((current) => ({ ...current, includeAnswerKey: e.target.checked, includeExplanations: e.target.checked ? current.includeExplanations : false }))} className="accent-emerald-500" /> Sertakan kunci jawaban (naskah guru)</label>
               {paperSettings.includeAnswerKey && <label className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={paperSettings.includeExplanations} onChange={(e) => setPaperSettings((current) => ({ ...current, includeExplanations: e.target.checked }))} className="accent-emerald-500" /> Sertakan pembahasan</label>}
-              <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsPaperPreviewOpen(false)} className="flex-1 px-3 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold">Tutup</button>
-                <button type="button" onClick={() => window.print()} className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Cetak / Simpan PDF</button>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button type="button" onClick={() => setIsPaperPreviewOpen(false)} className="px-3 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold">Tutup</button>
+                <button type="button" onClick={() => window.print()} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Cetak / PDF</button>
+                <button type="button" disabled={isDocxExporting} onClick={handleExportDocx} className="col-span-2 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold">{isDocxExporting ? 'Membuat Word…' : '⬇ Unduh DOCX (Word)'}</button>
               </div>
               <p className="text-[10px] text-slate-500">Pada dialog cetak perangkat, pilih “Simpan sebagai PDF” untuk menyimpan berkas PDF.</p>
             </div>
