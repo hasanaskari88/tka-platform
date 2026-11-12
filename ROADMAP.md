@@ -475,6 +475,14 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Filter mencakup kelas, subtes, ujian/latihan, rentang nilai berbasis KKM sekolah, serta pencarian nama/username/judul paket. Pengurutan tersedia berdasarkan nama, kelas, nilai, dan tanggal.
 - Ekspor Excel memuat ringkasan dan detail riwayat.
 - Riwayat ujian dan latihan dapat dipilih dari detail masing-masing peserta, lalu dihapus secara massal setelah konfirmasi. Penghapusan memakai endpoint server dan FK `ON DELETE CASCADE` yang sudah ada untuk membersihkan detail jawaban terkait.
-- Endpoint `app/api/admin/rekap-nilai/route.ts` memverifikasi sesi. Admin global harus terdaftar di `ADMIN_USER_IDS`; guru harus memiliki penugasan wali kelas aktif yang terhubung melalui `teacher_signatories.user_id`. Data dan penghapusan guru dibatasi di server pada kelas yang ditugaskan.
+- Endpoint `app/api/admin/rekap-nilai/route.ts` memverifikasi sesi login. Penugasan aktif pada `teacher_signatories.user_id` hanya digunakan untuk menentukan filter kelas awal, mengikuti perilaku halaman penilaian manual. Semua akun yang berhak membuka area admin tetap dapat melihat semua kelas dan memilih kelas lain/semua kelas; penghapusan riwayat juga tidak dibatasi berdasarkan kelas.
 - KKM dibaca dari `school_document_settings`; tidak ada perubahan schema, migration, RLS, atau data Supabase.
 - Catatan QA: build Vercel dan uji browser setelah login masih harus diverifikasi. Pastikan akun guru mempunyai penugasan aktif dengan `user_id` yang benar, dan akun admin global tercantum di `ADMIN_USER_IDS`.
+
+
+### Penyesuaian filter kelas — 12 November 2026
+
+- Filter awal Rekap Nilai disamakan dengan halaman penilaian manual: satu kelas ampuan otomatis dipilih; lebih dari satu kelas otomatis memilih gabungan kelas ampuan.
+- Penugasan hanya menjadi preferensi filter awal, bukan pembatasan data. Daftar pilihan tetap menampilkan semua kelas dan opsi **Semua kelas**.
+- Pilihan filter pengguna tidak ditimpa ketika halaman dimuat ulang.
+- API mengembalikan seluruh kelas dan tidak membatasi penghapusan riwayat berdasarkan kelas.
