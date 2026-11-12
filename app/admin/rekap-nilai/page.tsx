@@ -142,16 +142,21 @@ export default function RekapNilaiPage() {
       grouped.set(key, [...(grouped.get(key) || []), attempt])
     })
     return [...grouped.entries()].map(([key, history]) => {
-      const scored = history.filter(item => item.score !== null)
-      const scores = scored.map(item => Number(item.score))
-      const average = scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null
+      const bestByStudent = new Map<string, number>()
+      history.forEach(item => {
+        if (item.score === null) return
+        const score = Number(item.score)
+        bestByStudent.set(item.userId, Math.max(bestByStudent.get(item.userId) ?? -Infinity, score))
+      })
+      const bestScores = [...bestByStudent.values()]
+      const average = bestScores.length ? bestScores.reduce((sum, score) => sum + score, 0) / bestScores.length : null
       return {
         key, title: history[0].title, subtest: history[0].subtest, kind: history[0].kind,
         attempts: history.length, participants: new Set(history.map(item => item.userId)).size,
-        completed: scored.length, average,
-        highest: scores.length ? Math.max(...scores) : null,
-        lowest: scores.length ? Math.min(...scores) : null,
-        passed: scores.filter(score => score >= kkm).length,
+        completed: bestScores.length, average,
+        highest: bestScores.length ? Math.max(...bestScores) : null,
+        lowest: bestScores.length ? Math.min(...bestScores) : null,
+        passed: bestScores.filter(score => score >= kkm).length,
         history: [...history].sort((a,b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()),
       }
     }).sort((a,b) => a.title.localeCompare(b.title, 'id') || a.kind.localeCompare(b.kind))
@@ -380,7 +385,7 @@ export default function RekapNilaiPage() {
                   {participantRows.length === 0 && <tr><td colSpan={7} className="px-3 py-12 text-center text-slate-400">Tidak ada peserta yang sesuai dengan filter.</td></tr>}
                 </tbody>
               </table> : mode === 'package' ? <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Paket soal</th><th className="px-3 py-3">Jenis</th><th className="px-3 py-3 text-center">Peserta</th><th className="px-3 py-3 text-center">Riwayat</th><th className="px-3 py-3 text-right">Rata-rata</th><th className="px-3 py-3 text-right">Tertinggi</th><th className="px-3 py-3 text-center">Tuntas KKM</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
+                <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Paket soal</th><th className="px-3 py-3">Jenis</th><th className="px-3 py-3 text-center">Peserta</th><th className="px-3 py-3 text-center">Riwayat</th><th className="px-3 py-3 text-right">Rata-rata terbaik</th><th className="px-3 py-3 text-right">Tertinggi</th><th className="px-3 py-3 text-center">Tuntas KKM</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
                   {packageRows.map(row => <PackageTableRows key={row.key} row={row} expanded={expanded.includes(row.key)} onToggle={() => toggleExpanded(row.key)} selected={selected} onSelect={toggleSelected} kkm={kkm} sortBy={sortBy} />)}
                   {packageRows.length === 0 && <tr><td colSpan={8} className="px-3 py-12 text-center text-slate-400">Belum ada riwayat untuk paket dan filter yang dipilih.</td></tr>}
