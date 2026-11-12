@@ -963,3 +963,55 @@ Catatan ini menegaskan maksud pengguna dan **mengoreksi asumsi audit sebelumnya*
 - Verifikasi akhir: Preview **ahead 204 / behind 0**, merge base sama dengan HEAD Main. Perubahan khusus Preview tetap ada.
 - `ROADMAP.md` Preview dipertahankan sebagai sumber rencana dan catatan QA Preview; tidak diganti dengan roadmap Production.
 - Sinkronisasi ini hanya operasi Git. Tidak ada migration/SQL, perubahan data Supabase, operasi akun Google Drive, atau deployment Production yang dijalankan.
+
+## 13. Penyempurnaan Penilaian Manual — 12 November 2026
+
+**Status: implementasi awal pada Preview; belum dirilis ke Production.**
+
+### Keputusan dan tujuan
+
+- Satu halaman `app/admin/exam/[id]/results/page.tsx` diperbaiki untuk filter kelas, pengurutan peserta, dan pembacaan jawaban uraian.
+- Akun guru/admin yang memiliki penugasan aktif `class_teacher` pada `teacher_signatories` otomatis diarahkan ke kelas yang terhubung melalui `user_id`.
+- Akun dengan satu penugasan aktif memilih kelas tersebut sebagai filter awal.
+- Akun dengan lebih dari satu penugasan aktif memilih gabungan kelas yang diampu.
+- Akun admin tanpa penugasan wali kelas tetap memilih **Semua Kelas**.
+- Filter kelas dan pengurutan peserta tersedia pada ruang Penilaian Manual dan berlaku untuk Mode per Peserta serta Mode per Soal.
+- Pilihan pengurutan menggunakan state yang sudah ada: nama, kelas, nilai, dan waktu pengerjaan. Arah pengurutan juga dapat diubah.
+
+### Database
+
+- [x] Pengguna menyetujui penambahan `teacher_signatories.user_id` yang merujuk ke `profiles.id`.
+- [x] Migration Supabase `teacher_signatories_user_id_link` berhasil diterapkan pada proyek database bersama.
+- [x] Foreign key `teacher_signatories_user_id_fkey` menggunakan `ON DELETE SET NULL`.
+- [x] Index `idx_teacher_signatories_user_id` dibuat.
+- [x] Backfill hanya dilakukan untuk nama guru yang cocok tepat dengan tepat satu profil ber-role admin.
+- [x] Dua penugasan aktif berhasil terhubung: Evika Widya Puspita — VIA; Hasan Askari — VIB.
+- [x] Baris kepala sekolah tidak dihubungkan karena bukan penugasan `class_teacher`.
+- [ ] Penugasan guru lain yang belum cocok tetap memiliki `user_id = NULL`; hubungkan setelah akun dan nama diverifikasi, jangan menebak berdasarkan kemiripan nama.
+
+File migration: `supabase/migrations/20261112000100_teacher_signatories_user_link.sql`.
+
+### Perubahan kode Preview
+
+- `app/admin/exam/[id]/results/page.tsx`
+  - Membaca user login dan penugasan aktif dari `teacher_signatories`.
+  - Menetapkan filter kelas awal sesuai penugasan akun.
+  - Menambahkan kontrol filter kelas, urutan peserta, dan arah urutan pada ruang Penilaian Manual.
+  - Menampilkan jawaban siswa menggunakan `RichTextEditor` dalam mode baca saja.
+  - Jawaban lama berupa teks biasa dibungkus menjadi paragraf dengan escaping; HTML hasil editor diteruskan ke parser Tiptap agar format yang didukung dapat dirender.
+  - Tidak mengubah rumus skor, struktur jawaban yang disimpan, atau proses simpan nilai.
+
+### Risiko dan batasan
+
+- Preview dan Production memakai proyek Supabase yang sama. Migration database di atas sudah diterapkan pada database bersama sesuai persetujuan pengguna; kode aplikasi hanya diubah pada branch Preview.
+- Filter kelas adalah filter tampilan, bukan perubahan kebijakan otorisasi atau pembatasan akses data.
+- RLS `teacher_signatories` saat ini mengizinkan akun ber-role admin membaca/mengelola penugasan. Enum role aktif hanya `student` dan `admin`.
+- Perlu QA runtime untuk akun Hasan (default VIB), Evika (default VIA), admin tanpa penugasan (Semua Kelas), multi-penugasan, serta tampilan HTML/teks biasa/rumus/gambar.
+- Jangan mengklaim Preview lulus QA atau mengubah Production sebelum hasil build dan uji browser diverifikasi.
+
+### Hasil commit
+
+- Migration file Preview: `80b7e6b1b58dde124a78173fee83a0b7140c898c`.
+- Implementasi halaman Penilaian Manual Preview: `995377aea0435c72def348594b31335e3170a4fa`.
+- Build dan deployment Preview: belum diverifikasi pada saat catatan ini ditulis.
+- Production branch `main`: tidak diubah.
