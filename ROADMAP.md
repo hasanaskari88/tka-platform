@@ -585,3 +585,15 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 ### Catatan keamanan yang belum ditangani
 
 - Audit Supabase masih menunjukkan RLS nonaktif pada `announcements` dan `study_materials`. Sesuai arahan, tidak ada perubahan keamanan yang dilakukan. Temuan ini tetap perlu dijadwalkan sebagai pekerjaan terpisah dengan perancangan policy yang benar.
+
+
+### Ekspor naskah soal DOCX — 13 November 2026
+
+- Fitur ekspor Word ditambahkan pada pengelola soal melalui tombol **Unduh DOCX (Word)** di panel pratinjau naskah.
+- Commit implementasi: `f67c6158b4335cde47cc2207fb0e06b5ae7c3fa7`; perbaikan format run Word dan penanganan unduhan: `9122a8d9d12707641c18d3dc18ad0899a78364f4`.
+- DOCX dibangun sebagai paket Office Open XML valid tanpa menambah dependency atau mengubah `package-lock.json`. Dokumen memuat identitas sekolah, judul, subtes, durasi, kolom identitas siswa, petunjuk, pertanyaan, pilihan, ruang jawaban esai, serta kunci/pembahasan jika dipilih.
+- Tabel soal dan matriks Benar/Salah dirender sebagai tabel Word. Gambar soal/pilihan disematkan jika browser dapat mengambil gambar melalui CORS; jika tidak, dokumen memberi penanda teks bahwa gambar tidak dapat disematkan.
+- Format teks dasar (tebal, miring, garis bawah), orientasi A4 potret/lanskap, dan karakter Arab dengan penanda RTL disertakan. Rumus LaTeX umum dikonversi ke teks matematika linear yang dapat diedit; belum menjadi objek persamaan Office Math (OMML). Font Arab mengikuti font yang tersedia di perangkat pembuka.
+- Tidak ada perubahan database, schema, RLS, policy, grant, function, trigger, maupun data.
+- Deployment Production terbaru: `dpl_B8WfCsPSxfw5GE1YMhy41ix79jUW`, status **READY**, commit `9122a8d9d12707641c18d3dc18ad0899a78364f4`, alias `https://grisan.vercel.app/`. Build Next.js dan TypeScript berhasil.
+- Belum dilakukan uji unduhan aktual melalui browser/login dan pembukaan berkas pada Microsoft Word/LibreOffice. QA lanjutan: buka DOCX dengan soal teks, tabel, gambar yang mengizinkan CORS, gambar lintas domain yang memblokir CORS, rumus, Arab/RTL, serta soal matriks/uraian. Pastikan Word tidak meminta perbaikan dokumen dan gambar tampil dengan rasio yang sesuai.
