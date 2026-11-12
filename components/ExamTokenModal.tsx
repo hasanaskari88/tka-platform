@@ -169,6 +169,7 @@ export default function ExamTokenModal({
               <span>Jadwal Buka:</span>
               <span className="font-semibold text-indigo-700">
                 {new Date(exam.start_time).toLocaleString('id-ID', {
+                  timeZone: 'Asia/Jakarta',
                   dateStyle: 'medium',
                   timeStyle: 'short',
                 })}
@@ -180,6 +181,7 @@ export default function ExamTokenModal({
               <span>Jadwal Tutup:</span>
               <span className="font-semibold text-rose-600">
                 {new Date(exam.end_time).toLocaleString('id-ID', {
+                  timeZone: 'Asia/Jakarta',
                   dateStyle: 'medium',
                   timeStyle: 'short',
                 })}
