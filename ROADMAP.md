@@ -514,3 +514,17 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Data paket tetap memakai relasi exam_id yang sudah tersedia pada exam_sessions dan practice_attempts; tidak ada perubahan schema, migration, RLS, atau data Supabase.
 - Hak akses admin/guru kelas aktif dan aturan bahwa penugasan hanya mengatur filter awal tetap dipertahankan.
 - Build dan QA browser setelah perubahan ini perlu diverifikasi sebelum dinyatakan siap Production.
+
+
+## Pekerjaan Bank Soal — pencarian dan penjadwalan (12 November 2026)
+
+**Status:** implementasi awal masuk ke `main`; deployment Production berstatus READY. QA browser setelah login belum dilakukan, sehingga fitur belum dinyatakan lulus QA runtime.
+
+- Commit implementasi awal: `f107f31732ebb332d9f6ea3a956f2e2c36bcae07` — menambahkan pencarian paket, filter Published/Hidden, checkbox Gunakan Penjadwalan, validasi jadwal wajib lengkap dan tutup setelah buka, konversi waktu WIB (Asia/Jakarta), serta ringkasan jadwal pada kartu.
+- Build commit awal gagal karena satu kontainer grid jadwal belum ditutup. Kesalahan ditemukan dari log Vercel, lalu diperbaiki pada commit `f70b36ae42d9ea0ff303046c172cc444a934ef1d`.
+- Deployment Production final: `dpl_RekCYFYgTCs3QJ1RhWo826c1CHui`, status **READY**, alias terverifikasi `https://grisan.vercel.app/`, branch `main`, region `iad1`.
+- Tidak ada perubahan database, schema, migration, RLS, policy, grant, function, trigger, atau data. Tidak ada perubahan pada halaman Practice, mesin game, CBT, penilaian, atau penyimpanan jawaban.
+- QA runtime yang masih perlu: buka Bank Soal sebagai admin, coba pencarian dan filter; tambah/edit paket dengan jadwal aktif dan nonaktif; pastikan tanggal/jam tersimpan serta tampil sebagai WIB; cek paket legacy tanpa jadwal dan status Published/Hidden.
+- Tindak lanjut sebelum memperluas fitur: verifikasi tampilan jadwal WIB pada dialog siswa, tampilkan status jadwal (belum dibuka/berlangsung/ditutup), lalu lanjutkan modal form, duplikasi paket, impor terpilih, Quick Edit, PDF, dan DOCX dalam batch terpisah yang diuji.
+
+Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime penuh. Build awal yang gagal tidak mengubah alias Production; alias utama sekarang menunjuk deployment READY di atas.
