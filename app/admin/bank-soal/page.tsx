@@ -74,6 +74,7 @@ function BankSoalManagementContent() {
   const [quickExamAuthorName, setQuickExamAuthorName] = useState('')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [duplicatingExamId, setDuplicatingExamId] = useState<string | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
 
   const fetchData = async () => {
@@ -371,6 +372,82 @@ const handleQuickExamAuthorSave = async (examId: string) => {
     const newStatus = !exam.is_published
     await supabase.from('exams').update({ is_published: newStatus }).eq('id', exam.id)
     fetchData()
+  }
+
+  // Duplikasi membuat paket dan ID soal baru; sesi, jawaban, nilai, dan riwayat tidak disalin.
+  const handleDuplicateExam = async (exam: any) => {
+    if (duplicatingExamId) return
+    setDuplicatingExamId(exam.id)
+    const supabase = createClient()
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) throw new Error('Sesi login tidak ditemukan. Silakan login kembali.')
+
+      const copiedQuestions: any[] = []
+      const pageSize = 500
+      for (let offset = 0; ; offset += pageSize) {
+        const { data, error } = await supabase
+          .from('questions')
+          .select('question_text,image_url,options,correct_option,explanation,difficulty,question_type,max_score,correct_answers,indicator,cognitive_level,target_x,target_y,maze_width,maze_height,start_x,start_y,obstacles,answer_mode,correct_answer')
+          .eq('exam_id', exam.id)
+          .range(offset, offset + pageSize - 1)
+        if (error) throw new Error(`Gagal membaca soal sumber: ${error.message}`)
+        copiedQuestions.push(...(data || []))
+        if (!data || data.length < pageSize) break
+      }
+
+      const confirmed = confirm(
+        `Duplikasi paket "${exam.title}"?\\n\\n` +
+        `• ${copiedQuestions.length} soal akan disalin dengan ID baru.\\n` +
+        `• Paket salinan dibuat dalam status Hidden.\\n` +
+        `• Token dan jadwal dikosongkan.\\n` +
+        `• Riwayat ujian, jawaban, nilai, dan riwayat latihan tidak disalin.`
+      )
+      if (!confirmed) return
+
+      const { data: newExam, error: examError } = await supabase
+        .from('exams')
+        .insert({
+          title: `${exam.title || 'Paket'} (Salinan)`,
+          description: exam.description || null,
+          subtest: exam.subtest,
+          duration_minutes: exam.duration_minutes || 15,
+          is_published: false,
+          token: null,
+          token_code: null,
+          start_time: null,
+          end_time: null,
+          shuffle_questions: exam.shuffle_questions ?? true,
+          shuffle_options: exam.shuffle_options ?? true,
+          show_results: exam.show_results ?? true,
+          show_explanations: exam.show_explanations ?? true,
+          target_mode: exam.target_mode || 'BOTH',
+          activity_type: exam.activity_type || 'QUIZ',
+          created_by: user.id,
+          author_display_name: exam.author_display_name || null,
+        })
+        .select('id')
+        .single()
+      if (examError || !newExam) throw new Error(`Gagal membuat paket salinan: ${examError?.message || 'ID paket baru tidak ditemukan.'}`)
+
+      if (copiedQuestions.length > 0) {
+        const rows = copiedQuestions.map((question) => ({ ...question, exam_id: newExam.id }))
+        const { error: questionsError } = await supabase.from('questions').insert(rows)
+        if (questionsError) {
+          await supabase.from('questions').delete().eq('exam_id', newExam.id)
+          await supabase.from('exams').delete().eq('id', newExam.id)
+          throw new Error(`Penyalinan soal gagal; paket sementara sudah dicoba dibersihkan. ${questionsError.message}`)
+        }
+      }
+
+      alert(`Paket berhasil diduplikasi. ${copiedQuestions.length} soal tersalin. Paket baru masih Hidden dan jadwal serta token kosong.`)
+      await fetchData()
+    } catch (error: any) {
+      alert(error?.message || 'Terjadi kesalahan saat menduplikasi paket.')
+    } finally {
+      setDuplicatingExamId(null)
+    }
   }
 
   // --- CRUD SUBTESTS ---
@@ -1152,6 +1229,15 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                       >
                         Kelola Soal →
                       </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDuplicateExam(exam)}
+                        disabled={duplicatingExamId !== null}
+                        className="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 text-violet-700 text-xs font-semibold rounded-lg transition-colors"
+                      >
+                        {duplicatingExamId === exam.id ? 'Menyalin…' : '⧉ Duplikasi'}
+                      </button>
 
                       <button
                         type="button"
