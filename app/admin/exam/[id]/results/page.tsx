@@ -1054,8 +1054,15 @@ const handleSaveAllQuestionScores = async () => {
     return
   }
 
+  const gradingScopeLabel =
+    filterClass === 'ALL'
+      ? 'semua kelas'
+      : filterClass === 'ASSIGNED'
+        ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})`
+        : `kelas ${filterClass}`
+
   const confirmSave = window.confirm(
-    'Apakah Anda yakin ingin menyimpan seluruh nilai peserta untuk soal ini?'
+    `Simpan nilai soal ini untuk ${sortedSessions.length} peserta pada ${gradingScopeLabel}?`
   )
 
   if (!confirmSave) return
