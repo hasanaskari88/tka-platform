@@ -500,3 +500,15 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Belum menjalankan build atau QA browser. Akses guru bergantung pada teacher_signatories.user_id yang benar-benar terhubung ke akun login dan penugasan masih aktif. Akses admin bergantung pada ID akun tercantum di ADMIN_USER_IDS.
 
 - Koreksi build-safety: pemeriksaan pathname pada layout admin dibungkus Suspense, agar penggunaan usePathname tidak memicu kegagalan prerender pada build Next.js. Commit: 14a17b1fd38939d90a3914a9bce7105f5b4fff07.
+
+
+## Rekap Nilai per paket dan pintasan Dashboard — 12 November 2026
+
+- Menambahkan mode Per Paket pada halaman Rekap Nilai untuk merangkum tiap paket Ujian dan Latihan secara terpisah.
+- Ringkasan paket menampilkan jumlah peserta, jumlah riwayat, rata-rata nilai, nilai tertinggi, jumlah/persentase peserta tuntas KKM, serta detail riwayat peserta.
+- Menambahkan filter judul paket soal yang bekerja bersama filter jenis kegiatan, kelas, subtes, nilai, dan pencarian.
+- Ekspor Excel mengikuti mode aktif dan menyediakan lembar ringkasan Per Paket saat mode tersebut dipilih; lembar detail riwayat tetap tersedia.
+- Menambahkan pintasan Rekap Nilai di area pintasan cepat Dashboard Admin dan mempertahankan menu sidebar yang sudah ada.
+- Data paket tetap memakai relasi exam_id yang sudah tersedia pada exam_sessions dan practice_attempts; tidak ada perubahan schema, migration, RLS, atau data Supabase.
+- Hak akses admin/guru kelas aktif dan aturan bahwa penugasan hanya mengatur filter awal tetap dipertahankan.
+- Build dan QA browser setelah perubahan ini perlu diverifikasi sebelum dinyatakan siap Production.
