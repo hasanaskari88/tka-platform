@@ -541,3 +541,18 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Deployment Production: `dpl_DonNPSrEPRh6Rc7cyYq1pwYwiqPm`, status **READY**, alias `https://grisan.vercel.app/`, branch `main`.
 - Build Vercel selesai; log menunjukkan `Build Completed` dan deployment READY. QA interaksi setelah login belum dilakukan; karena itu status runtime belum dinyatakan lulus.
 - Tindak lanjut: setelah smoke test Bank Soal, lanjutkan pemindahan form tambah/edit ke modal agar daftar paket menjadi area utama. Setelah itu rencanakan duplikasi paket dan impor soal terpilih dengan menjaga identitas soal/sesi lama.
+
+
+### Duplikasi paket Bank Soal — 13 November 2026
+
+- Commit: `5a56c15fe78242a5a5da2df657211ae111c35945` — `feat(bank-soal): add safe package duplication`.
+- File aplikasi: `app/admin/bank-soal/page.tsx`.
+- Tombol Duplikasi membuat baris paket baru dengan ID baru, judul bersufiks Salinan, pemilik berdasarkan akun admin yang sedang login, dan status Hidden.
+- Pengaturan paket yang relevan dipertahankan: subtes, deskripsi, durasi, mode target, tipe aktivitas, pengacakan soal/opsi, dan visibilitas nilai/pembahasan.
+- Token dan jadwal salinan dikosongkan agar tidak langsung aktif atau memakai token lama.
+- Semua soal disalin dengan ID baru dan mempertahankan teks, gambar, opsi, kunci, pembahasan, tingkat kesulitan, tipe soal, skor maksimum, indikator, level kognitif, serta konfigurasi maze/flashcard yang ada pada schema.
+- Pembacaan soal menggunakan pagination 500 baris. Jika penyisipan soal gagal, aplikasi mencoba membersihkan soal dan paket salinan yang baru dibuat.
+- Sesi ujian, jawaban, nilai, percobaan latihan, dan riwayat siswa tidak disalin. Tidak ada perubahan schema, RLS, policy, grant, function, trigger, atau data lama.
+- Deployment Production: `dpl_2tg89TaMDUXs4R6TaY9HJ6sPFAKF`, status **READY**, alias terverifikasi `https://grisan.vercel.app/`, branch `main`.
+- Build Next.js dan TypeScript berhasil. Pengujian aksi duplikasi langsung setelah login belum dilakukan; khususnya perlu uji paket dengan 0 soal, paket dengan banyak soal, serta verifikasi bahwa histori sumber tidak berubah.
+- Tindak lanjut: ganti Auto Import PG acak pada pengelola soal dengan pemilih paket sumber, pratinjau soal, seleksi manual, dan deteksi duplikasi berdasarkan isi pertanyaan.
