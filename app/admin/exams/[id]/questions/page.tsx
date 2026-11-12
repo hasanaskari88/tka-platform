@@ -23,6 +23,16 @@ function BankSoalContent() {
   const [quickEditQuestion, setQuickEditQuestion] = useState<any>(null)
   const [quickEditData, setQuickEditData] = useState<any>(null)
   const [quickEditSaving, setQuickEditSaving] = useState(false)
+  const [isPaperPreviewOpen, setIsPaperPreviewOpen] = useState(false)
+  const [paperSettings, setPaperSettings] = useState({
+    schoolName: 'SD NEGERI GETASAN',
+    schoolAddress: 'Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang (50774)',
+    title: '',
+    instructions: 'Bacalah setiap soal dengan teliti. Pilih atau tuliskan jawaban yang paling tepat.',
+    orientation: 'portrait',
+    includeAnswerKey: false,
+    includeExplanations: false,
+  })
 
   // State Modal Import Bulk
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
@@ -783,6 +793,15 @@ function BankSoalContent() {
           >
             <span>➕ Tambah Manual</span>
           </button>
+          {actType === 'QUIZ' && questions.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setPaperSettings((current) => ({ ...current, title: exam?.title || 'Naskah Soal' })); setIsPaperPreviewOpen(true) }}
+              className="px-3 py-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-200 border border-emerald-500/30 text-xs font-bold rounded-xl transition-colors"
+            >
+              🖨️ Cetak / PDF
+            </button>
+          )}
         </div>
       </header>
 
@@ -1069,6 +1088,123 @@ function BankSoalContent() {
                 <button type="button" onClick={() => setIsBankImportModalOpen(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Batal</button>
                 <button type="button" onClick={handleImportSelectedQuestions} disabled={importingSelectedQuestions || selectedImportQuestionIds.length === 0} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl">{importingSelectedQuestions ? 'Mengimpor…' : `Impor ${selectedImportQuestionIds.length} Soal`}</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🖨️ PRATINJAU NASKAH SOAL DAN CETAK / SIMPAN PDF */}
+      {isPaperPreviewOpen && (
+        <div className="fixed inset-0 z-[80] bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+          <style jsx global>{`
+            @page { size: A4 ${paperSettings.orientation}; margin: 15mm; }
+            @media print {
+              html, body { background: #fff !important; }
+              body * { visibility: hidden !important; }
+              #question-paper-print-area, #question-paper-print-area * { visibility: visible !important; }
+              #question-paper-print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; background: #fff !important; color: #111 !important; box-shadow: none !important; }
+              .question-paper-no-print { display: none !important; }
+              .question-paper-item { break-inside: avoid; page-break-inside: avoid; }
+              .question-paper-option { break-inside: avoid; page-break-inside: avoid; }
+            }
+          `}</style>
+          <div className="w-full max-w-7xl max-h-[96vh] bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden flex flex-col lg:flex-row">
+            <div className="question-paper-no-print w-full lg:w-80 shrink-0 p-4 sm:p-5 border-b lg:border-b-0 lg:border-r border-slate-700 space-y-3 overflow-y-auto">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-black text-white">Pengaturan Naskah Soal</h2>
+                <button type="button" onClick={() => setIsPaperPreviewOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">Nama sekolah</label>
+                <input value={paperSettings.schoolName} onChange={(e) => setPaperSettings((current) => ({ ...current, schoolName: e.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">Alamat sekolah</label>
+                <textarea value={paperSettings.schoolAddress} onChange={(e) => setPaperSettings((current) => ({ ...current, schoolAddress: e.target.value }))} rows={2} className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">Judul naskah</label>
+                <input value={paperSettings.title} onChange={(e) => setPaperSettings((current) => ({ ...current, title: e.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">Petunjuk pengerjaan</label>
+                <textarea value={paperSettings.instructions} onChange={(e) => setPaperSettings((current) => ({ ...current, instructions: e.target.value }))} rows={3} className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white" />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">Orientasi kertas</label>
+                <select value={paperSettings.orientation} onChange={(e) => setPaperSettings((current) => ({ ...current, orientation: e.target.value }))} className="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2 text-xs text-white">
+                  <option value="portrait">Potret</option><option value="landscape">Lanskap</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={paperSettings.includeAnswerKey} onChange={(e) => setPaperSettings((current) => ({ ...current, includeAnswerKey: e.target.checked, includeExplanations: e.target.checked ? current.includeExplanations : false }))} className="accent-emerald-500" /> Sertakan kunci jawaban (naskah guru)</label>
+              {paperSettings.includeAnswerKey && <label className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={paperSettings.includeExplanations} onChange={(e) => setPaperSettings((current) => ({ ...current, includeExplanations: e.target.checked }))} className="accent-emerald-500" /> Sertakan pembahasan</label>}
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setIsPaperPreviewOpen(false)} className="flex-1 px-3 py-2 rounded-lg bg-slate-800 text-slate-300 text-xs font-bold">Tutup</button>
+                <button type="button" onClick={() => window.print()} className="flex-1 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">Cetak / Simpan PDF</button>
+              </div>
+              <p className="text-[10px] text-slate-500">Pada dialog cetak perangkat, pilih “Simpan sebagai PDF” untuk menyimpan berkas PDF.</p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-slate-700 p-3 sm:p-5">
+              <article id="question-paper-print-area" className="max-w-[210mm] mx-auto bg-white text-slate-900 shadow-xl p-8 sm:p-10 font-serif text-[11pt] leading-relaxed">
+                <header className="text-center border-b-2 border-slate-900 pb-3 mb-5">
+                  <h2 className="font-black text-base uppercase tracking-wide">{paperSettings.schoolName || 'Nama Sekolah'}</h2>
+                  {paperSettings.schoolAddress && <p className="text-[9pt]">{paperSettings.schoolAddress}</p>}
+                  <div className="border-t border-slate-400 mt-3 pt-3">
+                    <h1 className="font-black text-lg uppercase">{paperSettings.title || exam?.title}</h1>
+                    <p className="text-[10pt]">{exam?.subtest || 'Mata Pelajaran'} · {questions.length} Soal · Waktu {exam?.duration_minutes || '—'} menit</p>
+                  </div>
+                </header>
+
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-[10pt] mb-4">
+                  <div>Nama: ................................................................................</div><div>Kelas: ....................................</div>
+                  <div>Nomor: ............................................................</div><div>Tanggal: ..................................</div>
+                </div>
+                <div className="border border-slate-400 p-3 mb-5 text-[10pt]">
+                  <strong>Petunjuk:</strong> {paperSettings.instructions}
+                </div>
+
+                <div className="space-y-4">
+                  {questions.map((question, index) => {
+                    const type = question.question_type || 'multiple_choice'
+                    const options = Array.isArray(question.options) ? question.options : []
+                    const correctAnswers = question.correct_answers
+                    const answerLabel = type === 'true_false_matrix'
+                      ? (correctAnswers && typeof correctAnswers === 'object' ? Object.entries(correctAnswers).map(([key, value]) => `${key}: ${value}`).join('; ') : '')
+                      : Array.isArray(correctAnswers) ? correctAnswers.join(', ') : String(question.correct_option || '')
+                    return (
+                      <section key={question.id} className="question-paper-item text-[10.5pt]">
+                        <div className="flex gap-2">
+                          <strong className="shrink-0">{index + 1}.</strong>
+                          <div className="min-w-0 flex-1">
+                            <MathRenderer content={question.question_text || ''} className="flow-root" normalizeRotatedImages />
+                            {question.image_url && <img src={question.image_url} alt="Ilustrasi soal" className="max-h-52 max-w-full object-contain my-2" />}
+                            {options.length > 0 && type !== 'true_false_matrix' && (
+                              <div className="mt-2 ml-1 space-y-1">
+                                {options.map((option: any, optionIndex: number) => {
+                                  const key = String(option.key ?? String.fromCharCode(65 + optionIndex))
+                                  const value = typeof option === 'string' ? option : option.text || option.title || ''
+                                  return <div key={key} className="question-paper-option flex gap-2"><span className="shrink-0">{key}.</span><div className="min-w-0"><MathRenderer content={value} className="flow-root" normalizeRotatedImages /></div></div>
+                                })}
+                              </div>
+                            )}
+                            {type === 'true_false_matrix' && (
+                              <table className="w-full border-collapse border border-slate-500 mt-2 text-[9.5pt]"><tbody>
+                                {options.map((option: any, optionIndex: number) => <tr key={String(option.id ?? optionIndex)}><td className="border border-slate-500 p-2">{option.text || ''}</td><td className="border border-slate-500 p-2 w-16 text-center">Benar</td><td className="border border-slate-500 p-2 w-16 text-center">Salah</td></tr>)}
+                              </tbody></table>
+                            )}
+                            {type === 'essay' && <div className="mt-2 space-y-5"><div className="border-b border-slate-400" /><div className="border-b border-slate-400" /><div className="border-b border-slate-400" /></div>}
+                            {paperSettings.includeAnswerKey && (
+                              <div className="mt-2 text-[9pt] text-slate-700"><strong>Kunci:</strong> {answerLabel || 'Belum diisi'}{paperSettings.includeExplanations && question.explanation && <div className="mt-1"><strong>Pembahasan:</strong> <MathRenderer content={question.explanation} className="flow-root" normalizeRotatedImages /></div>}</div>
+                            )}
+                          </div>
+                        </div>
+                      </section>
+                    )
+                  })}
+                </div>
+                <footer className="mt-8 pt-3 border-t border-slate-400 text-center text-[8pt] text-slate-500">{paperSettings.schoolName} · {exam?.title}</footer>
+              </article>
             </div>
           </div>
         </div>
