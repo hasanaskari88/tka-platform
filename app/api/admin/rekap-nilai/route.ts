@@ -1,12 +1,5 @@
 import { NextResponse } from 'next/server'
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js'
-import { createClient as createServerSupabaseClient } from '@/lib/supabase/server'
-
-type Access = {
-  adminClient: any
-  isGlobalAdmin: boolean
-  assignedClassCodes: string[]
-}
+import { getRekapNilaiAccess } from '@/lib/supabase/rekap-nilai-access'
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -16,45 +9,6 @@ function rejectCrossOriginMutation(request: Request) {
     return NextResponse.json({ error: 'Permintaan lintas situs ditolak.' }, { status: 403 })
   }
   return null
-}
-
-async function getAccess(): Promise<Access | NextResponse> {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) {
-    return NextResponse.json({ error: 'Silakan login terlebih dahulu.' }, { status: 401 })
-  }
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !serviceKey) {
-    return NextResponse.json({ error: 'Konfigurasi layanan admin belum lengkap.' }, { status: 503 })
-  }
-
-  const adminClient = createSupabaseAdminClient(url, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
-
-  // Penugasan kelas hanya dipakai untuk menentukan filter awal di halaman.
-  // Semua akun admin/guru tetap dapat melihat seluruh kelas dan mengganti filter.
-  const trustedIds = (process.env.ADMIN_USER_IDS || '').split(',').map(x => x.trim()).filter(Boolean)
-  const isGlobalAdmin = trustedIds.includes(user.id)
-  const { data: assignments, error: assignmentError } = await adminClient
-    .from('teacher_signatories')
-    .select('class_code')
-    .eq('user_id', user.id)
-    .eq('position', 'class_teacher')
-    .eq('is_active', true)
-
-  if (assignmentError) {
-    return NextResponse.json({ error: 'Penugasan kelas tidak dapat dibaca untuk pengaturan filter awal.' }, { status: 500 })
-  }
-
-  const assignedClassCodes = [...new Set((assignments || [])
-    .map((row: any) => String(row.class_code || '').trim())
-    .filter(Boolean))]
-
-  return { adminClient, isGlobalAdmin, assignedClassCodes }
 }
 
 async function fetchAll(makeQuery: () => any) {
@@ -71,17 +25,18 @@ async function fetchAll(makeQuery: () => any) {
 
 export async function GET() {
   try {
-    const access = await getAccess()
-    if (access instanceof NextResponse) return access
+    const access = await getRekapNilaiAccess()
+    if (!access.authorized) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
     const { adminClient, isGlobalAdmin, assignedClassCodes } = access
 
-    const students = await fetchAll(() => {
-      let query = adminClient.from('profiles')
-        .select('id,full_name,username,class_code')
-        .eq('role', 'student')
-        .order('full_name')
-      return query
-    })
+    // Ambil seluruh siswa dan seluruh riwayat. Penugasan hanya dipakai
+    // sebagai nilai filter awal pada halaman, bukan untuk membatasi data.
+    const students = await fetchAll(() => adminClient.from('profiles')
+      .select('id,full_name,username,class_code')
+      .eq('role', 'student')
+      .order('full_name'))
 
     const studentIds = students.map((student: any) => student.id)
     const [exams, examSessions, practiceAttempts, settings] = await Promise.all([
@@ -121,8 +76,10 @@ export async function DELETE(request: Request) {
   if (originError) return originError
 
   try {
-    const access = await getAccess()
-    if (access instanceof NextResponse) return access
+    const access = await getRekapNilaiAccess()
+    if (!access.authorized) {
+      return NextResponse.json({ error: access.error }, { status: access.status })
+    }
     const { adminClient } = access
     const body = await request.json()
     const items = Array.isArray(body.items) ? body.items : []
@@ -150,6 +107,8 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Sebagian riwayat tidak ditemukan. Muat ulang halaman.' }, { status: 409 })
     }
 
+    // Tidak ada pemeriksaan class_code di sini: penghapusan terpilih
+    // tidak dibatasi pada kelas ampuan.
     const [deletedExam, deletedPractice] = await Promise.all([
       examIds.length ? adminClient.from('exam_sessions').delete().in('id', examIds).select('id') : Promise.resolve({ data: [], error: null }),
       practiceIds.length ? adminClient.from('practice_attempts').delete().in('id', practiceIds).select('id') : Promise.resolve({ data: [], error: null }),
