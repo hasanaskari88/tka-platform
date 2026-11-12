@@ -827,6 +827,7 @@ interface RichTextEditorProps {
   className?: string
   minHeight?: number
   toolbarMode?: 'full' | 'essay'
+  showToolbar?: boolean
 }
 
 export default function RichTextEditor({
@@ -837,6 +838,7 @@ export default function RichTextEditor({
   className = '',
   minHeight = 220,
   toolbarMode = 'full',
+  showToolbar = true,
 }: RichTextEditorProps) {
   const editorId = useId()
   const editor = useEditor({
@@ -1104,7 +1106,7 @@ export default function RichTextEditor({
     <div
       className={`rich-text-editor overflow-hidden rounded-xl border border-slate-300 bg-white ${className}`}
     >
-      {editable && <EditorToolbar editor={editor} editorId={editorId} mode={toolbarMode} />}
+      {editable && showToolbar && <EditorToolbar editor={editor} editorId={editorId} mode={toolbarMode} />}
 
       <EditorContent editor={editor} />
     </div>
