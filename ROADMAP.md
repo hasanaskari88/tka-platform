@@ -528,3 +528,16 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Tindak lanjut sebelum memperluas fitur: verifikasi tampilan jadwal WIB pada dialog siswa, tampilkan status jadwal (belum dibuka/berlangsung/ditutup), lalu lanjutkan modal form, duplikasi paket, impor terpilih, Quick Edit, PDF, dan DOCX dalam batch terpisah yang diuji.
 
 Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime penuh. Build awal yang gagal tidak mengubah alias Production; alias utama sekarang menunjuk deployment READY di atas.
+
+
+### Status jadwal paket Bank Soal — 13 November 2026
+
+- Commit sebelum: `1c27adb4311454c15f0ede4d74115da4427f6520`.
+- Commit implementasi: `6bea2ef543cb31aaf28608f59feed8f8403d8370` — `feat(bank-soal): show and filter package schedule status`.
+- File berubah: `app/admin/bank-soal/page.tsx`.
+- Kartu paket kini menampilkan status terhitung: Disembunyikan, Siap dibuka (tanpa jadwal), Jadwal perlu diperbaiki, Belum dibuka, Sedang berlangsung, atau Sudah ditutup.
+- Filter jadwal ditambahkan tanpa mengganti filter publikasi, subtes, pencarian, atau pengurutan yang sudah ada. Paket `PRACTICE_ONLY` tetap tidak ditampilkan pada Bank Soal.
+- Perhitungan status menggunakan timestamp jadwal; format waktu yang terlihat tetap WIB. Tidak ada perubahan schema, data, RLS, API, halaman Practice, CBT, scoring, atau penyimpanan jawaban.
+- Deployment Production: `dpl_DonNPSrEPRh6Rc7cyYq1pwYwiqPm`, status **READY**, alias `https://grisan.vercel.app/`, branch `main`.
+- Build Vercel selesai; log menunjukkan `Build Completed` dan deployment READY. QA interaksi setelah login belum dilakukan; karena itu status runtime belum dinyatakan lulus.
+- Tindak lanjut: setelah smoke test Bank Soal, lanjutkan pemindahan form tambah/edit ke modal agar daftar paket menjadi area utama. Setelah itu rencanakan duplikasi paket dan impor soal terpilih dengan menjaga identitas soal/sesi lama.
