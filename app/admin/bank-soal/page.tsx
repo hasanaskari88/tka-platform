@@ -22,6 +22,7 @@ function BankSoalManagementContent() {
 
   // State Form Edit / Tambah Ujian
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
+  const [isExamModalOpen, setIsExamModalOpen] = useState(false)
   const [title, setTitle] = useState('')
   const [examAuthorDisplayName, setExamAuthorDisplayName] = useState('')
   const [selectedSubtest, setSelectedSubtest] = useState('')
@@ -233,6 +234,7 @@ function BankSoalManagementContent() {
 
   const resetForm = () => {
     setEditingExamId(null)
+    setIsExamModalOpen(false)
     setTitle('')
     setExamAuthorDisplayName('')
     if (subtests.length > 0) setSelectedSubtest(subtests[0].name)
@@ -253,6 +255,7 @@ function BankSoalManagementContent() {
 
   const handleEditClick = (exam: any) => {
     setEditingExamId(exam.id)
+    setIsExamModalOpen(true)
     setTitle(exam.title || '')
     setExamAuthorDisplayName(exam.author_display_name || '')
     setSelectedSubtest(exam.subtest || (subtests[0]?.name || 'KUANTITATIF'))
@@ -270,7 +273,6 @@ function BankSoalManagementContent() {
     setStartTime(exam.start_time ? formatJakartaDateTimeInput(exam.start_time) : '')
     setEndTime(exam.end_time ? formatJakartaDateTimeInput(exam.end_time) : '')
 
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSaveExam = async (e: React.FormEvent) => {
@@ -600,23 +602,37 @@ const handleQuickExamAuthorSave = async (examId: string) => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Form Buat / Edit Ujian */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit space-y-4">
+        <div className="grid grid-cols-1 gap-8">
+          {/* Form Buat / Edit Ujian dalam modal */}
+          {isExamModalOpen && (
+            <div
+              className="fixed inset-0 z-[60] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5"
+              onClick={() => { setIsExamModalOpen(false); resetForm() }}
+            >
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-2xl h-fit space-y-4 w-full max-w-3xl max-h-[92vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center pb-2 border-b">
               <h2 className="text-lg font-bold text-slate-800">
                 {editingExamId ? '✏️ Edit Paket Ujian' : '➕ Tambah Ujian Baru'}
               </h2>
-              {editingExamId && (
+              <div className="flex items-center gap-2">
+                {editingExamId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded font-semibold transition-colors"
+                  >
+                    Batal Edit
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={resetForm}
+                  onClick={() => { setIsExamModalOpen(false); resetForm() }}
                   className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded font-semibold transition-colors"
-                  suppressHydrationWarning
+                  aria-label="Tutup form paket"
                 >
-                  ✕ Batal Edit
+                  ✕ Tutup
                 </button>
-              )}
+              </div>
             </div>
 
             {msg && (
@@ -900,16 +916,27 @@ const handleQuickExamAuthorSave = async (examId: string) => {
               </button>
             </form>
           </div>
+            </div>
+          )}
 
           {/* Daftar Ujian Aktif (Dengan Tab Kategori: Ujian Resmi -> Aktivitas Latihan -> Semua) */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="space-y-4">
             
             {/* BILAH TAB NAVIGASI KATEGORI & FILTER SUBTES */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 
                 {/* TAB SWITCHER (URUTAN BARU: UJIAN RESMI (CBT) -> AKTIVITAS LATIHAN -> SEMUA) */}
-                <div className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">🎯 Daftar paket ujian resmi (CBT)</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">🎯 Daftar paket ujian resmi (CBT)</div>
+                  <button
+                    type="button"
+                    onClick={() => { resetForm(); setIsExamModalOpen(true) }}
+                    className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors"
+                  >
+                    + Tambah Paket
+                  </button>
+                </div>
 
                 {/* FILTER SUBTES & SORTING */}
                 <div className="flex flex-col sm:flex-row items-stretch gap-2 w-full sm:w-auto">
