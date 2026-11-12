@@ -466,3 +466,15 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Commit implementasi halaman: `8f3ffbdf6c07b65a811fadd88e479179995d7887`.
 - Commit pencatatan migration: `7987a62f5b2aeef05e07827edc4379e7056c525a`.
 - Deployment Production dan smoke test runtime: menunggu verifikasi.
+
+
+## Rekap Nilai Terpadu — 12 November 2026
+
+- Menambahkan halaman admin `/admin/rekap-nilai` dan menu sidebar **Rekap Nilai**.
+- Halaman menyediakan dua sudut pandang: rekap per peserta (ringkasan paket/subtes, nilai terbaik, jumlah riwayat, rata-rata nilai terbaik) dan rekap per subtes (nilai terbaik/terbaru per peserta).
+- Filter mencakup kelas, subtes, ujian/latihan, rentang nilai berbasis KKM sekolah, serta pencarian nama/username/judul paket. Pengurutan tersedia berdasarkan nama, kelas, nilai, dan tanggal.
+- Ekspor Excel memuat ringkasan dan detail riwayat.
+- Riwayat ujian dan latihan dapat dipilih dari detail masing-masing peserta, lalu dihapus secara massal setelah konfirmasi. Penghapusan memakai endpoint server dan FK `ON DELETE CASCADE` yang sudah ada untuk membersihkan detail jawaban terkait.
+- Endpoint `app/api/admin/rekap-nilai/route.ts` memverifikasi sesi. Admin global harus terdaftar di `ADMIN_USER_IDS`; guru harus memiliki penugasan wali kelas aktif yang terhubung melalui `teacher_signatories.user_id`. Data dan penghapusan guru dibatasi di server pada kelas yang ditugaskan.
+- KKM dibaca dari `school_document_settings`; tidak ada perubahan schema, migration, RLS, atau data Supabase.
+- Catatan QA: build Vercel dan uji browser setelah login masih harus diverifikasi. Pastikan akun guru mempunyai penugasan aktif dengan `user_id` yang benar, dan akun admin global tercantum di `ADMIN_USER_IDS`.
