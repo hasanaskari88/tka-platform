@@ -597,3 +597,11 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Tidak ada perubahan database, schema, RLS, policy, grant, function, trigger, maupun data.
 - Deployment Production terbaru: `dpl_B8WfCsPSxfw5GE1YMhy41ix79jUW`, status **READY**, commit `9122a8d9d12707641c18d3dc18ad0899a78364f4`, alias `https://grisan.vercel.app/`. Build Next.js dan TypeScript berhasil.
 - Belum dilakukan uji unduhan aktual melalui browser/login dan pembukaan berkas pada Microsoft Word/LibreOffice. QA lanjutan: buka DOCX dengan soal teks, tabel, gambar yang mengizinkan CORS, gambar lintas domain yang memblokir CORS, rumus, Arab/RTL, serta soal matriks/uraian. Pastikan Word tidak meminta perbaikan dokumen dan gambar tampil dengan rasio yang sesuai.
+
+
+### Penyelarasan DOCX dengan pratinjau cetak — 13 November 2026
+
+- Commit perbaikan awal: `8e1683a8af9ac4610b4581c4a306d08784379cbf`.
+- Ekspor DOCX tetap memakai objek state `paperSettings` yang sama dengan pratinjau Cetak/PDF. Nama sekolah, alamat, judul, petunjuk, orientasi, pilihan sertakan kunci jawaban, dan pilihan sertakan pembahasan tidak dibuat ulang khusus DOCX; perubahan centang tetap mengikuti aturan lama (pembahasan hanya aktif jika kunci jawaban dicentang).
+- Tata letak DOCX diselaraskan lebih dekat dengan pratinjau: Georgia sebagai padanan font serif pratinjau, garis pemisah header, identitas peserta dalam susunan dua kolom, kotak petunjuk, margin A4 15 mm, dan footer. Implementasi pratinjau HTML/CSS dan alur Cetak/PDF tidak diubah.
+- Belum mengklaim hasil DOCX identik. Perlu uji unduh dan pembukaan berkas pada Word/LibreOffice, termasuk orientasi, halaman, gambar, rumus, tabel, dan RTL. Tidak ada perubahan schema/database/security atau dependency.
