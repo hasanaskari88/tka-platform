@@ -138,7 +138,7 @@ function QuestionManagerContent() {
   const [activeTab, setActiveTab] = useState<'form' | 'list'>('list')
 
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
-  const [isQuickEditOpen, setIsQuickEditOpen] = useState(false)
+  const [inlineQuickEditId, setInlineQuickEditId] = useState<string | null>(null)
   const [quickEditQuestion, setQuickEditQuestion] = useState<any>(null)
   const [quickEditData, setQuickEditData] = useState<any>(null)
   const [quickEditSaving, setQuickEditSaving] = useState(false)
@@ -495,7 +495,7 @@ function QuestionManagerContent() {
       cognitive_level: question.cognitive_level || 'MOTS',
       question_type: type,
     })
-    setIsQuickEditOpen(true)
+    setInlineQuickEditId(question.id)
   }
 
   const handleSaveQuickEdit = async () => {
@@ -592,7 +592,7 @@ function QuestionManagerContent() {
       if (error) throw new Error(`Gagal menyimpan Quick Edit: ${error.message}`)
 
       alert('Quick Edit berhasil disimpan. Jawaban dan nilai historis tidak diubah.')
-      setIsQuickEditOpen(false)
+      setInlineQuickEditId(null)
       setQuickEditQuestion(null)
       setQuickEditData(null)
       await loadData()
@@ -1699,7 +1699,7 @@ function QuestionManagerContent() {
                       </div>
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button type="button" onClick={() => handleOpenQuickEdit(q)} className="text-xs text-cyan-700 hover:text-cyan-900 font-bold bg-cyan-50 px-3 py-1 rounded-lg border border-cyan-200">⚡ Quick Edit</button>
+                        <button type="button" onClick={() => handleOpenQuickEdit(q)} disabled={Boolean(inlineQuickEditId)} className="text-xs text-cyan-700 hover:text-cyan-900 font-bold bg-cyan-50 px-3 py-1 rounded-lg border border-cyan-200">⚡ Quick Edit</button>
                         <button type="button" onClick={() => handleDuplicateQuestion(q)} className="text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">⧉ Duplikasi</button>
                         <button
                           onClick={() => handleEditClick(q)}
@@ -1718,6 +1718,47 @@ function QuestionManagerContent() {
                       </div>
                     </div>
 
+                    {inlineQuickEditId === q.id && quickEditData ? (
+                      <div className="mt-3 rounded-xl border border-cyan-200 bg-cyan-50/50 p-4 space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div><h3 className="text-sm font-bold text-cyan-900">Quick Edit — langsung pada kartu soal</h3><p className="text-xs text-slate-600">Format, rumus, tabel, dan gambar yang sudah ada dipertahankan. Toolbar disembunyikan.</p></div>
+                          <span className="text-xs text-slate-500">Simpan atau batal untuk seluruh perubahan</span>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-bold text-slate-700">Teks pertanyaan</label>
+                          <RichTextEditor showToolbar={false} content={quickEditData.question_text} onChange={(html) => setQuickEditData((current: any) => ({ ...current, question_text: html }))} placeholder="Perbaiki teks pertanyaan…" minHeight={100} className="border-slate-300" />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div><label className="mb-1 block text-xs font-bold text-slate-700">URL gambar utama</label><input value={quickEditData.image_url} onChange={(e) => setQuickEditData((current: any) => ({ ...current, image_url: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" placeholder="https://…" /></div>
+                          <div><label className="mb-1 block text-xs font-bold text-slate-700">Bobot / skor maksimum</label><input type="number" min="0.01" step="0.01" value={quickEditData.max_score} onChange={(e) => setQuickEditData((current: any) => ({ ...current, max_score: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" /></div>
+                        </div>
+                        {['multiple_choice', 'complex_multiple_choice', 'true_false_matrix'].includes(quickEditData.question_type) && (
+                          <div className="space-y-3">
+                            <h4 className="text-xs font-bold text-slate-700">Pilihan / pernyataan</h4>
+                            {quickEditData.options.map((option: any, index: number) => {
+                              const key = String(option.key ?? option.id ?? String.fromCharCode(65 + index));
+                              const label = option.text ?? option.title ?? (typeof option === 'string' ? option : '');
+                              return <div key={key} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
+                                <div className="text-xs font-bold text-slate-600">{quickEditData.question_type === 'true_false_matrix' ? 'Pernyataan ' : 'Pilihan '}{key}</div>
+                                <RichTextEditor showToolbar={false} content={label} onChange={(html) => setQuickEditData((current: any) => ({ ...current, options: current.options.map((item: any, itemIndex: number) => itemIndex === index ? (typeof item === 'string' ? html : { ...item, text: html }) : item) }))} minHeight={65} placeholder="Isi pilihan/pernyataan…" className="border-slate-300" />
+                                {quickEditData.question_type === 'true_false_matrix' && <select value={quickEditData.matrix_answers[key] || ''} onChange={(e) => setQuickEditData((current: any) => ({ ...current, matrix_answers: { ...current.matrix_answers, [key]: e.target.value } }))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"><option value="">Pilih kunci…</option><option value="Benar">Benar</option><option value="Salah">Salah</option></select>}
+                              </div>;
+                            })}
+                          </div>
+                        )}
+                        {quickEditData.question_type === 'multiple_choice' && <div><label className="mb-1 block text-xs font-bold text-slate-700">Kunci jawaban</label><select value={quickEditData.correct_option} onChange={(e) => setQuickEditData((current: any) => ({ ...current, correct_option: e.target.value }))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800">{quickEditData.options.map((option: any, index: number) => { const key = String(option.key ?? String.fromCharCode(65 + index)); return <option key={key} value={key}>Pilihan {key}</option> })}</select></div>}
+                        {quickEditData.question_type === 'complex_multiple_choice' && <div className="space-y-2"><label className="block text-xs font-bold text-slate-700">Kunci jawaban (boleh lebih dari satu)</label><div className="flex flex-wrap gap-3">{quickEditData.options.map((option: any, index: number) => { const key = String(option.key ?? String.fromCharCode(65 + index)); return <label key={key} className="flex items-center gap-2 text-xs text-slate-700"><input type="checkbox" checked={quickEditData.selected_keys.includes(key)} onChange={(e) => setQuickEditData((current: any) => ({ ...current, selected_keys: e.target.checked ? [...current.selected_keys, key] : current.selected_keys.filter((item: string) => item !== key) }))} />{key}</label> })}</div></div>}
+                        <div><label className="mb-1 block text-xs font-bold text-slate-700">Pembahasan / penjelasan</label><RichTextEditor showToolbar={false} content={quickEditData.explanation} onChange={(html) => setQuickEditData((current: any) => ({ ...current, explanation: html }))} placeholder="Perbaiki pembahasan…" minHeight={85} className="border-slate-300" /></div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div><label className="mb-1 block text-xs font-bold text-slate-700">Indikator soal</label><input value={quickEditData.indicator} onChange={(e) => setQuickEditData((current: any) => ({ ...current, indicator: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" /></div>
+                          <div><label className="mb-1 block text-xs font-bold text-slate-700">Level kognitif</label><select value={quickEditData.cognitive_level} onChange={(e) => setQuickEditData((current: any) => ({ ...current, cognitive_level: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800">{['LOTS','MOTS','HOTS','C1','C2','C3','C4','C5','C6'].map((level) => <option key={level} value={level}>{level}</option>)}</select></div>
+                        </div>
+                        <div className="flex flex-wrap justify-end gap-2 border-t border-cyan-200 pt-3">
+                          <button type="button" disabled={quickEditSaving} onClick={() => { setInlineQuickEditId(null); setQuickEditQuestion(null); setQuickEditData(null) }} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700">Batal</button>
+                          <button type="button" disabled={quickEditSaving} onClick={handleSaveQuickEdit} className="rounded-lg bg-cyan-700 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{quickEditSaving ? 'Menyimpan…' : 'Simpan perubahan soal'}</button>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="text-slate-800 text-sm font-medium">
                       <MathRenderer content={q.question_text} />
                     </div>
@@ -1802,6 +1843,7 @@ function QuestionManagerContent() {
                         <span className="font-bold text-slate-800 block">Rubrik / Pedoman Guru:</span>
                         <p>{q.explanation || 'Tidak ada pedoman penskoran khusus.'}</p>
                       </div>
+                    )}
                     )}
                   </div>
                 )
@@ -1900,102 +1942,6 @@ function QuestionManagerContent() {
       )}
 
       {/* 🖨️ PRATINJAU NASKAH SOAL DAN CETAK / SIMPAN PDF */}
-      {/* ⚡ QUICK EDIT: UPDATE TERBATAS, MENJAGA KOLOM LAIN */}
-      {isQuickEditOpen && quickEditData && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[65]">
-          <div className="bg-slate-950 border border-cyan-900/60 max-w-3xl w-full rounded-3xl p-5 sm:p-6 space-y-4 text-white shadow-2xl max-h-[94vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-3 border-b border-slate-800 pb-3">
-              <div>
-                <h2 className="text-sm font-black text-cyan-200">⚡ Quick Edit Soal</h2>
-                <p className="text-[11px] text-slate-400 mt-1">Mengubah bagian terpilih tanpa mengganti kolom khusus atau menghapus riwayat jawaban.</p>
-              </div>
-              <button type="button" disabled={quickEditSaving} onClick={() => setIsQuickEditOpen(false)} className="text-slate-400 hover:text-white font-bold">✕</button>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-bold text-slate-300 mb-2">Teks pertanyaan</label>
-                <RichTextEditor content={quickEditData.question_text} onChange={(html) => setQuickEditData((current: any) => ({ ...current, question_text: html }))} placeholder="Perbaiki teks pertanyaan…" minHeight={130} />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">URL gambar tambahan</label>
-                <input value={quickEditData.image_url} onChange={(e) => setQuickEditData((current: any) => ({ ...current, image_url: e.target.value }))} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" placeholder="https://…" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Skor maksimum</label>
-                <input type="number" min="0.01" step="0.01" value={quickEditData.max_score} onChange={(e) => setQuickEditData((current: any) => ({ ...current, max_score: e.target.value }))} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Indikator soal</label>
-                <input value={quickEditData.indicator} onChange={(e) => setQuickEditData((current: any) => ({ ...current, indicator: e.target.value }))} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" placeholder="Indikator pembelajaran…" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Level kognitif</label>
-                <select value={quickEditData.cognitive_level} onChange={(e) => setQuickEditData((current: any) => ({ ...current, cognitive_level: e.target.value }))} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
-                  {['LOTS', 'MOTS', 'HOTS', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'].map((level) => <option key={level} value={level}>{level}</option>)}
-                </select>
-              </div>
-            </div>
-
-            {['multiple_choice', 'complex_multiple_choice', 'true_false_matrix'].includes(quickEditData.question_type) && (
-              <div className="space-y-3 border-t border-slate-800 pt-3">
-                <h3 className="text-xs font-bold text-slate-200">Pilihan / pernyataan</h3>
-                {quickEditData.options.map((option: any, index: number) => {
-                  const key = String(option.key ?? option.id ?? String.fromCharCode(65 + index))
-                  const label = option.text ?? option.title ?? (typeof option === 'string' ? option : '')
-                  return (
-                    <div key={key} className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 space-y-2">
-                      <div className="text-[10px] font-bold text-cyan-300">{quickEditData.question_type === 'true_false_matrix' ? `Pernyataan ${key}` : `Pilihan ${key}`}</div>
-                      <RichTextEditor content={label} onChange={(html) => setQuickEditData((current: any) => ({ ...current, options: current.options.map((item: any, itemIndex: number) => itemIndex === index ? (typeof item === 'string' ? html : { ...item, text: html }) : item) }))} minHeight={75} placeholder="Isi pilihan/pernyataan…" />
-                      {quickEditData.question_type === 'true_false_matrix' && (
-                        <select value={quickEditData.matrix_answers[key] || ''} onChange={(e) => setQuickEditData((current: any) => ({ ...current, matrix_answers: { ...current.matrix_answers, [key]: e.target.value } }))} className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white">
-                          <option value="">Pilih kunci…</option><option value="Benar">Benar</option><option value="Salah">Salah</option>
-                        </select>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-
-            {quickEditData.question_type === 'multiple_choice' && (
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Kunci jawaban</label>
-                <select value={quickEditData.correct_option} onChange={(e) => setQuickEditData((current: any) => ({ ...current, correct_option: e.target.value }))} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
-                  {quickEditData.options.map((option: any, index: number) => {
-                    const key = String(option.key ?? String.fromCharCode(65 + index))
-                    return <option key={key} value={key}>Pilihan {key}</option>
-                  })}
-                </select>
-              </div>
-            )}
-            {quickEditData.question_type === 'complex_multiple_choice' && (
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-300">Kunci jawaban (boleh lebih dari satu)</label>
-                <div className="flex flex-wrap gap-3">
-                  {quickEditData.options.map((option: any, index: number) => {
-                    const key = String(option.key ?? String.fromCharCode(65 + index))
-                    return <label key={key} className="flex items-center gap-2 text-xs text-slate-200"><input type="checkbox" checked={quickEditData.selected_keys.includes(key)} onChange={(e) => setQuickEditData((current: any) => ({ ...current, selected_keys: e.target.checked ? [...current.selected_keys, key] : current.selected_keys.filter((item: string) => item !== key) }))} className="accent-cyan-500" />{key}</label>
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="border-t border-slate-800 pt-3">
-              <label className="block text-xs font-bold text-slate-300 mb-2">Pembahasan / penjelasan</label>
-              <RichTextEditor content={quickEditData.explanation} onChange={(html) => setQuickEditData((current: any) => ({ ...current, explanation: html }))} placeholder="Perbaiki pembahasan…" minHeight={110} />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-800 pt-3">
-              <p className="text-[10px] text-slate-500">Riwayat jawaban dan nilai tidak dihapus atau dihitung ulang otomatis.</p>
-              <div className="flex gap-2">
-                <button type="button" disabled={quickEditSaving} onClick={() => setIsQuickEditOpen(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Batal</button>
-                <button type="button" disabled={quickEditSaving} onClick={handleSaveQuickEdit} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl">{quickEditSaving ? 'Menyimpan…' : 'Simpan Quick Edit'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
 
       <BulkUploadModal
