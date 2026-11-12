@@ -605,3 +605,18 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Ekspor DOCX tetap memakai objek state `paperSettings` yang sama dengan pratinjau Cetak/PDF. Nama sekolah, alamat, judul, petunjuk, orientasi, pilihan sertakan kunci jawaban, dan pilihan sertakan pembahasan tidak dibuat ulang khusus DOCX; perubahan centang tetap mengikuti aturan lama (pembahasan hanya aktif jika kunci jawaban dicentang).
 - Tata letak DOCX diselaraskan lebih dekat dengan pratinjau: Georgia sebagai padanan font serif pratinjau, garis pemisah header, identitas peserta dalam susunan dua kolom, kotak petunjuk, margin A4 15 mm, dan footer. Implementasi pratinjau HTML/CSS dan alur Cetak/PDF tidak diubah.
 - Belum mengklaim hasil DOCX identik. Perlu uji unduh dan pembukaan berkas pada Word/LibreOffice, termasuk orientasi, halaman, gambar, rumus, tabel, dan RTL. Tidak ada perubahan schema/database/security atau dependency.
+
+
+### Penyempurnaan Bank Soal dan Kelola Soal Ujian — 13 November 2026
+
+- Pekerjaan diarahkan ke halaman ujian yang benar: `/admin/bank-soal` dan `/admin/exam/[id]`. Halaman latihan `/admin/exams/[id]/questions` tidak diubah.
+- Halaman Kelola Soal Ujian: tab awal diubah menjadi **Daftar Soal Aktif**; tab Tambah Soal Manual tetap tersedia.
+- Setiap kartu soal ujian mendapat tindakan **Quick Edit** dan **Duplikasi** di samping Edit dan Hapus. Quick Edit memakai RichTextEditor untuk pertanyaan, pilihan/pernyataan, dan pembahasan; kunci, skor, indikator, serta level kognitif ikut dapat diperbarui.
+- Quick Edit memeriksa histori jawaban ujian/latihan dan meminta konfirmasi sebelum perubahan yang dapat memengaruhi penilaian. Histori dan nilai lama tidak dihapus atau dihitung ulang otomatis.
+- Duplikasi soal membuat record baru dengan ID baru dan menyalin kolom konten/metadata soal yang didukung, tanpa menyalin jawaban siswa.
+- Import dari Paket Lain menyediakan pemilihan paket sumber, pratinjau, pencarian, pemilihan soal, dan melewati teks pertanyaan yang terdeteksi duplikat. Paket sumber disaring agar sistem ujian tidak bercampur dengan paket latihan.
+- Ekspor DOCX ditambahkan ke pengaturan/pratinjau cetak yang sudah ada. Pengaturan kunci jawaban dan pembahasan mengikuti kontrol cetak yang sama. Preview PDF dan alur cetak lama dipertahankan.
+- Halaman Bank Soal: filter pencarian/status/jadwal/subtes/pengurutan dibuat dapat membungkus baris agar tidak menyempit dan memicu overflow horizontal.
+- Commit aplikasi: `0ffc464f0095e3d9fcb87bf64b6799b687bb1425`; koreksi refresh handler `651cb6ad43dcae97961cf09dfa04965c48d1a803`; koreksi preview ganda `951db9696719fe2cc96c2caebe99362fe3ce6b06`; layout Bank Soal `2644a630e1a323672cb0997facd399376431f244`.
+- Catatan: deployment awal gagal karena blok pratinjau DOCX ganda dengan styled-jsx. Blok duplikat telah dihapus pada commit `951db969`; deployment commit tersebut perlu dipastikan READY sebelum rilis dinyatakan berhasil.
+- Belum dilakukan QA browser setelah login. Perlu menguji Quick Edit, duplikasi, impor paket, pembatasan histori, unduhan DOCX dan pembukaan di Word, serta tampilan Bank Soal desktop/mobile.
