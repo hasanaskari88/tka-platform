@@ -138,7 +138,7 @@ export default function RekapNilaiPage() {
     visibleAttempts.forEach(attempt => grouped.set(attempt.userId, [...(grouped.get(attempt.userId) || []), attempt]))
     const rows = studentsInScope.filter(student => {
       const term = search.trim().toLocaleLowerCase('id')
-      return !term || String(student.full_name || '').toLocaleLowerCase('id').includes(term) || String(student.username || '').toLocaleLowerCase('id').includes(term)
+      return !term || String(student.full_name || '').toLocaleLowerCase('id').includes(term) || String(student.username || '').toLocaleLowerCase('id').includes(term) || (grouped.get(student.id) || []).length > 0
     }).map(student => {
       const history = grouped.get(student.id) || []
       const packages = new Map<string, PackageSummary>()
@@ -200,7 +200,9 @@ export default function RekapNilaiPage() {
   }
   const selectVisible = () => {
     const keys = visibleAttempts.map(a => a.kind + ':' + a.id)
-    setSelected(old => old.length === keys.length && keys.every(key => old.includes(key)) ? [] : [...new Set([...old, ...keys])])
+    setSelected(old => keys.every(key => old.includes(key))
+      ? old.filter(key => !keys.includes(key))
+      : [...new Set([...old, ...keys])])
   }
 
   const exportExcel = () => {
@@ -336,13 +338,13 @@ export default function RekapNilaiPage() {
               mode === 'student' ? <table className="w-full min-w-[850px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Peserta</th><th className="px-3 py-3">Kelas</th><th className="px-3 py-3 text-center">Paket selesai</th><th className="px-3 py-3 text-center">Riwayat</th><th className="px-3 py-3 text-right">Rata-rata terbaik</th><th className="px-3 py-3">Aktivitas terakhir</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {participantRows.map(row => <ParticipantTableRows key={row.student.id} row={row} expanded={expanded.includes(row.student.id)} onToggle={() => toggleExpanded(row.student.id)} selected={selected} onSelect={toggleSelected} />)}
+                  {participantRows.map(row => <ParticipantTableRows key={row.student.id} row={row} expanded={expanded.includes(row.student.id)} onToggle={() => toggleExpanded(row.student.id)} selected={selected} onSelect={toggleSelected} kkm={kkm} />)}
                   {participantRows.length === 0 && <tr><td colSpan={7} className="px-3 py-12 text-center text-slate-400">Tidak ada peserta yang sesuai dengan filter.</td></tr>}
                 </tbody>
               </table> : <table className="w-full min-w-[850px] text-left text-sm">
                 <thead className="bg-slate-50 text-[11px] uppercase tracking-wide text-slate-500"><tr><th className="px-3 py-3">Peserta</th><th className="px-3 py-3">Kelas</th><th className="px-3 py-3 text-center">Jumlah riwayat</th><th className="px-3 py-3 text-right">Nilai terbaik</th><th className="px-3 py-3 text-right">Nilai terbaru</th><th className="px-3 py-3">Aktivitas terakhir</th><th className="px-3 py-3 text-center">Detail</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
-                  {subtestRows.map(row => <SubtestTableRows key={row.userId} row={row} expanded={expanded.includes(row.userId)} onToggle={() => toggleExpanded(row.userId)} selected={selected} onSelect={toggleSelected} />)}
+                  {subtestRows.map(row => <SubtestTableRows key={row.userId} row={row} expanded={expanded.includes(row.userId)} onToggle={() => toggleExpanded(row.userId)} selected={selected} onSelect={toggleSelected} kkm={kkm} />)}
                   {subtestRows.length === 0 && <tr><td colSpan={7} className="px-3 py-12 text-center text-slate-400">Belum ada riwayat pada subtes ini.</td></tr>}
                 </tbody>
               </table>}
@@ -362,7 +364,7 @@ function Stat({ icon, label, value, note }: { icon: React.ReactNode; label: stri
   return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-center justify-between text-slate-500"><span className="text-xs font-semibold">{label}</span><span className="text-indigo-600">{icon}</span></div><div className="mt-2 text-2xl font-black text-slate-900">{value}</div><div className="mt-1 truncate text-[11px] text-slate-400">{note}</div></div>
 }
 
-function HistoryRows({ history, selected, onSelect }: { history: Attempt[]; selected: string[]; onSelect: (attempt: Attempt) => void }) {
+function HistoryRows({ history, selected, onSelect, kkm }: { history: Attempt[]; selected: string[]; onSelect: (attempt: Attempt) => void; kkm: number }) {
   return <div className="space-y-1.5 rounded-xl bg-slate-50 p-3">
     {history.map(attempt => {
       const key = attempt.kind + ':' + attempt.id
@@ -370,14 +372,14 @@ function HistoryRows({ history, selected, onSelect }: { history: Attempt[]; sele
         <input type="checkbox" checked={selected.includes(key)} onChange={() => onSelect(attempt)} className="h-4 w-4 rounded border-slate-300"/>
         <div className="min-w-[180px] flex-1"><div className="text-xs font-bold text-slate-800">{attempt.title}</div><div className="text-[10px] text-slate-400">{attempt.kind === 'exam' ? 'Ujian' : 'Latihan'} • {dateLabel(attempt.date)} • {attempt.status}</div></div>
         <div className="text-right"><div className="text-sm font-black text-slate-800">{scoreLabel(attempt.score)}</div><div className="text-[10px] text-slate-400">Nilai</div></div>
-        <span className={'rounded-full px-2 py-1 text-[10px] font-bold ' + (attempt.score !== null && attempt.score >= 70 ? 'bg-emerald-50 text-emerald-700' : attempt.score !== null ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-500')}>{attempt.score === null ? 'Belum selesai' : attempt.score >= 70 ? 'Tuntas' : 'Belum tuntas'}</span>
+        <span className={'rounded-full px-2 py-1 text-[10px] font-bold ' + (attempt.score !== null && attempt.score >= kkm ? 'bg-emerald-50 text-emerald-700' : attempt.score !== null ? 'bg-rose-50 text-rose-700' : 'bg-slate-100 text-slate-500')}>{attempt.score === null ? 'Belum selesai' : attempt.score >= kkm ? 'Tuntas' : 'Belum tuntas'}</span>
       </div>
     })}
     {history.length === 0 && <p className="py-2 text-center text-xs text-slate-400">Belum ada riwayat.</p>}
   </div>
 }
 
-function ParticipantTableRows({ row, expanded, onToggle, selected, onSelect }: any) {
+function ParticipantTableRows({ row, expanded, onToggle, selected, onSelect, kkm }: any) {
   return <>
     <tr className="hover:bg-slate-50">
       <td className="px-3 py-3"><div className="font-bold text-slate-800">{row.student.full_name || 'Tanpa nama'}</div><div className="text-[11px] text-slate-400">{row.student.username || '—'}</div></td>
@@ -388,11 +390,11 @@ function ParticipantTableRows({ row, expanded, onToggle, selected, onSelect }: a
       <td className="px-3 py-3 text-xs text-slate-500">{dateLabel(row.latestDate)}</td>
       <td className="px-3 py-3 text-center"><button onClick={onToggle} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{expanded ? <ChevronDown size={14}/> : <ChevronRight size={14}/>} Detail</button></td>
     </tr>
-    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><div className="mb-2 flex flex-wrap gap-2">{row.packages.map((p: PackageSummary) => <span key={p.key} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] text-indigo-800">{p.subtest}: <b>{scoreLabel(p.best)}</b> <span className="text-indigo-500">({p.attempts.length}x)</span></span>)}</div><HistoryRows history={row.attempts} selected={selected} onSelect={onSelect}/></td></tr>}
+    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><div className="mb-2 flex flex-wrap gap-2">{row.packages.map((p: PackageSummary) => <span key={p.key} className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-[11px] text-indigo-800">{p.subtest}: <b>{scoreLabel(p.best)}</b> <span className="text-indigo-500">({p.attempts.length}x)</span></span>)}</div><HistoryRows history={row.attempts} selected={selected} onSelect={onSelect} kkm={kkm}/></td></tr>}
   </>
 }
 
-function SubtestTableRows({ row, expanded, onToggle, selected, onSelect }: any) {
+function SubtestTableRows({ row, expanded, onToggle, selected, onSelect, kkm }: any) {
   return <>
     <tr className="hover:bg-slate-50">
       <td className="px-3 py-3"><div className="font-bold text-slate-800">{row.studentName}</div><div className="text-[11px] text-slate-400">{row.username || '—'}</div></td>
@@ -403,6 +405,6 @@ function SubtestTableRows({ row, expanded, onToggle, selected, onSelect }: any) 
       <td className="px-3 py-3 text-xs text-slate-500">{dateLabel(row.latest?.date || null)}</td>
       <td className="px-3 py-3 text-center"><button onClick={onToggle} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-indigo-700">{expanded ? <ChevronDown size={14}/> : <ChevronRight size={14}/>} Detail</button></td>
     </tr>
-    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><HistoryRows history={row.history} selected={selected} onSelect={onSelect}/></td></tr>}
+    {expanded && <tr><td colSpan={7} className="px-3 pb-3"><HistoryRows history={row.history} selected={selected} onSelect={onSelect} kkm={kkm}/></td></tr>}
   </>
 }
