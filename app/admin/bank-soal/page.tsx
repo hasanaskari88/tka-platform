@@ -16,6 +16,8 @@ function BankSoalManagementContent() {
   // 🟢 STATE FILTER & SORTING DAFTAR UJIAN (DEFAULT TAB UTAMA: 'EXAM' / Ujian Resmi CBT)
   const [selectedSubtestFilter, setSelectedSubtestFilter] = useState<string>('ALL')
   const [sortBy, setSortBy] = useState<string>('newest')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [publicationFilter, setPublicationFilter] = useState<'ALL' | 'PUBLISHED' | 'HIDDEN'>('ALL')
 
   // State Form Edit / Tambah Ujian
   const [editingExamId, setEditingExamId] = useState<string | null>(null)
@@ -27,6 +29,7 @@ function BankSoalManagementContent() {
   const [examToken, setExamToken] = useState('')
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
+  const [useSchedule, setUseSchedule] = useState(false)
   const [isPublished, setIsPublished] = useState(true)
   const [targetMode, setTargetMode] = useState<'BOTH' | 'EXAM_ONLY' | 'PRACTICE_ONLY'>('BOTH')
 
@@ -132,6 +135,28 @@ function BankSoalManagementContent() {
     fetchData()
   }, [])
 
+  const formatJakartaDateTimeInput = (value: string) => {
+    if (!value) return ''
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(new Date(value))
+    const part = (type: string) => parts.find((item) => item.type === type)?.value || ''
+    return `${part('year')}-${part('month')}-${part('day')}T${part('hour')}:${part('minute')}`
+  }
+
+  const jakartaDateTimeToIso = (value: string) => {
+    const match = value.match(/^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})$/)
+    if (!match) return null
+    const [, year, month, day, hour, minute] = match
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour) - 7, Number(minute))).toISOString()
+  }
+
+  const formatJakartaDateTime = (value: string) =>
+    new Date(value).toLocaleString('id-ID', {
+      timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short',
+    })
+
 
   // 🟢 LOGIKA PENYARINGAN (TAB KATEGORI & FILTER SUBTES) SERTA SORTING
   const filteredAndSortedExams = exams
@@ -144,6 +169,16 @@ function BankSoalManagementContent() {
         if (String(exam.subtest || '').toUpperCase() !== selectedSubtestFilter.toUpperCase()) {
           return false
         }
+      }
+
+      if (publicationFilter === 'PUBLISHED' && !exam.is_published) return false
+      if (publicationFilter === 'HIDDEN' && exam.is_published) return false
+
+      const normalizedSearch = searchTerm.trim().toLowerCase()
+      if (normalizedSearch) {
+        const searchable = [exam.title, exam.description, exam.subtest, exam.author_display_name, exam.author?.full_name]
+          .filter(Boolean).join(' ').toLowerCase()
+        if (!searchable.includes(normalizedSearch)) return false
       }
 
       return true
@@ -180,6 +215,7 @@ function BankSoalManagementContent() {
     setExamToken('')
     setStartTime('')
     setEndTime('')
+    setUseSchedule(false)
     setIsPublished(true)
     setTargetMode('BOTH')
     setShuffleQuestions(true)
@@ -204,21 +240,9 @@ function BankSoalManagementContent() {
     setShowResults(exam.show_results ?? true)
     setShowExplanations(exam.show_explanations ?? true)
 
-    if (exam.start_time) {
-      const dt = new Date(exam.start_time)
-      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset())
-      setStartTime(dt.toISOString().slice(0, 16))
-    } else {
-      setStartTime('')
-    }
-
-    if (exam.end_time) {
-      const dt = new Date(exam.end_time)
-      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset())
-      setEndTime(dt.toISOString().slice(0, 16))
-    } else {
-      setEndTime('')
-    }
+    setUseSchedule(Boolean(exam.start_time || exam.end_time))
+    setStartTime(exam.start_time ? formatJakartaDateTimeInput(exam.start_time) : '')
+    setEndTime(exam.end_time ? formatJakartaDateTimeInput(exam.end_time) : '')
 
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -227,6 +251,19 @@ function BankSoalManagementContent() {
     e.preventDefault()
     setIsSubmitting(true)
     setMsg(null)
+
+    if (useSchedule) {
+      if (!startTime || !endTime) {
+        setMsg('Jika penjadwalan digunakan, tanggal dan jam buka serta tutup wajib diisi.')
+        setIsSubmitting(false)
+        return
+      }
+      if (new Date(jakartaDateTimeToIso(endTime) || '').getTime() <= new Date(jakartaDateTimeToIso(startTime) || '').getTime()) {
+        setMsg('Jadwal tutup harus lebih akhir daripada jadwal buka.')
+        setIsSubmitting(false)
+        return
+      }
+    }
 
     const supabase = createClient()
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -243,8 +280,8 @@ function BankSoalManagementContent() {
       duration_minutes: Number(duration),
       token: examToken.trim() ? examToken.trim().toUpperCase() : null,
       token_code: examToken.trim() ? examToken.trim().toUpperCase() : null,
-      start_time: startTime ? new Date(startTime).toISOString() : null,
-      end_time: endTime ? new Date(endTime).toISOString() : null,
+      start_time: useSchedule ? jakartaDateTimeToIso(startTime) : null,
+      end_time: useSchedule ? jakartaDateTimeToIso(endTime) : null,
       is_published: isPublished,
       target_mode: targetMode,
       shuffle_questions: shuffleQuestions,
@@ -705,8 +742,26 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                 </div>
               </div>
 
-              {/* Jadwal Buka & Tutup */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Penjadwalan opsional — waktu disimpan dan ditampilkan dalam WIB */}
+              <div className="p-3 bg-sky-50 border border-sky-200 rounded-xl space-y-3">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useSchedule}
+                    onChange={(e) => {
+                      const enabled = e.target.checked
+                      setUseSchedule(enabled)
+                      if (!enabled) { setStartTime(''); setEndTime('') }
+                    }}
+                    className="mt-0.5 rounded text-sky-600"
+                  />
+                  <span>
+                    <span className="block text-xs font-bold text-sky-900">Gunakan Penjadwalan</span>
+                    <span className="block text-[11px] text-sky-700 mt-0.5">Jika tidak dicentang, paket mengikuti status Published/Hidden dan dapat dibuka segera setelah ditampilkan.</span>
+                  </span>
+                </label>
+                {useSchedule && <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 uppercase mb-1">
                     Jadwal Buka
@@ -730,7 +785,9 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                     className="w-full px-2 py-1.5 rounded-lg border border-slate-300 text-xs text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     suppressHydrationWarning
                   />
-                </div>
+                  </div>
+                  <p className="text-[10px] text-sky-800">Zona waktu: WIB (Asia/Jakarta). Jadwal buka dan tutup wajib diisi; jadwal tutup harus setelah jadwal buka.</p>
+                </>}
               </div>
 
               {/* Toggle Pengaturan Fitur CBT */}
@@ -828,7 +885,23 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                 <div className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">🎯 Daftar paket ujian resmi (CBT)</div>
 
                 {/* FILTER SUBTES & SORTING */}
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch gap-2 w-full sm:w-auto">
+                  <input
+                    type="search"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Cari judul, subtes, penulis..."
+                    className="min-w-0 sm:w-56 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                  />
+                  <select
+                    value={publicationFilter}
+                    onChange={(e) => setPublicationFilter(e.target.value as 'ALL' | 'PUBLISHED' | 'HIDDEN')}
+                    className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700"
+                  >
+                    <option value="ALL">Semua status</option>
+                    <option value="PUBLISHED">Published</option>
+                    <option value="HIDDEN">Hidden</option>
+                  </select>
                   <select
                     value={selectedSubtestFilter}
                     onChange={(e) => setSelectedSubtestFilter(e.target.value)}
@@ -1027,6 +1100,20 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                     ) : (
                       <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
                         🔓 Tanpa Token
+                      </span>
+                    )}
+
+                    {exam.start_time && exam.end_time ? (
+                      <span className="px-2 py-0.5 bg-sky-50 text-sky-800 border border-sky-200 rounded">
+                        🗓️ {formatJakartaDateTime(exam.start_time)} – {formatJakartaDateTime(exam.end_time)} WIB
+                      </span>
+                    ) : exam.start_time || exam.end_time ? (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded">
+                        ⚠️ Jadwal belum lengkap — edit paket
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-slate-50 text-slate-600 border border-slate-200 rounded">
+                        ⚡ Tanpa jadwal
                       </span>
                     )}
 
