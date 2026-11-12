@@ -815,7 +815,7 @@ function BankSoalContent() {
           >
             <span>➕ Tambah Manual</span>
           </button>
-          {actType === 'QUIZ' && questions.length > 0 && (
+          {actType === 'QUIZ' && exam?.target_mode !== 'PRACTICE_ONLY' && questions.length > 0 && (
             <button
               type="button"
               onClick={() => { setPaperSettings((current) => ({ ...current, title: exam?.title || 'Naskah Soal' })); setIsPaperPreviewOpen(true) }}
@@ -1193,7 +1193,7 @@ function BankSoalContent() {
                     const correctAnswers = question.correct_answers
                     const answerLabel = type === 'true_false_matrix'
                       ? (correctAnswers && typeof correctAnswers === 'object' ? Object.entries(correctAnswers).map(([key, value]) => `${key}: ${value}`).join('; ') : '')
-                      : Array.isArray(correctAnswers) ? correctAnswers.join(', ') : String(question.correct_option || '')
+                      : Array.isArray(correctAnswers) ? correctAnswers.join(', ') : String(question.correct_answer || question.correct_option || '')
                     return (
                       <section key={question.id} className="question-paper-item text-[10.5pt]">
                         <div className="flex gap-2">
@@ -1206,13 +1206,13 @@ function BankSoalContent() {
                                 {options.map((option: any, optionIndex: number) => {
                                   const key = String(option.key ?? String.fromCharCode(65 + optionIndex))
                                   const value = typeof option === 'string' ? option : option.text || option.title || ''
-                                  return <div key={key} className="question-paper-option flex gap-2"><span className="shrink-0">{key}.</span><div className="min-w-0"><MathRenderer content={value} className="flow-root" normalizeRotatedImages /></div></div>
+                                  return <div key={key} className="question-paper-option flex gap-2"><span className="shrink-0">{key}.</span><div className="min-w-0"><MathRenderer content={value} className="flow-root" normalizeRotatedImages />{option?.image_url && <img src={option.image_url} alt={`Gambar pilihan ${key}`} className="max-h-28 max-w-full object-contain my-1" />}</div></div>
                                 })}
                               </div>
                             )}
                             {type === 'true_false_matrix' && (
                               <table className="w-full border-collapse border border-slate-500 mt-2 text-[9.5pt]"><tbody>
-                                {options.map((option: any, optionIndex: number) => <tr key={String(option.id ?? optionIndex)}><td className="border border-slate-500 p-2">{option.text || ''}</td><td className="border border-slate-500 p-2 w-16 text-center">Benar</td><td className="border border-slate-500 p-2 w-16 text-center">Salah</td></tr>)}
+                                {options.map((option: any, optionIndex: number) => <tr key={String(option.id ?? optionIndex)}><td className="border border-slate-500 p-2"><MathRenderer content={option.text || ''} className="flow-root" normalizeRotatedImages />{option.image_url && <img src={option.image_url} alt={`Gambar pernyataan ${optionIndex + 1}`} className="max-h-24 max-w-full object-contain mt-1" />}</td><td className="border border-slate-500 p-2 w-16 text-center">Benar</td><td className="border border-slate-500 p-2 w-16 text-center">Salah</td></tr>)}
                               </tbody></table>
                             )}
                             {type === 'essay' && <div className="mt-2 space-y-5"><div className="border-b border-slate-400" /><div className="border-b border-slate-400" /><div className="border-b border-slate-400" /></div>}
