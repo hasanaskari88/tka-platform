@@ -24,6 +24,17 @@ function BankSoalContent() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
   const [bulkInputText, setBulkInputText] = useState('')
 
+  // State pemilih soal dari paket lain
+  const [isBankImportModalOpen, setIsBankImportModalOpen] = useState(false)
+  const [importSourceExams, setImportSourceExams] = useState<any[]>([])
+  const [selectedImportExamId, setSelectedImportExamId] = useState('')
+  const [importCandidateQuestions, setImportCandidateQuestions] = useState<any[]>([])
+  const [selectedImportQuestionIds, setSelectedImportQuestionIds] = useState<string[]>([])
+  const [importSearchTerm, setImportSearchTerm] = useState('')
+  const [loadingImportSources, setLoadingImportSources] = useState(false)
+  const [loadingImportQuestions, setLoadingImportQuestions] = useState(false)
+  const [importingSelectedQuestions, setImportingSelectedQuestions] = useState(false)
+
   // State Form Input Manual
   const [formData, setFormData] = useState({
     question_text: '',
@@ -225,71 +236,117 @@ function BankSoalContent() {
     }
   }
 
-  // 🟢 3. HANDLER TOMBOL 2: AUTO IMPORT PG DARI BANK SOAL UTAMA
-  const handleImportFromBankSoal = async () => {
-    const subtestName = exam?.subtest || 'Matematika'
-    const confirmImport = confirm(
-      `Impor soal PG Standar A-D yang sesuai dengan subtes "${subtestName}" dari Bank Soal lain?\n\n` +
-      `➕ Catatan: Soal impor akan DITAMBAHKAN di bagian bawah (tanpa menghapus soal lama).`
-    )
-    if (!confirmImport) return
+  // 🟢 3. IMPORT TERPILIH: PILIH PAKET SUMBER, PRATINJAU, DAN PILIH SOAL
+  const normalizeQuestionText = (value: string) =>
+    String(value || '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\\s+/g, ' ').trim().toLowerCase()
 
-    setLoading(true)
+  const handleOpenBankImport = async () => {
+    setIsBankImportModalOpen(true)
+    setImportSearchTerm('')
+    setSelectedImportExamId('')
+    setImportCandidateQuestions([])
+    setSelectedImportQuestionIds([])
+    setLoadingImportSources(true)
     const supabase = createClient()
+    const { data, error } = await supabase
+      .from('exams')
+      .select('id,title,subtest,target_mode,activity_type')
+      .neq('id', examId)
+      .order('created_at', { ascending: false })
 
-    const { data: allQuestions, error } = await supabase
-      .from('questions')
-      .select('*, exams(subtest, title)')
-      .neq('exam_id', examId)
-      .limit(150)
-
-    if (error || !allQuestions || allQuestions.length === 0) {
-      alert('Belum ada soal PG dari modul lain di Bank Soal Supabase.')
-      setLoading(false)
-      return
-    }
-
-    const currentSubtest = subtestName.trim().toLowerCase()
-
-    let candidateQuestions = allQuestions.filter((q) => {
-      const hasOptions = Array.isArray(q.options) && q.options.length === 4
-      const correctOpt = String(q.correct_option || q.correct_answer || '').trim().toUpperCase()
-      return hasOptions && ['A', 'B', 'C', 'D'].includes(correctOpt)
-    })
-
-    if (candidateQuestions.length === 0) {
-      alert('Tidak ditemukan soal PG Standar A-D dari modul lain.')
-      setLoading(false)
-      return
-    }
-
-    const matchedBySubtest = candidateQuestions.filter((q) => {
-      const parentSubtest = (q.exams?.subtest || '').trim().toLowerCase()
-      return parentSubtest && (parentSubtest.includes(currentSubtest) || currentSubtest.includes(parentSubtest))
-    })
-
-    const pool = matchedBySubtest.length > 0 ? matchedBySubtest : candidateQuestions
-    const shuffled = [...pool].sort(() => 0.5 - Math.random())
-    const selected = shuffled.slice(0, 5)
-
-    const questionsToInsert = selected.map((q) => ({
-      exam_id: examId,
-      question_text: q.question_text,
-      options: q.options,
-      correct_option: String(q.correct_option || q.correct_answer || 'A').trim().toUpperCase(),
-      explanation: q.explanation || q.pembahasan || '',
-      image_url: q.image_url || null,
-    }))
-
-    const { error: insertErr } = await supabase.from('questions').insert(questionsToInsert)
-
-    if (insertErr) {
-      alert(`Gagal impor: ${insertErr.message}`)
+    if (error) {
+      alert(`Gagal memuat paket sumber: ${error.message}`)
+      setImportSourceExams([])
     } else {
-      alert(`✅ Berhasil mengimpor ${questionsToInsert.length} soal PG Standar (${subtestName}) ke bagian bawah!`)
-      fetchExamAndQuestions()
+      const currentIsPractice = exam?.target_mode === 'PRACTICE_ONLY'
+      const compatible = (data || []).filter((item: any) => {
+        const isQuiz = !item.activity_type || item.activity_type === 'QUIZ'
+        const sameSystem = currentIsPractice
+          ? item.target_mode === 'PRACTICE_ONLY'
+          : item.target_mode !== 'PRACTICE_ONLY'
+        return isQuiz && sameSystem
+      })
+      setImportSourceExams(compatible)
     }
-    setLoading(false)
+    setLoadingImportSources(false)
+  }
+
+  const handleSelectImportSource = async (sourceExamId: string) => {
+    setSelectedImportExamId(sourceExamId)
+    setSelectedImportQuestionIds([])
+    setImportCandidateQuestions([])
+    if (!sourceExamId) return
+
+    setLoadingImportQuestions(true)
+    const supabase = createClient()
+    const collected: any[] = []
+    const pageSize = 500
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await supabase
+        .from('questions')
+        .select('*')
+        .eq('exam_id', sourceExamId)
+        .order('created_at', { ascending: true })
+        .range(offset, offset + pageSize - 1)
+      if (error) {
+        alert(`Gagal memuat soal sumber: ${error.message}`)
+        setLoadingImportQuestions(false)
+        return
+      }
+      collected.push(...(data || []))
+      if (!data || data.length < pageSize) break
+    }
+    setImportCandidateQuestions(collected)
+    setLoadingImportQuestions(false)
+  }
+
+  const handleImportSelectedQuestions = async () => {
+    const selected = importCandidateQuestions.filter((question) => selectedImportQuestionIds.includes(question.id))
+    if (selected.length === 0) {
+      alert('Pilih minimal satu soal yang akan diimpor.')
+      return
+    }
+
+    const existingTexts = new Set(questions.map((question) => normalizeQuestionText(question.question_text)))
+    const duplicateCount = selected.filter((question) => existingTexts.has(normalizeQuestionText(question.question_text))).length
+    const toInsert = selected.filter((question) => !existingTexts.has(normalizeQuestionText(question.question_text)))
+
+    if (toInsert.length === 0) {
+      alert('Semua soal yang dipilih sudah terdeteksi ada di paket tujuan. Tidak ada soal yang ditambahkan.')
+      return
+    }
+
+    const confirmation = confirm(
+      `Impor ${toInsert.length} soal terpilih ke paket ini?\\n` +
+      (duplicateCount > 0 ? `${duplicateCount} soal yang terdeteksi duplikat akan dilewati.\\n` : '') +
+      'Soal lama tidak dihapus. Setiap soal baru akan memiliki ID sendiri.'
+    )
+    if (!confirmation) return
+
+    setImportingSelectedQuestions(true)
+    const supabase = createClient()
+    const questionColumns = [
+      'question_text', 'image_url', 'options', 'correct_option', 'explanation', 'difficulty',
+      'question_type', 'max_score', 'correct_answers', 'indicator', 'cognitive_level',
+      'target_x', 'target_y', 'maze_width', 'maze_height', 'start_x', 'start_y',
+      'obstacles', 'answer_mode', 'correct_answer',
+    ]
+    const rows = toInsert.map((question) => {
+      const copy: Record<string, any> = { exam_id: examId }
+      questionColumns.forEach((column) => { copy[column] = question[column] })
+      return copy
+    })
+
+    const { error } = await supabase.from('questions').insert(rows)
+    if (error) {
+      alert(`Gagal mengimpor soal: ${error.message}`)
+    } else {
+      alert(`Berhasil mengimpor ${rows.length} soal. ${duplicateCount} soal duplikat dilewati.`)
+      setIsBankImportModalOpen(false)
+      setSelectedImportQuestionIds([])
+      await fetchExamAndQuestions()
+    }
+    setImportingSelectedQuestions(false)
   }
 
   // 🟢 4. HANDLER TOMBOL 3: IMPORT BULK (TEMPLATE MODAL ADAPTIF)
@@ -589,11 +646,11 @@ function BankSoalContent() {
           {/* TOMBOL 2 */}
           {actType === 'QUIZ' && (
             <button
-              onClick={handleImportFromBankSoal}
+              onClick={handleOpenBankImport}
               className="px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold rounded-xl shadow-md transition-all flex items-center space-x-1"
               title="Import Soal PG Standar Sesuai Subtes"
             >
-              <span>📥 Auto Import PG</span>
+              <span>📥 Pilih & Impor Soal</span>
             </button>
           )}
 
@@ -805,6 +862,91 @@ function BankSoalContent() {
               >
                 🚀 Proses Import Bulk
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📥 MODAL PILIH & IMPOR SOAL DARI PAKET LAIN */}
+      {isBankImportModalOpen && (
+        <div className="fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-slate-950 border border-slate-800 max-w-4xl w-full rounded-3xl p-5 sm:p-6 space-y-4 text-white shadow-2xl max-h-[92vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 gap-3">
+              <div>
+                <h2 className="text-sm font-black">📥 Pilih Soal dari Paket Lain</h2>
+                <p className="text-[11px] text-slate-400 mt-1">Pilih paket sumber, periksa pratinjau, lalu centang soal yang ingin ditambahkan.</p>
+              </div>
+              <button type="button" onClick={() => setIsBankImportModalOpen(false)} className="text-slate-400 hover:text-white font-bold">✕</button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Paket sumber</label>
+                <select value={selectedImportExamId} onChange={(e) => handleSelectImportSource(e.target.value)} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white">
+                  <option value="">Pilih paket sumber…</option>
+                  {importSourceExams.map((source) => (
+                    <option key={source.id} value={source.id}>{source.title} — {source.subtest || 'Tanpa subtes'}</option>
+                  ))}
+                </select>
+                {loadingImportSources && <p className="text-[11px] text-slate-400 mt-1">Memuat daftar paket…</p>}
+                {!loadingImportSources && importSourceExams.length === 0 && <p className="text-[11px] text-amber-300 mt-1">Tidak ada paket Quiz yang sesuai untuk sistem ini.</p>}
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Cari soal dalam paket</label>
+                <input value={importSearchTerm} onChange={(e) => setImportSearchTerm(e.target.value)} placeholder="Cari teks pertanyaan…" className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white" />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] text-slate-400">
+              <span>{importCandidateQuestions.length} soal tersedia</span>
+              <span>{selectedImportQuestionIds.length} dipilih</span>
+            </div>
+
+            <div className="overflow-y-auto min-h-0 flex-1 space-y-2 pr-1">
+              {loadingImportQuestions ? (
+                <p className="text-center text-xs text-slate-400 py-8">Memuat soal dari paket sumber…</p>
+              ) : !selectedImportExamId ? (
+                <p className="text-center text-xs text-slate-500 py-8">Pilih paket sumber untuk melihat soal.</p>
+              ) : importCandidateQuestions.length === 0 ? (
+                <p className="text-center text-xs text-slate-500 py-8">Paket sumber belum memiliki soal.</p>
+              ) : importCandidateQuestions
+                .filter((question) => normalizeQuestionText(question.question_text).includes(importSearchTerm.trim().toLowerCase()))
+                .map((question, index) => {
+                  const isDuplicate = questions.some((current) => normalizeQuestionText(current.question_text) === normalizeQuestionText(question.question_text))
+                  const isChecked = selectedImportQuestionIds.includes(question.id)
+                  return (
+                    <label key={question.id} className={`block p-3 rounded-xl border ${isDuplicate ? 'border-amber-900/70 bg-amber-950/20 opacity-80' : isChecked ? 'border-cyan-500/60 bg-cyan-950/30' : 'border-slate-800 bg-slate-900/70'} cursor-pointer`}>
+                      <div className="flex items-start gap-3">
+                        <input type="checkbox" checked={isChecked} disabled={isDuplicate || importingSelectedQuestions} onChange={(e) => setSelectedImportQuestionIds((current) => e.target.checked ? [...current, question.id] : current.filter((id) => id !== question.id))} className="mt-1 accent-cyan-500" />
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                            <span className="text-cyan-300">Soal #{index + 1}</span>
+                            <span className="text-slate-400">{question.question_type || 'multiple_choice'}</span>
+                            {isDuplicate && <span className="text-amber-300">Sudah ada di paket tujuan</span>}
+                            {!isDuplicate && <span className="text-emerald-300">Siap diimpor</span>}
+                          </div>
+                          <div className="text-xs text-slate-100 leading-relaxed"><MathRenderer content={question.question_text || '(Pertanyaan kosong)'} className="flow-root" normalizeRotatedImages /></div>
+                          {question.image_url && <img src={question.image_url} alt="Pratinjau gambar soal" className="max-h-24 max-w-full rounded-lg border border-slate-700 object-contain" />}
+                          {Array.isArray(question.options) && question.options.length > 0 && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1">
+                              {question.options.map((option: any, optionIndex: number) => (
+                                <div key={option.key || optionIndex} className="text-[10px] text-slate-400 truncate">{option.key || String.fromCharCode(65 + optionIndex)}. {typeof option === 'string' ? option : option.text || option.title || ''}</div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  )
+                })}
+            </div>
+
+            <div className="flex flex-wrap justify-between items-center gap-2 border-t border-slate-800 pt-3">
+              <p className="text-[10px] text-slate-500">Soal yang terdeteksi sama berdasarkan teks pertanyaan tidak dapat dipilih ulang.</p>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setIsBankImportModalOpen(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl">Batal</button>
+                <button type="button" onClick={handleImportSelectedQuestions} disabled={importingSelectedQuestions || selectedImportQuestionIds.length === 0} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white text-xs font-bold rounded-xl">{importingSelectedQuestions ? 'Mengimpor…' : `Impor ${selectedImportQuestionIds.length} Soal`}</button>
+              </div>
             </div>
           </div>
         </div>
