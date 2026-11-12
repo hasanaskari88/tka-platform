@@ -504,6 +504,8 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 
 ## Rekap Nilai per paket dan pintasan Dashboard — 12 November 2026
 
+- Koreksi perhitungan ringkasan paket: rata-rata, nilai tertinggi/terendah, dan ketuntasan dihitung dari nilai terbaik setiap peserta pada paket tersebut, sehingga peserta yang mengulang latihan tidak mendapat bobot ganda pada rata-rata paket.
+
 - Menambahkan mode Per Paket pada halaman Rekap Nilai untuk merangkum tiap paket Ujian dan Latihan secara terpisah.
 - Ringkasan paket menampilkan jumlah peserta, jumlah riwayat, rata-rata nilai, nilai tertinggi, jumlah/persentase peserta tuntas KKM, serta detail riwayat peserta.
 - Menambahkan filter judul paket soal yang bekerja bersama filter jenis kegiatan, kelas, subtes, nilai, dan pencarian.
