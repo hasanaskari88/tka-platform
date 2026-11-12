@@ -455,3 +455,14 @@ Tidak ada migrasi, perubahan schema, atau update data Supabase. Smoke-check Prod
 - Mengganti label khusus admin di leaderboard dari “Akses Admin” menjadi “Grisan Arena”.
 - Tidak mengubah perhitungan peringkat, data badge, XP/level, filter leaderboard, database, atau mesin latihan.
 - Menunggu pemeriksaan deployment Production dan smoke test tampilan.
+
+
+## Rilis Penilaian Manual — 12 November 2026
+
+- Perubahan terpilih dari branch `homepage-arcade-catalog` dipindahkan secara selektif ke `main`; tidak melakukan merge seluruh branch atau PR.
+- Halaman `app/admin/exam/[id]/results/page.tsx` kini memuat filter kelas default berdasarkan penugasan aktif `teacher_signatories.user_id`, filter kelas dan pengurutan di area penilaian manual, serta render jawaban siswa dengan `RichTextEditor` mode baca saja.
+- File migration `supabase/migrations/20261112000100_teacher_signatories_user_link.sql` ikut dicatat di `main` untuk riwayat repository. **Migration tidak dijalankan ulang** karena sudah diterapkan pada database bersama sesuai persetujuan sebelumnya.
+- Rumus skor, format jawaban tersimpan, dan proses simpan nilai tidak diubah.
+- Commit implementasi halaman: `8f3ffbdf6c07b65a811fadd88e479179995d7887`.
+- Commit pencatatan migration: `7987a62f5b2aeef05e07827edc4379e7056c525a`.
+- Deployment Production dan smoke test runtime: menunggu verifikasi.
