@@ -352,6 +352,15 @@ export default function PracticeHubPage() {
     { id: 'xp-1000', title: 'Juara Belajar', icon: '🏆', description: 'Kumpulkan 1.000 XP.', threshold: 1000 },
     { id: 'xp-2000', title: 'Legenda Cilik', icon: '👑', description: 'Kumpulkan 2.000 XP.', threshold: 2000 },
     { id: 'xp-3500', title: 'Bintang Getasan', icon: '💫', description: 'Kumpulkan 3.500 XP.', threshold: 3500 },
+    { id: 'xp-5000', title: 'Ksatria Seribu Bintang', icon: '🌠', description: 'Kumpulkan 5.000 XP.', threshold: 5000 },
+    { id: 'xp-10000', title: 'Legenda Ilmu', icon: '🏅', description: 'Kumpulkan 10.000 XP.', threshold: 10000 },
+    { id: 'xp-25000', title: 'Pahlawan Getasan', icon: '🦸', description: 'Kumpulkan 25.000 XP.', threshold: 25000 },
+    { id: 'xp-50000', title: 'Master Prestasi', icon: '💎', description: 'Kumpulkan 50.000 XP.', threshold: 50000 },
+    { id: 'xp-75000', title: 'Penjaga Bintang', icon: '🌌', description: 'Kumpulkan 75.000 XP.', threshold: 75000 },
+    { id: 'xp-100000', title: 'Legenda Seratus Ribu', icon: '👑', description: 'Kumpulkan 100.000 XP.', threshold: 100000 },
+    { id: 'xp-150000', title: 'Penguasa Galaksi', icon: '🚀', description: 'Kumpulkan 150.000 XP.', threshold: 150000 },
+    { id: 'xp-200000', title: 'Abadi Getasan', icon: '🏆', description: 'Kumpulkan 200.000 XP.', threshold: 200000 },
+    { id: 'xp-250000', title: 'Legenda Tanpa Batas', icon: '🌟', description: 'Kumpulkan 250.000 XP.', threshold: 250000 },
   ]
   const unlockedXpBadges = xpMilestoneBadges.filter((badge) => xp >= badge.threshold)
   const nextXpBadge = xpMilestoneBadges.find((badge) => xp < badge.threshold)
@@ -375,6 +384,24 @@ export default function PracticeHubPage() {
     { id: 'xp-1000', title: 'Juara Belajar', icon: '🏆', description: 'Kumpulkan 1.000 XP.', unlocked: xp >= 1000 },
     { id: 'xp-2000', title: 'Legenda Cilik', icon: '👑', description: 'Kumpulkan 2.000 XP.', unlocked: xp >= 2000 },
     { id: 'xp-3500', title: 'Bintang Getasan', icon: '💫', description: 'Kumpulkan 3.500 XP.', unlocked: xp >= 3500 },
+    { id: 'xp-5000', title: 'Ksatria Seribu Bintang', icon: '🌠', description: 'Kumpulkan 5.000 XP.', category: 'XP', unlocked: xp >= 5000 },
+    { id: 'xp-10000', title: 'Legenda Ilmu', icon: '🏅', description: 'Kumpulkan 10.000 XP.', category: 'XP', unlocked: xp >= 10000 },
+    { id: 'xp-25000', title: 'Pahlawan Getasan', icon: '🦸', description: 'Kumpulkan 25.000 XP.', category: 'XP', unlocked: xp >= 25000 },
+    { id: 'xp-50000', title: 'Master Prestasi', icon: '💎', description: 'Kumpulkan 50.000 XP.', category: 'XP', unlocked: xp >= 50000 },
+    { id: 'xp-75000', title: 'Penjaga Bintang', icon: '🌌', description: 'Kumpulkan 75.000 XP.', category: 'XP', unlocked: xp >= 75000 },
+    { id: 'xp-100000', title: 'Legenda Seratus Ribu', icon: '👑', description: 'Kumpulkan 100.000 XP.', category: 'XP', unlocked: xp >= 100000 },
+    { id: 'xp-150000', title: 'Penguasa Galaksi', icon: '🚀', description: 'Kumpulkan 150.000 XP.', category: 'XP', unlocked: xp >= 150000 },
+    { id: 'xp-200000', title: 'Abadi Getasan', icon: '🏆', description: 'Kumpulkan 200.000 XP.', category: 'XP', unlocked: xp >= 200000 },
+    { id: 'xp-250000', title: 'Legenda Tanpa Batas', icon: '🌟', description: 'Kumpulkan 250.000 XP.', category: 'XP', unlocked: xp >= 250000 },
+    { id: 'rank-global-100', title: 'Masuk 100 Besar', icon: '🎖️', description: 'Masuk 100 besar leaderboard seluruh sekolah.', category: 'Leaderboard', unlocked: globalRank !== null && globalRank <= 100 },
+    { id: 'rank-global-50', title: 'Bintang 50 Besar', icon: '🥇', description: 'Masuk 50 besar leaderboard seluruh sekolah.', category: 'Leaderboard', unlocked: globalRank !== null && globalRank <= 50 },
+    { id: 'rank-global-25', title: 'Elite 25', icon: '🏵️', description: 'Masuk 25 besar leaderboard seluruh sekolah.', category: 'Leaderboard', unlocked: globalRank !== null && globalRank <= 25 },
+    { id: 'rank-global-10', title: 'Top 10 Getasan', icon: '🏆', description: 'Masuk 10 besar leaderboard seluruh sekolah.', category: 'Leaderboard', unlocked: globalRank !== null && globalRank <= 10 },
+    { id: 'rank-global-3', title: 'Podium Getasan', icon: '🥉', description: 'Masuk 3 besar leaderboard seluruh sekolah.', category: 'Leaderboard', unlocked: globalRank !== null && globalRank <= 3 },
+    { id: 'rank-global-1', title: 'Juara Umum', icon: '👑', description: 'Raih peringkat pertama leaderboard seluruh sekolah.', category: 'Leaderboard', unlocked: globalRank === 1 },
+    { id: 'rank-class-10', title: 'Andalan Kelas', icon: '📚', description: 'Masuk 10 besar leaderboard di kelasmu.', category: 'Leaderboard', unlocked: classRank !== null && classRank <= 10 },
+    { id: 'rank-class-3', title: 'Podium Kelas', icon: '🎓', description: 'Masuk 3 besar leaderboard di kelasmu.', category: 'Leaderboard', unlocked: classRank !== null && classRank <= 3 },
+    { id: 'rank-class-1', title: 'Juara Kelas', icon: '🏅', description: 'Raih peringkat pertama leaderboard di kelasmu.', category: 'Leaderboard', unlocked: classRank === 1 },
   ]
   const activityUnlockedBadges = activityBadgeCatalog.filter((badge) => badge.unlocked)
   const displayedBadges = [...earnedBadges, ...activityUnlockedBadges.filter(
