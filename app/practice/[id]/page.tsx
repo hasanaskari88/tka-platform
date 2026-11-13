@@ -324,6 +324,13 @@ if (active) {
   : questions[currentIndex]
 
 const qType = currentQuestion?.question_type || 'multiple_choice'
+  const questionPalettes = [
+    { card: 'border-sky-200 bg-sky-100/80', option: 'border-sky-200 bg-sky-50/85 hover:border-sky-400 hover:bg-sky-100', accent: 'from-sky-400 to-blue-500' },
+    { card: 'border-violet-200 bg-violet-100/80', option: 'border-violet-200 bg-violet-50/85 hover:border-violet-400 hover:bg-violet-100', accent: 'from-violet-400 to-fuchsia-500' },
+    { card: 'border-amber-200 bg-amber-100/80', option: 'border-amber-200 bg-amber-50/85 hover:border-amber-400 hover:bg-amber-100', accent: 'from-amber-400 to-orange-500' },
+    { card: 'border-emerald-200 bg-emerald-100/80', option: 'border-emerald-200 bg-emerald-50/85 hover:border-emerald-400 hover:bg-emerald-100', accent: 'from-emerald-400 to-teal-500' },
+  ]
+  const activePalette = questionPalettes[currentIndex % questionPalettes.length]
 
   const processXpAndStreak = (isUserRight: boolean) => {
     if (isAnswered) return
@@ -612,25 +619,27 @@ const handleCheckMatrixAnswer = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-violet-50 to-amber-50 flex flex-col font-sans">
-      <header className="sticky top-0 z-20 border-b border-white/20 bg-gradient-to-r from-indigo-950 via-violet-900 to-blue-900 px-4 py-4 text-white shadow-xl sm:px-6">
-        <div className="flex items-center space-x-3">
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.35),_transparent_38%),radial-gradient(ellipse_at_bottom_right,_rgba(251,191,36,0.28),_transparent_38%),linear-gradient(135deg,#101b4b_0%,#31206b_48%,#123d69_100%)] flex flex-col font-sans">
+      <div aria-hidden="true" className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-80 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
+      <header className="sticky top-0 z-20 border-b border-white/15 bg-gradient-to-r from-indigo-950/90 via-violet-900/90 to-blue-900/90 px-3 py-2.5 text-white shadow-xl backdrop-blur-xl sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
           <Link
             href="/practice"
-            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
+            className="shrink-0 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-extrabold text-white shadow-inner transition hover:bg-white/20"
           >
             ← Keluar
           </Link>
 
           <div>
-            <span className="rounded-full bg-cyan-300/20 px-3 py-1 text-[10px] font-extrabold tracking-wider text-cyan-100">
-              MODE LATIHAN MANDIRI
+            <span className="inline-flex rounded-full border border-cyan-200/25 bg-cyan-300/15 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-cyan-100">
+              🚀 ARENA LATIHAN
             </span>
-            <h1 className="text-sm font-bold mt-1">{exam?.title}</h1>
+            <h1 className="mt-0.5 max-w-[55vw] truncate text-sm font-extrabold sm:max-w-none sm:text-base">{exam?.title}</h1>
           </div>
         </div>
 
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           {streakCount >= 2 && (
             <div className="text-amber-300 text-xs font-black animate-pulse">
               🔥 Combo x{streakCount}!
@@ -646,15 +655,16 @@ const handleCheckMatrixAnswer = () => {
             </div>
           )}
 
-          <div className="text-amber-400 font-mono font-bold">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/25 bg-amber-300/10 px-3 py-1.5 text-sm font-black text-amber-300 shadow-inner sm:text-base">
             ⭐ +{totalXpEarned} XP
           </div>
         </div>
+      </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 p-3 sm:p-6 lg:p-8">
-        <div className="overflow-hidden rounded-3xl border border-white bg-white/95 p-4 shadow-2xl shadow-indigo-200/60 sm:p-7 lg:p-8 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-sky-50 via-indigo-50 to-violet-50 p-4">
+      <main className="relative z-10 mx-auto w-full max-w-5xl flex-1 p-3 sm:p-6 lg:p-8">
+        <div className="overflow-hidden rounded-[2rem] border border-white/25 bg-white/75 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-7 lg:p-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-white/85 via-sky-50/85 to-violet-50/85 p-4 shadow-inner backdrop-blur-md">
             <div>
               <span className="font-bold text-slate-800 text-xs">
               {isReviewingSkipped
@@ -684,8 +694,15 @@ const handleCheckMatrixAnswer = () => {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 p-5 text-lg font-semibold leading-8 text-slate-900 sm:p-7 sm:text-xl sm:leading-9">
+          <div className={`relative overflow-hidden rounded-[1.75rem] border-2 p-5 text-lg font-extrabold leading-8 text-slate-900 shadow-lg shadow-indigo-950/5 backdrop-blur-md sm:p-7 sm:text-xl sm:leading-9 ${activePalette.card}`}>
+            <div aria-hidden="true" className={`absolute -right-5 -top-7 h-28 w-28 rounded-full bg-gradient-to-br ${activePalette.accent} opacity-15 blur-xl`} />
+            <div className="relative z-10 mb-3 flex items-center justify-between gap-2">
+              <span className="rounded-full bg-white/70 px-3 py-1 text-[10px] font-black tracking-widest text-slate-600 shadow-sm">⚡ TANTANGAN {currentIndex + 1}</span>
+              <span className="text-xl drop-shadow-sm">✨</span>
+            </div>
+            <div className="relative z-10">
             <MathRenderer content={currentQuestion.question_text || ''} />
+            </div>
           </div>
 
           {currentQuestion.image_url && (
@@ -712,7 +729,7 @@ const handleCheckMatrixAnswer = () => {
                   const correct = normalizeKey(key) === correctKey
 
                   let style =
-                    'border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 text-slate-800'
+                    `${questionPalettes[index % questionPalettes.length].option} text-slate-800 shadow-sm`
 
                   if (isAnswered && correct) {
                     style =
@@ -756,7 +773,7 @@ const handleCheckMatrixAnswer = () => {
                   return (
                     <label
                       key={key}
-                      className="flex items-start gap-4 rounded-2xl border-2 border-slate-200 bg-white p-4 text-base leading-7 text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 cursor-pointer sm:p-5"
+                      className={`flex items-start gap-4 rounded-2xl border-2 p-4 text-base leading-7 text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer sm:p-5 ${questionPalettes[index % questionPalettes.length].option}`}
                     >
                       <input
                         type="checkbox"
@@ -790,7 +807,7 @@ const handleCheckMatrixAnswer = () => {
 
           {qType === 'true_false_matrix' &&
   Array.isArray(currentQuestion.options) && (
-    <div className="border rounded-xl overflow-hidden">
+    <div className="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/80 shadow-lg backdrop-blur-md">
       <table className="w-full text-sm sm:text-base">
         <thead className="bg-indigo-100 text-indigo-950">
           <tr>
@@ -814,7 +831,7 @@ const handleCheckMatrixAnswer = () => {
             const selected = userAnswer?.[optionKey]
 
             return (
-              <tr key={optionKey} className="border-t">
+              <tr key={optionKey} className={`border-t-2 border-white ${questionPalettes[index % questionPalettes.length].option.split(' ')[1]}`}>
                 <td className="p-4 leading-7 sm:p-5">
                   <MathRenderer content={text} />
                 </td>
@@ -879,7 +896,7 @@ const handleCheckMatrixAnswer = () => {
 
           {isAnswered && (
             <div
-              className={`rounded-2xl border-2 p-5 text-sm leading-7 space-y-3 ${
+              className={`rounded-2xl border-2 p-5 text-sm leading-7 shadow-lg space-y-3 ${
                 isCorrect
                   ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                   : 'bg-rose-50 border-rose-300 text-rose-900'
