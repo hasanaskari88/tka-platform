@@ -339,6 +339,14 @@ export default function PracticeHubPage() {
   const unlockedXpBadges = xpMilestoneBadges.filter((badge) => xp >= badge.threshold)
   const nextXpBadge = xpMilestoneBadges.find((badge) => xp < badge.threshold)
   const activityBadgeCatalog = [
+    { id: 'quiz-five', title: 'Ahli Kuis', icon: '🧠', description: 'Selesaikan 5 kuis.', unlocked: false },
+    { id: 'quiz-twenty', title: 'Master Pengetahuan', icon: '📚', description: 'Selesaikan 20 kuis.', unlocked: false },
+    { id: 'maze-first', title: 'Penjelajah Labirin', icon: '🗺️', description: 'Selesaikan 1 permainan Maze.', unlocked: false },
+    { id: 'maze-five', title: 'Penakluk Labirin', icon: '🏰', description: 'Selesaikan 5 permainan Maze.', unlocked: false },
+    { id: 'maze-ten', title: 'Master Maze', icon: '🧩', description: 'Selesaikan 10 permainan Maze.', unlocked: false },
+    { id: 'flashcard-first', title: 'Kartu Pertama', icon: '🃏', description: 'Selesaikan 1 sesi Kartu Kilat.', unlocked: false },
+    { id: 'flashcard-five', title: 'Pengingat Hebat', icon: '⚡', description: 'Selesaikan 5 sesi Kartu Kilat.', unlocked: false },
+    { id: 'flashcard-perfect', title: 'Memori Emas', icon: '💡', description: 'Raih nilai 100 pada 1 sesi Kartu Kilat.', unlocked: false },
     { id: 'first-mission', title: 'Langkah Pertama', icon: '👣', description: 'Selesaikan 1 latihan sampai tuntas.', unlocked: completedAttempts >= 1 },
     { id: 'practice-five', title: 'Rajin Berlatih', icon: '📘', description: 'Selesaikan 5 latihan.', unlocked: completedAttempts >= 5 },
     { id: 'practice-ten', title: 'Pejuang Konsisten', icon: '🛡️', description: 'Selesaikan 10 latihan.', unlocked: completedAttempts >= 10 },
@@ -543,7 +551,7 @@ export default function PracticeHubPage() {
 
               {isIdentityModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="player-custom-title">
-                  <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
+                  <div className="flex h-[94vh] max-h-[1000px] w-full max-w-6xl overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
                     <div className="flex items-start justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-indigo-950 to-violet-900 p-5">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Personalisasi pemain</p>
@@ -552,13 +560,13 @@ export default function PracticeHubPage() {
                       </div>
                       <button type="button" onClick={() => setIsIdentityModalOpen(false)} aria-label="Tutup popup" className="rounded-xl bg-white/10 px-3 py-2 text-lg hover:bg-white/20">✕</button>
                     </div>
-                    <div className="max-h-[calc(88vh-100px)] space-y-5 overflow-y-auto p-5">
+                    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
                       <section>
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <h4 className="text-sm font-black text-amber-200">🙂 Ikon Profil</h4>
                           <span className="text-[10px] text-slate-300">Pilih salah satu ikon</span>
                         </div>
-                        <div className="grid grid-cols-6 gap-2 sm:grid-cols-9">
+                        <div className="grid grid-cols-6 gap-2 sm:grid-cols-9 lg:grid-cols-12">
                           {avatarChoices.map((icon) => (
                             <button key={icon} type="button" onClick={() => choosePlayerIcon(icon)} disabled={isSavingAvatar} aria-label={`Pilih ikon ${icon}`} className={`flex aspect-square items-center justify-center rounded-xl border text-2xl transition hover:scale-105 disabled:opacity-50 ${currentAvatar === icon ? 'border-amber-300 bg-amber-300/20 ring-2 ring-amber-300/40' : 'border-white/10 bg-white/5 hover:border-cyan-300/50 hover:bg-white/10'}`}>{icon}</button>
                           ))}
@@ -569,10 +577,10 @@ export default function PracticeHubPage() {
                           <h4 className="text-sm font-black text-amber-200">🏅 Galeri Badge</h4>
                           <span className="text-[10px] text-slate-300">{allBadgeCatalog.filter((badge: any) => badge.unlocked).length} / {allBadgeCatalog.length} terbuka</span>
                         </div>
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {allBadgeCatalog.map((badge: any) => (
-                            <div key={badge.id} className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${badge.unlocked ? 'border-amber-300/30 bg-amber-300/10' : 'border-white/10 bg-white/[0.03] opacity-75'}`}>
-                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'bg-slate-800 grayscale'}`}>{badge.unlocked ? badge.icon : '🔒'}</button>
+                            <div key={badge.id} className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${badge.unlocked ? 'border-amber-300/30 bg-amber-300/10' : 'border-white/10 bg-white/[0.03] '}`}>
+                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'cursor-not-allowed bg-slate-800/80 grayscale opacity-60'}`}>{badge.icon}</button>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-xs font-black">{badge.title}</p>
                                 <p className="mt-1 text-[10px] leading-4 text-slate-300">{badge.description || 'Badge pencapaian dari perjalanan belajarmu.'}</p>
