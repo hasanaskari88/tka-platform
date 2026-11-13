@@ -472,24 +472,6 @@ const handleCheckMatrixAnswer = () => {
   processXpAndStreak(allCorrect)
 }
 
-  const handleCheckFillInAnswer = () => {
-    if (isAnswered || !currentQuestion) return
-
-    const userText = String(userAnswer || '').trim().toLowerCase()
-    const targetText = String(
-      currentQuestion.correct_option ??
-      currentQuestion.correct_answer ??
-      ''
-    ).trim().toLowerCase()
-
-    if (!targetText) {
-      setConfigurationError('Kunci jawaban isian belum diatur.')
-      return
-    }
-
-    processXpAndStreak(userText === targetText)
-  }
-
   const handleNextQuestion = () => {
   if (isReviewingSkipped) {
     if (!currentQuestion?.id) return
