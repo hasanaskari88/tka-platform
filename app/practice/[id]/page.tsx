@@ -79,8 +79,18 @@ function getMatrixOptionKey(item: any, index: number): string {
     return String(item.id)
   }
 
-  return String(index)
+  return String(item?._practiceKey ?? index)
 }
+
+function shuffleArray<T>(items: T[]): T[] {
+  const shuffled = [...items]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  return shuffled
+}
+
 function PracticeContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -98,6 +108,7 @@ function PracticeContent() {
   const [isCorrect, setIsCorrect] = useState(false)
 
   const [totalXpEarned, setTotalXpEarned] = useState(0)
+  const [answerXpEarned, setAnswerXpEarned] = useState(0)
   const [streakCount, setStreakCount] = useState(0)
   const [answeredCount, setAnsweredCount] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
@@ -188,7 +199,7 @@ function PracticeContent() {
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
-        .order('created_at', { ascending: true })
+        .in('question_type', ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix'])
 
       if (questionError) {
         alert('Gagal memuat soal latihan.')
@@ -196,7 +207,37 @@ function PracticeContent() {
         return
       }
 
-      const loadedQuestions = questionData || []
+      const rawQuestions = questionData || []
+      const typeOrder = ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix']
+      const loadedQuestions = typeOrder.flatMap((type) => {
+        const group = rawQuestions
+          .filter((question: any) => (question.question_type || 'multiple_choice') === type)
+          .map((question: any) => {
+            if (type === 'true_false_matrix') {
+              const rows = Array.isArray(question.options) ? question.options : []
+              return {
+                ...question,
+                options: shuffleArray(rows.map((item: any, index: number) =>
+                  item && typeof item === 'object'
+                    ? { ...item, _practiceKey: String(item.id ?? index) }
+                    : { text: String(item ?? ''), _practiceKey: String(index) }
+                )),
+              }
+            }
+
+            const options = Array.isArray(question.options) ? question.options : []
+            return {
+              ...question,
+              options: shuffleArray(options.map((option: any, index: number) => {
+                const originalKey = String(option?.key ?? String.fromCharCode(65 + index))
+                return typeof option === 'string'
+                  ? { key: originalKey, text: option }
+                  : { ...option, key: originalKey }
+              })),
+            }
+          })
+        return shuffleArray(group)
+      })
 
       if (!active) return
 
@@ -305,10 +346,12 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
         newStreak >= 4 ? 5 :
         newStreak >= 2 ? 2 : 0
 
+      const answerXp = qType === 'multiple_choice' ? 10 : 15
+      setAnswerXpEarned((previous) => previous + answerXp)
       streakXpRef.current += bonus
-      setTotalXpEarned((previous) => previous + 10 + bonus)
+      setTotalXpEarned((previous) => previous + answerXp + bonus)
 
-      checkAndUnlockBadges(totalXpEarned + 10, newStreak)
+      checkAndUnlockBadges(totalXpEarned + answerXp + bonus, newStreak)
     } else {
       setStreakCount(0)
     }
@@ -447,13 +490,6 @@ const handleCheckMatrixAnswer = () => {
     processXpAndStreak(userText === targetText)
   }
 
-  const handleSubmitEssayAnswer = () => {
-    if (isAnswered || !currentQuestion) return
-
-    // Sesuai perilaku lama: essay mendapatkan XP berbasis usaha.
-    processXpAndStreak(true)
-  }
-
   const handleNextQuestion = () => {
   if (isReviewingSkipped) {
     if (!currentQuestion?.id) return
@@ -520,6 +556,11 @@ const handleCheckMatrixAnswer = () => {
   const handleFinishQuiz = async () => {
     if (!attemptId || finishStartedRef.current || isFinishing) return
 
+    if (answeredCount < questions.length) {
+      const shouldFinish = window.confirm(`Kamu baru menjawab ${answeredCount} dari ${questions.length} soal.\n\nSoal yang belum dijawab tidak mendapat XP. Akhiri dan kumpulkan sekarang?`)
+      if (!shouldFinish) return
+    }
+
     finishStartedRef.current = true
     setIsFinishing(true)
 
@@ -532,6 +573,7 @@ const handleCheckMatrixAnswer = () => {
         p_answered_count: answeredCount,
         p_correct_count: correctCount,
         p_streak_xp: streakXpRef.current,
+        p_answer_xp: answerXpEarned,
       }
     )
 
@@ -588,18 +630,18 @@ const handleCheckMatrixAnswer = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col font-sans select-none">
-      <header className="bg-slate-900 text-white px-6 py-3.5 flex justify-between items-center shadow-md">
+    <div className="min-h-screen bg-gradient-to-br from-sky-100 via-violet-50 to-amber-50 flex flex-col font-sans">
+      <header className="sticky top-0 z-20 border-b border-white/20 bg-gradient-to-r from-indigo-950 via-violet-900 to-blue-900 px-4 py-4 text-white shadow-xl sm:px-6">
         <div className="flex items-center space-x-3">
           <Link
             href="/practice"
-            className="px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl"
+            className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-bold text-white transition hover:bg-white/20"
           >
             ← Keluar
           </Link>
 
           <div>
-            <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold">
+            <span className="rounded-full bg-cyan-300/20 px-3 py-1 text-[10px] font-extrabold tracking-wider text-cyan-100">
               MODE LATIHAN MANDIRI
             </span>
             <h1 className="text-sm font-bold mt-1">{exam?.title}</h1>
@@ -628,26 +670,26 @@ const handleCheckMatrixAnswer = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 sm:p-6">
-        <div className="bg-white p-6 rounded-2xl border shadow-sm space-y-6">
-          <div className="flex justify-between items-center border-b pb-3">
+      <main className="mx-auto w-full max-w-5xl flex-1 p-3 sm:p-6 lg:p-8">
+        <div className="overflow-hidden rounded-3xl border border-white bg-white/95 p-4 shadow-2xl shadow-indigo-200/60 sm:p-7 lg:p-8 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-sky-50 via-indigo-50 to-violet-50 p-4">
             <div>
               <span className="font-bold text-slate-800 text-xs">
               {isReviewingSkipped
                 ? `Soal Tertunda ${reviewIndex + 1} dari ${skippedQuestionIds.length}`
                 : `Soal ${currentIndex + 1} dari ${questions.length}`}              
               </span>
-              <span className="ml-2 text-[10px] bg-indigo-50 text-indigo-700 px-2 py-1 rounded font-bold">
-                {qType}
+              <span className="ml-2 rounded-full bg-violet-100 px-3 py-1 text-[11px] font-extrabold text-violet-800">
+                {qType === 'multiple_choice' ? 'PILIHAN GANDA' : qType === 'complex_multiple_choice' ? 'PG KOMPLEKS' : 'BENAR / SALAH'}
               </span>
             </div>
 
-            <span className="text-xs text-slate-500 font-semibold">
-              Benar: {correctCount} / {answeredCount} dijawab
+            <span className="text-xs font-bold text-slate-600">
+              Benar: {correctCount} · Dijawab: {answeredCount}/{questions.length}
             </span>
           </div>
 
-          <div className="text-slate-900 text-sm font-semibold leading-relaxed">
+          <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 p-5 text-lg font-semibold leading-8 text-slate-900 sm:p-7 sm:text-xl sm:leading-9">
             <MathRenderer content={currentQuestion.question_text || ''} />
           </div>
 
@@ -655,7 +697,7 @@ const handleCheckMatrixAnswer = () => {
             <img
               src={currentQuestion.image_url}
               alt="Gambar soal"
-              className="max-h-56 rounded-xl border"
+              className="mx-auto max-h-80 w-auto rounded-2xl border-4 border-white object-contain shadow-lg"
             />
           )}
 
@@ -675,7 +717,7 @@ const handleCheckMatrixAnswer = () => {
                   const correct = normalizeKey(key) === correctKey
 
                   let style =
-                    'border-slate-200 hover:bg-slate-50 text-slate-800'
+                    'border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 text-slate-800'
 
                   if (isAnswered && correct) {
                     style =
@@ -690,7 +732,7 @@ const handleCheckMatrixAnswer = () => {
                       key={key}
                       disabled={isAnswered}
                       onClick={() => handleSingleChoiceSelect(key)}
-                      className={`w-full text-left p-3.5 rounded-xl border text-xs ${style}`}
+                      className={`w-full rounded-2xl border-2 p-4 text-left text-base leading-7 transition-all duration-150 sm:p-5 ${style} hover:-translate-y-0.5 hover:shadow-md`} 
                     >
                       <span className="font-bold mr-3">{key}.</span>
                       <MathRenderer
@@ -719,7 +761,7 @@ const handleCheckMatrixAnswer = () => {
                   return (
                     <label
                       key={key}
-                      className="flex items-center gap-3 border rounded-xl p-3 cursor-pointer"
+                      className="flex items-start gap-4 rounded-2xl border-2 border-slate-200 bg-white p-4 text-base leading-7 text-slate-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 cursor-pointer sm:p-5"
                     >
                       <input
                         type="checkbox"
@@ -727,7 +769,7 @@ const handleCheckMatrixAnswer = () => {
                         checked={checked}
                         onChange={() => handleToggleComplexChoice(key)}
                       />
-                      <span className="text-sm font-semibold">
+                      <span className="text-base font-semibold leading-7">
                         <MathRenderer
                           content={
                             typeof opt === 'string'
@@ -754,8 +796,8 @@ const handleCheckMatrixAnswer = () => {
           {qType === 'true_false_matrix' &&
   Array.isArray(currentQuestion.options) && (
     <div className="border rounded-xl overflow-hidden">
-      <table className="w-full text-xs">
-        <thead className="bg-slate-100">
+      <table className="w-full text-sm sm:text-base">
+        <thead className="bg-indigo-100 text-indigo-950">
           <tr>
             <th className="p-3 text-left">Pernyataan</th>
             <th className="p-3">Benar</th>
@@ -778,7 +820,7 @@ const handleCheckMatrixAnswer = () => {
 
             return (
               <tr key={optionKey} className="border-t">
-                <td className="p-3">
+                <td className="p-4 leading-7 sm:p-5">
                   <MathRenderer content={text} />
                 </td>
 
@@ -788,7 +830,7 @@ const handleCheckMatrixAnswer = () => {
                     onClick={() =>
                       handleSelectMatrixRow(optionKey, 'Benar')
                     }
-                    className={`px-3 py-1 rounded border ${
+                    className={`rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition ${
                       selected === 'Benar'
                         ? 'bg-emerald-600 text-white'
                         : ''
@@ -830,7 +872,7 @@ const handleCheckMatrixAnswer = () => {
     </div>
   )}
 
-          {qType === 'fill_in' && (
+          {false && qType === 'fill_in' && (
             <div className="space-y-3">
               <input
                 type="text"
@@ -852,37 +894,17 @@ const handleCheckMatrixAnswer = () => {
             </div>
           )}
 
-          {qType === 'essay' && (
-            <div className="space-y-3">
-              <textarea
-                rows={4}
-                disabled={isAnswered}
-                value={userAnswer || ''}
-                onChange={(event) => setUserAnswer(event.target.value)}
-                placeholder="Tuliskan jawaban lengkap..."
-                className="w-full p-3 border rounded-xl text-sm"
-              />
 
-              {!isAnswered && (
-                <button
-                  onClick={handleSubmitEssayAnswer}
-                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl"
-                >
-                  Kirim Jawaban
-                </button>
-              )}
-            </div>
-          )}
 
           {configurationError && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
               {configurationError}
             </div>
           )}
 
           {isAnswered && (
             <div
-              className={`p-4 rounded-xl border text-xs space-y-2 ${
+              className={`rounded-2xl border-2 p-5 text-sm leading-7 space-y-3 ${
                 isCorrect
                   ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
                   : 'bg-rose-50 border-rose-300 text-rose-900'
@@ -907,69 +929,46 @@ const handleCheckMatrixAnswer = () => {
             </div>
           )}
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-  {!isAnswered && (
-    <button
-      onClick={handleSkipQuestion}
-      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium hover:bg-gray-100"
-    >
-      {isReviewingSkipped ? 'Lewati Kembali' : 'Lewati Soal'}
-    </button>
-  )}
-
-  {isReviewingSkipped && (
-    <button
-      onClick={handleFinishQuiz}
-      disabled={isFinishing || !attemptId}
-      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-    >
-      {isFinishing ? 'Menyimpan...' : '🏆 Selesai & Ambil XP'}
-    </button>
-  )}
-
-  {isAnswered && !isReviewingSkipped && currentIndex < questions.length - 1 && (
-    <button
-      onClick={handleNextQuestion}
-      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-    >
-      Soal Selanjutnya →
-    </button>
-  )}
-
-  {isAnswered && !isReviewingSkipped && currentIndex === questions.length - 1 && (
-    skippedQuestionIds.length > 0 ? (
-      <button
-        onClick={handleNextQuestion}
-        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-      >
-        Lihat Soal Tertunda →
-      </button>
-    ) : (
-      <button
-        onClick={handleFinishQuiz}
-        disabled={isFinishing || !attemptId}
-        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
-      >
-        {isFinishing ? 'Menyimpan...' : '🏆 Selesai & Ambil XP'}
-      </button>
-    )
-  )}
-
-  {isAnswered && isReviewingSkipped && skippedQuestionIds.length > 1 && (
-    <button
-      onClick={handleNextQuestion}
-      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-    >
-      Soal Tertunda Berikutnya →
-    </button>
-  )}
-</div>
+          <div className="flex flex-col gap-3 border-t border-indigo-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              {!isAnswered && (
+                <button
+                  onClick={handleSkipQuestion}
+                  className="rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50"
+                >
+                  {isReviewingSkipped ? 'Lewati Kembali' : '⏭️ Lewati Soal'}
+                </button>
+              )}
+              {isAnswered && !isReviewingSkipped && currentIndex < questions.length - 1 && (
+                <button onClick={handleNextQuestion} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
+                  Soal Selanjutnya →
+                </button>
+              )}
+              {isAnswered && !isReviewingSkipped && currentIndex === questions.length - 1 && skippedQuestionIds.length > 0 && (
+                <button onClick={handleNextQuestion} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
+                  Lihat Soal Tertunda →
+                </button>
+              )}
+              {isAnswered && isReviewingSkipped && skippedQuestionIds.length > 1 && (
+                <button onClick={handleNextQuestion} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
+                  Soal Tertunda Berikutnya →
+                </button>
+              )}
+            </div>
+            <button
+              onClick={handleFinishQuiz}
+              disabled={isFinishing || !attemptId}
+              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+            >
+              {isFinishing ? 'Menyimpan...' : '🏆 Akhiri & Kumpulkan XP'}
+            </button>
+          </div>
         </div>
       </main>
 
       {finishSummary && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 text-center text-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-indigo-950/75 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border-4 border-white bg-gradient-to-br from-white to-amber-50 p-7 text-center text-slate-900 shadow-2xl">
             <div className="text-4xl">🏆</div>
             <h2 className="mt-3 text-xl font-extrabold">Latihan Selesai!</h2>
 
