@@ -199,7 +199,7 @@ function PracticeContent() {
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
-        .in('question_type', ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix'])
+        .or('question_type.is.null,question_type.in.(multiple_choice,complex_multiple_choice,true_false_matrix)')
 
       if (questionError) {
         alert('Gagal memuat soal latihan.')
@@ -250,7 +250,7 @@ function PracticeContent() {
         examData.activity_type !== 'FLASHCARD'
       ) {
         if (loadedQuestions.length === 0) {
-          setConfigurationError('Modul ini belum memiliki soal.')
+          setConfigurationError('Modul ini belum memiliki soal PG, PG Kompleks, atau Matriks Benar/Salah untuk latihan otomatis.')
           setLoading(false)
           return
         }
@@ -689,6 +689,19 @@ const handleCheckMatrixAnswer = () => {
             </span>
           </div>
 
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+              <span>🚀 Perjalanan latihan</span>
+              <span>{Math.round((answeredCount / Math.max(questions.length, 1)) * 100)}%</span>
+            </div>
+            <div className="h-3 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
+              <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500 transition-all duration-500" style={{ width: `${Math.min(100, (answeredCount / Math.max(questions.length, 1)) * 100)}%` }} />
+            </div>
+            <div className="flex flex-wrap gap-3 text-[11px] font-semibold text-slate-500">
+              <span>⭐ PG benar: +10 XP</span><span>💎 PG Kompleks/Matriks benar: +15 XP</span>
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-sky-100 bg-gradient-to-br from-white to-sky-50 p-5 text-lg font-semibold leading-8 text-slate-900 sm:p-7 sm:text-xl sm:leading-9">
             <MathRenderer content={currentQuestion.question_text || ''} />
           </div>
@@ -832,8 +845,8 @@ const handleCheckMatrixAnswer = () => {
                     }
                     className={`rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition ${
                       selected === 'Benar'
-                        ? 'bg-emerald-600 text-white'
-                        : ''
+                        ? 'border-emerald-600 bg-emerald-600 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-emerald-50'
                     }`}
                   >
                     Benar
@@ -846,10 +859,10 @@ const handleCheckMatrixAnswer = () => {
                     onClick={() =>
                       handleSelectMatrixRow(optionKey, 'Salah')
                     }
-                    className={`px-3 py-1 rounded border ${
+                    className={`rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition ${
                       selected === 'Salah'
-                        ? 'bg-rose-600 text-white'
-                        : ''
+                        ? 'border-rose-600 bg-rose-600 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-rose-50'
                     }`}
                   >
                     Salah
@@ -872,27 +885,7 @@ const handleCheckMatrixAnswer = () => {
     </div>
   )}
 
-          {false && qType === 'fill_in' && (
-            <div className="space-y-3">
-              <input
-                type="text"
-                disabled={isAnswered}
-                value={userAnswer || ''}
-                onChange={(event) => setUserAnswer(event.target.value)}
-                placeholder="Ketik jawaban di sini..."
-                className="w-full p-3 border rounded-xl text-sm"
-              />
 
-              {!isAnswered && (
-                <button
-                  onClick={handleCheckFillInAnswer}
-                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl"
-                >
-                  Cek Jawaban
-                </button>
-              )}
-            </div>
-          )}
 
 
 
