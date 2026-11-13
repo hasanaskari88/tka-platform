@@ -567,8 +567,8 @@ export default function PracticeHubPage() {
 
 
               {isIdentityModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="player-custom-title">
-                  <div className="flex h-[94vh] max-h-[1000px] w-full max-w-6xl overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-1 backdrop-blur-md sm:p-4" role="dialog" aria-modal="true" aria-labelledby="player-custom-title">
+                  <div className="flex h-[94vh] max-h-[1000px] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
                     <div className="flex items-start justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-indigo-950 to-violet-900 p-5">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Personalisasi pemain</p>
@@ -597,9 +597,9 @@ export default function PracticeHubPage() {
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {allBadgeCatalog.map((badge: any) => (
                             <div key={badge.id} className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${badge.unlocked ? 'border-amber-300/30 bg-amber-300/10' : 'border-white/10 bg-white/[0.03] '}`}>
-                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'cursor-not-allowed bg-slate-800/80 grayscale opacity-60'}`}>{badge.icon}</button>
+                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'cursor-not-allowed bg-slate-800/80 grayscale opacity-60'}`}><span>{badge.icon}</span>{!badge.unlocked && <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-xs grayscale-0">🔒</span>}</button>
                               <div className="min-w-0 flex-1">
-                                <p className="truncate text-xs font-black">{badge.title}</p>
+                                <div className="mb-1 flex flex-wrap items-center gap-1.5"><p className="text-xs font-black">{badge.title}</p><span className="rounded-full bg-white/10 px-2 py-0.5 text-[8px] font-bold text-slate-300">{badge.category || (badge.id.startsWith('maze') ? 'Maze' : badge.id.startsWith('flashcard') ? 'Kartu Kilat' : badge.id.startsWith('quiz') || badge.id.startsWith('perfect') ? 'Kuis' : badge.id.startsWith('xp') ? 'XP' : 'Umum')}</span></div>
                                 <p className="mt-1 text-[10px] leading-4 text-slate-300">{badge.description || 'Badge pencapaian dari perjalanan belajarmu.'}</p>
                                 <p className={`mt-1 text-[9px] font-extrabold uppercase tracking-wide ${badge.unlocked ? 'text-emerald-300' : 'text-amber-200'}`}>{badge.unlocked ? '✓ Sudah diperoleh · tekan ikon untuk memakai' : 'Terkunci · selesaikan syaratnya'}</p>
                               </div>
