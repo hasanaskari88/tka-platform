@@ -113,7 +113,9 @@ export default function PracticeHubPage() {
   const [globalRank, setGlobalRank] = useState<number | null>(null)
   const [classRank, setClassRank] = useState<number | null>(null)
   const [missionSearch, setMissionSearch] = useState('')
+  const [isMissionSearchOpen, setIsMissionSearchOpen] = useState(false)
   const [missionType, setMissionType] = useState('ALL')
+  const [missionSubject, setMissionSubject] = useState('ALL')
   const [missionSort, setMissionSort] = useState('NEWEST')
 
   const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
@@ -309,6 +311,22 @@ export default function PracticeHubPage() {
       }).filter(Boolean)
     : []
 
+  // Badge lama dari profil tetap dipertahankan. Badge tambahan berikut terbuka
+  // otomatis berdasarkan total XP, tanpa mengubah data badge yang sudah tersimpan.
+  const xpMilestoneBadges = [
+    { id: 'xp-100', title: 'Pemula Tangguh', icon: '🌱', description: 'Kumpulkan 100 XP.', threshold: 100 },
+    { id: 'xp-250', title: 'Pengumpul Bintang', icon: '⭐', description: 'Kumpulkan 250 XP.', threshold: 250 },
+    { id: 'xp-500', title: 'Pemburu Ilmu', icon: '🔎', description: 'Kumpulkan 500 XP.', threshold: 500 },
+    { id: 'xp-1000', title: 'Juara Belajar', icon: '🏆', description: 'Kumpulkan 1.000 XP.', threshold: 1000 },
+    { id: 'xp-2000', title: 'Legenda Cilik', icon: '👑', description: 'Kumpulkan 2.000 XP.', threshold: 2000 },
+    { id: 'xp-3500', title: 'Bintang Getasan', icon: '💫', description: 'Kumpulkan 3.500 XP.', threshold: 3500 },
+  ]
+  const unlockedXpBadges = xpMilestoneBadges.filter((badge) => xp >= badge.threshold)
+  const nextXpBadge = xpMilestoneBadges.find((badge) => xp < badge.threshold)
+  const displayedBadges = [...earnedBadges, ...unlockedXpBadges.filter(
+    (badge) => !earnedBadges.some((earned: any) => String(earned.id) === badge.id || earned.title === badge.title)
+  )]
+
   const normalizedActivityType = (value: unknown) => {
     const type = String(value || 'QUIZ').trim().toUpperCase()
     if (type === 'MAZE_GAME' || type === 'MAZE') return 'MAZE_GAME'
@@ -342,12 +360,20 @@ export default function PracticeHubPage() {
     return counts
   }, { ALL: exams.length, QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0, OTHER: 0 })
 
+  const quizSubjects = Array.from(new Set(
+    exams
+      .filter((exam) => normalizedActivityType(exam.activity_type) === 'QUIZ')
+      .map((exam) => String(exam.subtest || '').trim())
+      .filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b, 'id'))
+
   const filteredExams = exams
     .filter((exam) => {
       const type = normalizedActivityType(exam.activity_type)
       const query = missionSearch.trim().toLowerCase()
       const searchable = [exam.title, exam.description, exam.subtest, type].join(' ').toLowerCase()
-      return (!query || searchable.includes(query)) && (missionType === 'ALL' || type === missionType)
+      const matchesSubject = missionType !== 'QUIZ' || missionSubject === 'ALL' || String(exam.subtest || '').trim() === missionSubject
+      return (!query || searchable.includes(query)) && (missionType === 'ALL' || type === missionType) && matchesSubject
     })
     .sort((a, b) => {
       if (missionSort === 'TITLE') return String(a.title || '').localeCompare(String(b.title || ''), 'id')
@@ -385,17 +411,27 @@ export default function PracticeHubPage() {
                   <p className="text-[10px] font-black uppercase tracking-wider text-amber-100">🏅 Koleksi Badge</p>
                   <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-50">{earnedBadges.length} terkumpul</span>
                 </div>
-                {earnedBadges.length > 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {earnedBadges.slice(0, 6).map((badge: any) => (
-                      <span key={badge.id} title={badge.description || badge.title} className="inline-flex items-center gap-1 rounded-lg border border-amber-200/30 bg-amber-300/15 px-2.5 py-1.5 text-[10px] font-bold text-amber-50">
-                        <span>{badge.icon}</span><span>{badge.title}</span>
+                {displayedBadges.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    {displayedBadges.slice(0, 8).map((badge: any) => (
+                      <span key={badge.id} title={badge.description || badge.title} className="inline-flex max-w-full items-center gap-1 rounded-lg border border-amber-200/30 bg-amber-300/15 px-2 py-1.5 text-[9px] font-bold leading-tight text-amber-50 sm:px-2.5 sm:text-[10px]">
+                        <span className="shrink-0">{badge.icon}</span><span className="truncate">{badge.title}</span>
                       </span>
                     ))}
-                    {earnedBadges.length > 6 && <span className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[10px] font-bold text-blue-50">+{earnedBadges.length - 6} badge</span>}
+                    {displayedBadges.length > 8 && <span className="rounded-lg bg-white/10 px-2.5 py-1.5 text-[9px] font-bold text-blue-50 sm:text-[10px]">+{displayedBadges.length - 8} badge</span>}
                   </div>
                 ) : (
-                  <p className="text-[10px] leading-4 text-blue-100">Perjalanan hebat dimulai dari satu latihan. Badge pencapaianmu akan tampil di sini saat tersedia.</p>
+                  <p className="text-[10px] leading-4 text-blue-100">Perjalanan hebat dimulai dari satu latihan. Selesaikan misi dan kumpulkan XP untuk membuka badge pertamamu.</p>
+                )}
+                {nextXpBadge && (
+                  <div className="mt-2 flex min-w-0 items-center gap-2 rounded-xl border border-white/10 bg-slate-950/20 px-2.5 py-2">
+                    <span className="text-lg opacity-80">{nextXpBadge.icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[9px] font-extrabold text-white">Target berikutnya: {nextXpBadge.title}</p>
+                      <p className="text-[9px] text-blue-100">{Math.max(0, nextXpBadge.threshold - xp).toLocaleString('id-ID')} XP lagi</p>
+                    </div>
+                    <span className="shrink-0 text-[9px] font-bold text-amber-100">{Math.min(100, Math.round((xp / nextXpBadge.threshold) * 100))}%</span>
+                  </div>
                 )}
               </div>
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-bold">
@@ -487,21 +523,38 @@ export default function PracticeHubPage() {
               })}
             </div>
 
-            <div className={`grid grid-cols-1 gap-2 rounded-2xl border p-3 sm:grid-cols-[minmax(0,1fr)_180px_160px] ${visual.surfaceBorder} ${visual.surface}`}>
-              <label className="relative block">
-                <span className="sr-only">Cari aktivitas</span>
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base">🔎</span>
-                <input type="search" value={missionSearch} onChange={(event) => setMissionSearch(event.target.value)} placeholder="Cari misi atau mata pelajaran..." className={`w-full rounded-xl border px-3 py-3 pl-10 text-sm font-semibold outline-none transition focus:ring-4 ${visual.filter}`} />
-              </label>
-              <label>
+            <div className={`flex flex-wrap items-center gap-2 rounded-2xl border p-2.5 sm:p-3 ${visual.surfaceBorder} ${visual.surface}`}>
+              <div className={`relative flex items-center transition-all duration-200 ${isMissionSearchOpen || missionSearch ? 'w-full sm:w-64' : 'w-10'}`}>
+                {!isMissionSearchOpen && !missionSearch ? (
+                  <button type="button" onClick={() => setIsMissionSearchOpen(true)} aria-label="Buka pencarian aktivitas" className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-lg transition hover:scale-105 ${visual.filter}`}>
+                    🔎
+                  </button>
+                ) : (
+                  <>
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-base">🔎</span>
+                    <input autoFocus type="search" value={missionSearch} onChange={(event) => setMissionSearch(event.target.value)} onBlur={() => { if (!missionSearch.trim()) setIsMissionSearchOpen(false) }} placeholder="Cari misi atau mapel..." aria-label="Cari aktivitas" className={`w-full rounded-xl border px-3 py-2.5 pl-10 pr-9 text-sm font-semibold outline-none transition focus:ring-4 ${visual.filter}`} />
+                    <button type="button" onClick={() => { setMissionSearch(''); setIsMissionSearchOpen(false) }} aria-label="Tutup pencarian" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs opacity-70 hover:opacity-100">✕</button>
+                  </>
+                )}
+              </div>
+              <label className="min-w-[145px] flex-1 sm:flex-none">
                 <span className="sr-only">Filter jenis aktivitas</span>
-                <select value={missionType} onChange={(event) => setMissionType(event.target.value)} className={`w-full rounded-xl border px-3 py-3 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
+                <select value={missionType} onChange={(event) => { setMissionType(event.target.value); if (event.target.value !== 'QUIZ') setMissionSubject('ALL') }} className={`w-full rounded-xl border px-3 py-2.5 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
                   <option value="ALL">🎮 Semua Aktivitas</option><option value="QUIZ">🧠 Kuis & Latihan</option><option value="MAZE_GAME">🗺️ Maze</option><option value="FLASHCARD">⚡ Flashcard</option><option value="OTHER">✨ Aktivitas Lain</option>
                 </select>
               </label>
-              <label>
+              {missionType === 'QUIZ' && quizSubjects.length > 0 && (
+                <label className="min-w-[140px] flex-1 sm:flex-none">
+                  <span className="sr-only">Filter mata pelajaran</span>
+                  <select value={missionSubject} onChange={(event) => setMissionSubject(event.target.value)} className={`w-full rounded-xl border px-3 py-2.5 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
+                    <option value="ALL">📚 Semua Mapel</option>
+                    {quizSubjects.map((subject) => <option key={subject} value={subject}>{subject}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="min-w-[130px] flex-1 sm:flex-none">
                 <span className="sr-only">Urutkan aktivitas</span>
-                <select value={missionSort} onChange={(event) => setMissionSort(event.target.value)} className={`w-full rounded-xl border px-3 py-3 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
+                <select value={missionSort} onChange={(event) => setMissionSort(event.target.value)} className={`w-full rounded-xl border px-3 py-2.5 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
                   <option value="NEWEST">🕒 Terbaru</option><option value="OLDEST">📅 Terlama</option><option value="TITLE">🔤 Nama A–Z</option>
                 </select>
               </label>
@@ -551,7 +604,7 @@ export default function PracticeHubPage() {
               </div>
             ) : (
               <div className={`rounded-3xl border-2 border-dashed ${visual.surfaceBorder} ${visual.surface} px-6 py-12 text-center shadow-xl`}>
-                {exams.length > 0 && <div className="mb-4"><span className="text-3xl">🔍</span><p className={`mt-2 text-sm font-bold ${visual.heading}`}>Misi tidak ditemukan</p><p className={`mt-1 text-xs ${visual.muted}`}>Coba ubah kata kunci atau filter aktivitas.</p><button type="button" onClick={() => { setMissionSearch(''); setMissionType('ALL') }} className={`mt-3 rounded-xl px-4 py-2 text-xs font-black ${visual.badge}`}>Reset pencarian</button></div>}
+                {exams.length > 0 && <div className="mb-4"><span className="text-3xl">🔍</span><p className={`mt-2 text-sm font-bold ${visual.heading}`}>Misi tidak ditemukan</p><p className={`mt-1 text-xs ${visual.muted}`}>Coba ubah kata kunci atau filter aktivitas.</p><button type="button" onClick={() => { setMissionSearch(''); setIsMissionSearchOpen(false); setMissionType('ALL'); setMissionSubject('ALL') }} className={`mt-3 rounded-xl px-4 py-2 text-xs font-black ${visual.badge}`}>Reset pencarian</button></div>}
                 {exams.length === 0 && (
                   <>
                     <div className={`mx-auto flex h-16 w-16 items-center justify-center rounded-2xl ${visual.badge} text-3xl`}>🗺️</div>
