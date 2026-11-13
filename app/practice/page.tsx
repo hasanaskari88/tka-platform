@@ -108,6 +108,11 @@ export default function PracticeHubPage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [availableClasses, setAvailableClasses] = useState<string[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [completedAttempts, setCompletedAttempts] = useState(0)
+  const [perfectAttempts, setPerfectAttempts] = useState(0)
+  const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false)
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false)
+  const [avatarMessage, setAvatarMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [leaderboardFilter, setLeaderboardFilter] = useState<string>('ALL')
   const [globalRank, setGlobalRank] = useState<number | null>(null)
@@ -200,6 +205,16 @@ export default function PracticeHubPage() {
 
       let profile = null
       if (user) {
+        const { data: attemptData } = await supabase
+          .from('practice_attempts')
+          .select('id, score, status')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+        if (attemptData) {
+          setCompletedAttempts(attemptData.length)
+          setPerfectAttempts(attemptData.filter((attempt: any) => Number(attempt.score || 0) >= 100).length)
+        }
+
         const { data: profData } = await supabase
           .from('profiles')
           .select('*')
@@ -323,9 +338,46 @@ export default function PracticeHubPage() {
   ]
   const unlockedXpBadges = xpMilestoneBadges.filter((badge) => xp >= badge.threshold)
   const nextXpBadge = xpMilestoneBadges.find((badge) => xp < badge.threshold)
-  const displayedBadges = [...earnedBadges, ...unlockedXpBadges.filter(
+  const activityBadgeCatalog = [
+    { id: 'first-mission', title: 'Langkah Pertama', icon: '👣', description: 'Selesaikan 1 latihan sampai tuntas.', unlocked: completedAttempts >= 1 },
+    { id: 'practice-five', title: 'Rajin Berlatih', icon: '📘', description: 'Selesaikan 5 latihan.', unlocked: completedAttempts >= 5 },
+    { id: 'practice-ten', title: 'Pejuang Konsisten', icon: '🛡️', description: 'Selesaikan 10 latihan.', unlocked: completedAttempts >= 10 },
+    { id: 'perfect-one', title: 'Jawaban Sempurna', icon: '🎯', description: 'Raih nilai 100 pada satu latihan.', unlocked: perfectAttempts >= 1 },
+    { id: 'perfect-three', title: 'Sang Penyempurna', icon: '💯', description: 'Raih nilai 100 sebanyak 3 kali.', unlocked: perfectAttempts >= 3 },
+    { id: 'xp-100', title: 'Pemula Tangguh', icon: '🌱', description: 'Kumpulkan 100 XP.', unlocked: xp >= 100 },
+    { id: 'xp-250', title: 'Pengumpul Bintang', icon: '⭐', description: 'Kumpulkan 250 XP.', unlocked: xp >= 250 },
+    { id: 'xp-500', title: 'Pemburu Ilmu', icon: '🔎', description: 'Kumpulkan 500 XP.', unlocked: xp >= 500 },
+    { id: 'xp-1000', title: 'Juara Belajar', icon: '🏆', description: 'Kumpulkan 1.000 XP.', unlocked: xp >= 1000 },
+    { id: 'xp-2000', title: 'Legenda Cilik', icon: '👑', description: 'Kumpulkan 2.000 XP.', unlocked: xp >= 2000 },
+    { id: 'xp-3500', title: 'Bintang Getasan', icon: '💫', description: 'Kumpulkan 3.500 XP.', unlocked: xp >= 3500 },
+  ]
+  const activityUnlockedBadges = activityBadgeCatalog.filter((badge) => badge.unlocked)
+  const displayedBadges = [...earnedBadges, ...activityUnlockedBadges.filter(
     (badge) => !earnedBadges.some((earned: any) => String(earned.id) === badge.id || earned.title === badge.title)
   )]
+  const allBadgeCatalog = [
+    ...activityBadgeCatalog,
+    ...earnedBadges.filter((earned: any) => !activityBadgeCatalog.some((badge) => badge.title === earned.title)).map((badge: any) => ({ ...badge, unlocked: true })),
+  ]
+  const avatarChoices = ['🚀', '🧑‍🚀', '👩‍🚀', '🦊', '🐼', '🦁', '🐯', '🐸', '🐵', '🐨', '🐱', '🐰', '🐻', '🦄', '🐲', '🤖', '👾', '🌟']
+  const currentAvatar = typeof userProfile?.avatar_url === 'string' && userProfile.avatar_url.length <= 12 && !userProfile.avatar_url.includes('/')
+    ? userProfile.avatar_url
+    : globalTitle.icon
+
+  const choosePlayerIcon = async (icon: string) => {
+    if (!userProfile?.id || isSavingAvatar) return
+    setIsSavingAvatar(true)
+    setAvatarMessage('')
+    const supabase = createClient()
+    const { error } = await supabase.from('profiles').update({ avatar_url: icon }).eq('id', userProfile.id)
+    setIsSavingAvatar(false)
+    if (error) {
+      setAvatarMessage('Ikon belum dapat disimpan. Coba lagi.')
+      return
+    }
+    setUserProfile((previous: any) => ({ ...previous, avatar_url: icon }))
+    setAvatarMessage('Ikon pemain berhasil diperbarui!')
+  }
 
   const normalizedActivityType = (value: unknown) => {
     const type = String(value || 'QUIZ').trim().toUpperCase()
@@ -446,9 +498,10 @@ export default function PracticeHubPage() {
                 Identitas Pemain
               </div>
               <div className="flex items-center gap-4">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-300 to-blue-500 text-4xl shadow-lg">
-                  {globalTitle.icon}
-                </div>
+                <button type="button" onClick={() => { setAvatarMessage(''); setIsIdentityModalOpen(true) }} aria-label="Ubah ikon identitas pemain" className="group relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-2 border-cyan-200 bg-gradient-to-br from-cyan-300 to-blue-500 text-4xl shadow-lg transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-amber-300/50">
+                  {currentAvatar}
+                  <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-slate-900 bg-amber-300 text-xs text-slate-900 shadow">✎</span>
+                </button>
                 <div className="min-w-0">
                   <p className="truncate text-sm font-black text-blue-100">{userProfile?.full_name || 'Pemain Getasan'}</p>
                   <p className="mt-1 text-lg font-black text-amber-300">{globalTitle.title}</p>
@@ -456,6 +509,11 @@ export default function PracticeHubPage() {
                     {userProfile?.class_code ? `Kelas ${userProfile.class_code}` : 'Pejuang prestasi Getasan'}
                   </p>
                 </div>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => setIsIdentityModalOpen(true)} className="rounded-xl border border-cyan-200/30 bg-cyan-300/15 px-3 py-2 text-[10px] font-extrabold text-cyan-50 transition hover:bg-cyan-300/25">🎨 Atur ikon & badge</button>
+                <span className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-[10px] font-bold text-blue-100">🏅 {displayedBadges.length} badge terbuka</span>
               </div>
 
               <div className="mt-3 flex items-end justify-between gap-3">
@@ -483,6 +541,54 @@ export default function PracticeHubPage() {
               </div>
 
 
+              {isIdentityModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="player-custom-title">
+                  <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
+                    <div className="flex items-start justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-indigo-950 to-violet-900 p-5">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Personalisasi pemain</p>
+                        <h3 id="player-custom-title" className="mt-1 text-xl font-black">Pilih Ikon & Koleksi Badge</h3>
+                        <p className="mt-1 text-xs text-blue-100">Pilih ikon profil atau gunakan badge yang sudah kamu dapatkan.</p>
+                      </div>
+                      <button type="button" onClick={() => setIsIdentityModalOpen(false)} aria-label="Tutup popup" className="rounded-xl bg-white/10 px-3 py-2 text-lg hover:bg-white/20">✕</button>
+                    </div>
+                    <div className="max-h-[calc(88vh-100px)] space-y-5 overflow-y-auto p-5">
+                      <section>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-black text-amber-200">🙂 Ikon Profil</h4>
+                          <span className="text-[10px] text-slate-300">Pilih salah satu ikon</span>
+                        </div>
+                        <div className="grid grid-cols-6 gap-2 sm:grid-cols-9">
+                          {avatarChoices.map((icon) => (
+                            <button key={icon} type="button" onClick={() => choosePlayerIcon(icon)} disabled={isSavingAvatar} aria-label={`Pilih ikon ${icon}`} className={`flex aspect-square items-center justify-center rounded-xl border text-2xl transition hover:scale-105 disabled:opacity-50 ${currentAvatar === icon ? 'border-amber-300 bg-amber-300/20 ring-2 ring-amber-300/40' : 'border-white/10 bg-white/5 hover:border-cyan-300/50 hover:bg-white/10'}`}>{icon}</button>
+                          ))}
+                        </div>
+                      </section>
+                      <section>
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <h4 className="text-sm font-black text-amber-200">🏅 Galeri Badge</h4>
+                          <span className="text-[10px] text-slate-300">{allBadgeCatalog.filter((badge: any) => badge.unlocked).length} / {allBadgeCatalog.length} terbuka</span>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {allBadgeCatalog.map((badge: any) => (
+                            <div key={badge.id} className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${badge.unlocked ? 'border-amber-300/30 bg-amber-300/10' : 'border-white/10 bg-white/[0.03] opacity-75'}`}>
+                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'bg-slate-800 grayscale'}`}>{badge.unlocked ? badge.icon : '🔒'}</button>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-xs font-black">{badge.title}</p>
+                                <p className="mt-1 text-[10px] leading-4 text-slate-300">{badge.description || 'Badge pencapaian dari perjalanan belajarmu.'}</p>
+                                <p className={`mt-1 text-[9px] font-extrabold uppercase tracking-wide ${badge.unlocked ? 'text-emerald-300' : 'text-amber-200'}`}>{badge.unlocked ? '✓ Sudah diperoleh · tekan ikon untuk memakai' : 'Terkunci · selesaikan syaratnya'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                      {avatarMessage && <p role="status" className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 px-3 py-2 text-xs text-cyan-100">{avatarMessage}</p>}
+                      {isSavingAvatar && <p className="text-xs text-cyan-200">Menyimpan pilihan...</p>}
+                      <p className="text-[10px] leading-4 text-slate-400">Badge yang terkunci tetap terlihat agar kamu tahu target berikutnya. Ikon profil tersimpan pada akunmu.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </section>
