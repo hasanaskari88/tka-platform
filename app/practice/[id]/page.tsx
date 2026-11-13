@@ -637,8 +637,6 @@ const handleCheckMatrixAnswer = () => {
             </span>
             <h1 className="mt-0.5 max-w-[55vw] truncate text-sm font-extrabold sm:max-w-none sm:text-base">{exam?.title}</h1>
           </div>
-        </div>
-
         <div className="shrink-0 text-right">
           {streakCount >= 2 && (
             <div className="text-amber-300 text-xs font-black animate-pulse">
