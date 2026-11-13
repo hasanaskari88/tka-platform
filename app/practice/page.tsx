@@ -566,18 +566,23 @@ export default function PracticeHubPage() {
               </div>
 
 
-              {isIdentityModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/85 p-1 backdrop-blur-md sm:p-4" role="dialog" aria-modal="true" aria-labelledby="player-custom-title">
-                  <div className="flex h-[94vh] max-h-[1000px] w-full max-w-6xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
-                    <div className="flex items-start justify-between gap-3 border-b border-white/10 bg-gradient-to-r from-indigo-950 to-violet-900 p-5">
+}
+            </div>
+          </div>
+        </section>
+
+{isIdentityModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 p-2 backdrop-blur-md sm:p-5 lg:p-8" role="dialog" aria-modal="true" aria-labelledby="player-custom-title">
+                  <div className="flex h-[94dvh] max-h-[1100px] w-[96vw] max-w-7xl flex-col overflow-hidden rounded-3xl border border-white/15 bg-slate-900 text-white shadow-2xl">
+                    <div className="flex items-start justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-indigo-950 to-violet-900 p-5 sm:p-6">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-200">Personalisasi pemain</p>
-                        <h3 id="player-custom-title" className="mt-1 text-xl font-black">Pilih Ikon & Koleksi Badge</h3>
-                        <p className="mt-1 text-xs text-blue-100">Pilih ikon profil atau gunakan badge yang sudah kamu dapatkan.</p>
+                        <h3 id="player-custom-title" className="mt-1 text-2xl font-black sm:text-3xl">Pilih Ikon & Koleksi Badge</h3>
+                        <p className="mt-1 text-sm text-blue-100">Pilih ikon profil atau gunakan badge yang sudah kamu dapatkan.</p>
                       </div>
                       <button type="button" onClick={() => setIsIdentityModalOpen(false)} aria-label="Tutup popup" className="rounded-xl bg-white/10 px-3 py-2 text-lg hover:bg-white/20">✕</button>
                     </div>
-                    <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4 sm:p-6">
+                    <div className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain p-4 sm:p-6 lg:p-8">
                       <section>
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <h4 className="text-sm font-black text-amber-200">🙂 Ikon Profil</h4>
@@ -594,14 +599,14 @@ export default function PracticeHubPage() {
                           <h4 className="text-sm font-black text-amber-200">🏅 Galeri Badge</h4>
                           <span className="text-[10px] text-slate-300">{allBadgeCatalog.filter((badge: any) => badge.unlocked).length} / {allBadgeCatalog.length} terbuka</span>
                         </div>
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                           {allBadgeCatalog.map((badge: any) => (
-                            <div key={badge.id} className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 ${badge.unlocked ? 'border-amber-300/30 bg-amber-300/10' : 'border-white/10 bg-white/[0.03] '}`}>
-                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-3xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'cursor-not-allowed bg-slate-800/80 grayscale opacity-60'}`}><span>{badge.icon}</span>{!badge.unlocked && <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-xs grayscale-0">🔒</span>}</button>
+                            <div key={badge.id} className={`flex min-w-0 items-center gap-4 rounded-2xl border p-4 ${badge.unlocked ? 'border-amber-300/30 bg-amber-300/10' : 'border-white/10 bg-white/[0.03] '}`}>
+                              <button type="button" disabled={!badge.unlocked || isSavingAvatar} onClick={() => choosePlayerIcon(badge.icon)} title={badge.unlocked ? 'Gunakan sebagai ikon profil' : 'Badge masih terkunci'} className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-4xl ${badge.unlocked ? 'bg-amber-300/15 hover:bg-amber-300/30' : 'cursor-not-allowed bg-slate-800/80 grayscale opacity-60'}`}><span>{badge.icon}</span>{!badge.unlocked && <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-slate-700 bg-slate-950 text-xs grayscale-0">🔒</span>}</button>
                               <div className="min-w-0 flex-1">
-                                <div className="mb-1 flex flex-wrap items-center gap-1.5"><p className="text-xs font-black">{badge.title}</p><span className="rounded-full bg-white/10 px-2 py-0.5 text-[8px] font-bold text-slate-300">{badge.category || (badge.id.startsWith('maze') ? 'Maze' : badge.id.startsWith('flashcard') ? 'Kartu Kilat' : badge.id.startsWith('quiz') || badge.id.startsWith('perfect') ? 'Kuis' : badge.id.startsWith('xp') ? 'XP' : 'Umum')}</span></div>
-                                <p className="mt-1 text-[10px] leading-4 text-slate-300">{badge.description || 'Badge pencapaian dari perjalanan belajarmu.'}</p>
-                                <p className={`mt-1 text-[9px] font-extrabold uppercase tracking-wide ${badge.unlocked ? 'text-emerald-300' : 'text-amber-200'}`}>{badge.unlocked ? '✓ Sudah diperoleh · tekan ikon untuk memakai' : 'Terkunci · selesaikan syaratnya'}</p>
+                                <div className="mb-1 flex flex-wrap items-center gap-1.5"><p className="text-sm font-black sm:text-base">{badge.title}</p><span className="rounded-full bg-white/10 px-2 py-0.5 text-[8px] font-bold text-slate-300">{badge.category || (badge.id.startsWith('maze') ? 'Maze' : badge.id.startsWith('flashcard') ? 'Kartu Kilat' : badge.id.startsWith('quiz') || badge.id.startsWith('perfect') ? 'Kuis' : badge.id.startsWith('xp') ? 'XP' : 'Umum')}</span></div>
+                                <p className="mt-1 text-xs leading-5 text-slate-300 sm:text-sm">{badge.description || 'Badge pencapaian dari perjalanan belajarmu.'}</p>
+                                <p className={`mt-2 text-[10px] font-extrabold uppercase tracking-wide sm:text-xs ${badge.unlocked ? 'text-emerald-300' : 'text-amber-200'}`}>{badge.unlocked ? '✓ Sudah diperoleh · tekan ikon untuk memakai' : 'Terkunci · selesaikan syaratnya'}</p>
                               </div>
                             </div>
                           ))}
@@ -613,10 +618,8 @@ export default function PracticeHubPage() {
                     </div>
                   </div>
                 </div>
-              )}
-            </div>
-          </div>
-        </section>
+              )
+
 
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(330px,0.9fr)]">
