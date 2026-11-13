@@ -461,7 +461,7 @@ export default function PracticeHubPage() {
               <div className="mt-4 rounded-2xl border border-white/20 bg-white/10 p-3 shadow-inner backdrop-blur-sm">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[10px] font-black uppercase tracking-wider text-amber-100">🏅 Koleksi Badge</p>
-                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-50">{earnedBadges.length} terkumpul</span>
+                  <span className="rounded-full border border-white/20 bg-white/10 px-2 py-1 text-[9px] font-bold text-blue-50">{displayedBadges.length} terkumpul</span>
                 </div>
                 {displayedBadges.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
