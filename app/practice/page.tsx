@@ -109,6 +109,8 @@ export default function PracticeHubPage() {
   const [availableClasses, setAvailableClasses] = useState<string[]>([])
   const [userProfile, setUserProfile] = useState<any>(null)
   const [completedAttempts, setCompletedAttempts] = useState(0)
+  const [completedByType, setCompletedByType] = useState<Record<string, number>>({ QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0 })
+  const [perfectByType, setPerfectByType] = useState<Record<string, number>>({ QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0 })
   const [perfectAttempts, setPerfectAttempts] = useState(0)
   const [isIdentityModalOpen, setIsIdentityModalOpen] = useState(false)
   const [isSavingAvatar, setIsSavingAvatar] = useState(false)
@@ -204,13 +206,15 @@ export default function PracticeHubPage() {
       } = await supabase.auth.getUser()
 
       let profile = null
+      let completedRecords: any[] = []
       if (user) {
         const { data: attemptData } = await supabase
           .from('practice_attempts')
-          .select('id, score, status')
+          .select('id, exam_id, score, status')
           .eq('user_id', user.id)
           .eq('status', 'completed')
         if (attemptData) {
+          completedRecords = attemptData
           setCompletedAttempts(attemptData.length)
           setPerfectAttempts(attemptData.filter((attempt: any) => Number(attempt.score || 0) >= 100).length)
         }
@@ -257,6 +261,19 @@ export default function PracticeHubPage() {
             exam.target_mode === 'BOTH'
         )
         setExams(filteredExams)
+        const typeByExam = new Map(examData.map((exam: any) => [String(exam.id), String(exam.activity_type || 'QUIZ').toUpperCase()]))
+        const completedCounts: Record<string, number> = { QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0 }
+        const perfectCounts: Record<string, number> = { QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0 }
+        completedRecords.forEach((attempt: any) => {
+          const rawType = typeByExam.get(String(attempt.exam_id)) || 'QUIZ'
+          const type = rawType === 'MAZE' ? 'MAZE_GAME' : rawType === 'FLASH_CARDS' ? 'FLASHCARD' : rawType
+          if (type in completedCounts) {
+            completedCounts[type] += 1
+            if (Number(attempt.score || 0) >= 100) perfectCounts[type] += 1
+          }
+        })
+        setCompletedByType(completedCounts)
+        setPerfectByType(perfectCounts)
       }
 
       await Promise.all([
@@ -339,14 +356,14 @@ export default function PracticeHubPage() {
   const unlockedXpBadges = xpMilestoneBadges.filter((badge) => xp >= badge.threshold)
   const nextXpBadge = xpMilestoneBadges.find((badge) => xp < badge.threshold)
   const activityBadgeCatalog = [
-    { id: 'quiz-five', title: 'Ahli Kuis', icon: '🧠', description: 'Selesaikan 5 kuis.', unlocked: false },
-    { id: 'quiz-twenty', title: 'Master Pengetahuan', icon: '📚', description: 'Selesaikan 20 kuis.', unlocked: false },
-    { id: 'maze-first', title: 'Penjelajah Labirin', icon: '🗺️', description: 'Selesaikan 1 permainan Maze.', unlocked: false },
-    { id: 'maze-five', title: 'Penakluk Labirin', icon: '🏰', description: 'Selesaikan 5 permainan Maze.', unlocked: false },
-    { id: 'maze-ten', title: 'Master Maze', icon: '🧩', description: 'Selesaikan 10 permainan Maze.', unlocked: false },
-    { id: 'flashcard-first', title: 'Kartu Pertama', icon: '🃏', description: 'Selesaikan 1 sesi Kartu Kilat.', unlocked: false },
-    { id: 'flashcard-five', title: 'Pengingat Hebat', icon: '⚡', description: 'Selesaikan 5 sesi Kartu Kilat.', unlocked: false },
-    { id: 'flashcard-perfect', title: 'Memori Emas', icon: '💡', description: 'Raih nilai 100 pada 1 sesi Kartu Kilat.', unlocked: false },
+    { id: 'quiz-five', title: 'Ahli Kuis', icon: '🧠', description: 'Selesaikan 5 kuis.', unlocked: completedByType.QUIZ >= 5 },
+    { id: 'quiz-twenty', title: 'Master Pengetahuan', icon: '📚', description: 'Selesaikan 20 kuis.', unlocked: completedByType.QUIZ >= 20 },
+    { id: 'maze-first', title: 'Penjelajah Labirin', icon: '🗺️', description: 'Selesaikan 1 permainan Maze.', unlocked: completedByType.MAZE_GAME >= 1 },
+    { id: 'maze-five', title: 'Penakluk Labirin', icon: '🏰', description: 'Selesaikan 5 permainan Maze.', unlocked: completedByType.MAZE_GAME >= 5 },
+    { id: 'maze-ten', title: 'Master Maze', icon: '🧩', description: 'Selesaikan 10 permainan Maze.', unlocked: completedByType.MAZE_GAME >= 10 },
+    { id: 'flashcard-first', title: 'Kartu Pertama', icon: '🃏', description: 'Selesaikan 1 sesi Kartu Kilat.', unlocked: completedByType.FLASHCARD >= 1 },
+    { id: 'flashcard-five', title: 'Pengingat Hebat', icon: '⚡', description: 'Selesaikan 5 sesi Kartu Kilat.', unlocked: completedByType.FLASHCARD >= 5 },
+    { id: 'flashcard-perfect', title: 'Memori Emas', icon: '💡', description: 'Raih nilai 100 pada 1 sesi Kartu Kilat.', unlocked: perfectByType.FLASHCARD >= 1 },
     { id: 'first-mission', title: 'Langkah Pertama', icon: '👣', description: 'Selesaikan 1 latihan sampai tuntas.', unlocked: completedAttempts >= 1 },
     { id: 'practice-five', title: 'Rajin Berlatih', icon: '📘', description: 'Selesaikan 5 latihan.', unlocked: completedAttempts >= 5 },
     { id: 'practice-ten', title: 'Pejuang Konsisten', icon: '🛡️', description: 'Selesaikan 10 latihan.', unlocked: completedAttempts >= 10 },
