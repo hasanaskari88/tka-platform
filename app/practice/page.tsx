@@ -566,7 +566,6 @@ export default function PracticeHubPage() {
               </div>
 
 
-}
             </div>
           </div>
         </section>
@@ -618,8 +617,7 @@ export default function PracticeHubPage() {
                     </div>
                   </div>
                 </div>
-              )
-
+              )}
 
         {/* MAIN GRID */}
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.8fr)_minmax(330px,0.9fr)]">
