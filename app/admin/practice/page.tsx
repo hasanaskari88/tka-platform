@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import FlashcardEditor from '@/components/admin/FlashcardEditor'
 import { createMazeV2LevelQuestions, getMazeV2LevelNumber } from '@/lib/games/maze-v2-levels'
+import MazeV2IsometricBoard from '@/components/games/MazeV2IsometricBoard'
 
 type MazePoint = { x: number; y: number }
 type MazeEditMode = 'start' | 'target' | 'obstacle'
@@ -1636,47 +1637,51 @@ function AdminPracticeContent() {
               </p>
             </div>
 
-            <div className="flex justify-center overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900 p-3">
-              <div
-                className="grid gap-1"
-                style={{
-                  gridTemplateColumns: `repeat(${mazeWidth}, minmax(0, 1fr))`,
-                  width: 'min(100%, 520px)',
-                  minWidth: `${mazeWidth * 30}px`,
-                }}
-              >
-                {Array.from({ length: mazeHeight * mazeWidth }, (_, index) => {
-                  const x = index % mazeWidth
-                  const y = Math.floor(index / mazeWidth)
-                  const isStart = mazeStart.x === x && mazeStart.y === y
-                  const isTarget = mazeTarget.x === x && mazeTarget.y === y
-                  const isObstacle = mazeObstacles.some(
-                    (p) => p.x === x && p.y === y
-                  )
-
-                  return (
-                    <button
-                      key={`${x}-${y}`}
-                      type="button"
-                      onClick={() => handleMazeCellClick(x, y)}
-                      title={`Koordinat (${x}, ${y})`}
-                      className={`aspect-square min-w-0 rounded-lg border flex items-center justify-center text-lg sm:text-xl transition-colors ${
-                        isStart
-                          ? 'bg-sky-500/30 border-sky-400'
-                          : isTarget
-                            ? 'bg-amber-400/20 border-amber-400'
-                            : isObstacle
-                              ? 'bg-rose-700 border-rose-500'
-                              : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
-                      }`}
-                    >
-                      {isStart ? '🤖' : isTarget ? '⭐' : isObstacle ? '🧱' : ''}
-                    </button>
-                  )
-                })}
+            {mazeEditorType === 'MAZE_GAME_V2' ? (
+              <MazeV2IsometricBoard
+                width={mazeWidth}
+                height={mazeHeight}
+                start={mazeStart}
+                target={mazeTarget}
+                obstacles={mazeObstacles}
+                mode="edit"
+                editMode={mazeEditMode}
+                onCellClick={handleMazeCellClick}
+                title={`Editor Dunia 3D · Level ${mazeLevelNumber}`}
+              />
+            ) : (
+              <div className="flex justify-center overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900 p-3">
+                <div
+                  className="grid gap-1"
+                  style={{
+                    gridTemplateColumns: `repeat(${mazeWidth}, minmax(0, 1fr))`,
+                    width: 'min(100%, 520px)',
+                    minWidth: `${mazeWidth * 30}px`,
+                  }}
+                >
+                  {Array.from({ length: mazeHeight * mazeWidth }, (_, index) => {
+                    const x = index % mazeWidth
+                    const y = Math.floor(index / mazeWidth)
+                    const isStart = mazeStart.x === x && mazeStart.y === y
+                    const isTarget = mazeTarget.x === x && mazeTarget.y === y
+                    const isObstacle = mazeObstacles.some((p) => p.x === x && p.y === y)
+                    return (
+                      <button
+                        key={`${x}-${y}`}
+                        type="button"
+                        onClick={() => handleMazeCellClick(x, y)}
+                        title={`Koordinat (${x}, ${y})`}
+                        className={`aspect-square min-w-0 rounded-lg border flex items-center justify-center text-lg sm:text-xl transition-colors ${
+                          isStart ? 'bg-sky-500/30 border-sky-400' : isTarget ? 'bg-amber-400/20 border-amber-400' : isObstacle ? 'bg-rose-700 border-rose-500' : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
+                        }`}
+                      >
+                        {isStart ? '🤖' : isTarget ? '⭐' : isObstacle ? '🧱' : ''}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-
+            )}
             <p className="text-xs text-slate-500">
               Koordinat dimulai dari (0, 0) di pojok kiri atas.{' '}
               {mazeQuestionId !== null
