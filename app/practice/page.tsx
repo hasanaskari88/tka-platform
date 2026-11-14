@@ -330,9 +330,13 @@ export default function PracticeHubPage() {
     )
   }
 
-  const level = userProfile?.level || 1
-  const xp = userProfile?.xp || 0
-  const xpProgress = Math.min(100, Math.max(8, (xp % 200) / 2))
+  const level = Math.min(500, Math.max(1, Number(userProfile?.level || 1)))
+  const xp = Math.max(0, Number(userProfile?.xp || 0))
+  const xpIntoCurrentLevel = Math.max(0, xp - (125 * (level - 1) * level) / 2)
+  const xpForCurrentLevel = 125 * level
+  const xpProgress = level >= 500
+    ? 100
+    : Math.min(100, Math.max(0, (xpIntoCurrentLevel / xpForCurrentLevel) * 100))
   const rankTitles = [
     { min: 1, max: 1, title: 'Legenda Getasan', icon: '👑', color: 'border-amber-300/50 bg-amber-300/15 text-amber-100' },
     { min: 2, max: 2, title: 'Sang Maestro', icon: '💎', color: 'border-cyan-300/50 bg-cyan-300/15 text-cyan-100' },
@@ -603,7 +607,7 @@ export default function PracticeHubPage() {
 
               <div className="mt-4">
                 <div className="mb-2 flex justify-between text-[10px] font-bold text-blue-100">
-                  <span>PROGRES XP BERIKUTNYA</span>
+                  <span>{level >= 500 ? 'LEVEL MAKSIMUM' : 'PROGRES XP BERIKUTNYA'}</span>
                   <span>{Math.round(xpProgress)}%</span>
                 </div>
                 <div className="h-3 overflow-hidden rounded-full border border-white/20 bg-slate-950/60 p-[2px]">
@@ -612,7 +616,11 @@ export default function PracticeHubPage() {
                     style={{ width: `${xpProgress}%` }}
                   />
                 </div>
-                <p className="mt-2 text-[10px] text-blue-200">{xp % 200} / 200 XP pada progres saat ini.</p>
+                <p className="mt-2 text-[10px] text-blue-200">
+                  {level >= 500
+                    ? 'Level maksimum 500 tercapai. XP tetap bertambah untuk papan peringkat.'
+                    : `${xpIntoCurrentLevel.toLocaleString('id-ID')} / ${xpForCurrentLevel.toLocaleString('id-ID')} XP menuju level ${level + 1}.`}
+                </p>
               </div>
 
 
