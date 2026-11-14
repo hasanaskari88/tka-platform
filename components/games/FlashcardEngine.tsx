@@ -327,7 +327,7 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Kartu {totalCards - queue.length + 1} • Sisa {queue.length}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-300">Kartu {totalCards - queue.length + 1} • Sisa {queue.length} • Diulang {reviewCount}×</span>
           <button type="button" onClick={shuffleRemaining} disabled={queue.length < 2 || saving} className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-white/10 disabled:opacity-40">🔀 Acak sisa kartu</button>
         </div>
 
