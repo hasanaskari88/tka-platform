@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getMazeV2LevelNumber } from '@/lib/games/maze-v2-levels'
+import MazeV2IsometricBoard from '@/components/games/MazeV2IsometricBoard'
 
 type Point = { x: number; y: number }
 type Direction = 0 | 1 | 2 | 3
@@ -83,6 +84,20 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
         if (!attemptPromise.current) {
           attemptPromise.current = (async () => {
             const supabase = createClient()
+            const { data: authData, error: authError } = await supabase.auth.getUser()
+            if (authError) throw new Error(`Gagal memeriksa login: ${authError.message}`)
+            if (!authData.user) throw new Error('Sesi login tidak ditemukan. Silakan keluar lalu login kembali.')
+
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', authData.user.id)
+              .maybeSingle()
+            if (profileError) throw new Error(`Profil pengguna tidak dapat dibaca: ${profileError.message}`)
+            if (!profile || !['student', 'admin'].includes(String(profile.role))) {
+              throw new Error('Akun ini belum memiliki role siswa atau admin. Hubungi administrator.')
+            }
+
             const {data,error} = await supabase.rpc('start_practice_attempt',{p_exam_id:exam.id})
             if (error) throw error
             const id = typeof data==='string' ? data : data?.attempt_id ?? data?.id
@@ -273,13 +288,17 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
               <div><h2 className="font-extrabold">🗺️ Papan Labirin</h2><p className="text-xs text-slate-400">{width} × {height} · Arah: {['Utara','Timur','Selatan','Barat'][direction]}</p></div>
               <span className="rounded-lg bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-200">Level {level}</span>
             </div>
-            <div className="mx-auto grid aspect-square w-full max-w-[460px] gap-1 rounded-xl bg-slate-950 p-2" style={{gridTemplateColumns:`repeat(${width},minmax(0,1fr))`}} role="img" aria-label={`Labirin level ${level}`}>
-              {Array.from({length:width*height},(_,i)=>{
-                const x=i%width,y=Math.floor(i/width),wall=isWall({x,y}),isRobot=robot.x===x&&robot.y===y,isGoal=goal.x===x&&goal.y===y,isStart=start.x===x&&start.y===y
-                return <div key={`${x}-${y}`} className={`flex aspect-square items-center justify-center rounded-md border text-sm sm:text-2xl ${wall?'border-slate-700 bg-slate-700/90':'border-cyan-300/20 bg-cyan-950/70'}`}>{isRobot?ARROWS[direction]:isGoal?'⭐':wall?'🧱':isStart?'🏁':''}</div>
-              })}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-slate-400"><span>🤖 Robot</span><span>🏁 Awal</span><span>⭐ Tujuan</span><span>🧱 Dinding</span></div>
+            <MazeV2IsometricBoard
+              width={width}
+              height={height}
+              start={start}
+              target={goal}
+              obstacles={walls}
+              robot={robot}
+              direction={direction}
+              running={running}
+              title={`Dunia Labirin · Level ${level}`}
+            />
             <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/70 p-3"><h3 className="text-sm font-bold text-cyan-200">🎯 Misi Level {level}</h3><p className="mt-1 text-sm leading-relaxed text-slate-200">{mission.question_text||'Bantu robot mencapai bintang.'}</p></div>
             {!validBoard&&<p className="mt-3 rounded-lg bg-rose-500/15 p-2 text-xs text-rose-200">Konfigurasi level tidak valid. Hubungi guru.</p>}
           </section>
