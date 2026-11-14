@@ -8,6 +8,7 @@ import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import MazeGameEngine from '@/components/games/MazeGameEngine'
 import MazeGameV2Engine from '@/components/games/MazeGameV2Engine'
+import { getMazeV2LevelNumber } from '@/lib/games/maze-v2-levels'
 import FlashcardEngine from '@/components/games/FlashcardEngine'
 
 function normalizeKey(value: any): string {
@@ -224,10 +225,9 @@ function PracticeContent() {
       const rawQuestions = questionData || []
       const loadedQuestions =
         examData.activity_type === 'MAZE_GAME_V2'
-          ? [...rawQuestions].sort((a: any, b: any) => {
-              const getLevel = (value: any) => Number(String(value?.difficulty || '').match(/level-(\\d+)/i)?.[1] || 99)
-              return getLevel(a) - getLevel(b)
-            })
+          ? [...rawQuestions].sort((a: any, b: any) =>
+              getMazeV2LevelNumber(a) - getMazeV2LevelNumber(b)
+            )
           : examData.activity_type === 'MAZE_GAME' || examData.activity_type === 'FLASHCARD'
             ? [...rawQuestions].sort((a: any, b: any) =>
                 String(a.created_at || '').localeCompare(String(b.created_at || ''))
