@@ -100,15 +100,19 @@ export function createMazeV2LevelQuestions(examId: string) {
       maze_width: width,
       maze_height: height,
       obstacles,
-      difficulty: `level-${definition.level}`,
+      difficulty: definition.level <= 2 ? 'easy' : definition.level <= 4 ? 'medium' : 'hard',
       explanation:
         'Susun blok Maju dan Belok untuk mengikuti lorong. Blok Ulangi dapat membantu menghemat perintah; Jika Jalan Terbuka akan maju satu kotak hanya ketika jalurnya aman.',
     }
   })
 }
 
-export function getMazeV2LevelNumber(mission: { difficulty?: string | null }, index = 0) {
-  const match = String(mission.difficulty ?? '').match(/level[-_ ]?(\d+)/i)
+export function getMazeV2LevelNumber(
+  mission: { difficulty?: string | null; question_text?: string | null },
+  index = 0
+) {
+  const source = `${mission.question_text ?? ''} ${mission.difficulty ?? ''}`
+  const match = source.match(/level[-_ ]?(\d+)/i)
   const level = match ? Number(match[1]) : index + 1
   return Number.isInteger(level) && level >= 1 && level <= 5 ? level : index + 1
 }
