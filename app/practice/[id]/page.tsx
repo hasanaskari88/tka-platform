@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useRef, useState, Suspense } from 'react'
+import confetti from 'canvas-confetti'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
@@ -396,6 +397,27 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
     setAnsweredCount((previous) => previous + 1)
 
     if (isUserRight) {
+      confetti({
+        particleCount: 90,
+        spread: 78,
+        startVelocity: 34,
+        origin: { y: 0.62 },
+        disableForReducedMotion: true,
+      })
+      confetti({
+        particleCount: 35,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0, y: 0.68 },
+        disableForReducedMotion: true,
+      })
+      confetti({
+        particleCount: 35,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1, y: 0.68 },
+        disableForReducedMotion: true,
+      })
       setCorrectCount((previous) => previous + 1)
 
       const newStreak = streakCount + 1
@@ -711,7 +733,7 @@ const handleCheckMatrixAnswer = () => {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-2 py-3 pb-24 sm:px-4 sm:py-4 sm:pb-28 lg:px-6">
+      <main className="relative z-10 w-full flex-1 px-2 py-3 pb-24 sm:px-4 sm:py-4 sm:pb-28 lg:px-6 xl:px-8">
         <div className="rounded-2xl border border-white/25 bg-white/85 p-3 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-3xl sm:p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/80 bg-gradient-to-r from-white/90 via-sky-50/90 to-violet-50/90 px-3 py-2.5 shadow-inner backdrop-blur-md">
             <div>
@@ -760,7 +782,7 @@ const handleCheckMatrixAnswer = () => {
             className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[var(--practice-columns)] lg:gap-5"
             style={{ "--practice-columns": practiceColumns } as React.CSSProperties}
           >
-            <section className="min-w-0 lg:max-h-[68vh] lg:overflow-y-auto lg:overscroll-contain rounded-2xl pr-1">
+            <section className="min-w-0 rounded-2xl pr-1">
           <div className={`relative overflow-hidden rounded-2xl border-2 p-3.5 font-extrabold leading-relaxed text-slate-900 shadow-md shadow-indigo-950/5 backdrop-blur-md sm:p-5 ${activePalette.card}`}
             style={{ fontSize: practiceFontSize + 1 }}>
             <div aria-hidden="true" className={`absolute -right-5 -top-7 h-28 w-28 rounded-full bg-gradient-to-br ${activePalette.accent} opacity-15 blur-xl`} />
@@ -783,7 +805,7 @@ const handleCheckMatrixAnswer = () => {
 
             </section>
 
-            <section className="min-w-0 lg:max-h-[68vh] lg:overflow-y-auto lg:overscroll-contain rounded-2xl pr-1">
+            <section className="min-w-0 rounded-2xl pr-1">
           {qType === 'multiple_choice' &&
             Array.isArray(currentQuestion.options) && (
               <div className="space-y-2">
@@ -940,7 +962,7 @@ const handleCheckMatrixAnswer = () => {
     </div>
   )}
 
-              <div className="sticky top-0 z-20 -mx-1 mb-3 flex flex-nowrap items-center justify-end gap-2 border-b border-slate-200 bg-white/95 px-1 py-2 backdrop-blur-xl">
+              <div className="mb-3 flex flex-nowrap items-center justify-end gap-2 border-b border-slate-200 bg-white/95 px-1 py-2">
                 {!isAnswered && qType === 'complex_multiple_choice' && (
                   <button type="button" onClick={handleCheckComplexAnswer} disabled={!Array.isArray(userAnswer) || userAnswer.length === 0} className="min-h-10 shrink-0 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-extrabold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40 sm:text-sm">
                     ☑ Periksa
