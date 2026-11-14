@@ -793,6 +793,11 @@ function AdminPracticeContent() {
   return
 }
 
+    if (mazeStart.x === mazeTarget.x && mazeStart.y === mazeTarget.y) {
+      alert('Posisi robot dan bintang harus berbeda.')
+      return
+    }
+
     const wallSet = new Set(mazeObstacles.map((p) => `${p.x},${p.y}`))
     const queue: MazePoint[] = [{ ...mazeStart }]
     const visited = new Set<string>([`${mazeStart.x},${mazeStart.y}`])
@@ -1498,7 +1503,7 @@ function AdminPracticeContent() {
                   <option value="">＋ Buat misi baru</option>
                   {mazeMissions.map((mission, index) => (
                     <option key={String(mission.id)} value={String(mission.id)}>
-                      {mazeEditorType === 'MAZE_GAME_V2' ? `Level ${getMazeV2LevelNumber(mission, index)} · ` : ''}{String(mission.question_text || 'Misi Maze tanpa judul').slice(0, 100)}
+                      {mazeEditorType === 'MAZE_GAME_V2' ? `Level ${getMazeV2LevelNumber(mission, index)} · ` : ''}{String(mission.question_text || 'Misi Maze tanpa judul').replace(/^Level\s+\d+\s*[·:.-]\s*/i, '').slice(0, 90)}
                     </option>
                   ))}
                 </select>
