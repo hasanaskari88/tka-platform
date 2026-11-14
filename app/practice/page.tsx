@@ -207,17 +207,29 @@ export default function PracticeHubPage() {
 
       let profile = null
       let completedRecords: any[] = []
+      let completedFlashcardRecords: any[] = []
       if (user) {
         const { data: attemptData } = await supabase
           .from('practice_attempts')
           .select('id, exam_id, score, status')
           .eq('user_id', user.id)
           .eq('status', 'completed')
-        if (attemptData) {
-          completedRecords = attemptData
-          setCompletedAttempts(attemptData.length)
-          setPerfectAttempts(attemptData.filter((attempt: any) => Number(attempt.score || 0) >= 100).length)
-        }
+
+        if (attemptData) completedRecords = attemptData
+
+        const { data: flashcardData } = await supabase
+          .from('flashcard_sessions')
+          .select('id, exam_id, status')
+          .eq('user_id', user.id)
+          .eq('status', 'completed')
+
+        if (flashcardData) completedFlashcardRecords = flashcardData
+
+        setCompletedAttempts(completedRecords.length + completedFlashcardRecords.length)
+        setPerfectAttempts(
+          completedRecords.filter((attempt: any) => Number(attempt.score || 0) >= 100).length +
+          completedFlashcardRecords.length
+        )
 
         const { data: profData } = await supabase
           .from('profiles')
@@ -272,6 +284,17 @@ export default function PracticeHubPage() {
             if (Number(attempt.score || 0) >= 100) perfectCounts[type] += 1
           }
         })
+
+        completedFlashcardRecords.forEach((session: any) => {
+          const rawType = typeByExam.get(String(session.exam_id)) || 'FLASHCARD'
+          const type = rawType === 'MAZE' ? 'MAZE_GAME' : rawType === 'FLASH_CARDS' ? 'FLASHCARD' : rawType
+          if (type === 'FLASHCARD') {
+            completedCounts.FLASHCARD += 1
+            // Sesi Flashcard hanya berstatus completed setelah semua kartu dikuasai.
+            perfectCounts.FLASHCARD += 1
+          }
+        })
+
         setCompletedByType(completedCounts)
         setPerfectByType(perfectCounts)
       }
