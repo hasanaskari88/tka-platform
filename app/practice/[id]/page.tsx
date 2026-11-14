@@ -120,6 +120,7 @@ function PracticeContent() {
   const [isFinishing, setIsFinishing] = useState(false)
   const [finishSummary, setFinishSummary] = useState<any>(null)
   const [configurationError, setConfigurationError] = useState('')
+  const [fontSize, setFontSize] = useState<'small' | 'normal' | 'large'>('normal')
 
   const finishStartedRef = useRef(false)
   const startAttemptPromiseRef = useRef<{
@@ -357,6 +358,7 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
     { card: 'border-emerald-200 bg-emerald-100/80', option: 'border-emerald-200 bg-emerald-50/85 hover:border-emerald-400 hover:bg-emerald-100', accent: 'from-emerald-400 to-teal-500' },
   ]
   const activePalette = questionPalettes[currentIndex % questionPalettes.length]
+  const practiceFontSize = fontSize === 'small' ? 14 : fontSize === 'large' ? 19 : 16
 
   const processXpAndStreak = (isUserRight: boolean) => {
     if (isAnswered) return
@@ -649,11 +651,11 @@ const handleCheckMatrixAnswer = () => {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.35),_transparent_38%),radial-gradient(ellipse_at_bottom_right,_rgba(251,191,36,0.28),_transparent_38%),linear-gradient(135deg,#101b4b_0%,#31206b_48%,#123d69_100%)] flex flex-col font-sans">
+    <div className="relative min-h-[100dvh] bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.25),_transparent_38%),radial-gradient(ellipse_at_bottom_right,_rgba(251,191,36,0.20),_transparent_38%),linear-gradient(135deg,#101b4b_0%,#31206b_48%,#123d69_100%)] flex flex-col font-sans">
       <div aria-hidden="true" className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-80 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
-      <header className="sticky top-0 z-20 border-b border-white/15 bg-gradient-to-r from-indigo-950/90 via-violet-900/90 to-blue-900/90 px-3 py-2.5 text-white shadow-xl backdrop-blur-xl sm:px-6">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3">
+      <header className="sticky top-0 z-20 border-b border-white/15 bg-gradient-to-r from-indigo-950/90 via-violet-900/90 to-blue-900/90 px-2.5 py-2 text-white shadow-lg backdrop-blur-xl sm:px-4">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2">
           <Link
             href="/practice"
             className="shrink-0 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-extrabold text-white shadow-inner transition hover:bg-white/20"
@@ -690,9 +692,9 @@ const handleCheckMatrixAnswer = () => {
       </div>
       </header>
 
-      <main className="relative z-10 mx-auto w-full max-w-5xl flex-1 p-3 sm:p-6 lg:p-8">
-        <div className="overflow-hidden rounded-[2rem] border border-white/25 bg-white/75 p-4 shadow-2xl shadow-black/20 backdrop-blur-xl sm:p-7 lg:p-8 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/80 bg-gradient-to-r from-white/85 via-sky-50/85 to-violet-50/85 p-4 shadow-inner backdrop-blur-md">
+      <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-2 py-3 pb-24 sm:px-4 sm:py-4 sm:pb-28 lg:px-6">
+        <div className="rounded-2xl border border-white/25 bg-white/85 p-3 shadow-xl shadow-black/20 backdrop-blur-xl sm:rounded-3xl sm:p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/80 bg-gradient-to-r from-white/90 via-sky-50/90 to-violet-50/90 px-3 py-2.5 shadow-inner backdrop-blur-md">
             <div>
               <span className="font-bold text-slate-800 text-xs">
               {isReviewingSkipped
@@ -707,24 +709,31 @@ const handleCheckMatrixAnswer = () => {
             <span className="text-xs font-bold text-slate-600">
               Benar: {correctCount} · Dijawab: {answeredCount}/{questions.length}
             </span>
+            <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-1.5 py-1" aria-label="Ukuran teks soal">
+              <span className="mr-1 text-[10px] font-bold text-slate-500">Teks</span>
+              <button type="button" onClick={() => setFontSize("small")} aria-pressed={fontSize === "small"} className={`rounded-md px-2 py-1 text-xs font-black ${fontSize === "small" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>A−</button>
+              <button type="button" onClick={() => setFontSize("normal")} aria-pressed={fontSize === "normal"} className={`rounded-md px-2 py-1 text-xs font-black ${fontSize === "normal" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>A</button>
+              <button type="button" onClick={() => setFontSize("large")} aria-pressed={fontSize === "large"} className={`rounded-md px-2 py-1 text-sm font-black ${fontSize === "large" ? "bg-indigo-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>A+</button>
+            </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-600">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-600">
               <span>🚀 Perjalanan latihan</span>
               <span>{Math.round((answeredCount / Math.max(questions.length, 1)) * 100)}%</span>
             </div>
-            <div className="h-3 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
+            <div className="h-2 overflow-hidden rounded-full bg-slate-100 ring-1 ring-slate-200">
               <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-500 transition-all duration-500" style={{ width: `${Math.min(100, (answeredCount / Math.max(questions.length, 1)) * 100)}%` }} />
             </div>
-            <div className="flex flex-wrap gap-3 text-[11px] font-semibold text-slate-500">
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-slate-500">
               <span>⭐ PG benar: +10 XP</span><span>💎 PG Kompleks/Matriks benar: +15 XP</span>
             </div>
           </div>
 
-          <div className={`relative overflow-hidden rounded-[1.5rem] border-2 p-4 text-base font-extrabold leading-7 text-slate-900 shadow-lg shadow-indigo-950/5 backdrop-blur-md sm:rounded-[1.75rem] sm:p-7 sm:text-xl sm:leading-9 ${activePalette.card}`}>
+          <div className={`relative overflow-hidden rounded-2xl border-2 p-3.5 font-extrabold leading-relaxed text-slate-900 shadow-md shadow-indigo-950/5 backdrop-blur-md sm:p-5 ${activePalette.card}`}
+            style={{ fontSize: practiceFontSize + 1 }}>
             <div aria-hidden="true" className={`absolute -right-5 -top-7 h-28 w-28 rounded-full bg-gradient-to-br ${activePalette.accent} opacity-15 blur-xl`} />
-            <div className="relative z-10 mb-3 flex items-center justify-between gap-2">
+            <div className="relative z-10 mb-2 flex items-center justify-between gap-2">
               <span className="rounded-full bg-white/70 px-3 py-1 text-[10px] font-black tracking-widest text-slate-600 shadow-sm">⚡ TANTANGAN {currentIndex + 1}</span>
               <span className="text-xl drop-shadow-sm">✨</span>
             </div>
@@ -737,7 +746,7 @@ const handleCheckMatrixAnswer = () => {
             <img
               src={currentQuestion.image_url}
               alt="Gambar soal"
-              className="mx-auto max-h-80 w-auto rounded-2xl border-4 border-white object-contain shadow-lg"
+              className="mx-auto max-h-56 w-auto rounded-xl border-2 border-white object-contain shadow-md sm:max-h-64"
             />
           )}
 
@@ -772,7 +781,8 @@ const handleCheckMatrixAnswer = () => {
                       key={key}
                       disabled={isAnswered}
                       onClick={() => handleSingleChoiceSelect(key)}
-                      className={`w-full rounded-xl sm:rounded-2xl border-2 p-3 text-left text-sm leading-6 transition-all duration-150 sm:p-5 sm:text-base sm:leading-7 ${style} hover:-translate-y-0.5 hover:shadow-md`}
+                      className={`w-full rounded-xl border-2 px-3 py-2.5 text-left leading-relaxed transition-all duration-150 sm:px-4 sm:py-3 ${style} hover:shadow-md`}
+                      style={{ fontSize: practiceFontSize }}
                     >
                       <MathRenderer
                         content={
@@ -800,7 +810,8 @@ const handleCheckMatrixAnswer = () => {
                   return (
                     <label
                       key={key}
-                      className={`flex items-start gap-3 sm:gap-4 rounded-xl sm:rounded-2xl border-2 p-3 text-sm leading-6 text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer sm:p-5 sm:text-base sm:leading-7 ${questionPalettes[index % questionPalettes.length].option}`}
+                      className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 px-3 py-2.5 leading-relaxed text-slate-800 shadow-sm transition hover:shadow-md sm:px-4 sm:py-3 ${questionPalettes[index % questionPalettes.length].option}`}
+                      style={{ fontSize: practiceFontSize }}
                     >
                       <input
                         type="checkbox"
@@ -808,7 +819,7 @@ const handleCheckMatrixAnswer = () => {
                         checked={checked}
                         onChange={() => handleToggleComplexChoice(key)}
                       />
-                      <span className="text-sm font-semibold leading-6 sm:text-base sm:leading-7">
+                      <span className="font-semibold leading-relaxed">
                         <MathRenderer
                           content={
                             typeof opt === 'string'
@@ -821,21 +832,13 @@ const handleCheckMatrixAnswer = () => {
                   )
                 })}
 
-                {!isAnswered && (
-                  <button
-                    onClick={handleCheckComplexAnswer}
-                    className="w-full py-2.5 bg-indigo-600 text-white font-bold text-xs rounded-xl"
-                  >
-                    ☑️ Cek Jawaban PG Kompleks
-                  </button>
-                )}
               </div>
             )}
 
           {qType === 'true_false_matrix' &&
   Array.isArray(currentQuestion.options) && (
     <div className="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/80 shadow-lg backdrop-blur-md">
-      <table className="w-full text-xs sm:text-base">
+      <table className="w-full text-xs sm:text-sm" style={{ fontSize: practiceFontSize - 1 }}>
         <thead className="bg-indigo-100 text-indigo-950">
           <tr>
             <th className="p-2 text-left sm:p-3">Pernyataan</th>
@@ -859,7 +862,7 @@ const handleCheckMatrixAnswer = () => {
 
             return (
               <tr key={optionKey} className={`border-t-2 border-white ${questionPalettes[index % questionPalettes.length].option.split(' ')[1]}`}>
-                <td className="p-3 leading-6 sm:p-5 sm:leading-7">
+                <td className="px-2.5 py-2.5 leading-relaxed sm:px-3 sm:py-3">
                   <MathRenderer content={text} />
                 </td>
 
@@ -900,14 +903,6 @@ const handleCheckMatrixAnswer = () => {
         </tbody>
       </table>
 
-      {!isAnswered && (
-        <button
-          onClick={handleCheckMatrixAnswer}
-          className="w-full py-2.5 bg-indigo-600 text-white font-bold"
-        >
-          📊 Periksa Jawaban Matriks
-        </button>
-      )}
     </div>
   )}
 
@@ -915,51 +910,30 @@ const handleCheckMatrixAnswer = () => {
 
 
 
-          {configurationError && (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
-              {configurationError}
-            </div>
-          )}
-
-          {isAnswered && (
-            <div
-              className={`rounded-2xl border-2 p-5 text-sm leading-7 shadow-lg space-y-3 ${
-                isCorrect
-                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                  : 'bg-rose-50 border-rose-300 text-rose-900'
-              }`}
-            >
-              <strong>
-                {isCorrect ? '🎉 Jawaban benar!' : '❌ Jawaban belum tepat.'}
-              </strong>
-
-              {(currentQuestion.explanation ||
-                currentQuestion.pembahasan) && (
-                <div className="pt-2 border-t">
-                  <strong>Pembahasan:</strong>
-                  <MathRenderer
-                    content={
-                      currentQuestion.explanation ||
-                      currentQuestion.pembahasan
-                    }
-                  />
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-3 border-t border-indigo-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="sticky bottom-0 z-30 -mx-3 flex flex-col gap-2 border-y border-indigo-100 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:-mx-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="flex flex-wrap items-center gap-2">
+
+              {!isAnswered && qType === 'complex_multiple_choice' && (
+                <button type="button" onClick={handleCheckComplexAnswer} disabled={!Array.isArray(userAnswer) || userAnswer.length === 0} className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none">
+                  ☑ Periksa Jawaban
+                </button>
+              )}
+              {!isAnswered && qType === 'true_false_matrix' && (
+                <button type="button" onClick={handleCheckMatrixAnswer} disabled={!userAnswer || Object.keys(userAnswer).length === 0} className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none">
+                  📊 Periksa Jawaban
+                </button>
+              )}
+
               {!isAnswered && (
                 <button
                   onClick={handleSkipQuestion}
-                  className="rounded-xl border-2 border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50"
+                  className="min-h-11 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 sm:flex-none"
                 >
                   {isReviewingSkipped ? 'Lewati Kembali' : '⏭️ Lewati Soal'}
                 </button>
               )}
               {isAnswered && !isReviewingSkipped && currentIndex < questions.length - 1 && (
-                <button onClick={handleNextQuestion} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
+                <button onClick={handleNextQuestion} className="min-h-11 flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700 sm:flex-none">
                   Soal Selanjutnya →
                 </button>
               )}
@@ -977,11 +951,64 @@ const handleCheckMatrixAnswer = () => {
             <button
               onClick={handleFinishQuiz}
               disabled={isFinishing || !attemptId}
-              className="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-5 py-3 text-sm font-extrabold text-white shadow-lg shadow-emerald-200 transition hover:-translate-y-0.5 hover:from-emerald-600 hover:to-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              className="min-h-11 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md shadow-emerald-200 transition hover:from-emerald-600 hover:to-green-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {isFinishing ? 'Menyimpan...' : '🏆 Akhiri & Kumpulkan XP'}
             </button>
           </div>
+
+          {configurationError && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-900">
+              {configurationError}
+            </div>
+          )}
+
+          {isAnswered && (
+            <div
+              className={`rounded-xl border-2 p-3.5 text-sm leading-relaxed shadow-md space-y-2 ${
+                isCorrect
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                  : 'bg-rose-50 border-rose-300 text-rose-900'
+              }`}
+            >
+              <strong>
+                {isCorrect ? '🎉 Jawaban benar!' : '❌ Jawaban belum tepat.'}
+              </strong>
+
+              <div className="border-t border-current/15 pt-2">
+                <strong>Kunci jawaban:</strong>
+                <div className="mt-1 font-semibold">
+                  {qType === "multiple_choice" ? (() => {
+                    const key = normalizeKey(currentQuestion.correct_option ?? currentQuestion.correct_answer)
+                    const option = (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).find((item: any, index: number) => normalizeKey(item?.key ?? String.fromCharCode(65 + index)) === key)
+                    return `${key}. ${typeof option === "string" ? option : option?.text ?? option?.title ?? key}`
+                  })() : qType === "complex_multiple_choice" ? parseComplexAnswer(currentQuestion.correct_answers ?? currentQuestion.correct_option).join(", ") : (() => {
+                    const map = parseMatrixAnswer(currentQuestion.correct_answers ?? currentQuestion.correct_answer)
+                    return (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map((item: any, index: number) => {
+                      const key = getMatrixOptionKey(item, index)
+                      const label = typeof item === "string" ? item : item.text ?? item.statement ?? `Pernyataan ${index + 1}`
+                      return `${index + 1}. ${label}: ${map[key] === "benar" ? "Benar" : "Salah"}`
+                    }).join(" · ")
+                  })()}
+                </div>
+              </div>
+
+              {(currentQuestion.explanation ||
+                currentQuestion.pembahasan) && (
+                <div className="pt-2 border-t">
+                  <strong>Pembahasan:</strong>
+                  <MathRenderer
+                    content={
+                      currentQuestion.explanation ||
+                      currentQuestion.pembahasan
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+
         </div>
       </main>
 
