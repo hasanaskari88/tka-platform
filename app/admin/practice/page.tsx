@@ -286,16 +286,16 @@ function AdminPracticeContent() {
       for (const [a, b] of shuffledMultiplication.slice(0, 5)) {
         const result = a * b
         addPair(
-          `Berapakah hasil dari $\\{a} \\times \\{b}$?`,
-          `$\\{a} \\times \\{b} = \\{result}$. Jadi, jawabannya adalah **\\{result}**.`
+          `Berapakah hasil dari $${a} \\times ${b}$?`,
+          `$${a} \\times ${b} = ${result}$. Jadi, jawabannya adalah **${result}**.`
         )
       }
 
       for (const [dividend, divisor] of shuffledDivision.slice(0, 5)) {
         const quotient = dividend / divisor
         addPair(
-          `Berapakah hasil dari $\\{dividend} \\div \\{divisor}$?`,
-          `$\\{dividend} \\div \\{divisor} = \\{quotient}$. Jadi, jawabannya adalah **\\{quotient}**.`
+          `Berapakah hasil dari $${dividend} \\div ${divisor}$?`,
+          `$${dividend} \\div ${divisor} = ${quotient}$. Jadi, jawabannya adalah **${quotient}**.`
         )
       }
 
