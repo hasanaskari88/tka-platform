@@ -44,10 +44,15 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
     ? mission.obstacles.filter(p => Number.isInteger(Number(p?.x)) && Number.isInteger(Number(p?.y))).map(p => ({x:Number(p.x),y:Number(p.y)}))
     : [],[mission])
   const isWall = (p:Point) => walls.some(w => w.x===p.x && w.y===p.y)
+  const wallKeys = walls.map(p => `${p.x},${p.y}`)
+  const validWalls = walls.every(p =>
+    p.x >= 0 && p.x < width && p.y >= 0 && p.y < height
+  ) && new Set(wallKeys).size === walls.length
   const validBoard = [start.x,start.y,goal.x,goal.y].every(Number.isInteger) &&
     start.x>=0 && start.x<width && start.y>=0 && start.y<height &&
     goal.x>=0 && goal.x<width && goal.y>=0 && goal.y<height &&
-    !isWall(start) && !isWall(goal)
+    !(start.x===goal.x && start.y===goal.y) &&
+    validWalls && !isWall(start) && !isWall(goal)
 
   const [program,setProgram] = useState<Block[]>([])
   const [robot,setRobot] = useState<Point>(start)
