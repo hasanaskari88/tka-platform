@@ -79,7 +79,7 @@ export default function MazeV2IsometricBoard({
   return (
     <div className="relative isolate overflow-hidden rounded-[1.6rem] border border-sky-200/20 bg-[linear-gradient(160deg,#7dd3fc_0%,#38bdf8_28%,#0c4a6e_100%)] p-3 shadow-2xl sm:p-5">
       <style jsx>{`
-        @keyframes robotBob { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-5px) } }
+        @keyframes robotBob { 0%,100% { translate: 0 0 } 50% { translate: 0 -5px } }
         @keyframes starPulse { 0%,100% { transform: scale(1); filter: drop-shadow(0 0 3px #fde68a) } 50% { transform: scale(1.12); filter: drop-shadow(0 0 10px #fef08a) } }
         .maze-robot-bob { animation: robotBob .7s ease-in-out infinite; }
         .maze-goal-star { transform-box: fill-box; transform-origin: center; animation: starPulse 1.6s ease-in-out infinite; }
@@ -162,7 +162,7 @@ export default function MazeV2IsometricBoard({
             )
           })}
           <g transform={`translate(18 ${boardHeight-32})`}>
-            <rect x="0" y="-14" width="${Math.max(140, boardWidth-36)}" height="27" rx="13" fill="#082f49" opacity=".22" />
+            <rect x="0" y="-14" width={Math.max(140, boardWidth-36)} height="27" rx="13" fill="#082f49" opacity=".22" />
             <text x="12" y="4" fontSize="11" fontWeight="800" fill="#f0f9ff">JELAJAHI • SUSUN PERINTAH • CAPAI BINTANG</text>
           </g>
         </svg>
