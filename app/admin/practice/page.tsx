@@ -248,16 +248,150 @@ function AdminPracticeContent() {
         ]
       }
     } else if (actType === 'FLASHCARD') {
-      generatedQuestions = [
-        {
+      const lowerSub = subtestName.toLowerCase()
+      const isMathModule =
+        lowerSub.includes('matematika') ||
+        lowerSub.includes('numerasi') ||
+        lowerSub.includes('hitung') ||
+        lowerSub.includes('perkalian')
+
+      // Ambil soal hitungan dari bank soal modul lain, lalu ubah menjadi kartu
+      // depan = soal, belakang = kunci jawaban + pembahasan.
+      const { data: bankQuestions } = await supabase
+        .from('questions')
+        .select('id, question_text, options, correct_option, explanation, exams!inner(subtest, title)')
+        .neq('exam_id', exam.id)
+        .limit(500)
+
+      const mathCandidates = (bankQuestions || [])
+        .filter((item: any) => {
+          const sourceSubtest = String(item.exams?.subtest || '').toLowerCase()
+          const questionText = String(item.question_text || '')
+          const isMathSource =
+            sourceSubtest.includes('matematika') ||
+            sourceSubtest.includes('numerasi') ||
+            sourceSubtest.includes('hitung') ||
+            /\\d|×|÷|\\+|\\-|perkalian|pembagian|penjumlahan|pengurangan|pecahan|keliling|luas/i.test(questionText)
+          const options = Array.isArray(item.options) ? item.options : []
+          const correctKey = String(item.correct_option || '').trim().toUpperCase()
+          const answer = options.find((option: any) =>
+            String(option.key ?? option.value ?? '').trim().toUpperCase() === correctKey
+          )
+          return isMathModule && isMathSource && questionText.trim().length > 0 && Boolean(answer)
+        })
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 10)
+
+      generatedQuestions = mathCandidates.map((item: any) => {
+        const options = Array.isArray(item.options) ? item.options : []
+        const correctKey = String(item.correct_option || '').trim().toUpperCase()
+        const answer = options.find((option: any) =>
+          String(option.key ?? option.value ?? '').trim().toUpperCase() === correctKey
+        )
+        const answerText = String(answer?.text ?? answer?.label ?? answer?.value ?? correctKey)
+        const explanation = String(item.explanation || '').trim()
+        return {
           exam_id: exam.id,
-          question_text: `Kartu Memori Subtes ${subtestName}`,
+          question_text: item.question_text,
           options: [],
           correct_option: 'A',
           question_type: 'flashcard',
-          explanation: `Ringkasan konsep/rumus penting untuk ${subtestName}.`,
-        },
-      ]
+          explanation: explanation
+            ? `Jawaban: ${answerText}<br/><br/>Pembahasan: ${explanation}`
+            : `Jawaban: ${answerText}`,
+        }
+      })
+
+      // Jika bank soal belum cukup, lengkapi dengan variasi hitungan baru.
+      if (isMathModule && generatedQuestions.length < 10) {
+        const randomInt = (min: number, max: number) =>
+          Math.floor(Math.random() * (max - min + 1)) + min
+        const extraCards: any[] = []
+        const used = new Set<string>(
+          generatedQuestions.map((card: any) => String(card.question_text))
+        )
+
+        const addCard = (front: string, back: string) => {
+          if (extraCards.length + generatedQuestions.length >= 10 || used.has(front)) return
+          used.add(front)
+          extraCards.push({
+            exam_id: exam.id,
+            question_text: front,
+            options: [],
+            correct_option: 'A',
+            question_type: 'flashcard',
+            explanation: back,
+          })
+        }
+
+        let attempts = 0
+        while (generatedQuestions.length + extraCards.length < 10 && attempts < 100) {
+          attempts++
+          const kind = randomInt(0, 5)
+
+          if (kind === 0) {
+            const a = randomInt(2, 12)
+            const b = randomInt(2, 12)
+            addCard(
+              `Berapakah hasil dari $${a} \\times ${b}$?`,
+              `$${a} \\times ${b} = ${a * b}$. Jadi, jawabannya adalah **${a * b}**.`
+            )
+          } else if (kind === 1) {
+            const divisor = randomInt(2, 10)
+            const quotient = randomInt(2, 12)
+            const dividend = divisor * quotient
+            addCard(
+              `Berapakah hasil dari $${dividend} \\div ${divisor}$?`,
+              `$${dividend} \\div ${divisor} = ${quotient}$. Pembagian ini dapat diperiksa dengan $${quotient} \\times ${divisor} = ${dividend}$.`
+            )
+          } else if (kind === 2) {
+            const a = randomInt(10, 80)
+            const b = randomInt(10, 80)
+            addCard(
+              `Berapakah hasil dari $${a} + ${b} - ${randomInt(1, 9)}$?`,
+              (() => {
+                const c = Number(front.match(/- (\\d+)/)?.[1] || 1)
+                return `Hitung penjumlahan terlebih dahulu: $${a} + ${b} = ${a + b}$, kemudian kurangi $${c}$. Hasilnya **${a + b - c}**.`
+              })()
+            )
+          } else if (kind === 3) {
+            const factor = randomInt(2, 12)
+            const product = factor * randomInt(2, 12)
+            addCard(
+              `Bilangan berapakah yang tepat untuk $${factor} \\times \square = ${product}$?`,
+              `$${product} \\div ${factor} = ${product / factor}$. Jadi, bilangan yang hilang adalah **${product / factor}**.`
+            )
+          } else if (kind === 4) {
+            const packs = randomInt(3, 9)
+            const each = randomInt(4, 12)
+            addCard(
+              `Ada ${packs} kantong. Setiap kantong berisi ${each} kelereng. Berapa jumlah seluruh kelereng?`,
+              `Jumlah seluruhnya = ${packs} kantong × ${each} kelereng = **${packs * each} kelereng**.`
+            )
+          } else {
+            const start = randomInt(20, 90)
+            const add = randomInt(10, 40)
+            const subtract = randomInt(2, 15)
+            addCard(
+              `Berapakah hasil dari $${start} + ${add} - ${subtract}$?`,
+              `$${start} + ${add} = ${start + add}$, lalu $${start + add} - ${subtract} = ${start + add - subtract}$. Jadi, jawabannya **${start + add - subtract}**.`
+            )
+          }
+        }
+
+        generatedQuestions = [...generatedQuestions, ...extraCards]
+      }
+
+      if (generatedQuestions.length === 0) {
+        generatedQuestions = [{
+          exam_id: exam.id,
+          question_text: `Apa konsep atau rumus penting dalam subtes ${subtestName}?`,
+          options: [],
+          correct_option: 'A',
+          question_type: 'flashcard',
+          explanation: `Tambahkan jawaban dan pembahasan untuk materi ${subtestName} melalui Editor Kartu.`,
+        }]
+      }
     } else if (actType === 'MAZE_GAME') {
       const width = 6
       const height = 6
