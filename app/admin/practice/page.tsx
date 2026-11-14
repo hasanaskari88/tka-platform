@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import FlashcardEditor from '@/components/admin/FlashcardEditor'
 
 type MazePoint = { x: number; y: number }
 type MazeEditMode = 'start' | 'target' | 'obstacle'
@@ -47,6 +48,7 @@ function AdminPracticeContent() {
   const [mazeMissions, setMazeMissions] = useState<any[]>([])
   const [mazeMissionsLoading, setMazeMissionsLoading] = useState(false)
   const [mazeQuestionId, setMazeQuestionId] = useState<string | number | null>(null)
+  const [activeFlashcardExam, setActiveFlashcardExam] = useState<any>(null)
 
   // Mengambil semua kegiatan
   const fetchExams = async () => {
@@ -792,6 +794,11 @@ function AdminPracticeContent() {
     }
   }
 
+  // Membuka editor khusus untuk mengelola kartu Flashcard.
+  const handleOpenFlashcardEditor = (exam: any) => {
+    setActiveFlashcardExam(exam)
+  }
+
   // Membuka modal tambah/edit kegiatan
   const handleOpenModal = (exam?: any) => {
     if (exam) {
@@ -1081,7 +1088,8 @@ function AdminPracticeContent() {
                         <div
                           className={`grid gap-1 ${
                             exam.activity_type === 'MAZE_GAME' ||
-                            exam.activity_type === 'MAZE_GAME_V2'
+                            exam.activity_type === 'MAZE_GAME_V2' ||
+                            exam.activity_type === 'FLASHCARD'
                               ? 'grid-cols-3 sm:grid-cols-5'
                               : 'grid-cols-4'
                           }`}
@@ -1107,6 +1115,16 @@ function AdminPracticeContent() {
                       >
                         📦 Bulk
                       </button>
+
+                      {exam.activity_type === 'FLASHCARD' && (
+                        <button
+                          onClick={() => handleOpenFlashcardEditor(exam)}
+                          className="py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
+                          title="Kelola kartu Flashcard"
+                        >
+                          🃏 Editor Kartu
+                        </button>
+                      )}
 
                       {exam.activity_type === 'MAZE_GAME' && (
                         <button
@@ -1562,6 +1580,13 @@ function AdminPracticeContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {activeFlashcardExam && (
+        <FlashcardEditor
+          exam={activeFlashcardExam}
+          onClose={() => setActiveFlashcardExam(null)}
+        />
       )}
     </div>
   )
