@@ -351,17 +351,21 @@ function AdminPracticeContent() {
       return
     }
 
+    let previousMazeV2Ids: string[] = []
+
     if (actType === 'MAZE_GAME_V2') {
-      const { error: deleteError } = await supabase
+      const { data: previousRows, error: lookupError } = await supabase
         .from('questions')
-        .delete()
+        .select('id')
         .eq('exam_id', exam.id)
         .eq('question_type', 'maze_game_v2')
 
-      if (deleteError) {
-        alert(`Gagal mengganti level Maze V2 lama: ${deleteError.message}`)
+      if (lookupError) {
+        alert(`Gagal memeriksa level Maze V2 lama: ${lookupError.message}`)
         return
       }
+
+      previousMazeV2Ids = (previousRows || []).map((row: any) => String(row.id))
     }
 
     const { error: insertErr } = await supabase
@@ -371,8 +375,21 @@ function AdminPracticeContent() {
     if (insertErr) {
       alert(`Gagal generate: ${insertErr.message}`)
     } else {
+      if (actType === 'MAZE_GAME_V2' && previousMazeV2Ids.length > 0) {
+        const { error: cleanupError } = await supabase
+          .from('questions')
+          .delete()
+          .in('id', previousMazeV2Ids)
+
+        if (cleanupError) {
+          alert(`Lima level baru berhasil dibuat, tetapi level lama belum terhapus: ${cleanupError.message}`)
+          fetchExams()
+          return
+        }
+      }
+
       alert(
-        `🎉 Berhasil menambahkan ${generatedQuestions.length} item baru (${subtestName})!`
+        `🎉 Berhasil membuat ${generatedQuestions.length} level baru (${subtestName})!`
       )
       fetchExams()
     }
