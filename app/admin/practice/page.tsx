@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import FlashcardEditor from '@/components/admin/FlashcardEditor'
+import { createMazeV2LevelQuestions } from '@/lib/games/maze-v2-levels'
 
 type MazePoint = { x: number; y: number }
 type MazeEditMode = 'start' | 'target' | 'obstacle'
@@ -77,9 +78,9 @@ function AdminPracticeContent() {
     const subtestName = exam.subtest || 'Matematika'
 
     const confirmGen = confirm(
-      `Tambahkan soal otomatis ke "${exam.title}"?\n\n` +
-        `Subtes: ${subtestName}\nBentuk kegiatan: ${actType}\n` +
-        `Soal baru akan ditambahkan tanpa menghapus soal lama.`
+      actType === 'MAZE_GAME_V2'
+        ? `Buat ulang Generator Coding Maze V2 untuk "${exam.title}"?\n\nAkan dibuat 5 level (Level 1–5). Level Maze V2 lama pada kegiatan ini akan diganti agar tidak terjadi level ganda.`
+        : `Tambahkan soal otomatis ke "${exam.title}"?\n\nSubtes: ${subtestName}\nBentuk kegiatan: ${actType}\nSoal baru akan ditambahkan tanpa menghapus soal lama.`
     )
     if (!confirmGen) return
 
@@ -341,11 +342,26 @@ function AdminPracticeContent() {
             'Gunakan perintah Maju, Belok Kiri, dan Belok Kanan untuk mencapai bintang tanpa menabrak penghalang.',
         },
       ]
+    } else if (actType === 'MAZE_GAME_V2') {
+      generatedQuestions = createMazeV2LevelQuestions(exam.id)
     }
 
     if (generatedQuestions.length === 0) {
       alert('Tidak ada soal yang berhasil dibuat.')
       return
+    }
+
+    if (actType === 'MAZE_GAME_V2') {
+      const { error: deleteError } = await supabase
+        .from('questions')
+        .delete()
+        .eq('exam_id', exam.id)
+        .eq('question_type', 'maze_game_v2')
+
+      if (deleteError) {
+        alert(`Gagal mengganti level Maze V2 lama: ${deleteError.message}`)
+        return
+      }
     }
 
     const { error: insertErr } = await supabase
@@ -1139,9 +1155,9 @@ function AdminPracticeContent() {
                       <button
                         onClick={() => handleAutoGenerateQuestions(exam)}
                         className="py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
-                        title="Tambah soal otomatis"
+                        title={exam.activity_type === 'MAZE_GAME_V2' ? 'Buat ulang generator Maze V2 Level 1–5' : 'Tambah soal otomatis'}
                       >
-                        ⚡ Auto
+                        {exam.activity_type === 'MAZE_GAME_V2' ? '🎮 Level 1–5' : '⚡ Auto'}
                       </button>
                       <button
                         onClick={() => handleImportFromBankSoal(exam)}
