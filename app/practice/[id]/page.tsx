@@ -753,7 +753,7 @@ const handleCheckMatrixAnswer = () => {
             className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[var(--practice-columns)] lg:gap-5"
             style={{ "--practice-columns": practiceColumns } as React.CSSProperties}
           >
-            <section className="min-w-0 max-h-[68vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
+            <section className="min-w-0 lg:max-h-[68vh] lg:overflow-y-auto lg:overscroll-contain rounded-2xl pr-1">
           <div className={`relative overflow-hidden rounded-2xl border-2 p-3.5 font-extrabold leading-relaxed text-slate-900 shadow-md shadow-indigo-950/5 backdrop-blur-md sm:p-5 ${activePalette.card}`}
             style={{ fontSize: practiceFontSize + 1 }}>
             <div aria-hidden="true" className={`absolute -right-5 -top-7 h-28 w-28 rounded-full bg-gradient-to-br ${activePalette.accent} opacity-15 blur-xl`} />
@@ -776,7 +776,7 @@ const handleCheckMatrixAnswer = () => {
 
             </section>
 
-            <section className="min-w-0 max-h-[68vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
+            <section className="min-w-0 lg:max-h-[68vh] lg:overflow-y-auto lg:overscroll-contain rounded-2xl pr-1">
           {qType === 'multiple_choice' &&
             Array.isArray(currentQuestion.options) && (
               <div className="space-y-2">
