@@ -932,47 +932,43 @@ const handleCheckMatrixAnswer = () => {
 
     </div>
   )}
+
+              <div className="sticky bottom-0 z-20 mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-slate-200 bg-white/95 pt-3 pb-1 backdrop-blur-xl">
+                {!isAnswered && qType === 'complex_multiple_choice' && (
+                  <button type="button" onClick={handleCheckComplexAnswer} disabled={!Array.isArray(userAnswer) || userAnswer.length === 0} className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40">
+                    ☑ Periksa Jawaban
+                  </button>
+                )}
+                {!isAnswered && qType === 'true_false_matrix' && (
+                  <button type="button" onClick={handleCheckMatrixAnswer} disabled={!userAnswer || Object.keys(userAnswer).length === 0} className="min-h-11 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40">
+                    📊 Periksa Jawaban
+                  </button>
+                )}
+                {!isAnswered && (
+                  <button onClick={handleSkipQuestion} className="min-h-11 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50">
+                    {isReviewingSkipped ? 'Lewati Kembali' : '⏭️ Lewati Soal'}
+                  </button>
+                )}
+                {isAnswered && !isReviewingSkipped && currentIndex < questions.length - 1 && (
+                  <button onClick={handleNextQuestion} className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-extrabold text-white text-white shadow-md transition hover:bg-blue-700">
+                    Soal Selanjutnya →
+                  </button>
+                )}
+                {isAnswered && !isReviewingSkipped && currentIndex === questions.length - 1 && skippedQuestionIds.length > 0 && (
+                  <button onClick={handleNextQuestion} className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
+                    Lihat Soal Tertunda →
+                  </button>
+                )}
+                {isAnswered && isReviewingSkipped && skippedQuestionIds.length > 1 && (
+                  <button onClick={handleNextQuestion} className="min-h-11 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
+                    Soal Tertunda Berikutnya →
+                  </button>
+                )}
+              </div>
             </section>
           </div>
 
-          <div className="sticky bottom-0 z-30 -mx-3 flex flex-col gap-2 border-y border-indigo-100 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:-mx-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-            <div className="flex flex-wrap items-center gap-2">
-
-              {!isAnswered && qType === 'complex_multiple_choice' && (
-                <button type="button" onClick={handleCheckComplexAnswer} disabled={!Array.isArray(userAnswer) || userAnswer.length === 0} className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none">
-                  ☑ Periksa Jawaban
-                </button>
-              )}
-              {!isAnswered && qType === 'true_false_matrix' && (
-                <button type="button" onClick={handleCheckMatrixAnswer} disabled={!userAnswer || Object.keys(userAnswer).length === 0} className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md disabled:cursor-not-allowed disabled:opacity-40 sm:flex-none">
-                  📊 Periksa Jawaban
-                </button>
-              )}
-
-              {!isAnswered && (
-                <button
-                  onClick={handleSkipQuestion}
-                  className="min-h-11 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 sm:flex-none"
-                >
-                  {isReviewingSkipped ? 'Lewati Kembali' : '⏭️ Lewati Soal'}
-                </button>
-              )}
-              {isAnswered && !isReviewingSkipped && currentIndex < questions.length - 1 && (
-                <button onClick={handleNextQuestion} className="min-h-11 flex-1 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700 sm:flex-none">
-                  Soal Selanjutnya →
-                </button>
-              )}
-              {isAnswered && !isReviewingSkipped && currentIndex === questions.length - 1 && skippedQuestionIds.length > 0 && (
-                <button onClick={handleNextQuestion} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
-                  Lihat Soal Tertunda →
-                </button>
-              )}
-              {isAnswered && isReviewingSkipped && skippedQuestionIds.length > 1 && (
-                <button onClick={handleNextQuestion} className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-extrabold text-white shadow-md transition hover:bg-blue-700">
-                  Soal Tertunda Berikutnya →
-                </button>
-              )}
-            </div>
+          <div className="sticky bottom-0 z-30 -mx-3 flex justify-end border-y border-indigo-100 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:-mx-5 sm:px-5">
             <button
               onClick={handleFinishQuiz}
               disabled={isFinishing || !attemptId}
