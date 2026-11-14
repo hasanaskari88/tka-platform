@@ -359,6 +359,32 @@ const qType = currentQuestion?.question_type || 'multiple_choice'
   ]
   const activePalette = questionPalettes[currentIndex % questionPalettes.length]
   const practiceFontSize = fontSize === 'small' ? 14 : fontSize === 'large' ? 19 : 16
+  // Perkirakan panjang konten untuk membagi ruang antara soal dan jawaban.
+  const plainTextLength = (value: any) =>
+    String(value ?? '').replace(/<[^>]*>/g, ' ').replace(/\\[a-zA-Z]+/g, ' ').replace(/[${}]/g, ' ').replace(/\s+/g, ' ').trim().length
+
+  const questionContentLength =
+    plainTextLength(currentQuestion?.question_text) +
+    (currentQuestion?.image_url ? 180 : 0)
+
+  const answerContentLength = (() => {
+    const options = Array.isArray(currentQuestion?.options) ? currentQuestion.options : []
+    return options.reduce((total: number, option: any) => {
+      const value = typeof option === 'string'
+        ? option
+        : option?.text ?? option?.title ?? option?.statement ?? ''
+      return total + plainTextLength(value)
+    }, 0)
+  })()
+
+  const bothSidesLong = questionContentLength >= 420 && answerContentLength >= 420
+  const questionRatio = bothSidesLong
+    ? 1
+    : Math.min(1.55, Math.max(0.72, Math.sqrt(
+        Math.max(questionContentLength, 100) / Math.max(answerContentLength, 100)
+      )))
+  const answerRatio = bothSidesLong ? 1 : 2 - questionRatio
+  const practiceColumns = 'minmax(0, ' + questionRatio.toFixed(2) + 'fr) minmax(0, ' + answerRatio.toFixed(2) + 'fr)'
 
   const processXpAndStreak = (isUserRight: boolean) => {
     if (isAnswered) return
@@ -723,6 +749,11 @@ const handleCheckMatrixAnswer = () => {
             </div>
           </div>
 
+          <div
+            className="grid grid-cols-1 items-start gap-4 lg:gap-5"
+            style={{ gridTemplateColumns: "minmax(0, 1fr)", ...(typeof window === "undefined" ? {} : window.innerWidth >= 1024 ? { gridTemplateColumns: practiceColumns } : {}) }}
+          >
+            <section className="min-w-0 max-h-[68vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
           <div className={`relative overflow-hidden rounded-2xl border-2 p-3.5 font-extrabold leading-relaxed text-slate-900 shadow-md shadow-indigo-950/5 backdrop-blur-md sm:p-5 ${activePalette.card}`}
             style={{ fontSize: practiceFontSize + 1 }}>
             <div aria-hidden="true" className={`absolute -right-5 -top-7 h-28 w-28 rounded-full bg-gradient-to-br ${activePalette.accent} opacity-15 blur-xl`} />
@@ -743,6 +774,9 @@ const handleCheckMatrixAnswer = () => {
             />
           )}
 
+            </section>
+
+            <section className="min-w-0 max-h-[68vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
           {qType === 'multiple_choice' &&
             Array.isArray(currentQuestion.options) && (
               <div className="space-y-2">
@@ -898,10 +932,8 @@ const handleCheckMatrixAnswer = () => {
 
     </div>
   )}
-
-
-
-
+            </section>
+          </div>
 
           <div className="sticky bottom-0 z-30 -mx-3 flex flex-col gap-2 border-y border-indigo-100 bg-white/95 px-3 py-3 shadow-[0_-8px_24px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:-mx-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <div className="flex flex-wrap items-center gap-2">
