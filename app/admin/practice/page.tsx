@@ -271,7 +271,7 @@ function AdminPracticeContent() {
             sourceSubtest.includes('matematika') ||
             sourceSubtest.includes('numerasi') ||
             sourceSubtest.includes('hitung') ||
-            /\\d|×|÷|\\+|\\-|perkalian|pembagian|penjumlahan|pengurangan|pecahan|keliling|luas/i.test(questionText)
+            /\d|×|÷|\+|\-|perkalian|pembagian|penjumlahan|pengurangan|pecahan|keliling|luas/i.test(questionText)
           const options = Array.isArray(item.options) ? item.options : []
           const correctKey = String(item.correct_option || '').trim().toUpperCase()
           const answer = options.find((option: any) =>
@@ -347,12 +347,10 @@ function AdminPracticeContent() {
           } else if (kind === 2) {
             const a = randomInt(10, 80)
             const b = randomInt(10, 80)
+            const c = randomInt(1, 9)
             addCard(
-              `Berapakah hasil dari $${a} + ${b} - ${randomInt(1, 9)}$?`,
-              (() => {
-                const c = Number(front.match(/- (\\d+)/)?.[1] || 1)
-                return `Hitung penjumlahan terlebih dahulu: $${a} + ${b} = ${a + b}$, kemudian kurangi $${c}$. Hasilnya **${a + b - c}**.`
-              })()
+              `Berapakah hasil dari $${a} + ${b} - ${c}$?`,
+              `Hitung penjumlahan terlebih dahulu: $${a} + ${b} = ${a + b}$, kemudian kurangi $${c}$. Hasilnya **${a + b - c}**.`
             )
           } else if (kind === 3) {
             const factor = randomInt(2, 12)
