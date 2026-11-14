@@ -24,10 +24,11 @@ function points(coords: number[][]) {
   return coords.map(([x, y]) => `${x},${y}`).join(' ')
 }
 
-function Robot({ x, y, direction = 1, animate = false }: { x: number; y: number; direction?: number; animate?: boolean }) {
+function Robot({ x, y, direction = 1, animate = false, offsetX = 0, offsetY = 0 }: { x: number; y: number; direction?: number; animate?: boolean; offsetX?: number; offsetY?: number }) {
   const rotations = [0, 90, 180, 270]
   return (
     <g transform={`translate(${x} ${y})`} className={animate ? 'maze-robot-bob' : ''} style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
+      {animate && (offsetX !== 0 || offsetY !== 0) && <animateTransform attributeName="transform" type="translate" from={`${offsetX} ${offsetY}`} to="0 0" dur="260ms" fill="freeze" />}
       <ellipse cx="0" cy="8" rx="19" ry="8" fill="#071b2c" opacity=".35" />
       <g transform={`rotate(${rotations[direction] ?? 90})`}>
         <path d="M-12 4 L-16 12 L-7 12 L-4 4 M7 4 L4 12 L15 12 L12 4" fill="#334155" stroke="#0f172a" strokeWidth="2" strokeLinejoin="round" />
@@ -75,6 +76,11 @@ export default function MazeV2IsometricBoard({
   const cells = Array.from({ length: safeWidth * safeHeight }, (_, i) => ({ x: i % safeWidth, y: Math.floor(i / safeWidth) }))
     .sort((a, b) => a.x + a.y - (b.x + b.y))
   const robotCenter = center(activeRobot.x, activeRobot.y)
+  const previousRobotRef = useRef<Point>(activeRobot)
+  const previousRobotCenter = center(previousRobotRef.current.x, previousRobotRef.current.y)
+  const robotOffsetX = previousRobotCenter.x - robotCenter.x
+  const robotOffsetY = previousRobotCenter.y - robotCenter.y
+  previousRobotRef.current = activeRobot
 
   return (
     <div className="relative isolate overflow-hidden rounded-[1.6rem] border border-sky-200/20 bg-[linear-gradient(160deg,#7dd3fc_0%,#38bdf8_28%,#0c4a6e_100%)] p-3 shadow-2xl sm:p-5">
@@ -157,10 +163,10 @@ export default function MazeV2IsometricBoard({
                   onClick={() => !running && onCellClick?.(x, y)}
                   onKeyDown={(event) => { if (!running && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); onCellClick?.(x, y) } }}
                 />}
-                {isRobot && <Robot x={robotCenter.x} y={robotCenter.y-7} direction={direction} animate={running} />}
               </g>
             )
           })}
+          <Robot x={robotCenter.x} y={robotCenter.y-7} direction={direction} animate={running} offsetX={robotOffsetX} offsetY={robotOffsetY} />
           <g transform={`translate(18 ${boardHeight-32})`}>
             <rect x="0" y="-14" width={Math.max(140, boardWidth-36)} height="27" rx="13" fill="#082f49" opacity=".22" />
             <text x="12" y="4" fontSize="11" fontWeight="800" fill="#f0f9ff">JELAJAHI • SUSUN PERINTAH • CAPAI BINTANG</text>
