@@ -1,5 +1,7 @@
 'use client'
 
+import { useRef } from 'react'
+
 type Point = { x: number; y: number }
 type Props = {
   width: number
