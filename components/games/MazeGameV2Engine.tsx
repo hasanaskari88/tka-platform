@@ -261,14 +261,14 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
             <h1 className="mt-1 truncate text-lg font-black sm:text-xl">🧩 {exam?.title||'Coding Maze V2'}</h1>
             <p className="text-[11px] text-slate-400">Level {level} dari 5 · {completedIds.length} level selesai</p>
           </div>
-          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-black text-amber-200">⭐ {completedIds.length*10} XP</div>
+          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-black text-amber-200">{finishSummary ? `⭐ +${finishSummary.total_xp ?? 0} XP` : `✓ ${completedIds.length}/${missions.length} level`}</div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl space-y-4 p-3 sm:p-5">
         <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div><h2 className="font-extrabold">Pilih Level</h2><p className="text-xs text-slate-400">Kamu boleh memilih Level 1 sampai 5.</p></div>
-            <span className="text-xs text-slate-400">{missions.length} level tersedia</span>
+            <span className="text-xs text-slate-400">{completedIds.length} dari {missions.length} selesai</span>
           </div>
           <div className="grid grid-cols-5 gap-2">
             {[1,2,3,4,5].map(n=>{
