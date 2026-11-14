@@ -672,7 +672,7 @@ const handleCheckMatrixAnswer = () => {
           {streakCount >= 2 && (
             <div className="flex min-w-0 shrink items-center gap-1 overflow-hidden text-amber-200">
               <span className="shrink-0 text-[11px] font-black sm:text-xs">🔥 x{streakCount}</span>
-              <span className="hidden max-w-[190px] truncate text-[10px] font-semibold sm:inline">
+              <span className="max-w-[76px] truncate text-[9px] font-semibold sm:max-w-[190px] sm:text-[10px]">
                 {comboMessages[streakCount] ||
                   (streakCount > 10 ? 'GILA KEREN! COMBO TERUS! 🎉' : '')}
               </span>
