@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import MathRenderer from '@/components/MathRenderer'
 import { createClient } from '@/lib/supabase/client'
@@ -118,11 +118,33 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
 
       setSessionId(id)
       setCards(orderedCards)
-      setQueue(orderedCards.filter((card) => card.status !== 'mastered').map((card) => card.id))
+      const remainingCards = orderedCards.filter((card) => card.status !== 'mastered')
+      setQueue(remainingCards.map((card) => card.id))
       setXpEarned(orderedCards.filter((card) => card.xp_awarded).length * 10)
       setReviewCount(orderedCards.reduce((total, card) => total + card.review_count, 0))
       setCurrentIndex(0)
       setLoading(false)
+
+      // Sesi yang seluruh kartunya sudah dikuasai sebelum halaman dibuka
+      // tetap ditutup dengan benar, bukan menampilkan layar kartu kosong.
+      if (remainingCards.length === 0) {
+        const { data: completed, error: completionError } = await supabase.rpc(
+          'finish_flashcard_session',
+          { p_session_id: id }
+        )
+        if (active) {
+          if (completionError) {
+            setError(completionError.message || 'Sesi belum berhasil ditutup.')
+          } else {
+            setSummary({
+              total_cards: Number(completed?.total_cards ?? orderedCards.length),
+              mastered_cards: Number(completed?.mastered_cards ?? orderedCards.length),
+              reviewed_again: orderedCards.reduce((total, card) => total + card.review_count, 0),
+              xp_earned: Number(completed?.xp_earned ?? 0),
+            })
+          }
+        }
+      }
     }
 
     loadSession()
