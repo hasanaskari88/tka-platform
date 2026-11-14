@@ -55,19 +55,14 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
   const [matchedCardIds, setMatchedCardIds] = useState<string[]>([])
   const [mismatch, setMismatch] = useState(false)
   const [levelDone, setLevelDone] = useState(false)
-  const [reviewCount, setReviewCount] = useState(0)
+  const [activeLevelCardIds, setActiveLevelCardIds] = useState<string[]>([])
 
   const masteredCount = cards.filter((card) => card.status === 'mastered').length
   const totalCards = cards.length
   const remainingCards = cards.filter((card) => card.status !== 'mastered')
   const progress = totalCards ? Math.round((masteredCount / totalCards) * 100) : 0
 
-  const levelCards = useMemo(() => {
-    if (level === null) return []
-    const ordered = [...remainingCards].sort((a, b) => a.position - b.position)
-    const count = level === 1 ? 3 : level === 2 ? 5 : ordered.length
-    return ordered.slice(0, count)
-  }, [cards, level])
+  const levelCards = useMemo(() => cards.filter((card) => activeLevelCardIds.includes(card.id)), [cards, activeLevelCardIds])
 
   useEffect(() => {
     let active = true
@@ -131,7 +126,6 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
       setSessionId(id)
       setCards(loaded)
       setXpEarned(loaded.filter((card) => card.xp_awarded).length * 10)
-      setReviewCount(loaded.reduce((sum, card) => sum + card.review_count, 0))
       setLoading(false)
 
       if (loaded.length && loaded.every((card) => card.status === 'mastered')) {
@@ -161,6 +155,7 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
       { id: `${card.id}-back`, cardId: card.id, side: 'back' as const, content: card.explanation || '', imageUrl: null },
     ])
     setLevel(nextLevel)
+    setActiveLevelCardIds(chosen.map((card) => card.id))
     setTiles(shuffle(nextTiles))
     setOpened([])
     setMatchedCardIds([])
@@ -234,7 +229,6 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
       }
     } else {
       setMismatch(true)
-      setReviewCount((value) => value + 1)
       window.setTimeout(() => {
         setOpened([])
         setMismatch(false)
@@ -312,7 +306,7 @@ export default function FlashcardEngine({ exam }: { exam: any; questions?: any[]
           </section>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-widest text-cyan-200">Level {level} · {level === 1 ? 'Mudah' : level === 2 ? 'Sedang' : 'Tantangan'}</div><div className="mt-1 text-sm font-bold text-slate-200">Temukan pasangan sisi depan dan belakang</div></div><div className="flex gap-2"><button onClick={shuffleUnmatched} disabled={saving || levelDone} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold hover:bg-white/15 disabled:opacity-40">🔀 Acak Kartu</button><button onClick={() => { setLevel(null); setTiles([]); setOpened([]); setMatchedCardIds([]); setLevelDone(false) }} disabled={saving} className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold">Pilih Level</button></div></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-black uppercase tracking-widest text-cyan-200">Level {level} · {level === 1 ? 'Mudah' : level === 2 ? 'Sedang' : 'Tantangan'}</div><div className="mt-1 text-sm font-bold text-slate-200">Temukan pasangan sisi depan dan belakang</div></div><div className="flex gap-2"><button onClick={shuffleUnmatched} disabled={saving || levelDone} className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold hover:bg-white/15 disabled:opacity-40">🔀 Acak Kartu</button><button onClick={() => { setLevel(null); setTiles([]); setOpened([]); setMatchedCardIds([]); setActiveLevelCardIds([]); setLevelDone(false) }} disabled={saving} className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-xs font-bold">Pilih Level</button></div></div>
             <div className="grid grid-cols-3 gap-2 text-center"><div className="rounded-xl bg-sky-300/10 p-2"><div className="text-xl font-black text-sky-200">{levelCards.length * 2}</div><div className="text-[10px] text-sky-100/70">Jumlah kartu</div></div><div className="rounded-xl bg-emerald-300/10 p-2"><div className="text-xl font-black text-emerald-200">{matchedCardIds.length}</div><div className="text-[10px] text-emerald-100/70">Pasangan cocok</div></div><div className="rounded-xl bg-amber-300/10 p-2"><div className="text-xl font-black text-amber-200">{levelCards.length - matchedCardIds.length}</div><div className="text-[10px] text-amber-100/70">Sisa pasangan</div></div></div>
 
             <div className={`grid ${boardColumns} gap-3 sm:gap-4`}>
