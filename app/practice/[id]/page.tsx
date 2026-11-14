@@ -692,7 +692,7 @@ const handleCheckMatrixAnswer = () => {
             </div>
           </div>
 
-          <div className={`relative overflow-hidden rounded-[1.75rem] border-2 p-5 text-lg font-extrabold leading-8 text-slate-900 shadow-lg shadow-indigo-950/5 backdrop-blur-md sm:p-7 sm:text-xl sm:leading-9 ${activePalette.card}`}>
+          <div className={`relative overflow-hidden rounded-[1.5rem] border-2 p-4 text-base font-extrabold leading-7 text-slate-900 shadow-lg shadow-indigo-950/5 backdrop-blur-md sm:rounded-[1.75rem] sm:p-7 sm:text-xl sm:leading-9 ${activePalette.card}`}>
             <div aria-hidden="true" className={`absolute -right-5 -top-7 h-28 w-28 rounded-full bg-gradient-to-br ${activePalette.accent} opacity-15 blur-xl`} />
             <div className="relative z-10 mb-3 flex items-center justify-between gap-2">
               <span className="rounded-full bg-white/70 px-3 py-1 text-[10px] font-black tracking-widest text-slate-600 shadow-sm">⚡ TANTANGAN {currentIndex + 1}</span>
@@ -742,9 +742,8 @@ const handleCheckMatrixAnswer = () => {
                       key={key}
                       disabled={isAnswered}
                       onClick={() => handleSingleChoiceSelect(key)}
-                      className={`w-full rounded-2xl border-2 p-4 text-left text-base leading-7 transition-all duration-150 sm:p-5 ${style} hover:-translate-y-0.5 hover:shadow-md`} 
+                      className={`w-full rounded-xl sm:rounded-2xl border-2 p-3 text-left text-sm leading-6 transition-all duration-150 sm:p-5 sm:text-base sm:leading-7 ${style} hover:-translate-y-0.5 hover:shadow-md`}
                     >
-                      <span className="font-bold mr-3">{key}.</span>
                       <MathRenderer
                         content={
                           typeof opt === 'string'
@@ -771,7 +770,7 @@ const handleCheckMatrixAnswer = () => {
                   return (
                     <label
                       key={key}
-                      className={`flex items-start gap-4 rounded-2xl border-2 p-4 text-base leading-7 text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer sm:p-5 ${questionPalettes[index % questionPalettes.length].option}`}
+                      className={`flex items-start gap-3 sm:gap-4 rounded-xl sm:rounded-2xl border-2 p-3 text-sm leading-6 text-slate-800 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md cursor-pointer sm:p-5 sm:text-base sm:leading-7 ${questionPalettes[index % questionPalettes.length].option}`}
                     >
                       <input
                         type="checkbox"
@@ -779,7 +778,7 @@ const handleCheckMatrixAnswer = () => {
                         checked={checked}
                         onChange={() => handleToggleComplexChoice(key)}
                       />
-                      <span className="text-base font-semibold leading-7">
+                      <span className="text-sm font-semibold leading-6 sm:text-base sm:leading-7">
                         <MathRenderer
                           content={
                             typeof opt === 'string'
@@ -806,12 +805,12 @@ const handleCheckMatrixAnswer = () => {
           {qType === 'true_false_matrix' &&
   Array.isArray(currentQuestion.options) && (
     <div className="overflow-hidden rounded-2xl border-2 border-white/80 bg-white/80 shadow-lg backdrop-blur-md">
-      <table className="w-full text-sm sm:text-base">
+      <table className="w-full text-xs sm:text-base">
         <thead className="bg-indigo-100 text-indigo-950">
           <tr>
-            <th className="p-3 text-left">Pernyataan</th>
-            <th className="p-3">Benar</th>
-            <th className="p-3">Salah</th>
+            <th className="p-2 text-left sm:p-3">Pernyataan</th>
+            <th className="p-2 sm:p-3">Benar</th>
+            <th className="p-2 sm:p-3">Salah</th>
           </tr>
         </thead>
 
@@ -830,17 +829,17 @@ const handleCheckMatrixAnswer = () => {
 
             return (
               <tr key={optionKey} className={`border-t-2 border-white ${questionPalettes[index % questionPalettes.length].option.split(' ')[1]}`}>
-                <td className="p-4 leading-7 sm:p-5">
+                <td className="p-3 leading-6 sm:p-5 sm:leading-7">
                   <MathRenderer content={text} />
                 </td>
 
-                <td className="p-3 text-center">
+                <td className="p-2 text-center sm:p-3">
                   <button
                     disabled={isAnswered}
                     onClick={() =>
                       handleSelectMatrixRow(optionKey, 'Benar')
                     }
-                    className={`rounded-xl border-2 px-4 py-2.5 text-sm font-bold transition ${
+                    className={`rounded-lg sm:rounded-xl border-2 px-2.5 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold transition ${
                       selected === 'Benar'
                         ? 'border-emerald-600 bg-emerald-600 text-white'
                         : 'border-slate-200 bg-white text-slate-700 hover:bg-emerald-50'
