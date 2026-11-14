@@ -87,10 +87,18 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
         }
         const id = await attemptPromise.current
         if (active) { setAttemptId(id); setAttemptError(''); setAttemptLoading(false) }
-      } catch (error) {
-        console.error('Gagal memulai Maze V2:',error)
+      } catch (error: any) {
+        console.error('Gagal memulai Maze V2:', error)
         attemptPromise.current = null
-        if (active) { setAttemptError('Sesi latihan gagal dimulai. Periksa koneksi lalu coba lagi.'); setAttemptLoading(false) }
+        const detail = String(error?.message || error?.details || '').trim()
+        if (active) {
+          setAttemptError(
+            detail
+              ? `Sesi latihan gagal dimulai: ${detail}`
+              : 'Sesi latihan gagal dimulai. Periksa koneksi lalu coba lagi.'
+          )
+          setAttemptLoading(false)
+        }
       }
     }
     startAttempt()
