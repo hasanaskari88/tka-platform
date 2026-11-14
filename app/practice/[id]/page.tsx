@@ -654,42 +654,35 @@ const handleCheckMatrixAnswer = () => {
     <div className="relative min-h-[100dvh] bg-[radial-gradient(ellipse_at_top_left,_rgba(56,189,248,0.25),_transparent_38%),radial-gradient(ellipse_at_bottom_right,_rgba(251,191,36,0.20),_transparent_38%),linear-gradient(135deg,#101b4b_0%,#31206b_48%,#123d69_100%)] flex flex-col font-sans">
       <div aria-hidden="true" className="pointer-events-none absolute -left-24 top-40 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
       <div aria-hidden="true" className="pointer-events-none absolute -right-20 top-80 h-80 w-80 rounded-full bg-fuchsia-500/20 blur-3xl" />
-      <header className="sticky top-0 z-20 border-b border-white/15 bg-gradient-to-r from-indigo-950/90 via-violet-900/90 to-blue-900/90 px-2.5 py-2 text-white shadow-lg backdrop-blur-xl sm:px-4">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-2">
+      <header className="sticky top-0 z-20 border-b border-white/15 bg-gradient-to-r from-indigo-950/95 via-violet-900/95 to-blue-900/95 px-2 py-1.5 text-white shadow-lg backdrop-blur-xl sm:px-4">
+        <div className="mx-auto flex w-full max-w-6xl min-w-0 items-center gap-2 sm:gap-3">
           <Link
             href="/practice"
-            className="shrink-0 rounded-xl border border-white/25 bg-white/10 px-3 py-2 text-xs font-extrabold text-white shadow-inner transition hover:bg-white/20"
+            aria-label="Keluar dari latihan"
+            className="shrink-0 rounded-lg border border-white/25 bg-white/10 px-2 py-1.5 text-[10px] font-extrabold text-white shadow-inner transition hover:bg-white/20 sm:px-3 sm:text-xs"
           >
-            ← Keluar
+            <span className="sm:hidden">←</span>
+            <span className="hidden sm:inline">← Keluar</span>
           </Link>
 
-          <div>
-            <span className="inline-flex rounded-full border border-cyan-200/25 bg-cyan-300/15 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-cyan-100">
-              🚀 ARENA LATIHAN
-            </span>
-            <h1 className="mt-0.5 max-w-[55vw] truncate text-sm font-extrabold sm:max-w-none sm:text-base">{exam?.title}</h1>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-xs font-extrabold leading-tight sm:text-sm">{exam?.title}</h1>
           </div>
-        <div className="shrink-0 text-right">
+
           {streakCount >= 2 && (
-            <div className="text-amber-300 text-xs font-black animate-pulse">
-              🔥 Combo x{streakCount}!
+            <div className="flex min-w-0 shrink items-center gap-1 overflow-hidden text-amber-200">
+              <span className="shrink-0 text-[11px] font-black sm:text-xs">🔥 x{streakCount}</span>
+              <span className="hidden max-w-[190px] truncate text-[10px] font-semibold sm:inline">
+                {comboMessages[streakCount] ||
+                  (streakCount > 10 ? 'GILA KEREN! COMBO TERUS! 🎉' : '')}
+              </span>
             </div>
           )}
 
-          {streakCount >= 2 && (
-            <div className="text-amber-200 text-[10px] mt-1">
-              {comboMessages[streakCount] ||
-                (streakCount > 10
-                  ? 'GILA KEREN! COMBO TERUS! 🎉'
-                  : '')}
-            </div>
-          )}
-
-          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-200/25 bg-amber-300/10 px-3 py-1.5 text-sm font-black text-amber-300 shadow-inner sm:text-base">
+          <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-200/25 bg-amber-300/10 px-2 py-1 text-[11px] font-black text-amber-300 shadow-inner sm:px-3 sm:text-sm">
             ⭐ +{totalXpEarned} XP
           </div>
         </div>
-      </div>
       </header>
 
       <main className="relative z-10 mx-auto w-full max-w-6xl flex-1 px-2 py-3 pb-24 sm:px-4 sm:py-4 sm:pb-28 lg:px-6">
