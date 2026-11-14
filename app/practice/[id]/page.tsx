@@ -750,8 +750,8 @@ const handleCheckMatrixAnswer = () => {
           </div>
 
           <div
-            className="grid grid-cols-1 items-start gap-4 lg:gap-5"
-            style={{ gridTemplateColumns: "minmax(0, 1fr)", ...(typeof window === "undefined" ? {} : window.innerWidth >= 1024 ? { gridTemplateColumns: practiceColumns } : {}) }}
+            className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[var(--practice-columns)] lg:gap-5"
+            style={{ "--practice-columns": practiceColumns } as React.CSSProperties}
           >
             <section className="min-w-0 max-h-[68vh] overflow-y-auto overscroll-contain rounded-2xl pr-1">
           <div className={`relative overflow-hidden rounded-2xl border-2 p-3.5 font-extrabold leading-relaxed text-slate-900 shadow-md shadow-indigo-950/5 backdrop-blur-md sm:p-5 ${activePalette.card}`}
