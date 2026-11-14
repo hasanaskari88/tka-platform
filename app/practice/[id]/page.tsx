@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import Link from 'next/link'
 import MazeGameEngine from '@/components/games/MazeGameEngine'
+import MazeGameV2Engine from '@/components/games/MazeGameV2Engine'
 import FlashcardEngine from '@/components/games/FlashcardEngine'
 
 function normalizeKey(value: any): string {
@@ -202,6 +203,10 @@ function PracticeContent() {
 
       if (examData.activity_type === 'FLASHCARD') {
         questionQuery = questionQuery.eq('question_type', 'flashcard')
+      } else if (examData.activity_type === 'MAZE_GAME_V2') {
+        questionQuery = questionQuery.eq('question_type', 'maze_game_v2')
+      } else if (examData.activity_type === 'MAZE_GAME') {
+        questionQuery = questionQuery.eq('question_type', 'maze_game')
       } else {
         questionQuery = questionQuery.or(
           'question_type.is.null,question_type.in.(multiple_choice,complex_multiple_choice,true_false_matrix)'
@@ -218,10 +223,15 @@ function PracticeContent() {
 
       const rawQuestions = questionData || []
       const loadedQuestions =
-        examData.activity_type === 'FLASHCARD'
-          ? [...rawQuestions].sort((a: any, b: any) =>
-              String(a.created_at || '').localeCompare(String(b.created_at || ''))
-            )
+        examData.activity_type === 'MAZE_GAME_V2'
+          ? [...rawQuestions].sort((a: any, b: any) => {
+              const getLevel = (value: any) => Number(String(value?.difficulty || '').match(/level-(\\d+)/i)?.[1] || 99)
+              return getLevel(a) - getLevel(b)
+            })
+          : examData.activity_type === 'MAZE_GAME' || examData.activity_type === 'FLASHCARD'
+            ? [...rawQuestions].sort((a: any, b: any) =>
+                String(a.created_at || '').localeCompare(String(b.created_at || ''))
+              )
           : (() => {
               const typeOrder = ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix']
               return typeOrder.flatMap((type) => {
@@ -612,6 +622,10 @@ const handleCheckMatrixAnswer = () => {
         <p className="font-semibold text-sm">Memuat latihan...</p>
       </div>
     )
+  }
+
+  if (exam?.activity_type === 'MAZE_GAME_V2') {
+    return <MazeGameV2Engine exam={exam} questions={questions} />
   }
 
   if (exam?.activity_type === 'MAZE_GAME') {
