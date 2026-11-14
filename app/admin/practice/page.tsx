@@ -835,7 +835,7 @@ function AdminPracticeContent() {
     try {
       const supabase = createClient()
       const cleanMissionText = (mazeQuestionText.trim() || 'Bantu robot mencapai bintang!')
-        .replace(/^Level\\s+\\d+\\s*[·:.-]\\s*/i, '')
+        .replace(/^Level\s+\d+\s*[·:.-]\s*/i, '')
       const missionText = mazeEditorType === 'MAZE_GAME_V2'
         ? `Level ${mazeLevelNumber} · ${cleanMissionText}`
         : cleanMissionText
