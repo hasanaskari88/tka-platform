@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import FlashcardEditor from '@/components/admin/FlashcardEditor'
-import { createMazeV2LevelQuestions } from '@/lib/games/maze-v2-levels'
+import { createMazeV2LevelQuestions, getMazeV2LevelNumber } from '@/lib/games/maze-v2-levels'
 
 type MazePoint = { x: number; y: number }
 type MazeEditMode = 'start' | 'target' | 'obstacle'
@@ -34,6 +34,8 @@ function AdminPracticeContent() {
 
   // State editor Maze Game
   const [isMazeEditorOpen, setIsMazeEditorOpen] = useState(false)
+  const [mazeEditorType, setMazeEditorType] = useState<'MAZE_GAME' | 'MAZE_GAME_V2'>('MAZE_GAME')
+  const [mazeLevelNumber, setMazeLevelNumber] = useState(1)
   const [activeMazeExam, setActiveMazeExam] = useState<any>(null)
   const [mazeWidth, setMazeWidth] = useState(6)
   const [mazeHeight, setMazeHeight] = useState(6)
@@ -612,18 +614,25 @@ function AdminPracticeContent() {
   }
 
   // Memuat misi Maze yang sudah tersimpan dan membuka editor dalam mode misi baru.
-  const handleOpenMazeEditor = async (exam: any) => {
+  const handleOpenMazeEditor = async (
+    exam: any,
+    editorType: 'MAZE_GAME' | 'MAZE_GAME_V2' = 'MAZE_GAME'
+  ) => {
     setActiveMazeExam(exam)
+    setMazeEditorType(editorType)
+    setMazeLevelNumber(1)
     setMazeQuestionId(null)
-    setMazeWidth(6)
-    setMazeHeight(6)
-    setMazeStart({ x: 0, y: 0 })
-    setMazeTarget({ x: 5, y: 5 })
+    setMazeWidth(editorType === 'MAZE_GAME_V2' ? 7 : 6)
+    setMazeHeight(editorType === 'MAZE_GAME_V2' ? 7 : 6)
+    setMazeStart(editorType === 'MAZE_GAME_V2' ? { x: 0, y: 3 } : { x: 0, y: 0 })
+    setMazeTarget(editorType === 'MAZE_GAME_V2' ? { x: 5, y: 3 } : { x: 5, y: 5 })
     setMazeObstacles([])
     setMazeEditMode('obstacle')
     setMazeDifficulty('medium')
     setMazeQuestionText(
-      `Bantu robot mencapai bintang pada kegiatan "${exam.title}" tanpa menabrak rintangan!`
+      editorType === 'MAZE_GAME_V2'
+        ? `Level 1 · Bantu robot mencapai bintang pada kegiatan "${exam.title}"!`
+        : `Bantu robot mencapai bintang pada kegiatan "${exam.title}" tanpa menabrak rintangan!`
     )
     setMazeMissions([])
     setMazeMissionsLoading(true)
@@ -637,7 +646,7 @@ function AdminPracticeContent() {
           'id, exam_id, question_text, start_x, start_y, target_x, target_y, maze_width, maze_height, obstacles, difficulty, question_type'
         )
         .eq('exam_id', exam.id)
-        .eq('question_type', 'maze_game')
+        .eq('question_type', editorType === 'MAZE_GAME_V2' ? 'maze_game_v2' : 'maze_game')
 
       if (error) {
         console.error('Gagal memuat misi Maze:', error.message)
@@ -658,15 +667,18 @@ function AdminPracticeContent() {
   const handleSelectMazeMission = (selectedId: string) => {
     if (!selectedId) {
       setMazeQuestionId(null)
-      setMazeWidth(6)
-      setMazeHeight(6)
-      setMazeStart({ x: 0, y: 0 })
-      setMazeTarget({ x: 5, y: 5 })
+      setMazeLevelNumber(1)
+      setMazeWidth(mazeEditorType === 'MAZE_GAME_V2' ? 7 : 6)
+      setMazeHeight(mazeEditorType === 'MAZE_GAME_V2' ? 7 : 6)
+      setMazeStart(mazeEditorType === 'MAZE_GAME_V2' ? { x: 0, y: 3 } : { x: 0, y: 0 })
+      setMazeTarget(mazeEditorType === 'MAZE_GAME_V2' ? { x: 5, y: 3 } : { x: 5, y: 5 })
       setMazeObstacles([])
       setMazeEditMode('obstacle')
       setMazeDifficulty('medium')
       setMazeQuestionText(
-        `Bantu robot mencapai bintang pada kegiatan "${activeMazeExam?.title || ''}" tanpa menabrak rintangan!`
+        mazeEditorType === 'MAZE_GAME_V2'
+        ? `Level 1 · Bantu robot mencapai bintang pada kegiatan "${activeMazeExam?.title || ''}"!`
+        : `Bantu robot mencapai bintang pada kegiatan "${activeMazeExam?.title || ''}" tanpa menabrak rintangan!`
       )
       return
     }
@@ -701,6 +713,7 @@ function AdminPracticeContent() {
       : []
 
     setMazeQuestionId(mission.id)
+    setMazeLevelNumber(getMazeV2LevelNumber(mission, mazeMissions.indexOf(mission)))
     setMazeWidth(width)
     setMazeHeight(height)
     setMazeStart(start)
@@ -821,13 +834,31 @@ function AdminPracticeContent() {
     setMazeSaving(true)
     try {
       const supabase = createClient()
+      const cleanMissionText = (mazeQuestionText.trim() || 'Bantu robot mencapai bintang!')
+        .replace(/^Level\\s+\\d+\\s*[·:.-]\\s*/i, '')
+      const missionText = mazeEditorType === 'MAZE_GAME_V2'
+        ? `Level ${mazeLevelNumber} · ${cleanMissionText}`
+        : cleanMissionText
+
+      let targetQuestionId = mazeQuestionId
+      if (mazeEditorType === 'MAZE_GAME_V2') {
+        const duplicateLevel = mazeMissions.find((item, index) =>
+          String(item.id) !== String(mazeQuestionId ?? '') &&
+          getMazeV2LevelNumber(item, index) === mazeLevelNumber
+        )
+        if (duplicateLevel) {
+          const shouldReplace = confirm(`Level ${mazeLevelNumber} sudah ada. Ganti level tersebut dengan papan yang sedang diedit?`)
+          if (!shouldReplace) return
+          targetQuestionId = duplicateLevel.id
+        }
+      }
+
       const missionPayload = {
         exam_id: activeMazeExam.id,
-        question_text:
-          mazeQuestionText.trim() || 'Bantu robot mencapai bintang!',
+        question_text: missionText,
         options: [],
-        correct_option: 'FORWARD',
-        question_type: 'maze_game',
+        correct_option: mazeEditorType === 'MAZE_GAME_V2' ? 'GOAL' : 'FORWARD',
+        question_type: mazeEditorType === 'MAZE_GAME_V2' ? 'maze_game_v2' : 'maze_game',
         start_x: mazeStart.x,
         start_y: mazeStart.y,
         target_x: mazeTarget.x,
@@ -840,13 +871,13 @@ function AdminPracticeContent() {
           'Gunakan perintah Maju, Belok Kiri, dan Belok Kanan untuk mencapai bintang tanpa menabrak rintangan.',
       }
 
-      const result = mazeQuestionId !== null
+      const result = targetQuestionId !== null
         ? await supabase
             .from('questions')
             .update(missionPayload)
-            .eq('id', mazeQuestionId)
+            .eq('id', targetQuestionId)
             .eq('exam_id', activeMazeExam.id)
-            .eq('question_type', 'maze_game')
+            .eq('question_type', mazeEditorType === 'MAZE_GAME_V2' ? 'maze_game_v2' : 'maze_game')
         : await supabase.from('questions').insert(missionPayload)
 
       if (result.error) {
@@ -855,9 +886,9 @@ function AdminPracticeContent() {
       }
 
       alert(
-        mazeQuestionId !== null
-          ? 'Misi Maze Game berhasil diperbarui!'
-          : 'Misi Maze Game berhasil disimpan sebagai misi baru!'
+        targetQuestionId !== null
+          ? `Misi ${mazeEditorType === 'MAZE_GAME_V2' ? `Maze V2 Level ${mazeLevelNumber}` : 'Maze Game'} berhasil diperbarui!`
+          : `Misi ${mazeEditorType === 'MAZE_GAME_V2' ? `Maze V2 Level ${mazeLevelNumber}` : 'Maze Game'} berhasil disimpan!`
       )
       setIsMazeEditorOpen(false)
       setMazeQuestionId(null)
@@ -1201,13 +1232,13 @@ function AdminPracticeContent() {
                         </button>
                       )}
 
-                      {exam.activity_type === 'MAZE_GAME' && (
+                      {(exam.activity_type === 'MAZE_GAME' || exam.activity_type === 'MAZE_GAME_V2') && (
                         <button
-                          onClick={() => handleOpenMazeEditor(exam)}
+                          onClick={() => handleOpenMazeEditor(exam, exam.activity_type === 'MAZE_GAME_V2' ? 'MAZE_GAME_V2' : 'MAZE_GAME')}
                           className="py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-bold rounded-xl transition-all flex items-center justify-center"
-                          title="Buat dan atur papan labirin"
+                          title={exam.activity_type === 'MAZE_GAME_V2' ? 'Buat dan atur lima level Maze V2' : 'Buat dan atur papan labirin'}
                         >
-                          🧩 Editor Maze
+                          {exam.activity_type === 'MAZE_GAME_V2' ? '🧩 Editor Maze V2' : '🧩 Editor Maze'}
                         </button>
                       )}
 
@@ -1444,7 +1475,7 @@ function AdminPracticeContent() {
           <div className="bg-slate-950 border border-slate-700 rounded-3xl w-full max-w-3xl max-h-[95vh] overflow-y-auto p-5 sm:p-6 space-y-5 text-white shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
               <div>
-                <h2 className="text-lg font-black">🧩 Editor Maze Game</h2>
+                <h2 className="text-lg font-black">{mazeEditorType === 'MAZE_GAME_V2' ? `🧩 Editor Coding Maze V2 · Level ${mazeLevelNumber}` : '🧩 Editor Maze Game'}</h2>
                 <p className="text-xs text-slate-400 mt-1">{activeMazeExam.title}</p>
               </div>
               <button
@@ -1465,9 +1496,9 @@ function AdminPracticeContent() {
                   className="w-full rounded-xl border border-slate-700 bg-slate-950 p-2.5 text-white disabled:opacity-60"
                 >
                   <option value="">＋ Buat misi baru</option>
-                  {mazeMissions.map((mission) => (
+                  {mazeMissions.map((mission, index) => (
                     <option key={String(mission.id)} value={String(mission.id)}>
-                      {String(mission.question_text || 'Misi Maze tanpa judul').slice(0, 100)}
+                      {mazeEditorType === 'MAZE_GAME_V2' ? `Level ${getMazeV2LevelNumber(mission, index)} · ` : ''}{String(mission.question_text || 'Misi Maze tanpa judul').slice(0, 100)}
                     </option>
                   ))}
                 </select>
@@ -1482,6 +1513,20 @@ function AdminPracticeContent() {
                       : 'Belum ada misi Maze pada kegiatan ini. Anda dapat membuat misi baru.'}
               </p>
             </div>
+
+            {mazeEditorType === 'MAZE_GAME_V2' && (
+              <label className="block text-xs text-slate-300 space-y-1">
+                Nomor level Maze V2
+                <select
+                  value={mazeLevelNumber}
+                  onChange={(e) => setMazeLevelNumber(Number(e.target.value))}
+                  disabled={mazeSaving}
+                  className="w-full rounded-xl border border-slate-700 bg-slate-900 p-2.5 text-white"
+                >
+                  {[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>Level {level}</option>)}
+                </select>
+              </label>
+            )}
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <label className="text-xs text-slate-300 space-y-1">
