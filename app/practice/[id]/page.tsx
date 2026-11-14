@@ -195,11 +195,20 @@ function PracticeContent() {
         return
       }
 
-      const { data: questionData, error: questionError } = await supabase
+      let questionQuery = supabase
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
-        .or('question_type.is.null,question_type.in.(multiple_choice,complex_multiple_choice,true_false_matrix)')
+
+      if (examData.activity_type === 'FLASHCARD') {
+        questionQuery = questionQuery.eq('question_type', 'flashcard')
+      } else {
+        questionQuery = questionQuery.or(
+          'question_type.is.null,question_type.in.(multiple_choice,complex_multiple_choice,true_false_matrix)'
+        )
+      }
+
+      const { data: questionData, error: questionError } = await questionQuery
 
       if (questionError) {
         alert('Gagal memuat soal latihan.')
@@ -208,36 +217,43 @@ function PracticeContent() {
       }
 
       const rawQuestions = questionData || []
-      const typeOrder = ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix']
-      const loadedQuestions = typeOrder.flatMap((type) => {
-        const group = rawQuestions
-          .filter((question: any) => (question.question_type || 'multiple_choice') === type)
-          .map((question: any) => {
-            if (type === 'true_false_matrix') {
-              const rows = Array.isArray(question.options) ? question.options : []
-              return {
-                ...question,
-                options: shuffleArray(rows.map((item: any, index: number) =>
-                  item && typeof item === 'object'
-                    ? { ...item, _practiceKey: String(item.id ?? index) }
-                    : { text: String(item ?? ''), _practiceKey: String(index) }
-                )),
-              }
-            }
+      const loadedQuestions =
+        examData.activity_type === 'FLASHCARD'
+          ? [...rawQuestions].sort((a: any, b: any) =>
+              String(a.created_at || '').localeCompare(String(b.created_at || ''))
+            )
+          : (() => {
+              const typeOrder = ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix']
+              return typeOrder.flatMap((type) => {
+                const group = rawQuestions
+                  .filter((question: any) => (question.question_type || 'multiple_choice') === type)
+                  .map((question: any) => {
+                    if (type === 'true_false_matrix') {
+                      const rows = Array.isArray(question.options) ? question.options : []
+                      return {
+                        ...question,
+                        options: shuffleArray(rows.map((item: any, index: number) =>
+                          item && typeof item === 'object'
+                            ? { ...item, _practiceKey: String(item.id ?? index) }
+                            : { text: String(item ?? ''), _practiceKey: String(index) }
+                        )),
+                      }
+                    }
 
-            const options = Array.isArray(question.options) ? question.options : []
-            return {
-              ...question,
-              options: shuffleArray(options.map((option: any, index: number) => {
-                const originalKey = String(option?.key ?? String.fromCharCode(65 + index))
-                return typeof option === 'string'
-                  ? { key: originalKey, text: option }
-                  : { ...option, key: originalKey }
-              })),
-            }
-          })
-        return shuffleArray(group)
-      })
+                    const options = Array.isArray(question.options) ? question.options : []
+                    return {
+                      ...question,
+                      options: shuffleArray(options.map((option: any, index: number) => {
+                        const originalKey = String(option?.key ?? String.fromCharCode(65 + index))
+                        return typeof option === 'string'
+                          ? { key: originalKey, text: option }
+                          : { ...option, key: originalKey }
+                      })),
+                    }
+                  })
+                return shuffleArray(group)
+              })
+            })()
 
       if (!active) return
 
