@@ -20,7 +20,7 @@ type Props = {
 
 const TILE_W = 72
 const TILE_H = 38
-const WALL_H = 22
+const WALL_H = 34
 
 function points(coords: number[][]) {
   return coords.map(([x, y]) => `${x},${y}`).join(' ')
@@ -32,7 +32,8 @@ function Robot({ x, y, direction = 1, animate = false, offsetX = 0, offsetY = 0 
     <g transform={`translate(${x} ${y})`} className={animate ? 'maze-robot-bob' : ''} style={{ transformBox: 'fill-box', transformOrigin: 'center' }}>
       {animate && (offsetX !== 0 || offsetY !== 0) && <animateTransform attributeName="transform" type="translate" from={`${offsetX} ${offsetY}`} to="0 0" dur="260ms" fill="freeze" />}
       <ellipse cx="0" cy="8" rx="19" ry="8" fill="#071b2c" opacity=".35" />
-      <g transform={`rotate(${rotations[direction] ?? 90})`}>
+      <path d="M0 15 L-5 24 L5 24 Z" fill="#fbbf24" stroke="#92400e" strokeWidth="1.5" transform={`rotate(${rotations[direction] ?? 90} 0 19)`} />
+      <g>
         <path d="M-12 4 L-16 12 L-7 12 L-4 4 M7 4 L4 12 L15 12 L12 4" fill="#334155" stroke="#0f172a" strokeWidth="2" strokeLinejoin="round" />
         <rect x="-14" y="-17" width="28" height="25" rx="8" fill="#f8fafc" stroke="#334155" strokeWidth="2.5" />
         <rect x="-11" y="-13" width="22" height="14" rx="5" fill="#0e7490" />
@@ -72,6 +73,9 @@ export default function MazeV2IsometricBoard({
       top: points([[c.x,c.y-TILE_H/2],[c.x+TILE_W/2,c.y],[c.x,c.y+TILE_H/2],[c.x-TILE_W/2,c.y]]),
       left: points([[c.x-TILE_W/2,c.y],[c.x,c.y+TILE_H/2],[c.x,c.y+TILE_H/2+8],[c.x-TILE_W/2,c.y+8]]),
       right: points([[c.x,c.y+TILE_H/2],[c.x+TILE_W/2,c.y],[c.x+TILE_W/2,c.y+8],[c.x,c.y+TILE_H/2+8]]),
+      wallTop: points([[c.x-TILE_W/2,c.y-WALL_H],[c.x,c.y-TILE_H/2-WALL_H],[c.x+TILE_W/2,c.y-WALL_H],[c.x,c.y+TILE_H/2-WALL_H]]),
+      wallLeft: points([[c.x-TILE_W/2,c.y-WALL_H],[c.x,c.y+TILE_H/2-WALL_H],[c.x,c.y+TILE_H/2],[c.x-TILE_W/2,c.y]]),
+      wallRight: points([[c.x,c.y+TILE_H/2-WALL_H],[c.x+TILE_W/2,c.y-WALL_H],[c.x+TILE_W/2,c.y],[c.x,c.y+TILE_H/2]]),
       center: c,
     }
   }
@@ -133,11 +137,11 @@ export default function MazeV2IsometricBoard({
             return (
               <g key={`${x}-${y}`}>
                 {wall && <>
-                  <polygon points={t.left} fill="#334155" stroke="#1e293b" strokeWidth="1" />
-                  <polygon points={t.right} fill="url(#maze-wall-side)" stroke="#1e293b" strokeWidth="1" />
-                  <polygon points={t.top} fill="url(#maze-wall)" stroke="#475569" strokeWidth="2" />
-                  <path d={`M${t.center.x-19} ${t.center.y-2} l9 -5 l8 4 l-7 5 Z`} fill="#e2e8f0" opacity=".7" />
-                  <circle cx={t.center.x+13} cy={t.center.y-2} r="3" fill="#475569" opacity=".65" />
+                  <polygon points={t.wallLeft} fill="#475569" stroke="#1e293b" strokeWidth="1.2" />
+                  <polygon points={t.wallRight} fill="url(#maze-wall-side)" stroke="#1e293b" strokeWidth="1.2" />
+                  <polygon points={t.wallTop} fill="url(#maze-wall)" stroke="#475569" strokeWidth="2" />
+                  <path d={`M${t.center.x-19} ${t.center.y-WALL_H-2} l9 -5 l8 4 l-7 5 Z`} fill="#e2e8f0" opacity=".7" />
+                  <circle cx={t.center.x+13} cy={t.center.y-WALL_H-2} r="3" fill="#475569" opacity=".65" />
                 </>}
                 {!wall && <>
                   <polygon points={t.left} fill="#15803d" opacity=".85" />
