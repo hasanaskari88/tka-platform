@@ -1644,6 +1644,7 @@ function AdminPracticeContent() {
                 start={mazeStart}
                 target={mazeTarget}
                 obstacles={mazeObstacles}
+                level={mazeLevelNumber}
                 mode="edit"
                 editMode={mazeEditMode}
                 onCellClick={handleMazeCellClick}
