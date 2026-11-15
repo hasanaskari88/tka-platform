@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { getMazeV2LevelNumber } from '@/lib/games/maze-v2-levels'
 import MazeV2IsometricBoard from '@/components/games/MazeV2IsometricBoard'
+import confetti from 'canvas-confetti'
 
 type Point = { x: number; y: number }
 type Direction = 0 | 1 | 2 | 3
@@ -277,6 +278,8 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
         const next=[...completedRef.current];setCompletedIds(next)
         persistProgress(next, 'in_progress')
         setFeedback('🎉 Hebat! Robot mencapai bintang. Level selesai!')
+        void confetti({ particleCount: 110, spread: 78, startVelocity: 38, origin: { y: 0.68 } })
+        window.setTimeout(() => { void confetti({ particleCount: 55, spread: 110, startVelocity: 28, origin: { y: 0.62 } }) }, 180)
         if(next.length===5 && hasFiveLevels) await finishMaze(next.length)
       }
     } else if(crashed) setFeedback('💥 Robot menabrak dinding atau keluar jalur. Tekan Ulangi dan perbaiki program.')
@@ -506,11 +509,6 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
             </div>
 
             <div aria-live="polite" className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm font-semibold leading-relaxed text-cyan-50">{feedback}</div>
-            {complete && completedIds.length < 5 && (
-              <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
-                ✓ Level {level} selesai! Pilih tantangan berikutnya di peta petualangan.
-              </div>
-            )}
             {completedIds.length === 5 && !finishSummary && !finishing && (
               <button type="button" onClick={retryFinish} className="w-full rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-4 py-3 font-black text-amber-950 shadow-lg">
                 Coba Simpan Hasil Lagi
@@ -529,6 +527,21 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
             )}
           </section>
         </div>
+        {complete && missionIndex < missions.length - 1 && (
+          <div className="rounded-3xl border border-emerald-300/25 bg-gradient-to-r from-emerald-400/10 to-cyan-400/10 p-3 shadow-xl sm:p-4">
+            <div className="mb-3 text-center text-sm font-bold text-emerald-100">
+              🎉 Level {level} berhasil diselesaikan! Siap untuk tantangan berikutnya?
+            </div>
+            <button
+              type="button"
+              onClick={() => chooseLevel(missionIndex + 1)}
+              disabled={running || finishing}
+              className="w-full rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-5 py-4 text-base font-black text-amber-950 shadow-lg transition hover:brightness-105 disabled:opacity-40"
+            >
+              Lanjutkan Misi Berikutnya →
+            </button>
+          </div>
+        )}
       </main>
     </div>
   )
