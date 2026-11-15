@@ -58,6 +58,7 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
   const [program,setProgram] = useState<Block[]>([])
   const [robot,setRobot] = useState<Point>(start)
   const [direction,setDirection] = useState<Direction>(1)
+  const [boardRotation,setBoardRotation] = useState<0|90|180|270>(0)
   const [running,setRunning] = useState(false)
   const [complete,setComplete] = useState(false)
   const [feedback,setFeedback] = useState('Pilih blok, susun perintah, lalu jalankan robot!')
@@ -68,7 +69,9 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
   const [completedIds,setCompletedIds] = useState<string[]>([])
   const [finishing,setFinishing] = useState(false)
   const [finishSummary,setFinishSummary] = useState<any>(null)
-  const attemptPromise = useRef<Promise<string>|null>(null)
+  const attemptPromise = useRef<Promise<{id:string|null;completedIds:string[];finishSummary:any|null}>|null>(null)
+  const storageKeyRef = useRef<string|null>(null)
+  const autoFinishAttemptRef = useRef<string|null>(null)
   const completedRef = useRef<Set<string>>(new Set())
   const finishLock = useRef(false)
 
@@ -98,15 +101,42 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
               throw new Error('Akun ini belum memiliki role siswa atau admin. Hubungi administrator.')
             }
 
+            const storageKey = `maze-v2-progress:${authData.user.id}:${exam.id}`
+            storageKeyRef.current = storageKey
+            let saved: any = null
+            try { saved = JSON.parse(window.localStorage.getItem(storageKey) || 'null') } catch { saved = null }
+            const validMissionIds = new Set(missions.map((item, index) => String(item.id ?? `maze-v2-${index}`)))
+            const savedIds = Array.isArray(saved?.completedIds)
+              ? saved.completedIds.map((value: unknown) => String(value)).filter((value: string) => validMissionIds.has(value))
+              : []
+
+            if (saved?.status === 'completed' && saved?.finishSummary) {
+              return { id: null, completedIds: savedIds, finishSummary: saved.finishSummary }
+            }
+            if (saved?.attemptId) {
+              return { id: String(saved.attemptId), completedIds: savedIds, finishSummary: null }
+            }
+
             const {data,error} = await supabase.rpc('start_practice_attempt',{p_exam_id:exam.id})
             if (error) throw error
             const id = typeof data==='string' ? data : data?.attempt_id ?? data?.id
             if (!id) throw new Error('ID sesi latihan tidak ditemukan.')
-            return String(id)
+            try {
+              window.localStorage.setItem(storageKey, JSON.stringify({attemptId:String(id),completedIds:[],status:'in_progress'}))
+            } catch {}
+            return { id: String(id), completedIds: [], finishSummary: null }
           })()
         }
-        const id = await attemptPromise.current
-        if (active) { setAttemptId(id); setAttemptError(''); setAttemptLoading(false) }
+        const result = await attemptPromise.current
+        if (active) {
+          completedRef.current = new Set(result.completedIds)
+          setCompletedIds(result.completedIds)
+          setComplete(result.completedIds.includes(missionId))
+          setAttemptId(result.id)
+          setFinishSummary(result.finishSummary)
+          setAttemptError('')
+          setAttemptLoading(false)
+        }
       } catch (error: any) {
         console.error('Gagal memulai Maze V2:', error)
         attemptPromise.current = null
@@ -135,6 +165,19 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
     setFeedback(done ? 'Level ini sudah selesai. Pilih level lain untuk melanjutkan.' : 'Susun blok perintah untuk mencapai bintang!')
   },[missionId])
 
+  const persistProgress = (ids: string[], status: 'in_progress'|'completed', summary?: any) => {
+    const key = storageKeyRef.current
+    if (!key) return
+    try {
+      window.localStorage.setItem(key, JSON.stringify({
+        attemptId,
+        completedIds: ids,
+        status,
+        ...(summary ? { finishSummary: summary } : {}),
+      }))
+    } catch {}
+  }
+
   const finishMaze = async (count:number) => {
     if (!attemptId || finishLock.current || count!==missions.length) return
     finishLock.current=true
@@ -145,6 +188,7 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
         p_attempt_id:attemptId,p_answered_count:count,p_correct_count:count,p_streak_xp:0,
       })
       if(error) throw error
+      persistProgress([...completedRef.current], 'completed', data)
       setFinishSummary(data)
       setFeedback('🏆 Semua level selesai! Hasil latihan tersimpan.')
     } catch(error) {
@@ -216,12 +260,20 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
       if(!completedRef.current.has(missionId)) {
         completedRef.current.add(missionId)
         const next=[...completedRef.current];setCompletedIds(next)
+        persistProgress(next, 'in_progress')
         setFeedback('🎉 Hebat! Robot mencapai bintang. Level selesai!')
         if(next.length===missions.length) await finishMaze(next.length)
       }
     } else if(crashed) setFeedback('💥 Robot menabrak dinding atau keluar jalur. Tekan Ulangi dan perbaiki program.')
     else setFeedback('Robot belum mencapai bintang. Periksa kembali urutan perintahmu!')
   }
+
+  useEffect(() => {
+    if (attemptId && missions.length > 0 && completedRef.current.size === missions.length && !finishSummary && !finishing && autoFinishAttemptRef.current !== attemptId) {
+      autoFinishAttemptRef.current = attemptId
+      void finishMaze(completedRef.current.size)
+    }
+  }, [attemptId, missions.length, finishSummary, finishing])
 
   const retryFinish = async () => {
     if(completedRef.current.size===missions.length&&!finishSummary&&!finishing) await finishMaze(completedRef.current.size)
@@ -234,6 +286,9 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
       const supabase=createClient()
       const {error}=await supabase.rpc('abandon_practice_attempt',{p_attempt_id:attemptId})
       if(error) throw error
+      if (storageKeyRef.current) {
+        try { window.localStorage.removeItem(storageKeyRef.current) } catch {}
+      }
       router.push('/practice')
     } catch(error) { console.error(error);alert('Sesi belum berhasil ditutup. Periksa koneksi lalu coba lagi.') }
   }
@@ -286,7 +341,11 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
           <section className="rounded-2xl border border-white/10 bg-slate-900/85 p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <div><h2 className="font-extrabold">🗺️ Papan Labirin</h2><p className="text-xs text-slate-400">{width} × {height} · Arah: {['Utara','Timur','Selatan','Barat'][direction]}</p></div>
-              <span className="rounded-lg bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-200">Level {level}</span>
+              <div className="flex items-center gap-1.5">
+                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(value=>((value+270)%360) as 0|90|180|270)} aria-label="Putar papan ke kiri" title="Putar kiri" className="rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-sm font-black text-white disabled:opacity-40">↶</button>
+                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(value=>((value+90)%360) as 0|90|180|270)} aria-label="Putar papan ke kanan" title="Putar kanan" className="rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-sm font-black text-white disabled:opacity-40">↷</button>
+                <span className="rounded-lg bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-200">Level {level}</span>
+              </div>
             </div>
             <MazeV2IsometricBoard
               width={width}
@@ -296,6 +355,7 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
               obstacles={walls}
               robot={robot}
               direction={direction}
+              rotation={boardRotation}
               running={running}
               title={`Dunia Labirin · Level ${level}`}
             />

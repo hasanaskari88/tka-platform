@@ -11,6 +11,7 @@ type Props = {
   obstacles: Point[]
   robot?: Point
   direction?: number
+  rotation?: 0 | 90 | 180 | 270
   mode?: 'play' | 'edit'
   editMode?: 'start' | 'target' | 'obstacle'
   onCellClick?: (x: number, y: number) => void
@@ -51,7 +52,7 @@ function Robot({ x, y, direction = 1, animate = false, offsetX = 0, offsetY = 0 
 }
 
 export default function MazeV2IsometricBoard({
-  width, height, start, target, obstacles, robot, direction = 1,
+  width, height, start, target, obstacles, robot, direction = 1, rotation = 0,
   mode = 'play', editMode, onCellClick, running = false, title = 'Labirin Petualangan',
 }: Props) {
   const isWall = (x: number, y: number) => obstacles.some((p) => p.x === x && p.y === y)
@@ -59,14 +60,25 @@ export default function MazeV2IsometricBoard({
   const safeWidth = Math.max(2, Math.min(12, width))
   const safeHeight = Math.max(2, Math.min(12, height))
   const pad = 54
-  const boardWidth = (safeWidth + safeHeight) * TILE_W / 2 + pad * 2
-  const boardHeight = (safeWidth + safeHeight) * TILE_H / 2 + WALL_H + 100
+  const rotatedWidth = rotation % 180 === 0 ? safeWidth : safeHeight
+  const rotatedHeight = rotation % 180 === 0 ? safeHeight : safeWidth
+  const boardWidth = (rotatedWidth + rotatedHeight) * TILE_W / 2 + pad * 2
+  const boardHeight = (rotatedWidth + rotatedHeight) * TILE_H / 2 + WALL_H + 100
   const originX = boardWidth / 2
   const originY = 48
-  const center = (x: number, y: number) => ({
-    x: originX + (x - y) * TILE_W / 2,
-    y: originY + (x + y) * TILE_H / 2,
-  })
+  const rotateCell = (x: number, y: number) => {
+    if (rotation === 90) return { x: safeHeight - 1 - y, y: x }
+    if (rotation === 180) return { x: safeWidth - 1 - x, y: safeHeight - 1 - y }
+    if (rotation === 270) return { x: y, y: safeWidth - 1 - x }
+    return { x, y }
+  }
+  const center = (x: number, y: number) => {
+    const point = rotateCell(x, y)
+    return {
+      x: originX + (point.x - point.y) * TILE_W / 2,
+      y: originY + (point.x + point.y) * TILE_H / 2,
+    }
+  }
   const tile = (x: number, y: number) => {
     const c = center(x, y)
     return {
@@ -113,7 +125,7 @@ export default function MazeV2IsometricBoard({
           className="mx-auto block h-auto w-full min-w-[300px] max-w-[760px] overflow-visible"
         >
           <defs>
-            <linearGradient id="maze-grass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bbf7d0"/><stop offset=".48" stopColor="#4ade80"/><stop offset="1" stopColor="#15803d"/></linearGradient>
+            <linearGradient id="maze-path" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff7cc"/><stop offset=".5" stopColor="#facc65"/><stop offset="1" stopColor="#d97706"/></linearGradient>
             <linearGradient id="maze-wall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#cbd5e1"/><stop offset="1" stopColor="#64748b"/></linearGradient>
             <linearGradient id="maze-wall-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#64748b"/><stop offset="1" stopColor="#334155"/></linearGradient>
             <filter id="maze-shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
@@ -144,10 +156,10 @@ export default function MazeV2IsometricBoard({
                   <circle cx={t.center.x+13} cy={t.center.y-WALL_H-2} r="3" fill="#475569" opacity=".65" />
                 </>}
                 {!wall && <>
-                  <polygon points={t.left} fill="#15803d" opacity=".85" />
-                  <polygon points={t.right} fill="#166534" opacity=".9" />
-                  <polygon points={t.top} fill="url(#maze-grass)" stroke="#dcfce7" strokeOpacity=".65" strokeWidth="1.5" />
-                  <path d={`M${t.center.x-15} ${t.center.y} l5 -2 M${t.center.x+12} ${t.center.y+5} l4 -2`} stroke="#ecfccb" strokeWidth="2" strokeLinecap="round" opacity=".55" />
+                  <polygon points={t.left} fill="#b45309" opacity=".95" />
+                  <polygon points={t.right} fill="#92400e" opacity=".95" />
+                  <polygon points={t.top} fill="url(#maze-path)" stroke="#fff7ed" strokeWidth="2.5" />
+                  <polygon points={points([[t.center.x,t.center.y-TILE_H/2+5],[t.center.x+TILE_W/2-7,t.center.y],[t.center.x,t.center.y+TILE_H/2-5],[t.center.x-TILE_W/2+7,t.center.y]])} fill="none" stroke="#b45309" strokeWidth="1.5" strokeDasharray="4 3" opacity=".72" />
                 </>}
                 {isStart && <g transform={`translate(${t.center.x-9} ${t.center.y-24})`}>
                   <path d="M9 25 V-9" stroke="#854d0e" strokeWidth="3" strokeLinecap="round" />
@@ -172,7 +184,7 @@ export default function MazeV2IsometricBoard({
               </g>
             )
           })}
-          <Robot x={robotCenter.x} y={robotCenter.y-7} direction={direction} animate={running} offsetX={robotOffsetX} offsetY={robotOffsetY} />
+          <Robot x={robotCenter.x} y={robotCenter.y-7} direction={((direction + rotation / 90) % 4) as 0|1|2|3} animate={running} offsetX={robotOffsetX} offsetY={robotOffsetY} />
           <g transform={`translate(18 ${boardHeight-32})`}>
             <rect x="0" y="-14" width={Math.max(140, boardWidth-36)} height="27" rx="13" fill="#082f49" opacity=".22" />
             <text x="12" y="4" fontSize="11" fontWeight="800" fill="#f0f9ff">JELAJAHI • SUSUN PERINTAH • CAPAI BINTANG</text>

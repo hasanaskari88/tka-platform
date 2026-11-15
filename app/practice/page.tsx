@@ -278,7 +278,7 @@ export default function PracticeHubPage() {
         const perfectCounts: Record<string, number> = { QUIZ: 0, MAZE_GAME: 0, FLASHCARD: 0 }
         completedRecords.forEach((attempt: any) => {
           const rawType = typeByExam.get(String(attempt.exam_id)) || 'QUIZ'
-          const type = rawType === 'MAZE' ? 'MAZE_GAME' : rawType === 'FLASH_CARDS' ? 'FLASHCARD' : rawType
+          const type = rawType === 'MAZE' || rawType === 'MAZE_GAME_V2' ? 'MAZE_GAME' : rawType === 'FLASH_CARDS' ? 'FLASHCARD' : rawType
           if (type in completedCounts) {
             completedCounts[type] += 1
             if (Number(attempt.score || 0) >= 100) perfectCounts[type] += 1
@@ -287,7 +287,7 @@ export default function PracticeHubPage() {
 
         completedFlashcardRecords.forEach((session: any) => {
           const rawType = typeByExam.get(String(session.exam_id)) || 'FLASHCARD'
-          const type = rawType === 'MAZE' ? 'MAZE_GAME' : rawType === 'FLASH_CARDS' ? 'FLASHCARD' : rawType
+          const type = rawType === 'MAZE' || rawType === 'MAZE_GAME_V2' ? 'MAZE_GAME' : rawType === 'FLASH_CARDS' ? 'FLASHCARD' : rawType
           if (type === 'FLASHCARD') {
             completedCounts.FLASHCARD += 1
             // Sesi Flashcard hanya berstatus completed setelah semua kartu dikuasai.
@@ -460,7 +460,7 @@ export default function PracticeHubPage() {
 
   const normalizedActivityType = (value: unknown) => {
     const type = String(value || 'QUIZ').trim().toUpperCase()
-    if (type === 'MAZE_GAME' || type === 'MAZE') return 'MAZE_GAME'
+    if (type === 'MAZE_GAME' || type === 'MAZE' || type === 'MAZE_GAME_V2') return 'MAZE_GAME'
     if (type === 'FLASHCARD' || type === 'FLASH_CARDS') return 'FLASHCARD'
     if (type === 'QUIZ' || type === 'CBT' || type === 'EXAM') return 'QUIZ'
     return 'OTHER'
