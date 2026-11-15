@@ -3,85 +3,89 @@
 type Point = { x: number; y: number }
 type Props = { width: number; height: number; start: Point; target: Point; obstacles: Point[]; robot: Point; direction: number; running?: boolean }
 
-const W = 62
-const H = 34
-const DEPTH = 12
+const CELL = 64
+const PAD = 18
 
 export default function MazeV1IsometricBoard({ width, height, start, target, obstacles, robot, direction, running = false }: Props) {
-  const cols = Math.max(2, Math.min(12, width))
-  const rows = Math.max(2, Math.min(12, height))
-  const boardW = (cols + rows) * W / 2
-  const boardH = (cols + rows) * H / 2
-  const ox = 44 + rows * W / 2
-  const oy = 64
-  const svgW = boardW + 88
-  const svgH = boardH + 116
-  const at = (x: number, y: number) => ({ x: ox + (x - y) * W / 2, y: oy + (x + y) * H / 2 })
-  const wall = (x: number, y: number) => obstacles.some(p => p.x === x && p.y === y)
-  const cells = Array.from({ length: cols * rows }, (_, i) => ({ x: i % cols, y: Math.floor(i / cols) })).sort((a,b) => a.x + a.y - b.x - b.y)
-  const robotAt = at(robot.x, robot.y)
+  const cols = Math.max(2, Math.min(14, width))
+  const rows = Math.max(2, Math.min(14, height))
+  const svgW = cols * CELL + PAD * 2
+  const svgH = rows * CELL + PAD * 2 + 34
+  const blocked = (x: number, y: number) => obstacles.some(p => p.x === x && p.y === y)
+  const cells = Array.from({ length: cols * rows }, (_, i) => ({ x: i % cols, y: Math.floor(i / cols) }))
+  const robotX = PAD + robot.x * CELL + CELL / 2
+  const robotY = PAD + robot.y * CELL + CELL / 2 + 17
+  const arrows = ['↑', '→', '↓', '←']
+  const arrow = arrows[((direction % 4) + 4) % 4]
 
   return (
-    <div className="relative overflow-hidden rounded-3xl border-2 border-cyan-100 bg-[linear-gradient(145deg,#7dd3fc,#818cf8_65%,#c4b5fd)] p-3 shadow-2xl sm:p-4">
-      <div className="pointer-events-none absolute -left-10 bottom-0 h-36 w-36 rounded-full bg-emerald-200/50 blur-2xl" />
-      <div className="pointer-events-none absolute -right-10 top-0 h-36 w-36 rounded-full bg-fuchsia-200/40 blur-2xl" />
-      <div className="relative z-10 flex items-center justify-between px-2 pb-1">
-        <div><p className="text-xs font-black uppercase tracking-wider text-sky-950">Pulau Petualangan</p><p className="text-[10px] font-bold text-sky-950/70">Arena labirin 3D isometrik</p></div>
+    <div className="relative overflow-hidden rounded-3xl border-2 border-sky-200 bg-gradient-to-br from-sky-300 via-cyan-200 to-indigo-300 p-3 shadow-2xl sm:p-4">
+      <div className="pointer-events-none absolute -left-12 -top-12 h-40 w-40 rounded-full bg-white/40 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-fuchsia-300/30 blur-3xl" />
+      <div className="relative z-10 flex items-center justify-between gap-2 px-1 pb-3">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider text-sky-950">Peta Labirin</p>
+          <p className="text-[10px] font-bold text-sky-950/70">Petak lurus · jalur kotak</p>
+        </div>
         <span className="rounded-full border border-white/80 bg-white/75 px-3 py-1 text-[10px] font-black text-sky-950">{cols} × {rows}</span>
       </div>
-      <div className="relative z-10 overflow-x-auto">
-        <svg viewBox={`0 0 ${svgW} ${svgH}`} role="img" aria-label={`Labirin 3D ${cols} kali ${rows}`} className="mx-auto block h-auto w-full min-w-[300px] max-w-[760px]">
+      <div className="relative z-10 overflow-x-auto rounded-2xl border border-white/70 bg-white/35 p-2">
+        <svg viewBox={`0 0 ${svgW} ${svgH}`} role="img" aria-label={`Peta labirin kotak ${cols} kali ${rows}`} className="mx-auto block h-auto w-full min-w-[280px] max-w-[720px]">
           <defs>
-            <linearGradient id="v1-grass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bbf7d0"/><stop offset=".6" stopColor="#4ade80"/><stop offset="1" stopColor="#15803d"/></linearGradient>
-            <linearGradient id="v1-path" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff7cc"/><stop offset="1" stopColor="#fbbf24"/></linearGradient>
-            <linearGradient id="v1-stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#e2e8f0"/><stop offset="1" stopColor="#64748b"/></linearGradient>
-            <linearGradient id="v1-portal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#f0abfc"/><stop offset=".5" stopColor="#8b5cf6"/><stop offset="1" stopColor="#2563eb"/></linearGradient>
+            <linearGradient id="maze-v1-ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#bbf7d0"/><stop offset="1" stopColor="#4ade80"/></linearGradient>
+            <linearGradient id="maze-v1-wall" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#94a3b8"/><stop offset="1" stopColor="#475569"/></linearGradient>
+            <filter id="maze-v1-shadow" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="4" stdDeviation="3" floodColor="#0f172a" floodOpacity=".25"/></filter>
           </defs>
-          <g fill="#fff" opacity=".8"><path d="M15 38 Q10 25 25 22 Q30 8 46 17 Q61 8 69 27 Q84 27 80 38Z"/><path d={`M${svgW-94} 40 Q${svgW-102} 27 ${svgW-88} 23 Q${svgW-83} 10 ${svgW-67} 18 Q${svgW-53} 9 ${svgW-46} 27 Q${svgW-30} 27 ${svgW-35} 40Z`}/></g>
-          <polygon points={`${ox},${oy-8} ${ox+boardW/2},${oy+boardH/2-8} ${ox},${oy+boardH-8} ${ox-boardW/2},${oy+boardH/2-8}`} fill="#14532d" opacity=".28"/>
+          <rect x={PAD-5} y={PAD-5} width={cols*CELL+10} height={rows*CELL+10} rx="16" fill="#166534" opacity=".3"/>
           {cells.map(({x,y}) => {
-            const p = at(x,y)
-            const blocked = wall(x,y)
-            const top = `${p.x},${p.y-H/2} ${p.x+W/2},${p.y} ${p.x},${p.y+H/2} ${p.x-W/2},${p.y}`
-            const left = `${p.x-W/2},${p.y} ${p.x},${p.y+H/2} ${p.x},${p.y+H/2+DEPTH} ${p.x-W/2},${p.y+DEPTH}`
-            const right = `${p.x+W/2},${p.y} ${p.x},${p.y+H/2} ${p.x},${p.y+H/2+DEPTH} ${p.x+W/2},${p.y+DEPTH}`
+            const px = PAD + x*CELL
+            const py = PAD + y*CELL + 17
+            const isWall = blocked(x,y)
             const isStart = start.x===x && start.y===y
             const isGoal = target.x===x && target.y===y
             return <g key={`${x}-${y}`}>
-              <polygon points={left} fill={blocked ? "#475569" : "#15803d"}/>
-              <polygon points={right} fill={blocked ? "#334155" : "#166534"}/>
-              {blocked ? <g>
-                <polygon points={top} transform="translate(0 -12)" fill="#334155" opacity=".4"/>
-                <polygon points={top} transform="translate(0 -15)" fill="url(#v1-stone)" stroke="#475569" strokeWidth="2"/>
-                <path d={`M${p.x-16} ${p.y-17} h14 m7 0 h10 M${p.x-8} ${p.y-5} h14 m6 0 h7`} stroke="#64748b" strokeWidth="2" strokeLinecap="round"/>
-              </g> : <g>
-                <polygon points={top} fill="url(#v1-path)" stroke="#fff7ed" strokeWidth="2"/>
-                <path d={`M${p.x-12} ${p.y} l12 ${H/2-7} l12 ${-H/2+7}`} fill="none" stroke="#d97706" strokeWidth="1.3" strokeDasharray="3 4" opacity=".45"/>
+              <rect x={px} y={py} width={CELL} height={CELL} fill={isWall ? "#64748b" : "url(#maze-v1-ground)"} stroke={isWall ? "#334155" : "#f0fdf4"} strokeWidth="2"/>
+              {!isWall && <path d={`M${px+7} ${py+CELL-10} h12 m8 0 h7`} stroke="#15803d" strokeWidth="2" strokeLinecap="round" opacity=".35"/>}
+              {isWall && <g filter="url(#maze-v1-shadow)">
+                <rect x={px+7} y={py+7} width={CELL-14} height={CELL-14} rx="8" fill="url(#maze-v1-wall)" stroke="#334155" strokeWidth="2"/>
+                <path d={`M${px+13} ${py+24} h15 m6 0 h10 M${px+13} ${py+39} h10 m7 0 h14`} stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity=".8"/>
               </g>}
-              {isStart && <g transform={`translate(${p.x} ${p.y-8})`}><path d="M-2 8 V-23" stroke="#78350f" strokeWidth="3.5"/><path d="M0 -22 Q14 -28 20 -18 L0 -12Z" fill="#fb7185" stroke="#9f1239" strokeWidth="1.5"/><rect x="-21" y="12" width="42" height="12" rx="6" fill="#166534"/><text x="0" y="20.5" textAnchor="middle" fontSize="8" fontWeight="900" fill="#fff">MULAI</text></g>}
-              {isGoal && <g transform={`translate(${p.x} ${p.y-8})`}><circle r="22" fill="#f0abfc" opacity=".3"/><circle r="18" fill="none" stroke="#fef08a" strokeWidth="4"/><circle r="13" fill="url(#v1-portal)" stroke="#fff" strokeWidth="2"/><path d="M0 -7 L2 -2 L8 -2 L3 2 L5 8 L0 4 L-5 8 L-3 2 L-8 -2 L-2 -2Z" fill="#fde047"/><rect x="-19" y="21" width="38" height="12" rx="6" fill="#7e22ce"/><text x="0" y="29.5" textAnchor="middle" fontSize="8" fontWeight="900" fill="#fff">GOAL</text></g>}
+              {isStart && <g>
+                <circle cx={px+CELL/2} cy={py+CELL/2} r="23" fill="#16a34a" stroke="#dcfce7" strokeWidth="3"/>
+                <path d={`M${px+CELL/2-1} ${py+CELL/2+13} v-29`} stroke="#14532d" strokeWidth="3"/>
+                <path d={`M${px+CELL/2+1} ${py+CELL/2-15} l17 6 -17 7Z`} fill="#fb7185" stroke="#9f1239" strokeWidth="1.5"/>
+                <text x={px+CELL/2} y={py+CELL-3} fontSize="8" textAnchor="middle" fontWeight="900" fill="#14532d">MULAI</text>
+              </g>}
+              {isGoal && <g>
+                <circle cx={px+CELL/2} cy={py+CELL/2} r="23" fill="#7c3aed" stroke="#f5d0fe" strokeWidth="4"/>
+                <circle cx={px+CELL/2} cy={py+CELL/2} r="15" fill="#c4b5fd" stroke="#fff" strokeWidth="2"/>
+                <path d={`M${px+CELL/2} ${py+CELL/2-10} l4 8 9 1 -7 6 2 9 -8 -5 -8 5 2 -9 -7 -6 9 -1Z`} fill="#fef08a"/>
+                <text x={px+CELL/2} y={py+CELL-3} fontSize="8" textAnchor="middle" fontWeight="900" fill="#581c87">TUJUAN</text>
+              </g>}
             </g>
           })}
-          <g transform={`translate(${robotAt.x} ${robotAt.y-9})`}>
-            {running && <ellipse cy="8" rx="18" ry="8" fill="#0f172a" opacity=".2"/>}
-            <ellipse cy="5" rx="15" ry="10" fill="#0f172a" opacity=".25"/>
-            {/* Tubuh robot selalu tegak; hanya penunjuk arah yang berubah. */}
-            <rect x="-13" y="-16" width="26" height="27" rx="8" fill="#f8fafc" stroke="#334155" strokeWidth="2.5"/>
-            <rect x="-9" y="-11" width="18" height="14" rx="5" fill="#0284c7"/>
-            <circle cx="-4" cy="-5" r="2.2" fill="#e0f2fe"/><circle cx="4" cy="-5" r="2.2" fill="#e0f2fe"/>
-            <path d="M-4 1 Q0 5 4 1" fill="none" stroke="#e0f2fe" strokeWidth="1.5"/>
-            <path d="M-7 -16 L-10 -22 M7 -16 L10 -22" stroke="#475569" strokeWidth="2.5" strokeLinecap="round"/>
-            <circle cx="-10" cy="-22" r="3" fill="#facc15"/><circle cx="10" cy="-22" r="3" fill="#facc15"/>
-            <path d="M0 -25 L-5 -16 L5 -16Z" fill="#f97316"/>
-            <g transform={`translate(0 -39)`}>
-              <circle r="9" fill="#0f172a" stroke="#fff" strokeWidth="1.5"/>
-              <path d={["M0 -5 L0 5 M-3 2 L0 5 L3 2","M-5 0 L5 0 M2 -3 L5 0 L2 3","M0 -5 L0 5 M-3 -2 L0 -5 L3 -2","M-5 0 L5 0 M-2 -3 L-5 0 L-2 3"][direction] || "M0 -5 L0 5"} fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <g transform={`translate(${robotX} ${robotY})`} filter="url(#maze-v1-shadow)">
+            {running && <circle r="25" fill="#38bdf8" opacity=".25"/>}
+            <ellipse cy="18" rx="15" ry="5" fill="#0f172a" opacity=".22"/>
+            <rect x="-13" y="-17" width="26" height="31" rx="9" fill="#f8fafc" stroke="#334155" strokeWidth="2.5"/>
+            <rect x="-9" y="-12" width="18" height="15" rx="5" fill="#0284c7"/>
+            <circle cx="-4" cy="-6" r="2.4" fill="#e0f2fe"/><circle cx="4" cy="-6" r="2.4" fill="#e0f2fe"/>
+            <path d="M-4 0 Q0 4 4 0" fill="none" stroke="#e0f2fe" strokeWidth="1.5" strokeLinecap="round"/>
+            <path d="M-13 -8 L-19 -3 M13 -8 L19 -3" stroke="#334155" strokeWidth="4" strokeLinecap="round"/>
+            <path d="M-7 13 L-9 18 M7 13 L9 18" stroke="#334155" strokeWidth="4" strokeLinecap="round"/>
+            <path d="M0 -17 V-23" stroke="#475569" strokeWidth="2.5" strokeLinecap="round"/>
+            <circle cy="-25" r="4" fill="#facc15" stroke="#854d0e" strokeWidth="1"/>
+            <g transform="translate(0 -39)">
+              <circle r="10" fill="#0f172a" stroke="#fff" strokeWidth="1.5"/>
+              <text y="4" textAnchor="middle" fontSize="12" fontWeight="900" fill="#facc15">{arrow}</text>
             </g>
           </g>
-          <text x="10" y={svgH-12} fontSize="9" fontWeight="900" fill="#082f49">RANGKAI BLOK • JALANKAN ROBOT • CAPAI PORTAL</text>
+          <text x={PAD} y={svgH-7} fontSize="9" fontWeight="900" fill="#082f49">SUSUN BLOK • JALANKAN ROBOT • CAPAI TUJUAN</text>
         </svg>
       </div>
-      <div className="relative z-10 mt-1 grid grid-cols-2 gap-2 rounded-xl border border-white/70 bg-white/75 p-2 text-[10px] font-extrabold text-slate-800 sm:grid-cols-4 sm:p-3 sm:text-xs"><span>🤖 Robot</span><span>🚩 Mulai</span><span>🌀 Tujuan</span><span>🧱 Dinding</span></div>
+      <div className="relative z-10 mt-2 grid grid-cols-2 gap-2 rounded-xl border border-white/70 bg-white/75 p-2 text-[10px] font-extrabold text-slate-800 sm:grid-cols-4 sm:p-3 sm:text-xs">
+        <span>🤖 Robot</span><span>🚩 Mulai</span><span>⭐ Tujuan</span><span>🧱 Penghalang</span>
+      </div>
     </div>
   )
 }
