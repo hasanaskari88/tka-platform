@@ -578,9 +578,14 @@ function AnalysisContent() {
   )
 
   const sortedAnalysis = [...filteredAnalysis].sort((a, b) => {
+    if (sortBy === 'number') return a.question_no - b.question_no
+    // Essay tidak dibandingkan dengan akurasi objektif; letakkan setelah soal objektif.
+    if (a.isEssay !== b.isEssay) return a.isEssay ? 1 : -1
+    if (a.isEssay && b.isEssay) {
+      return sortBy === 'lowest_accuracy' ? a.essayAverage - b.essayAverage : b.essayAverage - a.essayAverage
+    }
     if (sortBy === 'lowest_accuracy') return a.accuracyRate - b.accuracyRate
-    if (sortBy === 'highest_accuracy') return b.accuracyRate - a.accuracyRate
-    return a.question_no - b.question_no
+    return b.accuracyRate - a.accuracyRate
   })
 
   return (
@@ -735,7 +740,7 @@ function AnalysisContent() {
                       #{item.question_no}
                     </span>
                     <span className="text-xs font-bold uppercase bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700">
-                      Tipe: {qType === 'complex_multiple_choice' ? 'PG Kompleks' : qType === 'true_false_matrix' ? 'Matriks' : qType === 'essay' ? 'Essay' : 'Pilihan Ganda'}
+                      Tipe: {qType === 'complex_multiple_choice' ? 'PG Kompleks' : qType === 'true_false_matrix' ? 'Matriks' : qType === 'essay' || qType === 'uraian' ? 'Essay / Uraian' : 'Pilihan Ganda'}
                     </span>
                   </div>
 
