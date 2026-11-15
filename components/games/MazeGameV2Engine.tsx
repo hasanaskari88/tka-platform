@@ -36,6 +36,8 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
   const mission = missions[missionIndex]
   const missionId = String(mission?.id ?? `maze-v2-${missionIndex}`)
   const level = mission ? getMazeV2LevelNumber(mission,missionIndex) : missionIndex+1
+  const levelCounts = [1, 2, 3, 4, 5].map(number => missions.filter((item, index) => getMazeV2LevelNumber(item, index) === number).length)
+  const hasFiveLevels = missions.length === 5 && levelCounts.every(count => count === 1)
   const width = Math.max(2,Math.min(12,Number(mission?.maze_width ?? 7)))
   const height = Math.max(2,Math.min(12,Number(mission?.maze_height ?? 7)))
   const start = {x:Number(mission?.start_x ?? 0),y:Number(mission?.start_y ?? 0)}
@@ -178,7 +180,7 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
   }
 
   const finishMaze = async (count:number) => {
-    if (!attemptId || finishLock.current || count!==missions.length) return
+    if (!attemptId || finishLock.current || !hasFiveLevels || count !== 5) return
     finishLock.current=true
     setFinishing(true)
     try {
@@ -275,21 +277,21 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
         const next=[...completedRef.current];setCompletedIds(next)
         persistProgress(next, 'in_progress')
         setFeedback('🎉 Hebat! Robot mencapai bintang. Level selesai!')
-        if(next.length===missions.length) await finishMaze(next.length)
+        if(next.length===5 && hasFiveLevels) await finishMaze(next.length)
       }
     } else if(crashed) setFeedback('💥 Robot menabrak dinding atau keluar jalur. Tekan Ulangi dan perbaiki program.')
     else setFeedback('Robot belum mencapai bintang. Periksa kembali urutan perintahmu!')
   }
 
   useEffect(() => {
-    if (attemptId && missions.length > 0 && completedRef.current.size === missions.length && !finishSummary && !finishing && autoFinishAttemptRef.current !== attemptId) {
+    if (attemptId && hasFiveLevels && completedRef.current.size === 5 && !finishSummary && !finishing && autoFinishAttemptRef.current !== attemptId) {
       autoFinishAttemptRef.current = attemptId
       void finishMaze(completedRef.current.size)
     }
-  }, [attemptId, missions.length, finishSummary, finishing])
+  }, [attemptId, hasFiveLevels, finishSummary, finishing])
 
   const retryFinish = async () => {
-    if(completedRef.current.size===missions.length&&!finishSummary&&!finishing) await finishMaze(completedRef.current.size)
+    if(hasFiveLevels && completedRef.current.size===5&&!finishSummary&&!finishing) await finishMaze(completedRef.current.size)
   }
   const exitGame = async () => {
     if(running||finishing) return
@@ -361,7 +363,8 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
           </div>
           <div className="grid grid-cols-5 gap-2">
             {[1, 2, 3, 4, 5].map(number => {
-              const index = missions.findIndex((item, i) => getMazeV2LevelNumber(item, i) === number)
+              const matches = missions.map((item, i) => ({ item, index: i })).filter(entry => getMazeV2LevelNumber(entry.item, entry.index) === number)
+              const index = matches.length === 1 ? matches[0].index : -1
               const available = index >= 0
               const id = available ? String(missions[index].id ?? `maze-v2-${index}`) : ''
               const done = available && completedIds.includes(id)
@@ -380,9 +383,9 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
               )
             })}
           </div>
-          {missions.length !== 5 && (
+          {!hasFiveLevels && (
             <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-[11px] text-amber-100">
-              Data saat ini berisi {missions.length} level. Guru perlu melengkapi lima level agar progres dan hadiah akhir sesuai rancangan.
+              Susunan level belum valid. Pastikan tersedia tepat satu misi untuk setiap Level 1–5 (saat ini: {missions.length} misi). Hadiah akhir baru dihitung setelah kelima level lengkap.
             </p>
           )}
         </section>
