@@ -3,10 +3,18 @@
 type Point = { x: number; y: number }
 type Props = {
   width: number; height: number; start: Point; target: Point; obstacles: Point[]
-  robot?: Point; direction?: number; rotation?: 0 | 90 | 180 | 270
+  robot?: Point; direction?: number; level?: number
   mode?: 'play' | 'edit'; editMode?: 'start' | 'target' | 'obstacle'
   onCellClick?: (x: number, y: number) => void; running?: boolean; title?: string
 }
+
+const LEVEL_SCENES = [
+  { name: 'Pulau Langit', background: 'linear-gradient(145deg,#67e8f9 0%,#38bdf8 38%,#818cf8 75%,#c084fc 100%)', meadow: ['#bbf7d0','#4ade80','#16a34a'], path: ['#fff7cc','#fbbf24'], rock: ['#cbd5e1','#64748b'], border: '#cffafe' },
+  { name: 'Lembah Pelangi', background: 'linear-gradient(145deg,#fbcfe8 0%,#c4b5fd 45%,#93c5fd 100%)', meadow: ['#d9f99d','#84cc16','#65a30d'], path: ['#fef3c7','#f59e0b'], rock: ['#d1d5db','#6b7280'], border: '#fce7f3' },
+  { name: 'Gunung Es', background: 'linear-gradient(145deg,#e0f2fe 0%,#7dd3fc 48%,#818cf8 100%)', meadow: ['#e0f2fe','#7dd3fc','#0284c7'], path: ['#ffffff','#bae6fd'], rock: ['#e2e8f0','#64748b'], border: '#eff6ff' },
+  { name: 'Hutan Zamrud', background: 'linear-gradient(145deg,#a7f3d0 0%,#34d399 48%,#0f766e 100%)', meadow: ['#d9f99d','#4ade80','#15803d'], path: ['#fef9c3','#facc15'], rock: ['#d6d3d1','#57534e'], border: '#d1fae5' },
+  { name: 'Kawah Kristal', background: 'linear-gradient(145deg,#fecdd3 0%,#c084fc 48%,#4f46e5 100%)', meadow: ['#ddd6fe','#a78bfa','#6d28d9'], path: ['#fef3c7','#fb923c'], rock: ['#c4b5fd','#4338ca'], border: '#ede9fe' },
+]
 const TILE = 66
 const GAP = 5
 const STEP = TILE + GAP
@@ -27,7 +35,8 @@ function Robot({ x, y, direction = 1, animate = false }: { x: number; y: number;
   </g>
 }
 
-export default function MazeV2IsometricBoard({ width, height, start, target, obstacles, robot, direction = 1, mode = 'play', editMode, onCellClick, running = false, title = 'Labirin Petualangan' }: Props) {
+export default function MazeV2IsometricBoard({ width, height, start, target, obstacles, robot, direction = 1, mode = 'play', editMode, onCellClick, running = false, title = 'Labirin Petualangan', level = 1 }: Props) {
+  const scene = LEVEL_SCENES[Math.max(0, Math.min(4, level - 1))]
   const cols = Math.max(2, Math.min(12, width))
   const rows = Math.max(2, Math.min(12, height))
   const pad = 34, top = 72
@@ -38,7 +47,7 @@ export default function MazeV2IsometricBoard({ width, height, start, target, obs
   const activeRobot = robot ?? start
   const robotCell = cell(activeRobot.x, activeRobot.y)
 
-  return <div className="relative isolate overflow-hidden rounded-[1.6rem] border-2 border-cyan-200/70 bg-[linear-gradient(145deg,#67e8f9_0%,#38bdf8_35%,#818cf8_72%,#c084fc_100%)] p-3 shadow-2xl sm:p-5">
+  return <div className="relative isolate overflow-hidden rounded-[1.6rem] border-2 p-3 shadow-2xl sm:p-5" style={{ background: scene.background, borderColor: scene.border }}>
     <style jsx>{`
       @keyframes portalGlow { 0%,100% { opacity:.75; transform:scale(.94) } 50% { opacity:1; transform:scale(1.06) } }
       @keyframes floatCloud { 0%,100% { translate:0 0 } 50% { translate:8px 0 } }
@@ -48,15 +57,15 @@ export default function MazeV2IsometricBoard({ width, height, start, target, obs
     <div className="pointer-events-none absolute -left-8 top-10 h-28 w-28 rounded-full bg-yellow-200/35 blur-xl"/>
     <div className="pointer-events-none absolute -right-8 bottom-8 h-36 w-36 rounded-full bg-fuchsia-200/35 blur-xl"/>
     <div className="relative z-10 mb-3 flex items-center justify-between gap-2">
-      <div><span className="text-xs font-black tracking-wide text-sky-950">{title}</span><p className="text-[10px] font-bold text-sky-950/70">Peta petualangan • Tampak dari atas</p></div>
+      <div><span className="text-xs font-black tracking-wide text-slate-950">{title}</span><p className="text-[10px] font-bold text-slate-900/70">{scene.name} · Arena petualangan 3D</p></div>
       <span className="rounded-full border border-white/70 bg-white/70 px-3 py-1 text-[10px] font-black text-sky-950 shadow">{cols} × {rows}</span>
     </div>
     <div className="relative z-10 mx-auto w-full overflow-x-auto">
       <svg viewBox={'0 0 ' + svgWidth + ' ' + svgHeight} role="img" aria-label={'Peta labirin tampak atas ' + cols + ' kali ' + rows} className="mx-auto block h-auto w-full min-w-[300px] max-w-[760px]">
         <defs>
-          <linearGradient id="maze-meadow" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#bbf7d0"/><stop offset=".55" stopColor="#4ade80"/><stop offset="1" stopColor="#16a34a"/></linearGradient>
-          <linearGradient id="maze-path-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff7cc"/><stop offset="1" stopColor="#fbbf24"/></linearGradient>
-          <linearGradient id="maze-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#cbd5e1"/><stop offset="1" stopColor="#64748b"/></linearGradient>
+          <linearGradient id="maze-meadow" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={scene.meadow[0]}/><stop offset=".55" stopColor={scene.meadow[1]}/><stop offset="1" stopColor={scene.meadow[2]}/></linearGradient>
+          <linearGradient id="maze-path-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor={scene.path[0]}/><stop offset="1" stopColor={scene.path[1]}/></linearGradient>
+          <linearGradient id="maze-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor={scene.rock[0]}/><stop offset="1" stopColor={scene.rock[1]}/></linearGradient>
           <linearGradient id="maze-portal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#f0abfc"/><stop offset=".5" stopColor="#8b5cf6"/><stop offset="1" stopColor="#2563eb"/></linearGradient>
           <filter id="maze-soft-shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
         </defs>
@@ -106,8 +115,8 @@ export default function MazeV2IsometricBoard({ width, height, start, target, obs
       <span className="inline-flex items-center gap-2"><span className="text-xl">🚩</span> Titik mulai</span>
       <span className="inline-flex items-center gap-2"><span className="text-xl">🌀</span> Goal / Tujuan</span>
       <span className="inline-flex items-center gap-2"><span className="inline-block h-4 w-4 rounded bg-gradient-to-br from-amber-100 to-amber-400 ring-2 ring-amber-700/30"/> Jalan</span>
-      <span className="inline-flex items-center gap-2 sm:col-span-4"><span className="text-xl">🧱</span> Penghalang (batu sedikit terangkat)</span>
+      <span className="inline-flex items-center gap-2 sm:col-span-4"><span className="text-xl">🧱</span> Penghalang</span>
     </div>
-    {mode==='edit'&&<p className="relative z-10 mt-2 text-center text-[10px] font-semibold text-sky-950/75">Pilih petak untuk {editMode==='start'?'memindahkan titik mulai':editMode==='target'?'memindahkan tujuan':'menambah atau menghapus rintangan'}.</p>}
+    {mode==='edit'&&<p className="relative z-10 mt-2 text-center text-[10px] font-semibold text-slate-950/75">Pilih petak untuk {editMode==='start'?'memindahkan titik mulai':editMode==='target'?'memindahkan tujuan':'menambah atau menghapus rintangan'}.</p>}
   </div>
 }
