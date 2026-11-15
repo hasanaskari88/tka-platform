@@ -65,14 +65,17 @@ export default function MazeV1IsometricBoard({ width, height, start, target, obs
           <g transform={`translate(${robotAt.x} ${robotAt.y-9})`}>
             {running && <ellipse cy="8" rx="18" ry="8" fill="#0f172a" opacity=".2"/>}
             <ellipse cy="5" rx="15" ry="10" fill="#0f172a" opacity=".25"/>
-            <g transform={`rotate(${direction*90})`}>
-              <rect x="-13" y="-16" width="26" height="27" rx="8" fill="#f8fafc" stroke="#334155" strokeWidth="2.5"/>
-              <rect x="-9" y="-11" width="18" height="14" rx="5" fill="#0284c7"/>
-              <circle cx="-4" cy="-5" r="2.2" fill="#e0f2fe"/><circle cx="4" cy="-5" r="2.2" fill="#e0f2fe"/>
-              <path d="M-4 1 Q0 5 4 1" fill="none" stroke="#e0f2fe" strokeWidth="1.5"/>
-              <path d="M-7 -16 L-10 -22 M7 -16 L10 -22" stroke="#475569" strokeWidth="2.5" strokeLinecap="round"/>
-              <circle cx="-10" cy="-22" r="3" fill="#facc15"/><circle cx="10" cy="-22" r="3" fill="#facc15"/>
-              <path d="M0 -25 L-5 -16 L5 -16Z" fill="#f97316"/>
+            {/* Tubuh robot selalu tegak; hanya penunjuk arah yang berubah. */}
+            <rect x="-13" y="-16" width="26" height="27" rx="8" fill="#f8fafc" stroke="#334155" strokeWidth="2.5"/>
+            <rect x="-9" y="-11" width="18" height="14" rx="5" fill="#0284c7"/>
+            <circle cx="-4" cy="-5" r="2.2" fill="#e0f2fe"/><circle cx="4" cy="-5" r="2.2" fill="#e0f2fe"/>
+            <path d="M-4 1 Q0 5 4 1" fill="none" stroke="#e0f2fe" strokeWidth="1.5"/>
+            <path d="M-7 -16 L-10 -22 M7 -16 L10 -22" stroke="#475569" strokeWidth="2.5" strokeLinecap="round"/>
+            <circle cx="-10" cy="-22" r="3" fill="#facc15"/><circle cx="10" cy="-22" r="3" fill="#facc15"/>
+            <path d="M0 -25 L-5 -16 L5 -16Z" fill="#f97316"/>
+            <g transform={`translate(0 -39)`}>
+              <circle r="9" fill="#0f172a" stroke="#fff" strokeWidth="1.5"/>
+              <path d={["M0 -5 L0 5 M-3 2 L0 5 L3 2","M-5 0 L5 0 M2 -3 L5 0 L2 3","M0 -5 L0 5 M-3 -2 L0 -5 L3 -2","M-5 0 L5 0 M-2 -3 L-5 0 L-2 3"][direction] || "M0 -5 L0 5"} fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </g>
           </g>
           <text x="10" y={svgH-12} fontSize="9" fontWeight="900" fill="#082f49">RANGKAI BLOK • JALANKAN ROBOT • CAPAI PORTAL</text>
