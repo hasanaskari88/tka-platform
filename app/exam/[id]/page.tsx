@@ -332,6 +332,8 @@ const { data: existingSession, error: sessionError } = await supabase
 
       currentSession = newSess
       currentSessId = newSess.id
+      // Gunakan waktu mulai dari database agar timer sama dengan dasar penetapan sesi.
+      startTimeIso = newSess.start_time || startTimeIso
       setSessionStatus('ongoing')
     }
 
