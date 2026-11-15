@@ -40,6 +40,7 @@ Pemulihan progres lokal berlaku pada browser/perangkat yang sama dan selama data
 - **Pemeriksaan TypeScript:** selesai tanpa error.
 - **Pembuatan halaman statis:** berhasil, 38 dari 38 halaman.
 - **Lint terpisah:** belum dijalankan sebagai perintah tersendiri.
-- **Revisi visual lanjutan:** menunggu build produksi setelah commit revisi ini.
+- **Revisi visual isometrik sebelumnya:** build produksi Vercel terkonfirmasi `READY` pada 15 November 2026 (commit `02695ab47acb2e8e1f39fc08d5a3ee338baa760c`).
+- **Revisi tampak atas berwarna-warni:** menunggu build produksi setelah commit revisi ini.
 
 Catatan build dapat diverifikasi melalui riwayat deployment Vercel pada commit implementasi di cabang `main`.
