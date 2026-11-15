@@ -75,3 +75,10 @@ Cabang: `main`
 - Build produksi Vercel terkonfirmasi `READY` untuk commit `f8c9ff1c6789693036931bee3819da829d3db5b7`.
 - Next.js berhasil dikompilasi; pemeriksaan TypeScript selesai; 38 dari 38 halaman statis berhasil dibuat.
 - Revisi awal yang mengalami kesalahan sintaks diperbaiki sebelum deployment `READY`.
+
+
+### Perbaikan orientasi robot Maze V1
+
+- Memperbaiki ilustrasi robot agar badan tetap tegak saat menghadap ke empat arah.
+- Arah gerak sekarang ditunjukkan dengan kompas kecil di atas robot; badan robot tidak lagi ikut diputar hingga tampak rebah.
+- Perubahan hanya menyentuh komponen papan Maze V1.
