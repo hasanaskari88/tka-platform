@@ -319,6 +319,7 @@ function AnalysisContent() {
   const [loading, setLoading] = useState(true)
 
   const [filterClass, setFilterClass] = useState('ALL')
+  const [filterQuestionType, setFilterQuestionType] = useState('ALL')
   const [sortBy, setSortBy] = useState<'lowest_accuracy' | 'highest_accuracy' | 'number'>('lowest_accuracy')
   const [activeQuestionTab, setActiveQuestionTab] = useState<{ [key: string]: 'correct' | 'wrong' }>({})
 
@@ -409,9 +410,13 @@ function AnalysisContent() {
 
   const detailedAnalysis = questions.map((q, qIdx) => {
     const qAnswers = filteredAnswers.filter((a) => a.question_id === q.id)
+    const qType = q.question_type || 'multiple_choice'
+    const isEssay = qType === 'essay' || qType === 'uraian'
 
     const correctStudents: any[] = []
     const wrongStudents: any[] = []
+    const essayGradedStudents: any[] = []
+    const essayUngradedStudents: any[] = []
 
     let upperCorrect = 0
     let lowerCorrect = 0
@@ -439,18 +444,16 @@ function AnalysisContent() {
         class_code: student.class_code || '-',
         userChoice: evalRes.displayVal,
         isUnanswered: evalRes.isUnanswered,
-        essayScore: ans?.score ?? null,
+        essayScore: ans?.teacher_score ?? null,
       }
 
-      const qType = q.question_type || 'multiple_choice'
       let isStudentCorrect = false
 
-      if (qType === 'essay' || qType === 'uraian') {
-        if (ans && ans.score !== undefined && ans.score !== null && Number(ans.score) > 0) {
-          isStudentCorrect = true
-          correctStudents.push(studentItem)
+      if (isEssay) {
+        if (ans?.teacher_score !== null && ans?.teacher_score !== undefined && ans?.teacher_score !== '') {
+          essayGradedStudents.push(studentItem)
         } else {
-          wrongStudents.push(studentItem)
+          essayUngradedStudents.push(studentItem)
         }
       } else {
         if (evalRes.isCorrect || evalRes.ratio >= 0.5) {
@@ -461,12 +464,12 @@ function AnalysisContent() {
         }
       }
 
-      if (isStudentCorrect) {
+      if (!isEssay && isStudentCorrect) {
         if (upperGroup.some((u) => u.id === sess.id)) upperCorrect++
         if (lowerGroup.some((l) => l.id === sess.id)) lowerCorrect++
       }
 
-      if (evalRes.userChoices.length > 0) {
+      if (!isEssay && evalRes.userChoices.length > 0) {
         evalRes.userChoices.forEach((ch: string) => {
           const upperCh = String(ch).toUpperCase()
           if (['A', 'B', 'C', 'D'].includes(upperCh)) {
@@ -477,17 +480,23 @@ function AnalysisContent() {
             optionCounts['Salah'] = (optionCounts['Salah'] || 0) + 1
           }
         })
-      } else {
+      } else if (!isEssay) {
         optionCounts['Kosong']++
       }
     })
 
     const correctCount = correctStudents.length
     const wrongCount = wrongStudents.length
-    const accuracyRate = totalFilteredStudents > 0 ? Math.round((correctCount / totalFilteredStudents) * 100) : 0
+    const gradedEssayScores = essayGradedStudents.map((student) => Number(student.essayScore))
+    const essayAverage = gradedEssayScores.length > 0
+      ? Math.round((gradedEssayScores.reduce((sum, score) => sum + score, 0) / gradedEssayScores.length) * 10) / 10
+      : 0
+    const essayHighest = gradedEssayScores.length > 0 ? Math.max(...gradedEssayScores) : 0
+    const essayLowest = gradedEssayScores.length > 0 ? Math.min(...gradedEssayScores) : 0
+    const accuracyRate = !isEssay && totalFilteredStudents > 0 ? Math.round((correctCount / totalFilteredStudents) * 100) : 0
 
     // Tingkat Kesukaran (P)
-    const facilityIndex = totalFilteredStudents > 0 ? correctCount / totalFilteredStudents : 0
+    const facilityIndex = !isEssay && totalFilteredStudents > 0 ? correctCount / totalFilteredStudents : 0
     let facilityLabel = 'Sedang'
     let facilityColor = 'bg-amber-100 text-amber-800 border-amber-300'
     if (facilityIndex >= 0.7) {
@@ -499,7 +508,7 @@ function AnalysisContent() {
     }
 
     // Indeks Daya Beda (D)
-    const discriminationIndex = groupSize > 0 ? (upperCorrect - lowerCorrect) / groupSize : 0
+    const discriminationIndex = !isEssay && groupSize > 0 ? (upperCorrect - lowerCorrect) / groupSize : 0
     const discriminationPercent = Math.round(discriminationIndex * 100)
     let discriminationLabel = 'Cukup'
     let discriminationColor = 'bg-amber-100 text-amber-800 border-amber-300'
@@ -530,12 +539,12 @@ function AnalysisContent() {
     })
 
     // Rekomendasi
-    let recommendation = '🟢 Soal Baik (Pertahankan)'
-    if (discriminationIndex < 0) {
+    let recommendation = isEssay ? '📝 Evaluasi berdasarkan nilai manual guru' : '🟢 Soal Baik (Pertahankan)'
+    if (!isEssay && discriminationIndex < 0) {
       recommendation = '🚨 Cek Kunci Jawaban!'
-    } else if (facilityIndex < 0.25 && discriminationIndex < 0.2) {
+    } else if (!isEssay && facilityIndex < 0.25 && discriminationIndex < 0.2) {
       recommendation = '🔴 Terlalu Sulit / Perlu Revisi'
-    } else if (facilityIndex > 0.85) {
+    } else if (!isEssay && facilityIndex > 0.85) {
       recommendation = '🟡 Terlalu Mudah'
     }
 
@@ -555,10 +564,20 @@ function AnalysisContent() {
       recommendation,
       correctStudents,
       wrongStudents,
+      isEssay,
+      essayGradedStudents,
+      essayUngradedStudents,
+      essayAverage,
+      essayHighest,
+      essayLowest,
     }
   })
 
-  const sortedAnalysis = [...detailedAnalysis].sort((a, b) => {
+  const filteredAnalysis = detailedAnalysis.filter((item) =>
+    filterQuestionType === 'ALL' || (item.question.question_type || 'multiple_choice') === filterQuestionType
+  )
+
+  const sortedAnalysis = [...filteredAnalysis].sort((a, b) => {
     if (sortBy === 'lowest_accuracy') return a.accuracyRate - b.accuracyRate
     if (sortBy === 'highest_accuracy') return b.accuracyRate - a.accuracyRate
     return a.question_no - b.question_no
@@ -661,6 +680,22 @@ function AnalysisContent() {
             </div>
 
             <div className="flex items-center space-x-2">
+              <label className="text-xs font-bold text-slate-700">🧩 Jenis Soal:</label>
+              <select
+                value={filterQuestionType}
+                onChange={(e) => setFilterQuestionType(e.target.value)}
+                className="px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50/50 focus:outline-none"
+              >
+                <option value="ALL">Semua Jenis</option>
+                <option value="multiple_choice">Pilihan Ganda</option>
+                <option value="complex_multiple_choice">PG Kompleks</option>
+                <option value="true_false_matrix">Benar-Salah Matriks</option>
+                <option value="essay">Essay / Uraian</option>
+                <option value="uraian">Uraian (legacy)</option>
+              </select>
+            </div>
+
+            <div className="flex items-center space-x-2">
               <label className="text-xs font-bold text-slate-700">📊 Urutkan Soal:</label>
               <select
                 value={sortBy}
@@ -675,7 +710,7 @@ function AnalysisContent() {
           </div>
 
           <div className="text-xs text-slate-500 font-medium">
-            Menampilkan data dari <strong className="text-slate-800">{totalFilteredStudents} Peserta Ujian</strong>
+            Menampilkan <strong className="text-slate-800">{sortedAnalysis.length} dari {questions.length} soal</strong> · <strong className="text-slate-800">{totalFilteredStudents} peserta</strong>
           </div>
         </div>
 
@@ -705,17 +740,34 @@ function AnalysisContent() {
                   </div>
 
                   <div className="flex items-center space-x-3">
-                    <span className="text-xs font-medium text-slate-300">
-                      Benar: <strong className="text-emerald-400">{item.correctCount}</strong> | Salah: <strong className="text-rose-400">{item.wrongCount}</strong>
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-xs font-black border ${accuracyBadgeClass}`}>
-                      Akurasi {item.accuracyRate}%
-                    </span>
+                    {item.isEssay ? (
+                      <span className="text-xs font-medium text-slate-300">
+                        Dinilai: <strong className="text-emerald-400">{item.essayGradedStudents.length}</strong> · Belum: <strong className="text-amber-300">{item.essayUngradedStudents.length}</strong>
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-xs font-medium text-slate-300">
+                          Benar: <strong className="text-emerald-400">{item.correctCount}</strong> | Salah: <strong className="text-rose-400">{item.wrongCount}</strong>
+                        </span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-black border ${accuracyBadgeClass}`}>
+                          Akurasi {item.accuracyRate}%
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 <div className="p-5 space-y-4">
                   {/* 🟢 METRIK PSIKOMETRI (KESUKARAN, DAYA BEDA, SEBARAN OPSI) */}
+                  {item.isEssay ? (
+                    <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+                      <div><span className="text-[10px] font-bold text-slate-500 uppercase block">Sudah Dinilai</span><strong className="text-lg text-emerald-700">{item.essayGradedStudents.length}</strong></div>
+                      <div><span className="text-[10px] font-bold text-slate-500 uppercase block">Belum Dinilai</span><strong className="text-lg text-amber-700">{item.essayUngradedStudents.length}</strong></div>
+                      <div><span className="text-[10px] font-bold text-slate-500 uppercase block">Rata-rata Nilai</span><strong className="text-lg text-indigo-700">{item.essayGradedStudents.length ? item.essayAverage : '-'}</strong></div>
+                      <div><span className="text-[10px] font-bold text-slate-500 uppercase block">Nilai Tertinggi</span><strong className="text-lg text-emerald-700">{item.essayGradedStudents.length ? item.essayHighest : '-'}</strong></div>
+                      <div><span className="text-[10px] font-bold text-slate-500 uppercase block">Nilai Terendah</span><strong className="text-lg text-rose-700">{item.essayGradedStudents.length ? item.essayLowest : '-'}</strong></div>
+                    </div>
+                  ) : (
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                     <div>
                       <span className="text-[10px] font-bold text-slate-400 uppercase block">Kesukaran Soal:</span>
@@ -754,11 +806,33 @@ function AnalysisContent() {
                       <span className="font-bold text-slate-800 text-[11px] block mt-0.5">{item.recommendation}</span>
                     </div>
                   </div>
+                  )}
 
                   {/* RENDER RINCIAN SOAL UTUH */}
                   <RenderFullQuestionDetail question={q} />
 
-                  {/* TAB DIAGNOSTIK SISWA (BENAR vs SALAH) */}
+                  {/* DAFTAR SISWA: NILAI MANUAL ESSAY ATAU DIAGNOSTIK OBJEKTIF */}
+                  {item.isEssay ? (
+                    <div className="pt-2 border-t border-slate-200 space-y-3">
+                      <h3 className="text-sm font-bold text-slate-800">Daftar Nilai Essay</h3>
+                      {item.essayGradedStudents.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
+                          {item.essayGradedStudents.map((st) => (
+                            <div key={st.id} className="p-3 bg-emerald-50 rounded-lg border border-emerald-100 flex justify-between items-center gap-2">
+                              <div><span className="font-bold text-slate-800 block">{st.name}</span><span className="text-[10px] text-slate-500">Kelas {st.class_code}</span></div>
+                              <strong className="text-emerald-700 text-sm">{Number(st.essayScore)}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <p className="text-xs text-slate-500">Belum ada nilai essay yang dimasukkan.</p>}
+                      {item.essayUngradedStudents.length > 0 && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <p className="text-xs font-bold text-amber-800 mb-2">Belum Dinilai ({item.essayUngradedStudents.length})</p>
+                          <div className="flex flex-wrap gap-2">{item.essayUngradedStudents.map((st) => <span key={st.id} className="px-2 py-1 bg-white rounded border border-amber-200 text-xs text-slate-700">{st.name}</span>)}</div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
                   <div className="pt-2 border-t border-slate-200 space-y-3">
                     <div className="flex space-x-2 border-b pb-2">
                       <button
@@ -820,6 +894,7 @@ function AnalysisContent() {
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
             )
