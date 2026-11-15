@@ -16,7 +16,6 @@ type Mission = {
   maze_width?: number; maze_height?: number; obstacles?: Point[] | null
 }
 const VECTORS: Point[] = [{x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0}]
-const ARROWS = ['⬆️','➡️','⬇️','⬅️']
 const BLOCKS: {type:BlockType;label:string;icon:string;className:string}[] = [
   {type:'FORWARD',label:'Maju 1 langkah',icon:'⬆️',className:'bg-sky-600'},
   {type:'LEFT',label:'Belok kiri',icon:'↶',className:'bg-violet-600'},
@@ -56,6 +55,7 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
     validWalls && !isWall(start) && !isWall(goal)
 
   const [program,setProgram] = useState<Block[]>([])
+  const [draggedBlockId,setDraggedBlockId] = useState<string|null>(null)
   const [robot,setRobot] = useState<Point>(start)
   const [direction,setDirection] = useState<Direction>(1)
   const [running,setRunning] = useState(false)
@@ -214,6 +214,20 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
       return next
     })
   }
+  const reorderBlock = (sourceId:string,targetId:string) => {
+    if (running || complete || finishing || sourceId === targetId) return
+    setProgram(previous => {
+      const from = previous.findIndex(block => block.id === sourceId)
+      const to = previous.findIndex(block => block.id === targetId)
+      if (from < 0 || to < 0) return previous
+      const next = [...previous]
+      const [moving] = next.splice(from, 1)
+      next.splice(to, 0, moving)
+      return next
+    })
+    setDraggedBlockId(null)
+  }
+
   const setRepeat = (id:string,count:number) => {
     if(running||complete||finishing) return
     setProgram(old=>old.map(b=>b.id===id?{...b,count:Math.max(2,Math.min(5,count))}:b))
@@ -305,42 +319,82 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
   )
   if(!mission) return <div className="p-8 text-white">Level Maze V2 belum tersedia.</div>
 
-  const blockName=(b:Block)=>b.type==='REPEAT'?`Ulangi ${b.count??2} kali`:BLOCKS.find(x=>x.type===b.type)?.label??b.type
+  const blockName = (block:Block) =>
+    block.type === 'REPEAT'
+      ? `Ulangi ${block.count ?? 2} kali`
+      : BLOCKS.find(item => item.type === block.type)?.label ?? block.type
+
+  const progressPercent = missions.length
+    ? Math.round((completedIds.length / missions.length) * 100)
+    : 0
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,#172554_0%,#020617_58%)] font-sans text-white">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-slate-950/90 px-3 py-3 shadow-lg backdrop-blur sm:px-5">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+    <div className="min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_top,#1e3a8a_0%,#0f172a_48%,#020617_100%)] font-sans text-white">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/80 px-3 py-3 shadow-xl backdrop-blur-xl sm:px-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <div className="min-w-0">
-            <button type="button" onClick={exitGame} disabled={running||finishing} className="text-xs font-bold text-slate-400 hover:text-white">← Keluar</button>
-            <h1 className="mt-1 truncate text-lg font-black sm:text-xl">🧩 {exam?.title||'Coding Maze V2'}</h1>
-            <p className="text-[11px] text-slate-400">Level {level} dari 5 · {completedIds.length} level selesai</p>
+            <button type="button" onClick={exitGame} disabled={running || finishing} className="inline-flex items-center gap-1 text-xs font-bold text-slate-300 transition hover:text-white disabled:opacity-40">
+              <span aria-hidden="true">←</span> Keluar
+            </button>
+            <h1 className="mt-1 truncate text-base font-black tracking-tight sm:text-xl">🧩 {exam?.title || 'Coding Maze V2'}</h1>
+            <p className="text-[11px] text-sky-200/75">Petualangan logika · Level {level} dari 5</p>
           </div>
-          <div className="shrink-0 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-black text-amber-200">{finishSummary ? `⭐ +${finishSummary.total_xp ?? 0} XP` : `✓ ${completedIds.length}/${missions.length} level`}</div>
+          <div className="shrink-0 rounded-2xl border border-amber-300/30 bg-gradient-to-br from-amber-300/20 to-orange-500/10 px-3 py-2 text-right shadow-lg">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-amber-100/75">Progres</p>
+            <p className="text-sm font-black text-amber-200">{completedIds.length}/5 level</p>
+            {finishSummary && <p className="text-[10px] font-bold text-emerald-200">+{finishSummary.total_xp ?? 0} XP</p>}
+          </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl space-y-4 p-3 sm:p-5">
-        <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:p-4">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div><h2 className="font-extrabold">Pilih Level</h2><p className="text-xs text-slate-400">Kamu boleh memilih Level 1 sampai 5.</p></div>
-            <span className="text-xs text-slate-400">{completedIds.length} dari {missions.length} selesai</span>
+
+      <main className="mx-auto max-w-7xl space-y-4 p-3 pb-8 sm:p-5">
+        <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-900/70 p-4 shadow-2xl backdrop-blur sm:p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-black sm:text-base">Peta Petualangan</h2>
+              <p className="text-[11px] text-slate-400">Selesaikan lima tantangan untuk menuntaskan misi</p>
+            </div>
+            <span className="rounded-full bg-sky-400/10 px-3 py-1 text-[10px] font-black text-sky-200">{progressPercent}%</span>
+          </div>
+          <div className="mb-4 h-2 overflow-hidden rounded-full bg-slate-800">
+            <div className="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-400 to-violet-400 transition-all duration-500" style={{ width: `${progressPercent}%` }} />
           </div>
           <div className="grid grid-cols-5 gap-2">
-            {[1,2,3,4,5].map(n=>{
-              const index=missions.findIndex((m,i)=>getMazeV2LevelNumber(m,i)===n)
-              const available=index>=0
-              const done=available&&completedIds.includes(String(missions[index].id??`maze-v2-${index}`))
-              return <button key={n} type="button" disabled={!available||running||finishing} onClick={()=>chooseLevel(index)}
-                className={`rounded-xl border px-1 py-3 text-center text-xs font-black transition disabled:opacity-30 ${missionIndex===index?'border-cyan-300 bg-cyan-400 text-slate-950':done?'border-emerald-400/60 bg-emerald-500/15 text-emerald-200':'border-slate-700 bg-slate-800 text-slate-200'}`}>
-                <span className="block">Level {n}</span><span className="mt-1 block text-[10px]">{done?'✓ Selesai':available?'Mainkan':'Belum ada'}</span>
-              </button>
+            {[1, 2, 3, 4, 5].map(number => {
+              const index = missions.findIndex((item, i) => getMazeV2LevelNumber(item, i) === number)
+              const available = index >= 0
+              const id = available ? String(missions[index].id ?? `maze-v2-${index}`) : ''
+              const done = available && completedIds.includes(id)
+              const active = available && missionIndex === index
+              return (
+                <button
+                  key={number}
+                  type="button"
+                  disabled={!available || running || finishing}
+                  onClick={() => chooseLevel(index)}
+                  className={`group relative min-w-0 rounded-2xl border px-1 py-3 text-center transition duration-200 disabled:cursor-not-allowed disabled:opacity-35 ${active ? 'border-cyan-200 bg-gradient-to-br from-cyan-300 to-sky-500 text-slate-950 shadow-lg shadow-cyan-500/20' : done ? 'border-emerald-400/50 bg-emerald-400/10 text-emerald-200' : 'border-white/10 bg-slate-800/80 text-slate-200 hover:border-sky-300/50 hover:bg-slate-700'}`}
+                >
+                  <span className="mx-auto flex h-7 w-7 items-center justify-center rounded-xl bg-black/10 text-xs font-black">{done ? '✓' : number}</span>
+                  <span className="mt-1 block text-[9px] font-extrabold sm:text-[10px]">{done ? 'Selesai' : available ? 'Mainkan' : 'Kosong'}</span>
+                </button>
+              )
             })}
           </div>
+          {missions.length !== 5 && (
+            <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-3 py-2 text-[11px] text-amber-100">
+              Data saat ini berisi {missions.length} level. Guru perlu melengkapi lima level agar progres dan hadiah akhir sesuai rancangan.
+            </p>
+          )}
         </section>
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-          <section className="rounded-2xl border border-white/10 bg-slate-900/85 p-3 sm:p-4">
+
+        <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.12fr)_minmax(360px,0.88fr)]">
+          <section className="min-w-0 rounded-3xl border border-white/10 bg-slate-900/75 p-3 shadow-2xl backdrop-blur sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="min-w-0"><h2 className="font-extrabold">🗺️ Papan Labirin</h2><p className="text-xs text-slate-400">{width} × {height} · Arah robot: {['Utara','Timur','Selatan','Barat'][direction]}</p></div>
-              <span className="rounded-lg bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-200">Level {level}</span>
+              <div>
+                <h2 className="font-black">🗺️ Arena Labirin</h2>
+                <p className="text-[11px] text-slate-400">{width} × {height} petak · Menghadap {['Utara', 'Timur', 'Selatan', 'Barat'][direction]}</p>
+              </div>
+              <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-3 py-1 text-[10px] font-black text-violet-200">LEVEL {level}</span>
             </div>
             <MazeV2IsometricBoard
               width={width}
@@ -351,41 +405,125 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
               robot={robot}
               direction={direction}
               running={running}
-              title={`Dunia Labirin · Level ${level}`}
+              level={level}
+              title={`Dunia Petualangan · Level ${level}`}
             />
-            <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/70 p-3"><h3 className="text-sm font-bold text-cyan-200">🎯 Misi Level {level}</h3><p className="mt-1 text-sm leading-relaxed text-slate-200">{mission.question_text||'Bantu robot mencapai bintang.'}</p></div>
-            {!validBoard&&<p className="mt-3 rounded-lg bg-rose-500/15 p-2 text-xs text-rose-200">Konfigurasi level tidak valid. Hubungi guru.</p>}
+            <div className="mt-4 rounded-2xl border border-sky-300/15 bg-gradient-to-r from-sky-400/10 to-indigo-400/10 p-4">
+              <p className="text-[10px] font-black uppercase tracking-wider text-sky-200">🎯 Misi kamu</p>
+              <p className="mt-1 text-sm leading-relaxed text-slate-100">{(mission.question_text || 'Bantu robot mencapai bintang.').replace(/^Level\s+\d+\s*[·:.-]\s*/i, '')}</p>
+            </div>
+            {!validBoard && (
+              <p className="mt-3 rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs font-semibold text-rose-200">
+                Konfigurasi level tidak valid. Minta guru memeriksa titik mulai, tujuan, dan rintangan.
+              </p>
+            )}
           </section>
-          <section className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-slate-900/85 p-3 sm:p-4">
-              <h2 className="mb-3 font-extrabold">🧱 Pilih Blok Perintah</h2>
+
+          <section className="min-w-0 space-y-4">
+            <div className="rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl backdrop-blur">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-black">🧱 Gudang Perintah</h2>
+                  <p className="text-[11px] text-slate-400">Ketuk balok untuk memasukkannya ke program</p>
+                </div>
+                <span className="rounded-full bg-slate-800 px-2.5 py-1 text-[10px] font-black text-slate-300">{program.length}/30</span>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                {BLOCKS.map(b=><button key={b.type} type="button" disabled={running||complete||finishing||program.length>=30} onClick={()=>addBlock(b.type)} className={`rounded-xl px-3 py-3 text-left text-xs font-extrabold shadow disabled:opacity-40 ${b.className} ${b.type==='IF_CLEAR'?'col-span-2':''}`}><span className="mr-2 text-lg">{b.icon}</span>{b.label}</button>)}
+                {BLOCKS.map(block => (
+                  <button
+                    key={block.type}
+                    type="button"
+                    disabled={running || complete || finishing || program.length >= 30}
+                    onClick={() => addBlock(block.type)}
+                    className={`group relative overflow-hidden rounded-2xl border border-white/10 px-3 py-3 text-left text-xs font-black shadow-lg transition duration-200 hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35 ${block.className} ${block.type === 'IF_CLEAR' ? 'col-span-2' : ''}`}
+                  >
+                    <span className="absolute -right-2 -top-3 text-4xl opacity-15 transition group-hover:scale-110">{block.icon}</span>
+                    <span className="relative flex items-center gap-2"><span className="text-xl">{block.icon}</span><span>{block.label}</span></span>
+                    <span className="relative mt-1 block text-[9px] font-semibold text-white/70">+ Tambahkan blok</span>
+                  </button>
+                ))}
               </div>
-              <p className="mt-2 text-[10px] text-slate-500">Ketuk blok untuk menambahkannya. Maksimal 30 blok.</p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-900/85 p-3 sm:p-4">
-              <div className="mb-3 flex items-center justify-between"><h2 className="font-extrabold">🧩 Program Kamu</h2><span className="text-xs text-slate-400">{program.length}/30 blok</span></div>
-              <div className="max-h-[360px] min-h-24 space-y-2 overflow-y-auto rounded-xl border-2 border-dashed border-slate-700 bg-slate-950 p-2">
-                {!program.length?<p className="py-8 text-center text-xs text-slate-500">Blok yang dipilih akan tersusun di sini.</p>:program.map((b,i)=><div key={b.id} className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-slate-800 p-2">
-                  <span className="w-4 shrink-0 text-center text-xs text-slate-400">{i+1}</span><span className="min-w-0 flex-1 text-xs font-bold">{BLOCKS.find(x=>x.type===b.type)?.icon} {blockName(b)}</span>
-                  {b.type==='REPEAT'&&<select aria-label="Jumlah pengulangan" value={b.count??2} disabled={running||complete||finishing} onChange={e=>setRepeat(b.id,Number(e.target.value))} className="rounded-lg border border-slate-600 bg-slate-950 px-1 py-2 text-xs">{[2,3,4,5].map(n=><option key={n} value={n}>{n}x</option>)}</select>}
-                  <button type="button" disabled={running||complete||finishing||i===0} onClick={()=>moveBlock(i,-1)} aria-label="Pindah ke atas" className="rounded-md bg-slate-700 px-2 py-2 text-xs disabled:opacity-30">↑</button>
-                  <button type="button" disabled={running||complete||finishing||i===program.length-1} onClick={()=>moveBlock(i,1)} aria-label="Pindah ke bawah" className="rounded-md bg-slate-700 px-2 py-2 text-xs disabled:opacity-30">↓</button>
-                  <button type="button" disabled={running||complete||finishing} onClick={()=>removeBlock(b.id)} aria-label="Hapus blok" className="rounded-md bg-rose-700 px-2 py-2 text-xs disabled:opacity-30">✕</button>
-                </div>)}
+
+            <div className="rounded-3xl border border-white/10 bg-slate-900/75 p-4 shadow-2xl backdrop-blur">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div>
+                  <h2 className="font-black">🧩 Program Robot</h2>
+                  <p className="text-[11px] text-slate-400">Atur urutan langkah sebelum dijalankan</p>
+                </div>
+                <span className="rounded-full border border-violet-300/20 bg-violet-400/10 px-2.5 py-1 text-[10px] font-black text-violet-200">{program.length} blok</span>
               </div>
+              <div className="max-h-[390px] min-h-32 space-y-2 overflow-y-auto rounded-2xl border-2 border-dashed border-slate-700 bg-slate-950/80 p-2">
+                {!program.length ? (
+                  <div className="flex min-h-28 flex-col items-center justify-center text-center">
+                    <span className="text-3xl">🧩</span>
+                    <p className="mt-2 text-xs font-bold text-slate-300">Program masih kosong</p>
+                    <p className="mt-1 text-[10px] text-slate-500">Pilih balok dari Gudang Perintah</p>
+                  </div>
+                ) : program.map((block, index) => (
+                  <div
+                    key={block.id}
+                    draggable={!running && !complete && !finishing}
+                    onDragStart={() => setDraggedBlockId(block.id)}
+                    onDragEnd={() => setDraggedBlockId(null)}
+                    onDragOver={event => event.preventDefault()}
+                    onDrop={event => {
+                      event.preventDefault()
+                      if (draggedBlockId) reorderBlock(draggedBlockId, block.id)
+                    }}
+                    className={`flex items-center gap-2 rounded-2xl border border-white/10 p-2.5 shadow-lg transition ${block.type === 'FORWARD' ? 'bg-gradient-to-r from-sky-600 to-blue-700' : block.type === 'LEFT' || block.type === 'RIGHT' ? 'bg-gradient-to-r from-violet-600 to-indigo-700' : block.type === 'REPEAT' ? 'bg-gradient-to-r from-amber-500 to-orange-600' : 'bg-gradient-to-r from-emerald-600 to-teal-700'} ${draggedBlockId === block.id ? 'opacity-40' : ''}`}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/15 text-[10px] font-black">{index + 1}</span>
+                    <span className="min-w-0 flex-1 text-xs font-black">{BLOCKS.find(item => item.type === block.type)?.icon} {blockName(block)}</span>
+                    {block.type === 'REPEAT' && (
+                      <select
+                        aria-label="Jumlah pengulangan"
+                        value={block.count ?? 2}
+                        disabled={running || complete || finishing}
+                        onChange={event => setRepeat(block.id, Number(event.target.value))}
+                        className="rounded-lg border border-white/25 bg-slate-950/25 px-1.5 py-2 text-xs font-bold text-white"
+                      >
+                        {[2, 3, 4, 5].map(number => <option key={number} value={number} className="text-slate-900">{number}×</option>)}
+                      </select>
+                    )}
+                    <button type="button" disabled={running || complete || finishing || index === 0} onClick={() => moveBlock(index, -1)} aria-label="Pindah ke atas" className="rounded-lg bg-black/15 px-2 py-2 text-xs font-black disabled:opacity-25">↑</button>
+                    <button type="button" disabled={running || complete || finishing || index === program.length - 1} onClick={() => moveBlock(index, 1)} aria-label="Pindah ke bawah" className="rounded-lg bg-black/15 px-2 py-2 text-xs font-black disabled:opacity-25">↓</button>
+                    <button type="button" disabled={running || complete || finishing} onClick={() => removeBlock(block.id)} aria-label="Hapus blok" className="rounded-lg bg-rose-950/35 px-2 py-2 text-xs font-black disabled:opacity-25">✕</button>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-slate-500">Di komputer, balok dapat diseret untuk mengubah urutan. Tombol panah tetap tersedia di semua perangkat.</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" disabled={running||complete||finishing||!program.length} onClick={()=>setProgram([])} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">Hapus Semua</button>
-                <button type="button" disabled={running||complete||finishing} onClick={resetLevel} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">↺ Ulangi</button>
+                <button type="button" disabled={running || complete || finishing || !program.length} onClick={() => setProgram([])} className="rounded-xl border border-white/10 bg-slate-800 px-3 py-3 text-xs font-bold transition hover:bg-slate-700 disabled:opacity-35">Hapus Semua</button>
+                <button type="button" disabled={running || complete || finishing} onClick={resetLevel} className="rounded-xl border border-white/10 bg-slate-800 px-3 py-3 text-xs font-bold transition hover:bg-slate-700 disabled:opacity-35">↺ Reset Robot</button>
               </div>
-              <button type="button" disabled={running||complete||finishing||!attemptId||!program.length||!validBoard} onClick={runProgram} className="mt-2 w-full rounded-xl bg-emerald-500 px-4 py-3.5 text-sm font-black text-slate-950 disabled:opacity-40">{running?'🤖 Robot Berjalan...':'▶ Jalankan Program'}</button>
+              <button type="button" disabled={running || complete || finishing || !attemptId || !program.length || !validBoard} onClick={runProgram} className="mt-3 w-full rounded-2xl bg-gradient-to-r from-lime-300 via-emerald-400 to-teal-400 px-4 py-4 text-sm font-black text-emerald-950 shadow-lg shadow-emerald-950/30 transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-35">
+                {running ? '🤖 Robot sedang berpetualang…' : '▶ JALANKAN PROGRAM'}
+              </button>
             </div>
-            <div aria-live="polite" className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 p-4 text-sm text-cyan-100">{feedback}</div>
-            {complete&&completedIds.length<missions.length&&<p className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-3 text-sm font-bold text-emerald-200">✓ Level {level} selesai! Pilih level berikutnya di bagian atas.</p>}
-            {completedIds.length===missions.length&&!finishSummary&&!finishing&&<button type="button" onClick={retryFinish} className="w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950">Coba Simpan Hasil Lagi</button>}
-            {finishing&&<p className="text-center text-xs text-amber-200">Menyimpan hasil latihan...</p>}
-            {finishSummary&&<div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4"><h2 className="text-lg font-black text-emerald-200">🏆 Semua Level Selesai!</h2><p className="mt-2 text-sm">Nilai: {finishSummary.score??0}</p><p className="text-sm">Total XP: +{finishSummary.total_xp??0}</p><button type="button" onClick={()=>router.push('/practice')} className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold">Kembali ke Latihan</button></div>}
+
+            <div aria-live="polite" className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-4 text-sm font-semibold leading-relaxed text-cyan-50">{feedback}</div>
+            {complete && completedIds.length < 5 && (
+              <div className="rounded-2xl border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm font-bold text-emerald-100">
+                ✓ Level {level} selesai! Pilih tantangan berikutnya di peta petualangan.
+              </div>
+            )}
+            {completedIds.length === 5 && !finishSummary && !finishing && (
+              <button type="button" onClick={retryFinish} className="w-full rounded-2xl bg-gradient-to-r from-amber-300 to-orange-400 px-4 py-3 font-black text-amber-950 shadow-lg">
+                Coba Simpan Hasil Lagi
+              </button>
+            )}
+            {finishing && <p className="text-center text-xs font-bold text-amber-200">Menyimpan hasil latihan…</p>}
+            {finishSummary && (
+              <div className="rounded-3xl border border-emerald-300/30 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 p-5 shadow-xl">
+                <h2 className="text-lg font-black text-emerald-100">🏆 Semua Level Selesai!</h2>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl bg-black/15 p-3"><p className="text-[10px] text-emerald-100/70">Nilai</p><p className="text-xl font-black">{finishSummary.score ?? 0}</p></div>
+                  <div className="rounded-xl bg-black/15 p-3"><p className="text-[10px] text-emerald-100/70">Total XP</p><p className="text-xl font-black">+{finishSummary.total_xp ?? 0}</p></div>
+                </div>
+                <button type="button" onClick={() => router.push('/practice')} className="mt-4 w-full rounded-xl bg-emerald-500 px-4 py-3 font-black text-emerald-950 transition hover:bg-emerald-400">Kembali ke Latihan</button>
+              </div>
+            )}
           </section>
         </div>
       </main>
