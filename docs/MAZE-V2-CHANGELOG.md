@@ -90,3 +90,15 @@ Cabang: `main`
 - Robot tetap tegak di atas petak; arah hadap ditampilkan terpisah.
 - Jalur, titik mulai, tujuan, dan penghalang disajikan pada koordinat grid yang sama.
 - Perubahan hanya pada visual papan Maze V1; mesin perintah, aturan gerak, penilaian, XP, dan Maze V2 tidak diubah.
+
+### Blockly V1: kondisi, pengulangan, dan tema level
+
+- Menambahkan editor program berbasis balok bertingkat untuk Maze V1.
+- Balok kondisi **Jika jalan di depan terbuka** menjalankan perintah yang ditempatkan di dalam bagian **MAKA** hanya ketika petak di depan dapat dilalui.
+- Balok **Ulangi** mendukung pilihan 2, 3, 4, 5, 6, 8, dan 10 kali; balok perintah dapat dimasukkan ke dalamnya.
+- Balok di dalam kondisi/pengulangan dapat ditambah, dihapus, dan diubah urutannya.
+- Mesin menjalankan blok secara rekursif dan membatasi eksekusi maksimal 120 langkah untuk mencegah pengulangan tak terkendali.
+- Papan Maze V1 menggunakan grid tampak atas yang lurus, warna ceria, robot tegak, serta tema lingkungan berganti berdasarkan urutan level: padang, pantai, salju, kebun ajaib, dan hutan.
+- Penghalang divisualisasikan rendah (sekitar seperempat tinggi karakter) agar tidak menutupi robot.
+- Perubahan tidak menyentuh Maze V2, RPC attempt, formula XP, maupun sistem penilaian.
+- Catatan kompatibilitas: data rintangan lama masih berupa koordinat petak (obstacles). Dinding antar-petak dengan koordinat sisi khusus memerlukan perluasan format data misi terpisah agar dapat diedit secara akurat tanpa menafsirkan ulang data lama.
