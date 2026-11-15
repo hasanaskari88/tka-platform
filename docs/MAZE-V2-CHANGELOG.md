@@ -44,3 +44,32 @@ Pemulihan progres lokal berlaku pada browser/perangkat yang sama dan selama data
 - **Revisi tampak atas berwarna-warni:** menunggu build produksi setelah commit revisi ini.
 
 Catatan build dapat diverifikasi melalui riwayat deployment Vercel pada commit implementasi di cabang `main`.
+
+
+---
+
+## Pengembangan Maze V1 menjadi Blockly
+
+Tanggal: 15 November 2026  
+Cabang: `main`
+
+### Keputusan arsitektur
+
+- Maze V2 dipertahankan sebagai aktivitas terpisah dengan mesin dan papan yang sudah ada.
+- Maze V1 (`MAZE_GAME`) dikembangkan menjadi permainan pemrograman visual Blockly.
+- Kedua aktivitas tetap memakai tipe aktivitas dan mesin yang berbeda; perubahan Maze V1 tidak mengganti implementasi Maze V2.
+
+### Perubahan Maze V1
+
+- Area labirin diganti menjadi arena SVG 3D isometrik ringan dengan pulau rumput, jalur bertingkat, dinding batu, robot, titik mulai, dan portal tujuan.
+- Gudang balok menyediakan perintah Maju, Belok Kiri, dan Belok Kanan.
+- Balok dapat diseret dengan pointer (mouse atau sentuhan) ke rangkaian program dan dipindahkan urutannya.
+- Balok juga dapat ditambahkan dengan ketukan sebagai alternatif aksesibilitas.
+- Program dibatasi maksimal 30 blok.
+- Mesin gerak, deteksi tabrakan, perpindahan misi, dan finalisasi tetap menggunakan alur Maze V1 yang sudah ada.
+- RPC `start_practice_attempt`, `finish_practice_attempt`, dan `abandon_practice_attempt` tidak diubah. Tidak ada perubahan rumus XP atau mekanisme hadiah.
+
+### Pemeriksaan
+
+- Implementasi awal sudah ditulis ke cabang `main`.
+- Build produksi Vercel untuk revisi Maze V1 ini masih perlu dikonfirmasi sebelum dinyatakan siap.
