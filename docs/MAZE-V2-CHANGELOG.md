@@ -82,3 +82,11 @@ Cabang: `main`
 - Memperbaiki ilustrasi robot agar badan tetap tegak saat menghadap ke empat arah.
 - Arah gerak sekarang ditunjukkan dengan kompas kecil di atas robot; badan robot tidak lagi ikut diputar hingga tampak rebah.
 - Perubahan hanya menyentuh komponen papan Maze V1.
+
+
+### Koreksi bentuk peta Maze V1 mengikuti Blockly Maze
+
+- Mengganti proyeksi isometrik/menyerong dengan grid ortogonal: petak berbentuk persegi dan baris/kolom tegak lurus.
+- Robot tetap tegak di atas petak; arah hadap ditampilkan terpisah.
+- Jalur, titik mulai, tujuan, dan penghalang disajikan pada koordinat grid yang sama.
+- Perubahan hanya pada visual papan Maze V1; mesin perintah, aturan gerak, penilaian, XP, dan Maze V2 tidak diubah.
