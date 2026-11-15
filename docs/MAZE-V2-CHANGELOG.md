@@ -27,4 +27,10 @@ Pemulihan progres lokal berlaku pada browser/perangkat yang sama dan selama data
 
 ## Pemeriksaan
 
-Build dan lint perlu dijalankan pada lingkungan proyek. Perubahan melalui GitHub API tidak menjalankan build lokal secara otomatis; status pemeriksaan akan dilaporkan terpisah dan tidak akan diklaim lulus tanpa hasil nyata.
+- **Build produksi Vercel:** berhasil (`READY`) untuk commit implementasi Maze V2.
+- **Kompilasi Next.js:** berhasil.
+- **Pemeriksaan TypeScript:** selesai tanpa error.
+- **Pembuatan halaman statis:** berhasil, 38 dari 38 halaman.
+- **Lint terpisah:** belum dijalankan sebagai perintah tersendiri.
+
+Catatan build dapat diverifikasi melalui riwayat deployment Vercel pada commit implementasi di cabang `main`.
