@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import MazeV1IsometricBoard from '@/components/games/MazeV1IsometricBoard'
 
 interface Position {
   x: number
@@ -126,6 +127,7 @@ export default function MazeGameEngine({
 
   // Kondisi permainan
   const [commands, setCommands] = useState<Command[]>([])
+  const [dragPayload, setDragPayload] = useState<{ command: Command; fromIndex: number | null } | null>(null)
   const [robot, setRobot] = useState<Position>(start)
   const [direction, setDirection] = useState<Direction>(1)
   const [isRunning, setIsRunning] = useState(false)
@@ -262,6 +264,35 @@ export default function MazeGameEngine({
     setCommands((previous) => [...previous, command])
     setFeedback('Perintah ditambahkan.')
   }
+
+  useEffect(() => {
+    if (!dragPayload) return
+    const handlePointerUp = (event: PointerEvent) => {
+      const element = document.elementFromPoint(event.clientX, event.clientY)
+      const dropTarget = element?.closest<HTMLElement>('[data-drop-index]')
+      const workspace = element?.closest<HTMLElement>('[data-program-dropzone]')
+      if (!workspace) { setDragPayload(null); return }
+      const requestedIndex = dropTarget ? Number(dropTarget.dataset.dropIndex) : commands.length
+      setCommands((previous) => {
+        const next = [...previous]
+        let insertAt = Number.isFinite(requestedIndex) ? Math.max(0, Math.min(requestedIndex, next.length)) : next.length
+        if (dragPayload.fromIndex !== null) {
+          const [moving] = next.splice(dragPayload.fromIndex, 1)
+          if (!moving) return previous
+          if (dragPayload.fromIndex < insertAt) insertAt -= 1
+          next.splice(Math.max(0, Math.min(insertAt, next.length)), 0, moving)
+          return next
+        }
+        if (next.length >= 30) return previous
+        next.splice(insertAt, 0, dragPayload.command)
+        return next
+      })
+      setFeedback(dragPayload.fromIndex === null ? 'Blok berhasil disambungkan ke program!' : 'Urutan blok berhasil diubah!')
+      setDragPayload(null)
+    }
+    document.addEventListener('pointerup', handlePointerUp)
+    return () => document.removeEventListener('pointerup', handlePointerUp)
+  }, [dragPayload, commands.length])
 
   const resetRobot = () => {
   if (isRunning || isFinishing) return
@@ -567,280 +598,56 @@ export default function MazeGameEngine({
   // ==========================================
 
   return (
-    <div className="min-h-screen bg-slate-950 font-sans text-white">
-      <header className="border-b border-slate-800 bg-slate-900 px-4 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <div>
-            <button
-              type="button"
-              onClick={handleExit}
-              disabled={isRunning || isFinishing}
-              className="text-xs font-bold text-slate-400 hover:text-white disabled:opacity-40"
-            >
-              ← Keluar
-            </button>
-
-            <h1 className="mt-2 text-lg font-extrabold">
-              🤖 {exam?.title || 'Misi Labirin Robot'}
-            </h1>
-
-            <p className="text-xs text-slate-400">
-              Misi {missionIndex + 1} dari {missions.length}
-              {' · '}
-              Berhasil {completedCount}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 font-bold text-amber-300">
-            ⭐ {completedCount * 10} XP
-          </div>
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,rgba(56,189,248,.18),transparent_36%),linear-gradient(145deg,#0f172a,#172554_55%,#312e81)] font-sans text-white">
+      <header className="border-b border-white/10 bg-slate-950/60 px-4 py-4 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+          <div><button type="button" onClick={handleExit} disabled={isRunning || isFinishing} className="text-xs font-bold text-slate-300 hover:text-white disabled:opacity-40">← Keluar</button><h1 className="mt-2 text-lg font-black sm:text-xl">🤖 {exam?.title || 'Misi Labirin Robot'}</h1><p className="text-xs text-slate-300">Maze Blockly V1 · Misi {missionIndex + 1} dari {missions.length} · Berhasil {completedCount}</p></div>
+          <div className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-sm font-black text-amber-200">⭐ {completedCount * 10} XP</div>
         </div>
       </header>
-
-      <main className="mx-auto grid max-w-5xl gap-5 p-4 md:grid-cols-2 md:p-6">
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-          <h2 className="mb-2 font-extrabold">
-            🗺️ Papan Labirin
-          </h2>
-
-          <div className="mb-3 flex flex-wrap gap-2 text-xs text-slate-400">
-            <span>Arah: {DIRECTIONS[direction].label}</span>
-            <span>·</span>
-            <span>Kesulitan: {difficultyLabel}</span>
-            <span>·</span>
-            <span>
-              {width} × {height}
-            </span>
-          </div>
-
-          <div
-            className="grid aspect-square gap-1"
-            style={{
-              gridTemplateColumns: `repeat(${width}, minmax(0, 1fr))`,
-            }}
-            role="img"
-            aria-label={`Papan labirin ${width} kali ${height}`}
-          >
-            {Array.from(
-              { length: width * height },
-              (_, index) => {
-                const x = index % width
-                const y = Math.floor(index / width)
-                const position = { x, y }
-
-                const wall = isWall(position)
-                const isRobot = robot.x === x && robot.y === y
-                const isTarget = target.x === x && target.y === y
-                const isStart = start.x === x && start.y === y
-
-                return (
-                  <div
-                    key={`${x}-${y}`}
-                    className={`flex aspect-square items-center justify-center rounded-md border text-base sm:text-2xl ${
-                      wall
-                        ? 'border-slate-700 bg-slate-700'
-                        : 'border-slate-700 bg-slate-800'
-                    }`}
-                  >
-                    {isRobot
-                      ? ['⬆️', '➡️', '⬇️', '⬅️'][direction]
-                      : isTarget
-                        ? '⭐'
-                        : wall
-                          ? '🧱'
-                          : isStart
-                            ? '🏁'
-                            : ''}
-                  </div>
-                )
-              }
-            )}
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400">
-            <span>🤖 Robot</span>
-            <span>🏁 Awal</span>
-            <span>⭐ Tujuan</span>
-            <span>🧱 Penghalang</span>
-          </div>
+      <main className="mx-auto grid max-w-7xl gap-4 p-3 sm:gap-5 sm:p-5 lg:grid-cols-[1.08fr_.92fr]">
+        <section className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1"><div><h2 className="font-black text-white">🌈 Dunia Labirin 3D</h2><p className="text-xs text-slate-300">Arah robot: {DIRECTIONS[direction].label} · Kesulitan: {difficultyLabel}</p></div><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-cyan-100">{width} × {height}</span></div>
+          <MazeV1IsometricBoard width={width} height={height} start={start} target={target} obstacles={obstacles} robot={robot} direction={direction} running={isRunning} />
+          <div className="rounded-2xl border border-white/10 bg-slate-900/75 p-4"><h3 className="font-black text-cyan-200">🎯 Misi Kamu</h3><p className="mt-2 text-sm leading-relaxed text-slate-200">{currentMission.question_text || 'Susun balok perintah agar robot mencapai portal tujuan.'}</p></div>
         </section>
-
-        <section className="space-y-4">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-            <h2 className="font-extrabold">🎯 Misi</h2>
-
-            <p className="mt-2 text-sm leading-relaxed text-slate-300">
-              {currentMission.question_text ||
-                'Arahkan robot menuju bintang.'}
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-4">
-            <h2 className="mb-3 font-extrabold">
-              🧩 Blok Perintah
-            </h2>
-
+        <section className="min-w-0 space-y-4">
+          <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black">🧩 Gudang Balok</h2><p className="text-xs text-slate-400">Seret balok ke area program</p></div><span className="rounded-full bg-cyan-400/10 px-3 py-1 text-[10px] font-black text-cyan-200">MAKS. 30</span></div>
             <div className="grid grid-cols-3 gap-2">
-              {COMMANDS.map((command) => (
-                <button
-                  key={command.id}
-                  type="button"
-                  disabled={
-                    isRunning ||
-                    isComplete ||
-                    isFinishing
-                  }
-                  onClick={() => addCommand(command.id)}
-                  className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-2 py-3 text-xs font-bold text-indigo-200 disabled:opacity-40"
-                >
-                  <span className="mb-1 block text-xl">
-                    {command.icon}
-                  </span>
-
-                  {command.label}
-                </button>
-              ))}
+              {COMMANDS.map((command) => <button key={command.id} type="button" disabled={isRunning || isComplete || isFinishing || commands.length >= 30} onPointerDown={() => setDragPayload({ command: command.id, fromIndex: null })} onClick={() => addCommand(command.id)} className="touch-none select-none rounded-xl border border-white/15 bg-gradient-to-br from-sky-500 to-blue-700 px-2 py-3 text-center text-xs font-black shadow-lg transition hover:-translate-y-0.5 hover:brightness-110 active:scale-95 disabled:opacity-40"><span className="mb-1 block text-2xl">{command.icon}</span>{command.label}</button>)}
             </div>
-
-            <h3 className="mb-2 mt-5 text-xs font-bold text-slate-400">
-              ALGORITMA KAMU
-            </h3>
-
-            <div className="min-h-24 space-y-2 rounded-xl border border-dashed border-slate-700 bg-slate-950 p-3">
-              {commands.length === 0 ? (
-                <p className="text-xs text-slate-500">
-                  Blok perintah akan muncul di sini.
-                </p>
-              ) : (
-                commands.map((command, index) => {
-                  const item = COMMANDS.find(
-                    (entry) => entry.id === command
-                  )
-
-                  return (
-                    <div
-                      key={`${command}-${index}`}
-                      className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-bold"
-                    >
-                      {index + 1}. {item?.icon} {item?.label}
-                    </div>
-                  )
-                })
-              )}
-            </div>
-
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                disabled={
-                  isRunning ||
-                  isComplete ||
-                  isFinishing ||
-                  commands.length === 0
-                }
-                onClick={() => {
-                  setCommands((previous) => previous.slice(0, -1))
-                  setFeedback('Blok terakhir dihapus.')
-                }}
-                className="rounded-xl bg-slate-800 px-3 py-3 text-xs font-bold disabled:opacity-40"
-              >
-                ⌫ Hapus Blok
-              </button>
-
-              <button
-                type="button"
-                disabled={
-                  isRunning ||
-                  isComplete ||
-                  isFinishing
-                }
-                onClick={() => {
-                  setCommands([])
-                  resetRobot()
-                }}
-                className="rounded-xl bg-slate-800 px-3 py-3 text-xs font-bold disabled:opacity-40"
-              >
-                ↺ Ulangi
-              </button>
-            </div>
-
-            <button
-              type="button"
-              disabled={
-                isRunning ||
-                isComplete ||
-                isFinishing
-              }
-              onClick={runProgram}
-              className="mt-3 w-full rounded-xl bg-emerald-600 px-4 py-3 font-extrabold disabled:opacity-40"
-            >
-              ▶ Jalankan Program
-            </button>
+            <p className="mt-2 text-[10px] text-slate-500">Sentuh dan tahan balok, lalu lepaskan pada posisi yang diinginkan. Bisa juga ketuk balok untuk menambahkannya.</p>
           </div>
-
-          <div
-            aria-live="polite"
-            className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 p-4 text-sm text-indigo-100"
-          >
-            {feedback}
-          </div>
-
-          {isComplete && missionIndex < missions.length - 1 && (
-            <button
-              type="button"
-              onClick={nextMission}
-              disabled={isFinishing}
-              className="w-full rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-slate-950 disabled:opacity-40"
-            >
-              Misi Berikutnya →
-            </button>
-          )}
-
-          {/* Retry finalisasi jika seluruh misi sudah selesai */}
-          {completedCount === missions.length &&
-            !finishSummary &&
-            !isFinishing && (
-              <button
-                type="button"
-                onClick={retryFinishMaze}
-                className="w-full rounded-xl bg-amber-500 px-4 py-3 font-extrabold text-slate-950"
-              >
-                Coba Simpan Hasil Lagi
-              </button>
-            )}
-
-          {/* Ringkasan hasil */}
-          {finishSummary && (
-            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <h2 className="text-lg font-extrabold text-emerald-300">
-                🏆 Semua Misi Selesai!
-              </h2>
-
-              <p className="mt-2 text-sm">
-                Nilai: {finishSummary.score ?? 0}
-              </p>
-
-              <p className="text-sm">
-                Total XP: +{finishSummary.total_xp ?? 0}
-              </p>
-
-              <button
-                type="button"
-                onClick={() => router.push('/practice')}
-                className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold"
-              >
-                Kembali ke Latihan
-              </button>
+          <div className="rounded-2xl border border-cyan-300/20 bg-slate-900/90 p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black text-cyan-100">🔗 Rangkaian Program</h2><p className="text-xs text-slate-400">Sambungkan balok sesuai urutan</p></div><span className="text-xs font-bold text-slate-400">{commands.length}/30</span></div>
+            <div data-program-dropzone="true" className={`min-h-48 rounded-2xl border-2 border-dashed p-3 transition ${dragPayload ? 'border-cyan-300 bg-cyan-400/10' : 'border-slate-600 bg-slate-950/80'}`}>
+              {commands.length === 0 ? <div data-drop-index="0" className="flex min-h-40 flex-col items-center justify-center rounded-xl text-center text-slate-500"><span className="text-4xl">🧩</span><p className="mt-2 text-sm font-bold">Area susunan masih kosong</p><p className="mt-1 text-xs">Seret balok ke sini untuk mulai</p></div> : <div className="space-y-1">
+                {commands.map((command, index) => { const item = COMMANDS.find((entry) => entry.id === command); return <div key={`${command}-${index}`} className="space-y-1">
+                  <div data-drop-index={index} className="h-2 rounded-full transition hover:bg-cyan-300/60" />
+                  <div onPointerDown={() => setDragPayload({ command, fromIndex: index })} className="group relative flex touch-none select-none items-center gap-3 rounded-xl border border-white/15 bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-3 shadow-lg cursor-grab active:cursor-grabbing">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/20 text-xs font-black">{index + 1}</span><span className="text-xl">{item?.icon}</span><span className="flex-1 text-sm font-black">{item?.label}</span><span className="text-[10px] text-white/60">⠿</span>
+                    <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => { setCommands(previous => previous.filter((_, i) => i !== index)); setFeedback('Blok dihapus dari program.') }} disabled={isRunning || isComplete || isFinishing} aria-label="Hapus blok" className="rounded-lg bg-rose-500/80 px-2 py-1 text-xs font-black hover:bg-rose-400 disabled:opacity-40">✕</button>
+                  </div>
+                </div>})}
+                <div data-drop-index={commands.length} className="flex h-9 items-center justify-center rounded-lg border border-dashed border-slate-600 text-[10px] font-bold text-slate-500">＋ Sambungkan blok berikutnya</div>
+              </div>}
             </div>
-          )}
-
-          {isFinishing && (
-            <p className="text-center text-xs text-amber-300">
-              Menyimpan hasil latihan...
-            </p>
-          )}
+            {dragPayload && <p className="mt-2 text-center text-xs font-bold text-cyan-200">Lepaskan balok pada posisi yang diinginkan…</p>}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" disabled={isRunning || isComplete || isFinishing || commands.length === 0} onClick={() => { setCommands(previous => previous.slice(0, -1)); setFeedback('Blok terakhir dihapus.') }} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">⌫ Hapus Terakhir</button>
+              <button type="button" disabled={isRunning || isFinishing} onClick={resetRobot} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">↺ Ulangi</button>
+            </div>
+            <button type="button" disabled={isRunning || isComplete || isFinishing || !attemptId || commands.length === 0} onClick={runProgram} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-400 px-4 py-4 text-sm font-black text-emerald-950 shadow-lg disabled:opacity-40">{isRunning ? '🤖 Robot Sedang Berjalan…' : '▶ JALANKAN PROGRAM'}</button>
+          </div>
+          <div aria-live="polite" className="rounded-2xl border border-indigo-300/20 bg-indigo-400/10 p-4 text-sm font-semibold text-indigo-100">{feedback}</div>
+          {isComplete && missionIndex < missions.length - 1 && <button type="button" onClick={nextMission} disabled={isFinishing} className="w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950 disabled:opacity-40">Misi Berikutnya →</button>}
+          {completedCount === missions.length && !finishSummary && !isFinishing && <button type="button" onClick={retryFinishMaze} className="w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950">Coba Simpan Hasil Lagi</button>}
+          {finishSummary && <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4"><h2 className="text-lg font-black text-emerald-200">🏆 Semua Misi Selesai!</h2><p className="mt-2 text-sm">Nilai: {finishSummary.score ?? 0}</p><p className="text-sm">Total XP: +{finishSummary.total_xp ?? 0}</p><button type="button" onClick={() => router.push('/practice')} className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold">Kembali ke Latihan</button></div>}
+          {isFinishing && <p className="text-center text-xs text-amber-200">Menyimpan hasil latihan...</p>}
         </section>
       </main>
     </div>
   )
+}
 }
