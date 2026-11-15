@@ -443,6 +443,7 @@ function AnalysisContent() {
         username: student.username,
         class_code: student.class_code || '-',
         userChoice: evalRes.displayVal,
+        answerText: evalRes.isUnanswered ? '' : evalRes.displayVal,
         isUnanswered: evalRes.isUnanswered,
         essayScore: ans?.teacher_score ?? null,
       }
@@ -573,9 +574,12 @@ function AnalysisContent() {
     }
   })
 
-  const filteredAnalysis = detailedAnalysis.filter((item) =>
-    filterQuestionType === 'ALL' || (item.question.question_type || 'multiple_choice') === filterQuestionType
-  )
+  const filteredAnalysis = detailedAnalysis.filter((item) => {
+    const type = item.question.question_type || 'multiple_choice'
+    if (filterQuestionType === 'ALL') return true
+    if (filterQuestionType === 'essay') return type === 'essay' || type === 'uraian'
+    return type === filterQuestionType
+  })
 
   const sortedAnalysis = [...filteredAnalysis].sort((a, b) => {
     if (sortBy === 'number') return a.question_no - b.question_no
@@ -685,7 +689,7 @@ function AnalysisContent() {
             </div>
 
             <div className="flex items-center space-x-2">
-              <label className="text-xs font-bold text-slate-700">🧩 Jenis Soal:</label>
+              <label className="text-xs font-bold text-slate-700">🧩 Filter Jenis Soal:</label>
               <select
                 value={filterQuestionType}
                 onChange={(e) => setFilterQuestionType(e.target.value)}
@@ -696,7 +700,6 @@ function AnalysisContent() {
                 <option value="complex_multiple_choice">PG Kompleks</option>
                 <option value="true_false_matrix">Benar-Salah Matriks</option>
                 <option value="essay">Essay / Uraian</option>
-                <option value="uraian">Uraian (legacy)</option>
               </select>
             </div>
 
@@ -819,22 +822,47 @@ function AnalysisContent() {
                   {/* DAFTAR SISWA: NILAI MANUAL ESSAY ATAU DIAGNOSTIK OBJEKTIF */}
                   {item.isEssay ? (
                     <div className="pt-2 border-t border-slate-200 space-y-3">
-                      <h3 className="text-sm font-bold text-slate-800">Daftar Nilai Essay</h3>
-                      {item.essayGradedStudents.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                          {item.essayGradedStudents.map((st) => (
-                            <div key={st.id} className="p-3 bg-emerald-50 rounded-lg border border-emerald-100 flex justify-between items-center gap-2">
-                              <div><span className="font-bold text-slate-800 block">{st.name}</span><span className="text-[10px] text-slate-500">Kelas {st.class_code}</span></div>
-                              <strong className="text-emerald-700 text-sm">{Number(st.essayScore)}</strong>
-                            </div>
-                          ))}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h3 className="text-sm font-bold text-slate-800">Jawaban Siswa & Nilai Essay</h3>
+                        <span className="text-[10px] text-slate-500">
+                          {item.essayGradedStudents.length} sudah dinilai · {item.essayUngradedStudents.length} belum dinilai
+                        </span>
+                      </div>
+                      {[...item.essayGradedStudents, ...item.essayUngradedStudents].length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {[...item.essayGradedStudents, ...item.essayUngradedStudents].map((st) => {
+                            const isGraded = st.essayScore !== null && st.essayScore !== undefined && st.essayScore !== ''
+                            return (
+                              <div key={st.id} className={`p-3 rounded-xl border ${isGraded ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <span className="font-bold text-slate-800 block">{st.name || st.username || 'Siswa'}</span>
+                                    <span className="text-[10px] text-slate-500">Kelas {st.class_code}</span>
+                                  </div>
+                                  <div className="text-right shrink-0">
+                                    {isGraded ? (
+                                      <strong className="text-emerald-700 text-sm">Nilai: {Number(st.essayScore)}</strong>
+                                    ) : (
+                                      <span className="px-2 py-1 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold">Belum dinilai</span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="mt-3 p-3 bg-white/90 rounded-lg border border-slate-200">
+                                  <span className="block text-[10px] font-bold uppercase text-slate-500 mb-1">Jawaban siswa</span>
+                                  {st.answerText ? (
+                                    <div className="text-sm text-slate-800 whitespace-pre-wrap break-words leading-relaxed">
+                                      <MathRenderer content={st.answerText} />
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs italic text-slate-400">Siswa tidak mengisi jawaban.</span>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      ) : <p className="text-xs text-slate-500">Belum ada nilai essay yang dimasukkan.</p>}
-                      {item.essayUngradedStudents.length > 0 && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                          <p className="text-xs font-bold text-amber-800 mb-2">Belum Dinilai ({item.essayUngradedStudents.length})</p>
-                          <div className="flex flex-wrap gap-2">{item.essayUngradedStudents.map((st) => <span key={st.id} className="px-2 py-1 bg-white rounded border border-amber-200 text-xs text-slate-700">{st.name}</span>)}</div>
-                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500">Belum ada peserta atau jawaban essay untuk soal ini.</p>
                       )}
                     </div>
                   ) : (
