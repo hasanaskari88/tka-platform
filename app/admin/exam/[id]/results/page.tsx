@@ -522,6 +522,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         username: student.username,
         class_code: student.class_code || '-',
         status: session.status || 'ongoing',
+        sitting_label: session.sitting_label ?? null,
         completed_at: finishTime,
         answered_count: answeredCount,
         correct_count: correctCount,
@@ -1313,6 +1314,7 @@ const handleSaveAllQuestionScores = async () => {
       'Nama Lengkap Siswa': s.full_name,
       Username: s.username,
       'Kode Kelas': s.class_code,
+      'Sesi Ujian': s.sitting_label || 'Data lama',
       'Waktu Selesai': s.completed_at ? new Date(s.completed_at).toLocaleString('id-ID') : '-',
       'Jawaban Benar': `${s.correct_count} / ${s.total_questions}`,
       'Nilai Akhir': s.earned_score,
@@ -1738,6 +1740,13 @@ const handleSaveAllQuestionScores = async () => {
                           <td className="p-3">
                             <div className="font-bold text-slate-800">{session.full_name}</div>
                             <div className="text-slate-400">@{session.username}</div>
+                            <span className={`inline-flex mt-1 px-2 py-0.5 rounded-md border text-[10px] font-bold ${
+                              session.sitting_label
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : 'bg-slate-50 text-slate-400 border-slate-200'
+                            }`}>
+                              {session.sitting_label || 'Data lama'}
+                            </span>
                           </td>
                           <td className="p-3 text-center">
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-semibold">
