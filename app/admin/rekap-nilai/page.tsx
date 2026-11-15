@@ -216,8 +216,11 @@ export default function RekapNilaiPage() {
 
   const subtestRows = useMemo(() => {
     const grouped = new Map<string, Attempt[]>()
-    visibleAttempts.filter(a => subtestFilter === 'ALL' || a.subtest === subtestFilter).forEach(attempt =>
-      grouped.set(attempt.userId, [...(grouped.get(attempt.userId) || []), attempt]))
+    visibleAttempts.filter(a => subtestFilter === 'ALL' || a.subtest === subtestFilter).forEach(attempt => {
+      const bucket = grouped.get(attempt.userId)
+      if (bucket) bucket.push(attempt)
+      else grouped.set(attempt.userId, [attempt])
+    })
     return [...grouped.entries()].map(([userId, history]) => {
       const finished = history.filter(a => a.score !== null)
       const best = finished.length ? Math.max(...finished.map(a => Number(a.score))) : null
