@@ -19,6 +19,7 @@ export default function AdminReportPage(){
  const [mode,setMode]=useState<'single'|'bulk'>('single')
  const [docType,setDocType]=useState<'raport'|'certificate'>('raport')
  const [classFilter,setClassFilter]=useState('ALL')
+ const [assignedClassCodes,setAssignedClassCodes]=useState<string[]>([])
  const [search,setSearch]=useState('')
  const [studentId,setStudentId]=useState('')
  const [bulkStudentIds,setBulkStudentIds]=useState<string[]>([])
@@ -36,7 +37,8 @@ export default function AdminReportPage(){
   async function load(){
    const db=createClient()
    try{
-    const [p,e,pr,es,people,doc]=await Promise.all([
+    const [auth,p,e,pr,es,people,doc]=await Promise.all([
+     db.auth.getUser(),
      db.from('profiles').select('id,full_name,username,class_code').eq('role','student').order('full_name'),
      db.from('exams').select('id,title,subtest,target_mode,activity_type'),
      db.from('practice_attempts').select('*').eq('status','completed').order('completed_at',{ascending:false}),
@@ -46,6 +48,24 @@ export default function AdminReportPage(){
     ])
     if(!active)return
     if(p.error)throw p.error
+    // Kelas ampuan hanya menjadi filter awal. Coba baca penugasan yang
+    // terhubung ke akun; jika kolom relasi belum tersedia, gunakan class_code profil.
+    let initialAssignedClasses:string[]=[]
+    const currentUser=auth.data?.user
+    if(currentUser){
+     const assignmentResult=await db.from('teacher_signatories').select('class_code').eq('user_id',currentUser.id).eq('position','class_teacher').eq('is_active',true)
+     if(!assignmentResult.error){
+      initialAssignedClasses=[...new Set((assignmentResult.data||[]).map((x:any)=>String(x.class_code||'').trim()).filter(Boolean))]
+     }
+     if(!initialAssignedClasses.length){
+      const ownProfile=await db.from('profiles').select('class_code').eq('id',currentUser.id).maybeSingle()
+      if(ownProfile.data?.class_code)initialAssignedClasses=[String(ownProfile.data.class_code).trim()]
+     }
+    }
+    if(!active)return
+    setAssignedClassCodes(initialAssignedClasses)
+    if(initialAssignedClasses.length===1)setClassFilter(initialAssignedClasses[0])
+    else if(initialAssignedClasses.length>1)setClassFilter('ASSIGNED')
     if(pr.error||es.error)setWarning('Sebagian riwayat belum dapat dimuat. Periksa detail akses dan kolom tabel di Supabase.')
     if(people.error)setWarning(old=>old?old+' Daftar penandatangan menunggu migration Supabase.':'Daftar penandatangan belum tersedia. Migration tabel guru/kepala sekolah perlu diterapkan.')
     const studentRows=(p.data||[]) as Student[]
@@ -75,7 +95,7 @@ export default function AdminReportPage(){
  },[])
 
  const classes=useMemo(()=>[...new Set(students.map(s=>s.class_code).filter(Boolean) as string[])].sort(),[students])
- const filteredStudents=useMemo(()=>students.filter(s=>(classFilter==='ALL'||s.class_code===classFilter)&&(!search.trim()||String(s.full_name||'').toLowerCase().includes(search.toLowerCase())||String(s.username||'').toLowerCase().includes(search.toLowerCase()))),[students,classFilter,search])
+ const filteredStudents=useMemo(()=>students.filter(s=>(classFilter==='ALL'||(classFilter==='ASSIGNED'?assignedClassCodes.includes(String(s.class_code||'').trim()):s.class_code===classFilter))&&(!search.trim()||String(s.full_name||'').toLowerCase().includes(search.toLowerCase())||String(s.username||'').toLowerCase().includes(search.toLowerCase()))),[students,classFilter,assignedClassCodes,search])
  const bulkPackageOptions=Array.from(new Map(records.map(record=>[record.exam_id,{examId:record.exam_id,title:record.title,subtest:record.subtest,records:records.filter(item=>item.exam_id===record.exam_id)}])).values())
  const filteredBulkStudents=filteredStudents.filter(student=>records.some(record=>record.user_id===student.id&&selectedBulkPackageIds.includes(record.exam_id)))
  const selectedStudents=useMemo(()=>mode==='single'?students.filter(s=>s.id===studentId):students.filter(s=>bulkStudentIds.includes(s.id)),[mode,students,studentId,bulkStudentIds])
@@ -113,10 +133,11 @@ export default function AdminReportPage(){
   <style>{`@page{size:A4 portrait;margin:12mm}@media print{html,body{width:210mm!important;margin:0!important;background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body *{visibility:hidden!important}#print-area,#print-area *{visibility:visible!important}#print-area{position:absolute!important;left:0!important;top:0!important;width:186mm!important;background:#fff!important;padding:0!important;margin:0!important}.no-print{display:none!important}.print-student{width:186mm!important;min-height:273mm!important;padding:4mm 2mm!important;margin:0!important;box-sizing:border-box!important;break-after:page;page-break-after:always}.print-student:last-child{break-after:auto;page-break-after:auto}}`}</style>
   <div className="no-print mx-auto max-w-7xl space-y-5">
    <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-widest text-indigo-600">Administrasi Sekolah</p><h1 className="mt-1 text-3xl font-black text-slate-900">Raport & Sertifikat</h1><p className="mt-1 text-sm text-slate-500">Cetak per siswa atau kolektif, menggunakan nilai terbaik setiap paket soal.</p></div><Link href="/admin" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700">← Kembali ke Dashboard Admin</Link></header>
+   {assignedClassCodes.length>0&&<div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 text-sm text-indigo-800"><b>Filter awal mengikuti kelas ampuan.</b><p className="mt-1">Kelas otomatis dipilih: {assignedClassCodes.join(', ')}. Anda tetap dapat memilih kelas lain atau Semua kelas.</p></div>}
    {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">{warning}</div>}
    <section className="rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">1. Pilih cara pencetakan</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><button onClick={()=>{setMode('single');setBulkStudentIds([]);setSelectedBulkPackageIds([]);setSelectedRecordKeys(studentId?records.filter(r=>r.user_id===studentId).map(r=>r.key):[])}} className={`rounded-xl border-2 p-4 text-left ${mode==='single'?'border-indigo-600 bg-indigo-50':'border-slate-200'}`}><b>👤 Per siswa</b><p className="mt-1 text-xs text-slate-500">Pilih satu siswa, lalu pilih nilai yang ingin dicetak.</p></button><button onClick={()=>{setMode('bulk');setStudentId('');setBulkStudentIds([]);setSelectedRecordKeys([]);setSelectedBulkPackageIds([])}} className={`rounded-xl border-2 p-4 text-left ${mode==='bulk'?'border-indigo-600 bg-indigo-50':'border-slate-200'}`}><b>👥 Cetak massal</b><p className="mt-1 text-xs text-slate-500">Pilih semua siswa atau siswa tertentu per kelas, lalu cetak beberapa dokumen sekaligus.</p></button></div></section>
    <section className="grid gap-5 lg:grid-cols-[340px_1fr]">
-    <aside className={"space-y-4 rounded-2xl border bg-white p-4 shadow-sm " + (mode === "bulk" ? "order-2" : "order-1")}><h2 className="font-black text-slate-900">{mode === "bulk" ? "3. Pilih peserta" : "2. Pilih peserta"}</h2><label className="block text-xs font-semibold text-slate-600">Kelas<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className={field}><option value="ALL">Semua kelas</option>{classes.map(c=><option key={c} value={c}>{c}</option>)}</select></label><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari nama / username" className={field}/>
+    <aside className={"space-y-4 rounded-2xl border bg-white p-4 shadow-sm " + (mode === "bulk" ? "order-2" : "order-1")}><h2 className="font-black text-slate-900">{mode === "bulk" ? "3. Pilih peserta" : "2. Pilih peserta"}</h2><label className="block text-xs font-semibold text-slate-600">Kelas<select value={classFilter} onChange={e=>setClassFilter(e.target.value)} className={field}><option value="ALL">Semua kelas</option>{assignedClassCodes.length>1&&<option value="ASSIGNED">Semua kelas ampuan</option>}{classes.map(c=><option key={c} value={c}>{c}</option>)}</select></label><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Cari nama / username" className={field}/>
      {mode==='single'?<div className="max-h-[440px] space-y-1 overflow-y-auto">{filteredStudents.map(s=><button key={s.id} onClick={()=>selectSingle(s.id)} className={`w-full rounded-lg border p-3 text-left ${studentId===s.id?'border-indigo-500 bg-indigo-50':'border-transparent hover:bg-slate-50'}`}><b className="block text-sm text-slate-800">{s.full_name||s.username||'Tanpa nama'}</b><span className="text-xs text-slate-500">{s.class_code||'Tanpa kelas'}</span></button>)}</div>:<><div className="flex flex-wrap gap-2"><button disabled={!selectedBulkPackageIds.length} onClick={()=>setStudentsAndRecords(filteredBulkStudents.map(s=>s.id))} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 disabled:opacity-40">Pilih semua peserta tersedia</button><button onClick={()=>setStudentsAndRecords([])} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Kosongkan</button></div><div className="max-h-[440px] space-y-2 overflow-y-auto">{filteredBulkStudents.map(s=><label key={s.id} className="flex items-center gap-2 rounded-lg border border-slate-100 p-2 text-sm"><input type="checkbox" checked={bulkStudentIds.includes(s.id)} onChange={()=>{const next=bulkStudentIds.includes(s.id)?bulkStudentIds.filter(x=>x!==s.id):[...bulkStudentIds,s.id];setStudentsAndRecords(next)}}/><span><b>{s.full_name||s.username||'Tanpa nama'}</b><small className="ml-2 text-slate-500">{s.class_code||'—'}</small></span></label>)}{!selectedBulkPackageIds.length&&<p className="p-5 text-center text-xs text-amber-700">Pilih paket/subtes terlebih dahulu agar peserta yang memiliki nilai muncul.</p>}{selectedBulkPackageIds.length>0&&!filteredBulkStudents.length&&<p className="p-5 text-center text-xs text-slate-500">Tidak ada peserta dengan nilai untuk filter ini.</p>}</div><p className="text-xs text-slate-500">{bulkStudentIds.length} peserta dipilih · {selectedRecords.length} nilai akan dicetak</p></>}
     </aside>
     <div className={"space-y-4 rounded-2xl border bg-white p-4 shadow-sm " + (mode === "bulk" ? "order-1" : "order-2")}><h2 className="font-black text-slate-900">{mode === "bulk" ? "2. Pilih paket / subtes dan format" : "3. Pilih format dan nilai"}</h2><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Format dokumen<select value={docType} onChange={e=>setDocType(e.target.value as 'raport'|'certificate')} className={field}><option value="raport">Raport / Rekap capaian</option><option value="certificate">Sertifikat capaian</option></select></label><label className="text-xs font-semibold text-slate-600">Tanggal dokumen<input type="date" value={settings.issueDate} onChange={e=>updateIssueDate(e.target.value)} className={field}/></label></div>
