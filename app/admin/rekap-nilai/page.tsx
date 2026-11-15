@@ -118,7 +118,9 @@ export default function RekapNilaiPage() {
   const classes = useMemo(() => [...new Set(students.map(s => String(s.class_code || '').trim()).filter(Boolean))].sort(), [students])
   const subtests = useMemo(() => [...new Set(attempts.map(a => a.subtest).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'id')), [attempts])
 
-  const visibleAttempts = useMemo(() => attempts.filter(attempt => {
+  const visibleAttempts = useMemo(() => {
+    const term = search.trim().toLocaleLowerCase('id')
+    return attempts.filter(attempt => {
     const classOk = classFilter === 'ALL' || (classFilter === 'ASSIGNED' ? assignedClasses.includes(attempt.classCode) : attempt.classCode === classFilter)
     const subtestOk = subtestFilter === 'ALL' || attempt.subtest === subtestFilter
     const activityOk = activityFilter === 'ALL' || attempt.kind === activityFilter
@@ -129,17 +131,19 @@ export default function RekapNilaiPage() {
           scoreFilter === 'PASS' ? attempt.score >= kkm :
           scoreFilter === '80' ? attempt.score >= 80 && attempt.score < 90 :
           scoreFilter === '90' ? attempt.score >= 90 : attempt.score >= 70 && attempt.score < 80))
-    const term = search.trim().toLocaleLowerCase('id')
     const searchOk = !term || attempt.studentName.toLocaleLowerCase('id').includes(term) ||
       attempt.username.toLocaleLowerCase('id').includes(term) || attempt.title.toLocaleLowerCase('id').includes(term)
     return classOk && subtestOk && activityOk && packageOk && scoreOk && searchOk
-  }), [attempts, classFilter, assignedClasses, subtestFilter, activityFilter, packageFilter, scoreFilter, kkm, search])
+    })
+  }, [attempts, classFilter, assignedClasses, subtestFilter, activityFilter, packageFilter, scoreFilter, kkm, search])
 
   const packageRows = useMemo(() => {
     const grouped = new Map<string, Attempt[]>()
     visibleAttempts.forEach(attempt => {
       const key = attempt.kind + ':' + attempt.examId
-      grouped.set(key, [...(grouped.get(key) || []), attempt])
+      const bucket = grouped.get(key)
+      if (bucket) bucket.push(attempt)
+      else grouped.set(key, [attempt])
     })
     return [...grouped.entries()].map(([key, history]) => {
       const bestByStudent = new Map<string, number>()
@@ -169,7 +173,11 @@ export default function RekapNilaiPage() {
 
   const participantRows = useMemo(() => {
     const grouped = new Map<string, Attempt[]>()
-    visibleAttempts.forEach(attempt => grouped.set(attempt.userId, [...(grouped.get(attempt.userId) || []), attempt]))
+    visibleAttempts.forEach(attempt => {
+      const bucket = grouped.get(attempt.userId)
+      if (bucket) bucket.push(attempt)
+      else grouped.set(attempt.userId, [attempt])
+    })
     const rows = studentsInScope.filter(student => {
       const term = search.trim().toLocaleLowerCase('id')
       return !term || String(student.full_name || '').toLocaleLowerCase('id').includes(term) || String(student.username || '').toLocaleLowerCase('id').includes(term) || (grouped.get(student.id) || []).length > 0
