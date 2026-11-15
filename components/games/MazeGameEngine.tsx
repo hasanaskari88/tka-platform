@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MazeV1IsometricBoard from '@/components/games/MazeV1IsometricBoard'
 import MazeBlocklyProgram, { type MazeBlock } from '@/components/games/MazeBlocklyProgram'
+import confetti from 'canvas-confetti'
 
 interface Position {
   x: number
@@ -359,6 +360,8 @@ export default function MazeGameEngine({
         completedMissionIdsRef.current.add(missionId)
         const newCount = completedMissionIdsRef.current.size
         setCompletedCount(newCount); setFeedback('🎉 Hebat! Robot berhasil mencapai bintang!')
+        void confetti({ particleCount: 110, spread: 78, startVelocity: 38, origin: { y: 0.68 } })
+        window.setTimeout(() => { void confetti({ particleCount: 55, spread: 110, startVelocity: 28, origin: { y: 0.62 } }) }, 180)
         if (newCount === missions.length) await finishMaze(newCount)
       }
     } else if (crashed) setFeedback('💥 Robot menabrak dinding atau keluar jalur. Periksa kondisi dan susunan balokmu!')
@@ -513,11 +516,17 @@ export default function MazeGameEngine({
             <button type="button" disabled={isRunning || isComplete || isFinishing || !attemptId || commands.length === 0} onClick={runProgram} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-400 px-4 py-4 text-sm font-black text-emerald-950 shadow-lg disabled:opacity-40">{isRunning ? "🤖 Robot Sedang Berjalan…" : "▶ JALANKAN PROGRAM"}</button>
           </div>
           <div aria-live="polite" className="rounded-2xl border border-indigo-300/20 bg-indigo-400/10 p-4 text-sm font-semibold text-indigo-100">{feedback}</div>
-          {isComplete && missionIndex < missions.length - 1 && <button type="button" onClick={nextMission} disabled={isFinishing} className="w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950 disabled:opacity-40">Misi Berikutnya →</button>}
           {completedCount === missions.length && !finishSummary && !isFinishing && <button type="button" onClick={retryFinishMaze} className="w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950">Coba Simpan Hasil Lagi</button>}
           {finishSummary && <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4"><h2 className="text-lg font-black text-emerald-200">🏆 Semua Misi Selesai!</h2><p className="mt-2 text-sm">Nilai: {finishSummary.score ?? 0}</p><p className="text-sm">Total XP: +{finishSummary.total_xp ?? 0}</p><button type="button" onClick={() => router.push('/practice')} className="mt-4 w-full rounded-xl bg-emerald-600 px-4 py-3 font-bold">Kembali ke Latihan</button></div>}
           {isFinishing && <p className="text-center text-xs text-amber-200">Menyimpan hasil latihan...</p>}
         </section>
+        {isComplete && missionIndex < missions.length - 1 && (
+          <div className="mt-5 rounded-2xl border border-amber-300/30 bg-amber-300/10 p-3 sm:p-4">
+            <button type="button" onClick={nextMission} disabled={isFinishing} className="w-full rounded-xl bg-gradient-to-r from-amber-300 to-orange-400 px-5 py-4 text-base font-black text-slate-950 shadow-lg transition hover:brightness-105 disabled:opacity-40">
+              Lanjutkan Misi Berikutnya →
+            </button>
+          </div>
+        )}
       </main>
     </div>
   )
