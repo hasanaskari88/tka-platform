@@ -31,30 +31,32 @@ export async function GET() {
     }
     const { adminClient, isGlobalAdmin, assignedClassCodes } = access
 
-    // Ambil seluruh siswa dan seluruh riwayat. Penugasan hanya dipakai
-    // sebagai nilai filter awal pada halaman, bukan untuk membatasi data.
-    const students = await fetchAll(() => adminClient.from('profiles')
-      .select('id,full_name,username,class_code')
-      .eq('role', 'student')
-      .order('full_name'))
-
-    const studentIds = students.map((student: any) => student.id)
-    const [exams, examSessions, practiceAttempts, settings] = await Promise.all([
+    // Data referensi dan pengaturan tidak saling bergantung, jadi ambil
+    // secara paralel untuk mengurangi waktu tunggu awal.
+    const [students, exams, settings] = await Promise.all([
+      fetchAll(() => adminClient.from('profiles')
+        .select('id,full_name,username,class_code')
+        .eq('role', 'student')
+        .order('full_name')),
       fetchAll(() => adminClient.from('exams')
         .select('id,title,subtest,target_mode,activity_type')
         .order('title')),
-      studentIds.length ? fetchAll(() => adminClient.from('exam_sessions')
-        .select('id,user_id,exam_id,status,score,score_override,bonus_points,start_time,end_time,submitted_at,completed_at')
-        .in('user_id', studentIds)
-        .order('created_at', { ascending: false })) : Promise.resolve([]),
-      studentIds.length ? fetchAll(() => adminClient.from('practice_attempts')
-        .select('id,user_id,exam_id,attempt_number,status,score,started_at,completed_at,created_at')
-        .in('user_id', studentIds)
-        .order('created_at', { ascending: false })) : Promise.resolve([]),
       adminClient.from('school_document_settings').select('kkm').eq('id', 'primary').maybeSingle(),
     ])
 
     if (settings.error) throw settings.error
+
+    const studentIds = students.map((student: any) => student.id)
+    // Urutan riwayat diatur kembali oleh halaman sesuai tanggal saat
+    // ditampilkan. Menghindari ORDER BY database mengurangi beban query.
+    const [examSessions, practiceAttempts] = await Promise.all([
+      studentIds.length ? fetchAll(() => adminClient.from('exam_sessions')
+        .select('id,user_id,exam_id,status,score,score_override,bonus_points,start_time,end_time,submitted_at,completed_at')
+        .in('user_id', studentIds)) : Promise.resolve([]),
+      studentIds.length ? fetchAll(() => adminClient.from('practice_attempts')
+        .select('id,user_id,exam_id,attempt_number,status,score,started_at,completed_at,created_at')
+        .in('user_id', studentIds)) : Promise.resolve([]),
+    ])
 
     return NextResponse.json({
       students,
