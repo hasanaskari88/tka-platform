@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MazeV1IsometricBoard from '@/components/games/MazeV1IsometricBoard'
+import MazeBlocklyProgram, { type MazeBlock } from '@/components/games/MazeBlocklyProgram'
 
 interface Position {
   x: number
@@ -33,23 +34,12 @@ interface MazeGameProps {
 }
 
 type Direction = 0 | 1 | 2 | 3
-type Command = 'FORWARD' | 'LEFT' | 'RIGHT'
 
 const DIRECTIONS = [
   { x: 0, y: -1, label: 'Utara' },
   { x: 1, y: 0, label: 'Timur' },
   { x: 0, y: 1, label: 'Selatan' },
   { x: -1, y: 0, label: 'Barat' },
-]
-
-const COMMANDS: {
-  id: Command
-  label: string
-  icon: string
-}[] = [
-  { id: 'FORWARD', label: 'Maju', icon: '⬆️' },
-  { id: 'LEFT', label: 'Belok Kiri', icon: '↶' },
-  { id: 'RIGHT', label: 'Belok Kanan', icon: '↷' },
 ]
 
 export default function MazeGameEngine({
@@ -126,8 +116,7 @@ export default function MazeGameEngine({
     )
 
   // Kondisi permainan
-  const [commands, setCommands] = useState<Command[]>([])
-  const [dragPayload, setDragPayload] = useState<{ command: Command; fromIndex: number | null } | null>(null)
+  const [commands, setCommands] = useState<MazeBlock[]>([])
   const [robot, setRobot] = useState<Position>(start)
   const [direction, setDirection] = useState<Direction>(1)
   const [isRunning, setIsRunning] = useState(false)
@@ -258,42 +247,6 @@ export default function MazeGameEngine({
   // 4. BLOK PERINTAH
   // ==========================================
 
-  const addCommand = (command: Command) => {
-    if (isRunning || isComplete || isFinishing) return
-
-    setCommands((previous) => [...previous, command])
-    setFeedback('Perintah ditambahkan.')
-  }
-
-  useEffect(() => {
-    if (!dragPayload) return
-    const handlePointerUp = (event: PointerEvent) => {
-      const element = document.elementFromPoint(event.clientX, event.clientY)
-      const dropTarget = element?.closest<HTMLElement>('[data-drop-index]')
-      const workspace = element?.closest<HTMLElement>('[data-program-dropzone]')
-      if (!workspace) { setDragPayload(null); return }
-      const requestedIndex = dropTarget ? Number(dropTarget.dataset.dropIndex) : commands.length
-      setCommands((previous) => {
-        const next = [...previous]
-        let insertAt = Number.isFinite(requestedIndex) ? Math.max(0, Math.min(requestedIndex, next.length)) : next.length
-        if (dragPayload.fromIndex !== null) {
-          const [moving] = next.splice(dragPayload.fromIndex, 1)
-          if (!moving) return previous
-          if (dragPayload.fromIndex < insertAt) insertAt -= 1
-          next.splice(Math.max(0, Math.min(insertAt, next.length)), 0, moving)
-          return next
-        }
-        if (next.length >= 30) return previous
-        next.splice(insertAt, 0, dragPayload.command)
-        return next
-      })
-      setFeedback(dragPayload.fromIndex === null ? 'Blok berhasil disambungkan ke program!' : 'Urutan blok berhasil diubah!')
-      setDragPayload(null)
-    }
-    document.addEventListener('pointerup', handlePointerUp)
-    return () => document.removeEventListener('pointerup', handlePointerUp)
-  }, [dragPayload, commands.length])
-
   const resetRobot = () => {
   if (isRunning || isFinishing) return
 
@@ -357,123 +310,61 @@ export default function MazeGameEngine({
   // ==========================================
 
   const runProgram = async () => {
-    if (
-      isRunning ||
-      isComplete ||
-      !attemptId ||
-      isFinishing
-    ) {
-      return
+    if (isRunning || isComplete || !attemptId || isFinishing) return
+    if (commands.length === 0) { setFeedback('Tambahkan setidaknya satu balok perintah.'); return }
+    if (start.x < 0 || start.x >= width || start.y < 0 || start.y >= height || target.x < 0 || target.x >= width || target.y < 0 || target.y >= height || isWall(start) || isWall(target)) {
+      setFeedback('Konfigurasi misi tidak valid. Periksa posisi awal, target, dan rintangan.'); return
     }
-
-    if (commands.length === 0) {
-      setFeedback('Tambahkan setidaknya satu blok perintah.')
-      return
-    }
-
-    // Validasi konfigurasi papan.
-    if (
-      start.x < 0 ||
-      start.x >= width ||
-      start.y < 0 ||
-      start.y >= height ||
-      target.x < 0 ||
-      target.x >= width ||
-      target.y < 0 ||
-      target.y >= height ||
-      isWall(start) ||
-      isWall(target)
-    ) {
-      setFeedback(
-        'Konfigurasi misi tidak valid. Periksa posisi awal, target, dan rintangan.'
-      )
-      return
-    }
-
     setIsRunning(true)
-
     let nextRobot: Position = { ...start }
     let nextDirection: Direction = 1
-
-    let reachedGoal =
-      nextRobot.x === target.x &&
-      nextRobot.y === target.y
-
+    let reachedGoal = nextRobot.x === target.x && nextRobot.y === target.y
     let crashed = false
-
-    for (const command of commands) {
-      if (reachedGoal) break
-
-      if (command === 'LEFT') {
-        nextDirection = ((nextDirection + 3) % 4) as Direction
-      } else if (command === 'RIGHT') {
-        nextDirection = ((nextDirection + 1) % 4) as Direction
-      } else {
-        const movement = DIRECTIONS[nextDirection]
-
-        const nextPosition = {
-          x: nextRobot.x + movement.x,
-          y: nextRobot.y + movement.y,
+    let steps = 0
+    const MAX_STEPS = 120
+    const wait = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
+    const isPathOpen = () => {
+      const vector = DIRECTIONS[nextDirection]
+      const ahead = { x: nextRobot.x + vector.x, y: nextRobot.y + vector.y }
+      return ahead.x >= 0 && ahead.x < width && ahead.y >= 0 && ahead.y < height && !isWall(ahead)
+    }
+    const execute = async (blocks: MazeBlock[]): Promise<void> => {
+      for (const block of blocks) {
+        if (reachedGoal || crashed || steps >= MAX_STEPS) return
+        if (block.type === 'IF_PATH') { if (isPathOpen()) await execute(block.children ?? []); continue }
+        if (block.type === 'REPEAT') {
+          const repeatCount = Math.max(2, Math.min(10, Number(block.count ?? 3)))
+          for (let i = 0; i < repeatCount; i += 1) { await execute(block.children ?? []); if (reachedGoal || crashed || steps >= MAX_STEPS) break }
+          continue
         }
-
-        if (
-          nextPosition.x < 0 ||
-          nextPosition.x >= width ||
-          nextPosition.y < 0 ||
-          nextPosition.y >= height ||
-          isWall(nextPosition)
-        ) {
-          crashed = true
-          break
+        steps += 1
+        if (block.type === 'LEFT') nextDirection = ((nextDirection + 3) % 4) as Direction
+        else if (block.type === 'RIGHT') nextDirection = ((nextDirection + 1) % 4) as Direction
+        else {
+          if (!isPathOpen()) { crashed = true; return }
+          const vector = DIRECTIONS[nextDirection]
+          nextRobot = { x: nextRobot.x + vector.x, y: nextRobot.y + vector.y }
         }
-
-        nextRobot = nextPosition
-      }
-
-      setRobot({ ...nextRobot })
-      setDirection(nextDirection)
-
-      if (
-        nextRobot.x === target.x &&
-        nextRobot.y === target.y
-      ) {
-        reachedGoal = true
+        setRobot({ ...nextRobot }); setDirection(nextDirection)
+        await wait(260)
+        if (nextRobot.x === target.x && nextRobot.y === target.y) reachedGoal = true
       }
     }
-
+    await execute(commands)
     setIsRunning(false)
-
     if (reachedGoal) {
       setIsComplete(true)
-
-      const missionId = String(
-        currentMission?.id ?? `mission-${missionIndex}`
-      )
-
-      // Mencegah misi yang sama dihitung dua kali.
+      const missionId = String(currentMission?.id ?? ('mission-' + missionIndex))
       if (!completedMissionIdsRef.current.has(missionId)) {
         completedMissionIdsRef.current.add(missionId)
-
         const newCount = completedMissionIdsRef.current.size
-
-        setCompletedCount(newCount)
-        setFeedback('🎉 Hebat! Robot berhasil mencapai bintang!')
-
-        if (newCount === missions.length) {
-          await finishMaze(newCount)
-        }
+        setCompletedCount(newCount); setFeedback('🎉 Hebat! Robot berhasil mencapai bintang!')
+        if (newCount === missions.length) await finishMaze(newCount)
       }
-    } else if (crashed) {
-      setFeedback(
-        '💥 Robot menabrak penghalang atau keluar papan. Coba lagi!'
-      )
-    } else {
-      setFeedback(
-        'Robot belum mencapai bintang. Perbaiki algoritmamu!'
-      )
-    }
+    } else if (crashed) setFeedback('💥 Robot menabrak dinding atau keluar jalur. Periksa kondisi dan susunan balokmu!')
+    else if (steps >= MAX_STEPS) setFeedback('Program dihentikan karena melewati batas 120 langkah. Coba perbaiki pengulangannya.')
+    else setFeedback('Robot belum mencapai bintang. Perbaiki algoritmamu!')
   }
-
   // ==========================================
   // 7. COBA FINALISASI LAGI
   // ==========================================
@@ -607,38 +498,19 @@ export default function MazeGameEngine({
       </header>
       <main className="mx-auto grid max-w-7xl gap-4 p-3 sm:gap-5 sm:p-5 lg:grid-cols-[1.08fr_.92fr]">
         <section className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1"><div><h2 className="font-black text-white">🌈 Dunia Labirin 3D</h2><p className="text-xs text-slate-300">Arah robot: {DIRECTIONS[direction].label} · Kesulitan: {difficultyLabel}</p></div><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-cyan-100">{width} × {height}</span></div>
-          <MazeV1IsometricBoard width={width} height={height} start={start} target={target} obstacles={obstacles} robot={robot} direction={direction} running={isRunning} />
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1"><div><h2 className="font-black text-white">🌈 Dunia Labirin</h2><p className="text-xs text-slate-300">Arah robot: {DIRECTIONS[direction].label} · Kesulitan: {difficultyLabel}</p></div><span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-cyan-100">{width} × {height}</span></div>
+          <MazeV1IsometricBoard width={width} height={height} start={start} target={target} obstacles={obstacles} robot={robot} direction={direction} running={isRunning} level={missionIndex} />
           <div className="rounded-2xl border border-white/10 bg-slate-900/75 p-4"><h3 className="font-black text-cyan-200">🎯 Misi Kamu</h3><p className="mt-2 text-sm leading-relaxed text-slate-200">{currentMission.question_text || 'Susun balok perintah agar robot mencapai portal tujuan.'}</p></div>
         </section>
         <section className="min-w-0 space-y-4">
           <div className="rounded-2xl border border-white/10 bg-slate-900/80 p-4 shadow-xl">
-            <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black">🧩 Gudang Balok</h2><p className="text-xs text-slate-400">Seret balok ke area program</p></div><span className="rounded-full bg-cyan-400/10 px-3 py-1 text-[10px] font-black text-cyan-200">MAKS. 30</span></div>
-            <div className="grid grid-cols-3 gap-2">
-              {COMMANDS.map((command) => <button key={command.id} type="button" disabled={isRunning || isComplete || isFinishing || commands.length >= 30} onPointerDown={() => setDragPayload({ command: command.id, fromIndex: null })} onClick={() => addCommand(command.id)} className="touch-none select-none rounded-xl border border-white/15 bg-gradient-to-br from-sky-500 to-blue-700 px-2 py-3 text-center text-xs font-black shadow-lg transition hover:-translate-y-0.5 hover:brightness-110 active:scale-95 disabled:opacity-40"><span className="mb-1 block text-2xl">{command.icon}</span>{command.label}</button>)}
-            </div>
-            <p className="mt-2 text-[10px] text-slate-500">Sentuh dan tahan balok, lalu lepaskan pada posisi yang diinginkan. Bisa juga ketuk balok untuk menambahkannya.</p>
-          </div>
-          <div className="rounded-2xl border border-cyan-300/20 bg-slate-900/90 p-4 shadow-xl">
-            <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black text-cyan-100">🔗 Rangkaian Program</h2><p className="text-xs text-slate-400">Sambungkan balok sesuai urutan</p></div><span className="text-xs font-bold text-slate-400">{commands.length}/30</span></div>
-            <div data-program-dropzone="true" className={`min-h-48 rounded-2xl border-2 border-dashed p-3 transition ${dragPayload ? 'border-cyan-300 bg-cyan-400/10' : 'border-slate-600 bg-slate-950/80'}`}>
-              {commands.length === 0 ? <div data-drop-index="0" className="flex min-h-40 flex-col items-center justify-center rounded-xl text-center text-slate-500"><span className="text-4xl">🧩</span><p className="mt-2 text-sm font-bold">Area susunan masih kosong</p><p className="mt-1 text-xs">Seret balok ke sini untuk mulai</p></div> : <div className="space-y-1">
-                {commands.map((command, index) => { const item = COMMANDS.find((entry) => entry.id === command); return <div key={`${command}-${index}`} className="space-y-1">
-                  <div data-drop-index={index} className="h-2 rounded-full transition hover:bg-cyan-300/60" />
-                  <div onPointerDown={() => setDragPayload({ command, fromIndex: index })} className="group relative flex touch-none select-none items-center gap-3 rounded-xl border border-white/15 bg-gradient-to-r from-sky-600 to-blue-700 px-3 py-3 shadow-lg cursor-grab active:cursor-grabbing">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-black/20 text-xs font-black">{index + 1}</span><span className="text-xl">{item?.icon}</span><span className="flex-1 text-sm font-black">{item?.label}</span><span className="text-[10px] text-white/60">⠿</span>
-                    <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={() => { setCommands(previous => previous.filter((_, i) => i !== index)); setFeedback('Blok dihapus dari program.') }} disabled={isRunning || isComplete || isFinishing} aria-label="Hapus blok" className="rounded-lg bg-rose-500/80 px-2 py-1 text-xs font-black hover:bg-rose-400 disabled:opacity-40">✕</button>
-                  </div>
-                </div>})}
-                <div data-drop-index={commands.length} className="flex h-9 items-center justify-center rounded-lg border border-dashed border-slate-600 text-[10px] font-bold text-slate-500">＋ Sambungkan blok berikutnya</div>
-              </div>}
-            </div>
-            {dragPayload && <p className="mt-2 text-center text-xs font-bold text-cyan-200">Lepaskan balok pada posisi yang diinginkan…</p>}
+            <div className="mb-3 flex items-center justify-between gap-2"><div><h2 className="font-black">🧩 Gudang Balok Blockly</h2><p className="text-xs text-slate-400">Pilih balok, lalu susun menjadi algoritma</p></div><span className="rounded-full bg-cyan-400/10 px-3 py-1 text-[10px] font-black text-cyan-200">MAKS. 30</span></div>
+            <MazeBlocklyProgram program={commands} setProgram={setCommands} disabled={isRunning || isComplete || isFinishing} maxBlocks={30} />
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <button type="button" disabled={isRunning || isComplete || isFinishing || commands.length === 0} onClick={() => { setCommands(previous => previous.slice(0, -1)); setFeedback('Blok terakhir dihapus.') }} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">⌫ Hapus Terakhir</button>
-              <button type="button" disabled={isRunning || isFinishing} onClick={resetRobot} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">↺ Ulangi</button>
+              <button type="button" disabled={isRunning || isComplete || isFinishing || commands.length === 0} onClick={() => { setCommands(previous => previous.slice(0, -1)); setFeedback("Balok terakhir dihapus.") }} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">⌫ Hapus Balok Terakhir</button>
+              <button type="button" disabled={isRunning || isFinishing} onClick={resetRobot} className="rounded-xl bg-slate-700 px-3 py-3 text-xs font-bold disabled:opacity-40">↺ Reset Robot</button>
             </div>
-            <button type="button" disabled={isRunning || isComplete || isFinishing || !attemptId || commands.length === 0} onClick={runProgram} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-400 px-4 py-4 text-sm font-black text-emerald-950 shadow-lg disabled:opacity-40">{isRunning ? '🤖 Robot Sedang Berjalan…' : '▶ JALANKAN PROGRAM'}</button>
+            <button type="button" disabled={isRunning || isComplete || isFinishing || !attemptId || commands.length === 0} onClick={runProgram} className="mt-3 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-lime-400 px-4 py-4 text-sm font-black text-emerald-950 shadow-lg disabled:opacity-40">{isRunning ? "🤖 Robot Sedang Berjalan…" : "▶ JALANKAN PROGRAM"}</button>
           </div>
           <div aria-live="polite" className="rounded-2xl border border-indigo-300/20 bg-indigo-400/10 p-4 text-sm font-semibold text-indigo-100">{feedback}</div>
           {isComplete && missionIndex < missions.length - 1 && <button type="button" onClick={nextMission} disabled={isFinishing} className="w-full rounded-xl bg-amber-400 px-4 py-3 font-black text-slate-950 disabled:opacity-40">Misi Berikutnya →</button>}
