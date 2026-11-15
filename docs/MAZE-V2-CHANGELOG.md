@@ -102,3 +102,31 @@ Cabang: `main`
 - Penghalang divisualisasikan rendah (sekitar seperempat tinggi karakter) agar tidak menutupi robot.
 - Perubahan tidak menyentuh Maze V2, RPC attempt, formula XP, maupun sistem penilaian.
 - Catatan kompatibilitas: data rintangan lama masih berupa koordinat petak (obstacles). Dinding antar-petak dengan koordinat sisi khusus memerlukan perluasan format data misi terpisah agar dapat diedit secara akurat tanpa menafsirkan ulang data lama.
+
+## Audit dan penyegaran Maze V2
+
+Tanggal: 15 November 2026  
+Cabang: `main`
+
+### Hasil audit
+
+- Mesin Maze V2 dan Maze V1 tetap terpisah; Maze V1 tidak disentuh dalam revisi ini.
+- Komponen papan juga dipakai oleh editor admin. Karena itu, kemampuan memilih petak, mengatur titik mulai/tujuan, dan mengelola rintangan tetap dipertahankan.
+- Menghapus konstanta arah `ARROWS` yang tidak digunakan dari mesin V2.
+- Menghapus properti `rotation` yang tidak memiliki implementasi maupun pemanggil dari kontrak papan V2.
+- Mempertahankan penyimpanan progres lokal, pemulihan attempt, RPC mulai/selesai/tinggalkan latihan, serta penguncian finalisasi agar XP tidak diberikan melalui jalur baru.
+
+### Penyegaran tampilan dan interaksi
+
+- Merapikan layar menjadi panel peta petualangan, pemilih level, gudang perintah, dan area program yang lebih jelas.
+- Menambahkan indikator progres lima level dan status level yang lebih mudah dibaca.
+- Menambahkan seret-lepas untuk mengubah urutan blok perintah; tombol panah tetap tersedia sebagai alternatif untuk perangkat sentuh.
+- Memperjelas tampilan blok Maju, Belok, Ulangi, dan Jika Jalan Terbuka dengan warna berbeda.
+- Menambahkan lima suasana arena berdasarkan level: Pulau Langit, Lembah Pelangi, Gunung Es, Hutan Zamrud, dan Kawah Kristal.
+- Tema yang sama ditampilkan di pratinjau editor admin.
+
+### Validasi level
+
+- Hadiah akhir hanya difinalisasi bila tersedia tepat satu misi untuk masing-masing Level 1–5.
+- Jika ada level yang hilang atau ganda, layar menampilkan peringatan agar guru memperbaiki susunan level; data yang ada tidak dihapus otomatis.
+- Tidak ada perubahan skema database, RLS, policy, grant, privilege, OAuth, rumus XP, atau RPC.
