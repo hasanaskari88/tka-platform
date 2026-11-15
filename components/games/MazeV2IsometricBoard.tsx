@@ -19,9 +19,9 @@ type Props = {
   title?: string
 }
 
-const TILE_W = 72
-const TILE_H = 38
-const WALL_H = 34
+const TILE_W = 76
+const TILE_H = 42
+const WALL_H = 48
 
 function points(coords: number[][]) {
   return coords.map(([x, y]) => `${x},${y}`).join(' ')
@@ -93,6 +93,28 @@ export default function MazeV2IsometricBoard({
   }
   const cells = Array.from({ length: safeWidth * safeHeight }, (_, i) => ({ x: i % safeWidth, y: Math.floor(i / safeWidth) }))
     .sort((a, b) => a.x + a.y - (b.x + b.y))
+  const baseA = center(0, 0)
+  const baseB = center(safeWidth - 1, 0)
+  const baseC = center(safeWidth - 1, safeHeight - 1)
+  const baseD = center(0, safeHeight - 1)
+  const baseTop = points([
+    [baseA.x, baseA.y - TILE_H / 2 - 8],
+    [baseB.x + TILE_W / 2 + 8, baseB.y],
+    [baseC.x, baseC.y + TILE_H / 2 + 8],
+    [baseD.x - TILE_W / 2 - 8, baseD.y],
+  ])
+  const baseFront = points([
+    [baseC.x, baseC.y + TILE_H / 2 + 8],
+    [baseD.x - TILE_W / 2 - 8, baseD.y],
+    [baseD.x - TILE_W / 2 - 8, baseD.y + 22],
+    [baseC.x, baseC.y + TILE_H / 2 + 30],
+  ])
+  const baseRight = points([
+    [baseB.x + TILE_W / 2 + 8, baseB.y],
+    [baseC.x, baseC.y + TILE_H / 2 + 8],
+    [baseC.x, baseC.y + TILE_H / 2 + 30],
+    [baseB.x + TILE_W / 2 + 8, baseB.y + 22],
+  ])
   const robotCenter = center(activeRobot.x, activeRobot.y)
   const previousRobotRef = useRef<Point>(activeRobot)
   const previousRobotCenter = center(previousRobotRef.current.x, previousRobotRef.current.y)
@@ -125,13 +147,19 @@ export default function MazeV2IsometricBoard({
           className="mx-auto block h-auto w-full min-w-[300px] max-w-[760px] overflow-visible"
         >
           <defs>
-            <linearGradient id="maze-path" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fff7cc"/><stop offset=".5" stopColor="#facc65"/><stop offset="1" stopColor="#d97706"/></linearGradient>
-            <linearGradient id="maze-wall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#cbd5e1"/><stop offset="1" stopColor="#64748b"/></linearGradient>
-            <linearGradient id="maze-wall-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#64748b"/><stop offset="1" stopColor="#334155"/></linearGradient>
+            <linearGradient id="maze-path" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fffde7"/><stop offset=".52" stopColor="#fde68a"/><stop offset="1" stopColor="#f59e0b"/></linearGradient>
+            <linearGradient id="maze-grass-top" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#86efac"/><stop offset=".55" stopColor="#22c55e"/><stop offset="1" stopColor="#15803d"/></linearGradient>
+            <linearGradient id="maze-grass-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#15803d"/><stop offset="1" stopColor="#064e3b"/></linearGradient>
+            <linearGradient id="maze-wall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#e2e8f0"/><stop offset=".45" stopColor="#94a3b8"/><stop offset="1" stopColor="#475569"/></linearGradient>
+            <linearGradient id="maze-wall-side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#64748b"/><stop offset="1" stopColor="#1e293b"/></linearGradient>
             <filter id="maze-shadow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="5"/></filter>
           </defs>
 
-          <ellipse cx={originX} cy={originY + (safeWidth + safeHeight) * TILE_H / 4 + 25} rx={(safeWidth + safeHeight) * 17} ry="24" fill="#082f49" opacity=".22" filter="url(#maze-shadow)" />
+          <ellipse cx={originX} cy={originY + (safeWidth + safeHeight) * TILE_H / 4 + 38} rx={(safeWidth + safeHeight) * 19} ry="28" fill="#082f49" opacity=".28" filter="url(#maze-shadow)" />
+          <polygon points={baseFront} fill="#14532d" stroke="#064e3b" strokeWidth="2" />
+          <polygon points={baseRight} fill="url(#maze-grass-side)" stroke="#064e3b" strokeWidth="2" />
+          <polygon points={baseTop} fill="url(#maze-grass-top)" stroke="#dcfce7" strokeWidth="3" />
+          <polygon points={baseTop} fill="none" stroke="#f0fdf4" strokeWidth="1.5" strokeDasharray="7 5" opacity=".65" />
 
           {/* Soft clouds and distant hills make the board feel like a small game world. */}
           <g opacity=".5" fill="#f0f9ff">
@@ -149,17 +177,19 @@ export default function MazeV2IsometricBoard({
             return (
               <g key={`${x}-${y}`}>
                 {wall && <>
-                  <polygon points={t.wallLeft} fill="#475569" stroke="#1e293b" strokeWidth="1.2" />
-                  <polygon points={t.wallRight} fill="url(#maze-wall-side)" stroke="#1e293b" strokeWidth="1.2" />
-                  <polygon points={t.wallTop} fill="url(#maze-wall)" stroke="#475569" strokeWidth="2" />
-                  <path d={`M${t.center.x-19} ${t.center.y-WALL_H-2} l9 -5 l8 4 l-7 5 Z`} fill="#e2e8f0" opacity=".7" />
-                  <circle cx={t.center.x+13} cy={t.center.y-WALL_H-2} r="3" fill="#475569" opacity=".65" />
+                  <polygon points={t.wallLeft} fill="#64748b" stroke="#334155" strokeWidth="2" />
+                  <polygon points={t.wallRight} fill="url(#maze-wall-side)" stroke="#1e293b" strokeWidth="2" />
+                  <polygon points={t.wallTop} fill="url(#maze-wall)" stroke="#334155" strokeWidth="2.5" />
+                  <path d={`M${t.center.x-20} ${t.center.y-WALL_H/2-2} l40 0 M${t.center.x-13} ${t.center.y-WALL_H+4} l26 0`} stroke="#334155" strokeWidth="2" opacity=".55" />
+                  <path d={`M${t.center.x-19} ${t.center.y-WALL_H-2} l9 -5 l8 4 l-7 5 Z`} fill="#f1f5f9" opacity=".85" />
+                  <circle cx={t.center.x+13} cy={t.center.y-WALL_H-2} r="3.5" fill="#334155" opacity=".75" />
                 </>}
                 {!wall && <>
-                  <polygon points={t.left} fill="#b45309" opacity=".95" />
-                  <polygon points={t.right} fill="#92400e" opacity=".95" />
-                  <polygon points={t.top} fill="url(#maze-path)" stroke="#fff7ed" strokeWidth="2.5" />
-                  <polygon points={points([[t.center.x,t.center.y-TILE_H/2+5],[t.center.x+TILE_W/2-7,t.center.y],[t.center.x,t.center.y+TILE_H/2-5],[t.center.x-TILE_W/2+7,t.center.y]])} fill="none" stroke="#b45309" strokeWidth="1.5" strokeDasharray="4 3" opacity=".72" />
+                  <polygon points={t.left} fill="#b45309" stroke="#92400e" strokeWidth="1.2" />
+                  <polygon points={t.right} fill="#92400e" stroke="#78350f" strokeWidth="1.2" />
+                  <polygon points={t.top} fill="url(#maze-path)" stroke="#fff" strokeWidth="3" />
+                  <polygon points={points([[t.center.x,t.center.y-TILE_H/2+6],[t.center.x+TILE_W/2-9,t.center.y],[t.center.x,t.center.y+TILE_H/2-6],[t.center.x-TILE_W/2+9,t.center.y]])} fill="none" stroke="#b45309" strokeWidth="2" strokeDasharray="5 4" opacity=".9" />
+                  <circle cx={t.center.x} cy={t.center.y} r="2.5" fill="#fff7ed" opacity=".9" />
                 </>}
                 {isStart && <g transform={`translate(${t.center.x-9} ${t.center.y-24})`}>
                   <path d="M9 25 V-9" stroke="#854d0e" strokeWidth="3" strokeLinecap="round" />
@@ -192,11 +222,12 @@ export default function MazeV2IsometricBoard({
         </svg>
       </div>
 
-      <div className="relative z-10 mt-1 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] font-extrabold text-sky-950">
-        <span className="inline-flex items-center gap-1"><span className="text-base">🤖</span> Robot</span>
-        <span className="inline-flex items-center gap-1"><span className="text-base">🚩</span> Mulai</span>
-        <span className="inline-flex items-center gap-1"><span className="text-base">⭐</span> Tujuan</span>
-        <span className="inline-flex items-center gap-1"><span className="text-base">🧱</span> Rintangan</span>
+      <div className="relative z-10 mt-3 grid grid-cols-2 gap-2 rounded-xl border border-white/55 bg-white/65 p-3 text-xs font-extrabold text-slate-800 sm:grid-cols-4">
+        <span className="inline-flex items-center gap-2"><span className="text-xl">🤖</span> Robot</span>
+        <span className="inline-flex items-center gap-2"><span className="text-xl">🚩</span> Titik mulai</span>
+        <span className="inline-flex items-center gap-2"><span className="text-xl">⭐</span> Tujuan</span>
+        <span className="inline-flex items-center gap-2"><span className="inline-block h-4 w-4 rounded bg-gradient-to-br from-amber-100 to-amber-400 ring-2 ring-amber-700/30" /> Jalan yang bisa dilalui</span>
+        <span className="inline-flex items-center gap-2 sm:col-span-4"><span className="text-xl">🧱</span> Dinding tinggi = tidak boleh dilewati</span>
       </div>
       {mode === 'edit' && <p className="relative z-10 mt-2 text-center text-[10px] font-semibold text-sky-950/75">Pilih petak untuk {editMode === 'start' ? 'memindahkan titik mulai' : editMode === 'target' ? 'memindahkan tujuan' : 'menambah atau menghapus rintangan'}.</p>}
     </div>

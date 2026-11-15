@@ -340,11 +340,27 @@ export default function MazeGameV2Engine({exam,questions=[]}:{exam:any;questions
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
           <section className="rounded-2xl border border-white/10 bg-slate-900/85 p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div><h2 className="font-extrabold">🗺️ Papan Labirin</h2><p className="text-xs text-slate-400">{width} × {height} · Arah: {['Utara','Timur','Selatan','Barat'][direction]}</p></div>
-              <div className="flex items-center gap-1.5">
-                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(value=>((value+270)%360) as 0|90|180|270)} aria-label="Putar papan ke kiri" title="Putar kiri" className="rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-sm font-black text-white disabled:opacity-40">↶</button>
-                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(value=>((value+90)%360) as 0|90|180|270)} aria-label="Putar papan ke kanan" title="Putar kanan" className="rounded-lg border border-white/15 bg-slate-800 px-2.5 py-1.5 text-sm font-black text-white disabled:opacity-40">↷</button>
-                <span className="rounded-lg bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-200">Level {level}</span>
+              <div className="min-w-0"><h2 className="font-extrabold">🗺️ Papan Labirin</h2><p className="text-xs text-slate-400">{width} × {height} · Arah robot: {['Utara','Timur','Selatan','Barat'][direction]}</p></div>
+              <span className="rounded-lg bg-indigo-500/15 px-3 py-1 text-xs font-bold text-indigo-200">Level {level}</span>
+            </div>
+            <div className="mb-3 rounded-2xl border border-cyan-300/30 bg-gradient-to-r from-slate-800 to-slate-900 p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-cyan-200">Atur sudut pandang papan</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-300">Putar papan agar jalur lebih mudah dilihat. Ini hanya mengubah tampilan, bukan perintah robot.</p>
+                </div>
+                <span className="rounded-full bg-cyan-400/15 px-3 py-1 text-xs font-bold text-cyan-100">{boardRotation}°</span>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(value=>((value+270)%360) as 0|90|180|270)} className="rounded-xl border border-cyan-200/30 bg-slate-700 px-2 py-3 text-xs font-extrabold text-white shadow-sm transition hover:bg-slate-600 disabled:opacity-40">
+                  <span className="block text-xl leading-none">↶</span><span className="mt-1 block">Putar kiri</span><span className="block text-[10px] font-medium text-slate-300">90 derajat</span>
+                </button>
+                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(0)} className="rounded-xl border border-white/15 bg-slate-800 px-2 py-3 text-xs font-extrabold text-slate-200 shadow-sm transition hover:bg-slate-700 disabled:opacity-40">
+                  <span className="block text-xl leading-none">⟲</span><span className="mt-1 block">Kembalikan</span><span className="block text-[10px] font-medium text-slate-400">Posisi awal</span>
+                </button>
+                <button type="button" disabled={running||finishing} onClick={()=>setBoardRotation(value=>((value+90)%360) as 0|90|180|270)} className="rounded-xl border border-cyan-200/30 bg-slate-700 px-2 py-3 text-xs font-extrabold text-white shadow-sm transition hover:bg-slate-600 disabled:opacity-40">
+                  <span className="block text-xl leading-none">↷</span><span className="mt-1 block">Putar kanan</span><span className="block text-[10px] font-medium text-slate-300">90 derajat</span>
+                </button>
               </div>
             </div>
             <MazeV2IsometricBoard

@@ -9,6 +9,14 @@ Merapikan pengalaman Maze V2 tanpa mengubah sistem XP lama atau konfigurasi proy
 
 ## Perubahan
 
+### Revisi visual lanjutan
+
+- Papan diberi alas pulau 3D hijau dengan sisi tebal agar keseluruhan labirin terlihat sebagai arena, bukan sekadar petak berwarna.
+- Petak jalan diperbesar dan diberi permukaan krem terang dengan tepian serta pola tengah yang lebih tegas.
+- Dinding dibuat lebih tinggi dan diberi detail susunan batu agar perbedaan jalan dan penghalang mudah dikenali.
+- Legenda papan diperjelas dengan label teks untuk robot, titik mulai, tujuan, jalan yang dapat dilalui, dan dinding yang tidak boleh dilewati.
+- Kontrol rotasi dipindahkan menjadi panel tersendiri yang terlihat jelas, dengan label Putar kiri 90 derajat, Kembalikan Posisi awal, Putar kanan 90 derajat, dan petunjuk bahwa rotasi hanya mengubah tampilan.
+
 1. **Kategori aktivitas:** `MAZE_GAME_V2` dinormalisasi ke kategori Maze yang sudah ada (`MAZE_GAME`), termasuk perhitungan ringkasan aktivitas.
 2. **Jalur labirin:** petak yang bisa dilalui memakai permukaan krem/kuning dengan garis pembatas kontras; dinding tetap memakai tampilan batu.
 3. **Rotasi papan:** kontrol putar kiri/kanan 90 derajat. Koordinat robot, titik mulai, tujuan, dan dinding diputar bersama secara visual; aturan gerak tetap memakai koordinat asli.
@@ -32,5 +40,6 @@ Pemulihan progres lokal berlaku pada browser/perangkat yang sama dan selama data
 - **Pemeriksaan TypeScript:** selesai tanpa error.
 - **Pembuatan halaman statis:** berhasil, 38 dari 38 halaman.
 - **Lint terpisah:** belum dijalankan sebagai perintah tersendiri.
+- **Revisi visual lanjutan:** menunggu build produksi setelah commit revisi ini.
 
 Catatan build dapat diverifikasi melalui riwayat deployment Vercel pada commit implementasi di cabang `main`.
