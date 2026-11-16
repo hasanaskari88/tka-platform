@@ -108,6 +108,7 @@ Jika cocok, ekstrak:
 - meaning: "selected" bila yang ditanyakan/digambarkan bagian terpilih; "removed" bila sejumlah bagian diambil/dimakan dan soal menanyakan sisa; "remaining" bila jumlah sisa dinyatakan langsung
 - shape: "circle" untuk pizza/lingkaran, "line" untuk garis/ruas, "objects" untuk kumpulan benda lepas, selain itu "rectangle"
 - objectLabel: nama objek sederhana dalam bahasa Indonesia, boleh kosong
+- highlightColor: warna bagian yang disorot. Jika soal secara eksplisit menyebut warna (misalnya apel hijau, bagian merah, bola kuning), WAJIB gunakan warna itu. Pilihan hanya red, orange, yellow, green, blue, purple, pink, brown, gray. Jika soal tidak menyebut warna secara eksplisit, gunakan blue. Jangan menebak warna dari nama benda saja.
 - confidence: keyakinan 0 sampai 1
 Jangan mengarang angka. Bedakan jumlah keseluruhan dari jumlah yang ditanyakan. Jika ada lebih dari satu tafsir, informasi bertentangan, atau fakta jumlah tidak lengkap, pilih visualType "none". Jangan membuat diagram untuk sekadar dekorasi.
 
