@@ -104,13 +104,25 @@ function docxZip(entries: {name:string;data:Uint8Array}[]) {
 function docxP(value:string,bold=false,center=false,size=22){return '<w:p><w:pPr>'+(center?'<w:jc w:val="center"/>':'')+'<w:spacing w:before="0" w:after="100" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="'+size+'"/><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:eastAsia="Georgia" w:cs="Georgia"/></w:rPr><w:t xml:space="preserve">'+docxEsc(value)+'</w:t></w:r></w:p>'}
 function getGoogleDriveImageProxyUrl(src: string) {
  if (!src) return src
+ // HTML yang disimpan dari editor terkadang masih membawa entity &amp; dari clipboard Word.
+ const normalizedSrc = String(src).trim().replace(/&amp;/gi, '&').replace(/&#0*38;/gi, '&')
  try {
-  const url = new URL(src, window.location.origin)
-  if (url.hostname !== 'drive.google.com' && url.hostname !== 'www.drive.google.com') return src
+  const url = new URL(normalizedSrc, window.location.origin)
+  const host = url.hostname.toLowerCase()
+  if (host !== 'drive.google.com' && host !== 'www.drive.google.com') return normalizedSrc
+
+  // Mendukung URL thumbnail (hasil import Word), /file/d/, dan /uc?id=.
   let fileId = url.searchParams.get('id')
-  if (!fileId) { const match = url.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/); fileId = match?.[1] || null }
-  return fileId ? '/api/google-drive/image?id='+encodeURIComponent(fileId) : src
- } catch { return src }
+  if (!fileId) {
+   const match = url.pathname.match(/\/(?:file\/d|thumbnail|uc)\/([a-zA-Z0-9_-]+)/)
+   fileId = match?.[1] || null
+  }
+  if (!fileId || !/^[a-zA-Z0-9_-]{10,200}$/.test(fileId)) return normalizedSrc
+
+  return '/api/google-drive/image?id=' + encodeURIComponent(fileId)
+ } catch {
+  return normalizedSrc
+ }
 }
 function rewriteGoogleDriveImageUrls(html: string) {
  return String(html || '').replace(/(<img\b[^>]*\bsrc\s*=\s*)(["'])(.*?)\2/gi,(_match,prefix,quote,src)=>prefix+quote+getGoogleDriveImageProxyUrl(src)+quote)
@@ -128,8 +140,20 @@ async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuest
  const loadPng = async (src:string,alt:string) => {
   if (!src) throw new Error('sumber gambar kosong')
   let response:Response
-  try { response=await fetch(getGoogleDriveImageProxyUrl(src),{credentials:'same-origin'}) }
-  catch (error:any) { throw new Error('tidak dapat mengambil file ('+(error?.message||'koneksi/CORS')+')') }
+  const imageRequestUrl = getGoogleDriveImageProxyUrl(src)
+  try {
+   response=await fetch(imageRequestUrl,{
+    method:'GET',
+    credentials:'same-origin',
+    cache:'no-store',
+    headers:{Accept:'image/png,image/jpeg,image/webp,image/gif,image/bmp,*/*;q=0.8'},
+   })
+  } catch (error:any) {
+   // Sertakan alamat proxy internal agar kegagalan jaringan mudah dilacak,
+   // tanpa membocorkan URL sumber lengkap atau parameter rahasia.
+   const safePath = (() => { try { return new URL(imageRequestUrl, window.location.origin).pathname } catch { return 'alamat gambar tidak valid' } })()
+   throw new Error('tidak dapat mengambil file melalui '+safePath+' ('+(error?.message||'koneksi/CORS')+')')
+  }
   if (!response.ok) {
    let detail=''
    try { const data=await response.clone().json(); detail=data?.error||'' } catch {}
