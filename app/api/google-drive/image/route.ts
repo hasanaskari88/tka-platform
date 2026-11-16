@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { connection, NextRequest, NextResponse } from 'next/server'
 import { google } from 'googleapis'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { requireAdmin } from '@/lib/supabase/admin'
@@ -13,6 +13,8 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ])
 
 export async function GET(request: NextRequest) {
+  await connection()
+
   try {
     const admin = await requireAdmin()
 
