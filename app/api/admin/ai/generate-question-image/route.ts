@@ -1,10 +1,8 @@
-import { GoogleGenAI } from '@google/genai'
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
-const IMAGE_MODEL = 'gemini-3.1-flash-image'
+const IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell'
 
-// Beri waktu hingga 60 detik untuk pemanggilan gambar sinkron di Vercel.
 export const maxDuration = 60
 
 const styleDescriptions: Record<string, string> = {
@@ -23,12 +21,6 @@ const imageTypeDescriptions: Record<string, string> = {
   nature: 'Create an accurate nature or science illustration, with the important parts clearly visible.',
 }
 
-function createAI() {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY belum dikonfigurasi di server.')
-  return new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta', timeout: 55000 } })
-}
-
 export async function POST(request: Request) {
   try {
     const origin = request.headers.get('origin')
@@ -38,6 +30,13 @@ export async function POST(request: Request) {
 
     const auth = await requireTrustedAdmin()
     if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN
+    if (!accountId || !apiToken) {
+      console.error('Cloudflare Workers AI configuration is incomplete.')
+      return NextResponse.json({ error: 'Konfigurasi layanan gambar Cloudflare belum lengkap di server.' }, { status: 503 })
+    }
 
     const body = await request.json()
     const imagePrompt = typeof body.imagePrompt === 'string' ? body.imagePrompt.trim() : ''
@@ -55,129 +54,64 @@ export async function POST(request: Request) {
     if (customInstruction.length > 500) return NextResponse.json({ error: 'Instruksi khusus gambar maksimal 500 karakter.' }, { status: 400 })
 
     const prompt = [
-      'Create exactly one high-quality educational image to accompany a school question for elementary-age students.',
+      'Create exactly one high-quality educational image for an elementary-school question.',
       'Visual brief: ' + imagePrompt,
       'Visual style: ' + styleDescriptions[style] + '.',
       'Image type: ' + imageTypeDescriptions[imageType],
       'Composition: ' + aspectRatio + ' aspect ratio, centered subject, uncluttered composition, strong visual clarity, generous safe margins.',
-      'Accuracy: preserve the objects, quantities, colors, and relationships described in the visual brief. Do not invent extra objects that could change the answer.',
-      'Do not include any text, letters, numbers, captions, labels, symbols that look like writing, logos, signatures, or watermarks.',
-      customInstruction ? 'Additional teacher instruction: ' + customInstruction : '',
-      'The image must support learning and must not reveal or hint at the answer unless the visual brief explicitly requires it.',
-    ].filter(Boolean).join('\n')
+      'Accuracy: preserve the objects, quantities, colors, and relationships described. Do not invent extra objects that could change the answer.',
+      'Do not include text, letters, numbers, captions, labels, logos, signatures, or watermarks.',
+      customInstruction ? 'Teacher instruction: ' + customInstruction : '',
+      'Do not reveal or hint at the answer unless the visual brief explicitly requires it.',
+    ].filter(Boolean).join('\n').slice(0, 2048)
 
-    // Pembuatan gambar dijalankan langsung (sinkron), mengikuti contoh resmi Google.
-    const interaction = await createAI().interactions.create({
-      model: IMAGE_MODEL,
-      input: prompt,
-      response_format: { type: 'image', aspect_ratio: aspectRatio },
-    })
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${IMAGE_MODEL}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt, steps: 4 }),
+        signal: AbortSignal.timeout(55000),
+      }
+    )
 
-    const image = interaction.output_image
-    if (!image?.data) {
-      console.error('Gemini image interaction completed without image data:', {
-        model: IMAGE_MODEL,
-        status: interaction.status,
-        outputImagePresent: Boolean(image),
+    const payload = await response.json() as {
+      success?: boolean
+      result?: { image?: string }
+      errors?: Array<{ message?: string; code?: number }>
+    }
+
+    if (!response.ok || !payload.success || !payload.result?.image) {
+      console.error('Cloudflare Workers AI image generation failed:', {
+        httpStatus: response.status,
+        errors: payload.errors?.map((item) => ({ code: item.code, message: item.message })),
       })
       return NextResponse.json(
-        { error: 'Gemini merespons, tetapi tidak mengirimkan data gambar. Silakan coba lagi.' },
-        { status: 502 }
+        { error: response.status === 429
+          ? 'Batas penggunaan Cloudflare Workers AI tercapai. Silakan coba lagi nanti.'
+          : 'Cloudflare belum berhasil membuat gambar. Periksa konfigurasi atau coba lagi.' },
+        { status: response.status === 429 ? 429 : 502 }
       )
     }
 
-    const mimeType = image.mime_type || 'image/png'
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
-      return NextResponse.json({ error: 'Format gambar hasil AI tidak didukung.' }, { status: 502 })
-    }
-
-    const size = Buffer.byteLength(image.data, 'base64')
+    const imageBase64 = payload.result.image
+    const size = Buffer.byteLength(imageBase64, 'base64')
     if (size > 8 * 1024 * 1024) {
       return NextResponse.json({ error: 'Ukuran gambar hasil AI melebihi 8 MB.' }, { status: 502 })
     }
 
-    return NextResponse.json({ success: true, imageBase64: image.data, mimeType })
+    return NextResponse.json({ success: true, imageBase64, mimeType: 'image/jpeg' })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error('Gemini synchronous image generation failed:', {
-      message,
-      status: typeof error === 'object' && error !== null && 'status' in error
-        ? (error as { status?: unknown }).status
-        : undefined,
-    })
-    const status = typeof error === 'object' && error !== null && 'status' in error ? Number((error as { status?: unknown }).status) : 0
+    console.error('Cloudflare Workers AI image generation request failed:', { message })
     return NextResponse.json(
-      {
-        error: status === 503
-          ? 'Layanan gambar Gemini sedang ramai. Coba lagi beberapa saat.'
-          : status === 429
-            ? 'Batas penggunaan Gemini tercapai. Silakan tunggu sebelum mencoba lagi.'
-            : 'Gagal membuat gambar secara langsung. Periksa log server untuk detailnya.',
-      },
-      { status: status === 503 || status === 429 ? status : 500 }
+      { error: message.includes('timed out') || message.includes('Timeout')
+        ? 'Cloudflare terlalu lama membuat gambar. Silakan coba lagi.'
+        : 'Gagal menghubungi layanan gambar Cloudflare.' },
+      { status: 500 }
     )
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const auth = await requireTrustedAdmin()
-    if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status })
-
-    const id = new URL(request.url).searchParams.get('id')
-    if (!id || id.length > 200) return NextResponse.json({ error: 'ID proses gambar tidak valid.' }, { status: 400 })
-
-    const interaction = await createAI().interactions.get(id)
-    if (interaction.status === 'in_progress' || interaction.status === 'requires_action') {
-      return NextResponse.json({ status: interaction.status })
-    }
-    if (interaction.status !== 'completed') {
-      const rawInteraction = interaction as unknown as {
-        model?: string
-        updated?: string
-        error?: unknown
-        steps?: unknown[]
-      }
-      const diagnostic = {
-        interactionId: id,
-        status: interaction.status,
-        model: rawInteraction.model,
-        updated: rawInteraction.updated,
-        error: rawInteraction.error,
-        steps: Array.isArray(rawInteraction.steps)
-          ? rawInteraction.steps.map((step) => {
-              if (!step || typeof step !== 'object') return { type: 'unknown' }
-              const item = step as Record<string, unknown>
-              return {
-                type: item.type,
-                error: item.error,
-                message: item.message,
-                code: item.code,
-              }
-            })
-          : [],
-      }
-      console.error('Gemini image interaction did not complete:', diagnostic)
-      return NextResponse.json(
-        { status: interaction.status, error: `Gemini gagal membuat gambar (status: ${interaction.status}). Silakan coba ulangi.` },
-        { status: 502 }
-      )
-    }
-
-    const image = interaction.output_image
-    if (!image?.data) return NextResponse.json({ error: 'Gemini selesai tetapi tidak mengembalikan data gambar.' }, { status: 502 })
-
-    const mimeType = image.mime_type || 'image/png'
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
-      return NextResponse.json({ error: 'Format gambar hasil AI tidak didukung.' }, { status: 502 })
-    }
-
-    const size = Buffer.byteLength(image.data, 'base64')
-    if (size > 8 * 1024 * 1024) return NextResponse.json({ error: 'Ukuran gambar hasil AI melebihi 8 MB.' }, { status: 502 })
-
-    return NextResponse.json({ status: 'completed', imageBase64: image.data, mimeType })
-  } catch (error) {
-    console.error('Gemini image generation polling failed:', error)
-    return NextResponse.json({ error: 'Tidak dapat memeriksa hasil pembuatan gambar.' }, { status: 500 })
   }
 }
