@@ -7,6 +7,7 @@ export const maxDuration = 60
 type VisualType = 'fraction_partition' | 'none'
 type Shape = 'circle' | 'rectangle' | 'line' | 'objects'
 type Meaning = 'selected' | 'removed' | 'remaining'
+type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'brown' | 'gray'
 
 type VisualSpec = {
   visualType: VisualType
@@ -15,6 +16,7 @@ type VisualSpec = {
   selectedParts: number
   meaning: Meaning
   objectLabel: string
+  highlightColor: HighlightColor
   confidence: number
   reason: string
 }
@@ -29,7 +31,7 @@ function validateSpec(value: unknown): VisualSpec | null {
   if (item.visualType === 'none') {
     return {
       visualType: 'none', shape: 'rectangle', totalParts: 0, selectedParts: 0,
-      meaning: 'selected', objectLabel: '', confidence: 0, reason: cleanText(item.reason, 240),
+      meaning: 'selected', objectLabel: '', highlightColor: 'blue', confidence: 0, reason: cleanText(item.reason, 240),
     }
   }
 
@@ -38,6 +40,8 @@ function validateSpec(value: unknown): VisualSpec | null {
   const confidence = Number(item.confidence)
   const shape = item.shape
   const meaning = item.meaning
+  const allowedColors: HighlightColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray']
+  const highlightColor = allowedColors.includes(item.highlightColor as HighlightColor) ? item.highlightColor as HighlightColor : 'blue'
   if (
     item.visualType !== 'fraction_partition' ||
     !Number.isInteger(totalParts) || totalParts < 2 || totalParts > 20 ||
@@ -57,6 +61,7 @@ function validateSpec(value: unknown): VisualSpec | null {
     selectedParts,
     meaning: meaning as Meaning,
     objectLabel: cleanText(item.objectLabel, 60),
+    highlightColor,
     confidence,
     reason: cleanText(item.reason, 240),
   }
@@ -127,10 +132,11 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
                 selectedParts: { type: 'integer' },
                 meaning: { type: 'string', enum: ['selected', 'removed', 'remaining'] },
                 objectLabel: { type: 'string' },
+                highlightColor: { type: 'string', enum: ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray'] },
                 confidence: { type: 'number' },
                 reason: { type: 'string' },
               },
-              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'confidence', 'reason'],
+              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'highlightColor', 'confidence', 'reason'],
               additionalProperties: false,
             },
           },
@@ -153,6 +159,7 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
                 selectedParts: { type: 'INTEGER' },
                 meaning: { type: 'STRING', enum: ['selected', 'removed', 'remaining'] },
                 objectLabel: { type: 'STRING' },
+                highlightColor: { type: 'STRING', enum: ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray'] },
                 confidence: { type: 'NUMBER' },
                 reason: { type: 'STRING' },
               },
