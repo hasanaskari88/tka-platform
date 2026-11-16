@@ -109,6 +109,13 @@ function getGoogleDriveImageProxyUrl(src: string) {
  try {
   const url = new URL(normalizedSrc, window.location.origin)
   const host = url.hostname.toLowerCase()
+
+  // Gambar hasil salin dari artikel Waterpedia perlu diambil melalui server
+  // agar ekspor DOCX tidak terkena pembatasan CORS browser.
+  if (host === 'waterpedia.co.id' || host === 'www.waterpedia.co.id') {
+   return '/api/external-image?url=' + encodeURIComponent(url.toString())
+  }
+
   if (host !== 'drive.google.com' && host !== 'www.drive.google.com') return normalizedSrc
 
   // Mendukung URL thumbnail (hasil import Word), /file/d/, dan /uc?id=.
