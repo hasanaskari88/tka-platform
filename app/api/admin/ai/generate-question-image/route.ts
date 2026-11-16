@@ -59,7 +59,7 @@ export async function POST(request: Request) {
       'Visual style: ' + styleDescriptions[style] + '.',
       'Image type: ' + imageTypeDescriptions[imageType],
       'Composition: ' + aspectRatio + ' aspect ratio, centered subject, uncluttered composition, strong visual clarity, generous safe margins.',
-      'Accuracy: preserve the objects, quantities, colors, and relationships described. Do not invent extra objects that could change the answer.',
+      'Accuracy: treat the visual brief as a strict specification, not as inspiration. Preserve every stated object, exact quantity, grouping, fraction, sequence, position, color distinction, and relationship. Do not omit, duplicate, replace, merge, split, or invent any object. Do not add decorative objects that could change how a student interprets or answers the question.',
       'Do not include text, letters, numbers, captions, labels, logos, signatures, or watermarks.',
       customInstruction ? 'Teacher instruction: ' + customInstruction : '',
       'Do not reveal or hint at the answer unless the visual brief explicitly requires it.',
