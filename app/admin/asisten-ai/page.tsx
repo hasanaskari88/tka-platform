@@ -31,7 +31,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
 function formatMathOption(value: string, context: string): string {
   // Ubah pecahan biasa menjadi format KaTeX bertingkat.
   let formatted = value.trim()
-  const denominatorMatch = context.match(/(?:dibagi\s+menjadi|penyebut(?:nya)?\s*(?:adalah)?|per\s*)\s*(\d{1,2})/i)
+  const denominatorMatch = context.match(/(?:(?:dibagi|terbagi)\s+menjadi|terdiri\s+dari|penyebut(?:nya)?\s*(?:adalah)?|per\s*)\s*(\d{1,2})/i)
   const denominator = denominatorMatch?.[1]
   if (denominator && new RegExp('^([1-9])\\s*' + denominator + '$').test(formatted)) {
     formatted = formatted.replace(new RegExp('^([1-9])\\s*(' + denominator + ')$'), '$1/$2')
@@ -70,33 +70,51 @@ function parseIndonesianNumber(value: string): number | null {
 }
 
 function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisual | null {
-  // Ambil fakta dari soal dan pembahasan saja, bukan pilihan jawaban.
-  const source = (item.question + ' ' + item.explanation).toLocaleLowerCase('id')
+  // Gunakan teks soal sebagai sumber fakta utama agar pembahasan yang keliru
+  // tidak mengubah jumlah bagian pada diagram.
+  const source = item.question.toLocaleLowerCase('id')
   const numberPattern = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu|sebuah)'
-  const totalMatch = source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)'))
-    || source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari))\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)'))
-    || source.match(new RegExp(numberPattern + '\\s*(?:kotak|bagian|sektor)\\s*(?:berukuran|yang sama|sama besar)'))
-  const coloredMatch = source.match(new RegExp('(?:terdapat|ada|dan terdapat)?\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)\\s*(?:yang\\s*)?(?:di\\s*antaranya\\s*)?(?:berwarna\\s*(biru|oranye|jingga|merah|hijau|kuning)?|diwarnai(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?|diberi warna(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?)'))
-  if (!totalMatch || !coloredMatch) return null
 
+  const totalMatch =
+    source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|potong|sektor|kotak)')) ||
+    source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari))\\s*' + numberPattern + '\\s*(?:kotak|bagian|sektor)')) ||
+    source.match(new RegExp(numberPattern + '\\s*(?:kotak|bagian|sektor)\\s*(?:kecil|yang sama|sama besar)'))
+
+  if (!totalMatch) return null
   const total = parseIndonesianNumber(totalMatch[1])
-  const colored = parseIndonesianNumber(coloredMatch[1])
-  if (total === null || colored === null || total < 2 || total > 20 || colored < 1 || colored >= total) return null
+  if (total === null || total < 2 || total > 20) return null
 
-  const shape = /lingkaran/.test(source)
+  // Kenali bagian yang dimakan, diwarnai, atau diisi. Kata "sudah" dan
+  // keterangan objek seperti "air" boleh berada di antara jumlah dan kata kerja.
+  const eatenMatch =
+    source.match(new RegExp(numberPattern + '\\s*potong\\s*(?:sudah\\s*)?(?:dimakan|dimakan habis)')) ||
+    source.match(new RegExp('dimakan\\s*' + numberPattern + '\\s*potong'))
+
+  const coloredMatch =
+    source.match(new RegExp(numberPattern + '\\s*(?:bagian|sektor|kotak)\\s*(?:(?:yang\\s*)?(?:di\\s*antaranya\\s*)?)?(?:sudah\\s*)?(?:berwarna|diwarnai|diberi warna|terisi|diisi)(?:\\s*(?:air|warna))?'))
+
+  const asksRemaining = /sisa|tersisa|masih ada|belum dimakan/.test(source)
+  let colored: number
+  if (asksRemaining && eatenMatch) {
+    const eaten = parseIndonesianNumber(eatenMatch[1])
+    if (eaten === null || eaten < 0 || eaten >= total) return null
+    colored = total - eaten
+  } else if (coloredMatch) {
+    colored = parseIndonesianNumber(coloredMatch[1]) ?? 0
+  } else {
+    return null
+  }
+
+  if (colored < 1 || colored >= total) return null
+
+  const shape = /pizza|pai|lingkaran|roti bundar/.test(source)
     ? 'circle'
-    : /persegi panjang|kotak-kotak/.test(source)
+    : /cokelat|coklat|batang|tangki|persegi panjang|kotak-kotak/.test(source)
       ? 'rectangle'
       : null
   if (!shape) return null
 
-  // Jika warna tidak disebutkan, gunakan biru sebagai warna penanda yang konsisten.
-  const colorName = coloredMatch[2] || coloredMatch[3] || coloredMatch[4] || 'biru'
-  const colors: Record<string, string> = {
-    biru: '#2584e8', oranye: '#f59e0b', jingga: '#f59e0b',
-    merah: '#ef4444', hijau: '#16a34a', kuning: '#eab308',
-  }
-  return { shape, total, colored, color: colors[colorName] || '#2584e8' }
+  return { shape, total, colored, color: '#2584e8' }
 }
 
 async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob | null> {
@@ -197,8 +215,7 @@ async function createExactNumberComparisonImage(question: string): Promise<Blob 
     ctx!.beginPath()
     ctx!.roundRect(x, y, w, h, 38)
     ctx!.fill()
-    ctx!.stroke()
-    ctx!.fillStyle = '#0f172a'
+    ctx!.stroke()    ctx!.fillStyle = '#0f172a'
     ctx!.font = 'bold 250px Arial, sans-serif'
     ctx!.textAlign = 'center'
     ctx!.textBaseline = 'middle'
@@ -497,8 +514,7 @@ export default function AsistenAIPage() {
                     Jenis gambar
                     <select value={imageType} onChange={(e) => setImageType(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
                       <option value="auto">Otomatis sesuai soal</option>
-                      <option value="illustration">Ilustrasi penjelas</option>
-                      <option value="object">Objek nyata</option>
+                      <option value="illustration">Ilustrasi penjelas</option>                      <option value="object">Objek nyata</option>
                       <option value="nature">Alam / sains</option>
                       <option value="diagram">Diagram konseptual sederhana</option>
                     </select>
