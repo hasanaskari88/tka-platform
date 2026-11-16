@@ -95,7 +95,36 @@ export async function GET(request: Request) {
       return NextResponse.json({ status: interaction.status })
     }
     if (interaction.status !== 'completed') {
-      return NextResponse.json({ status: interaction.status, error: 'Gemini gagal membuat gambar. Silakan coba ulangi.' }, { status: 502 })
+      const rawInteraction = interaction as unknown as {
+        model?: string
+        updated?: string
+        error?: unknown
+        steps?: unknown[]
+      }
+      const diagnostic = {
+        interactionId: id,
+        status: interaction.status,
+        model: rawInteraction.model,
+        updated: rawInteraction.updated,
+        error: rawInteraction.error,
+        steps: Array.isArray(rawInteraction.steps)
+          ? rawInteraction.steps.map((step) => {
+              if (!step || typeof step !== 'object') return { type: 'unknown' }
+              const item = step as Record<string, unknown>
+              return {
+                type: item.type,
+                error: item.error,
+                message: item.message,
+                code: item.code,
+              }
+            })
+          : [],
+      }
+      console.error('Gemini image interaction did not complete:', diagnostic)
+      return NextResponse.json(
+        { status: interaction.status, error: `Gemini gagal membuat gambar (status: ${interaction.status}). Silakan coba ulangi.` },
+        { status: 502 }
+      )
     }
 
     const image = interaction.output_image
