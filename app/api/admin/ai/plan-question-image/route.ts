@@ -82,7 +82,7 @@ Isi imagePrompt dengan brief visual yang konkret, terukur, tidak ambigu, dan sia
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
-        temperature: 0.2,
+        thinkingConfig: { thinkingLevel: 'MEDIUM' },
       },
     })
 
@@ -91,13 +91,7 @@ Isi imagePrompt dengan brief visual yang konkret, terukur, tidak ambigu, dan sia
       return NextResponse.json({ error: 'Gemini tidak menghasilkan rancangan ilustrasi.' }, { status: 502 })
     }
 
-    let result: { imagePrompt?: unknown }
-    try {
-      result = JSON.parse(outputText)
-    } catch {
-      const cleaned = outputText.replace(/^\`\`\`(?:json)?\s*/i, '').replace(/\s*\`\`\`$/, '')
-      result = JSON.parse(cleaned)
-    }
+    const result = JSON.parse(outputText) as { imagePrompt?: unknown }
 
     const imagePrompt = cleanText(result.imagePrompt, 2500)
     if (!imagePrompt) {
