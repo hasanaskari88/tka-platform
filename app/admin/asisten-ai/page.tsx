@@ -55,7 +55,8 @@ export default function AsistenAIPage() {
       : item))
 
     try {
-      const startResponse = await fetch('/api/admin/ai/generate-question-image', {
+      setLoadingMessage('Gemini sedang membuat gambar secara langsung...')
+      const imageResponse = await fetch('/api/admin/ai/generate-question-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,31 +67,16 @@ export default function AsistenAIPage() {
           customInstruction: imageCustomInstruction,
         }),
       })
-      const startPayload = await startResponse.json()
-      if (!startResponse.ok) throw new Error(startPayload.error || 'Gagal memulai pembuatan gambar.')
-      if (!startPayload.interactionId) throw new Error('Gemini tidak memberikan ID proses gambar.')
-
-      const startedAt = Date.now()
-      let imageResult: { imageBase64: string; mimeType: string } | null = null
-
-      while (!imageResult && Date.now() - startedAt < 240000) {
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        const checkResponse = await fetch('/api/admin/ai/generate-question-image?id=' + encodeURIComponent(startPayload.interactionId), { cache: 'no-store' })
-        const checkPayload = await checkResponse.json()
-        if (!checkResponse.ok) throw new Error(checkPayload.error || 'Gagal mengambil hasil gambar.')
-        if (checkPayload.status === 'completed') {
-          imageResult = { imageBase64: checkPayload.imageBase64, mimeType: checkPayload.mimeType }
-        } else if (checkPayload.status !== 'in_progress' && checkPayload.status !== 'requires_action') {
-          throw new Error(checkPayload.error || 'Proses pembuatan gambar gagal.')
-        }
+      const imagePayload = await imageResponse.json()
+      if (!imageResponse.ok) throw new Error(imagePayload.error || 'Gagal membuat gambar.')
+      if (!imagePayload.imageBase64 || !imagePayload.mimeType) {
+        throw new Error('Gemini tidak mengirimkan data gambar yang dapat disimpan.')
       }
 
-      if (!imageResult) throw new Error('Pembuatan gambar melebihi batas waktu 4 menit.')
-
-      const imageBlob = await (await fetch(`data:${imageResult.mimeType};base64,${imageResult.imageBase64}`)).blob()
-      const extension = imageResult.mimeType === 'image/jpeg' ? 'jpg' : imageResult.mimeType === 'image/webp' ? 'webp' : 'png'
+      const imageBlob = await (await fetch(`data:${imagePayload.mimeType};base64,${imagePayload.imageBase64}`)).blob()
+      const extension = imagePayload.mimeType === 'image/jpeg' ? 'jpg' : imagePayload.mimeType === 'image/webp' ? 'webp' : 'png'
       const formData = new FormData()
-      formData.append('file', new File([imageBlob], `ai-soal-${index + 1}.${extension}`, { type: imageResult.mimeType }))
+      formData.append('file', new File([imageBlob], `ai-soal-${index + 1}.${extension}`, { type: imagePayload.mimeType }))
 
       const uploadResponse = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
       const uploadPayload = await uploadResponse.json()
