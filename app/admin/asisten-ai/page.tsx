@@ -49,18 +49,45 @@ export default function AsistenAIPage() {
   const [model, setModel] = useState('')
   const [loadingMessage, setLoadingMessage] = useState('Menghubungi Gemini...')
 
-  async function generateImageForQuestion(index: number, imagePrompt: string) {
-    setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
-      ? { ...item, image_status: 'generating', image_error: undefined }
-      : item))
+  async function generateImageForQuestion(index: number, item: GeneratedQuestion) {
+    setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
+      ? { ...question, image_status: 'generating', image_error: undefined }
+      : question))
 
     try {
-      setLoadingMessage('Cloudflare sedang membuat gambar...')
+      setLoadingMessage('Gemini sedang merancang ilustrasi sesuai isi soal...')
+      const planResponse = await fetch('/api/admin/ai/plan-question-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grade,
+          subject,
+          topic,
+          indicator,
+          questionType,
+          question: item.question,
+          options: item.options,
+          answer: item.answer,
+          answers: item.answers,
+          statements: item.statements,
+          explanation: item.explanation,
+          modelAnswer: item.model_answer,
+          teacherImageBrief: item.image_prompt || '',
+          imageType,
+          customInstruction: imageCustomInstruction,
+        }),
+      })
+      const planPayload = await planResponse.json()
+      if (!planResponse.ok || !planPayload.imagePrompt) {
+        throw new Error(planPayload.error || 'Gemini belum berhasil merancang ilustrasi.')
+      }
+
+      setLoadingMessage('Cloudflare sedang menggambar sesuai rancangan Gemini...')
       const imageResponse = await fetch('/api/admin/ai/generate-question-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imagePrompt,
+          imagePrompt: planPayload.imagePrompt,
           style: imageStyle,
           imageType,
           aspectRatio: imageAspectRatio,
@@ -143,7 +170,7 @@ export default function AsistenAIPage() {
                 while (nextTarget < imageTargets.length) {
                   const target = imageTargets[nextTarget++]
                   setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
-                  await generateImageForQuestion(target.index, target.prompt)
+                  await generateImageForQuestion(target.index, generatedQuestions[target.index])
                   finishedImages += 1
                   setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
                 }
@@ -349,7 +376,7 @@ export default function AsistenAIPage() {
                         <img src={item.image_url} alt={`Gambar penyerta soal nomor ${index + 1}`} className="max-h-80 w-full object-contain" />
                         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
                           <span className="text-xs font-semibold text-emerald-700">Gambar tersimpan di Google Drive</span>
-                          <button type="button" onClick={() => generateImageForQuestion(index, item.image_prompt || '')} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
+                          <button type="button" onClick={() => generateImageForQuestion(index, item)} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
                             Buat ulang gambar
                           </button>
                         </div>
@@ -359,12 +386,12 @@ export default function AsistenAIPage() {
                     ) : item.image_status === 'failed' ? (
                       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs text-rose-700">
                         <span>{item.image_error || 'Gambar gagal dibuat.'}</span>
-                        <button type="button" onClick={() => generateImageForQuestion(index, item.image_prompt || '')} className="font-bold underline">Coba lagi</button>
+                        <button type="button" onClick={() => generateImageForQuestion(index, item)} className="font-bold underline">Coba lagi</button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
                         <span>Soal ini membutuhkan gambar penyerta.</span>
-                        <button type="button" onClick={() => generateImageForQuestion(index, item.image_prompt || '')} className="font-bold text-indigo-700">Buat gambar</button>
+                        <button type="button" onClick={() => generateImageForQuestion(index, item)} className="font-bold text-indigo-700">Buat gambar</button>
                       </div>
                     )}
                   </div>
