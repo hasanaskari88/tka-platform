@@ -38,43 +38,49 @@ function extractNumberComparison(question: string): [number, number] | null {
 }
 
 
-function extractFractions(value: string): Array<{ numerator: number; denominator: number }> {
-  const found: Array<{ numerator: number; denominator: number }> = []
-  const add = (n: number, d: number) => {
-    if (Number.isInteger(n) && Number.isInteger(d) && d > 1 && d <= 12 && n > 0 && n <= d) {
-      if (!found.some((item) => item.numerator === n && item.denominator === d)) found.push({ numerator: n, denominator: d })
-    }
-  }
+type ExactFractionVisual = {
+  shape: 'circle' | 'rectangle'
+  total: number
+  colored: number
+  color: string
+}
 
-  const latex = /\\frac\s*\{\s*(\d+)\s*\}\s*\{\s*(\d+)\s*\}/g
-  let match: RegExpExecArray | null
-  while ((match = latex.exec(value)) !== null) add(Number(match[1]), Number(match[2]))
+function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisual | null {
+  // Ambil data hanya dari kalimat soal dan pembahasan, bukan pilihan jawaban.
+  // Pilihan jawaban berisi pengecoh sehingga tidak boleh dijadikan isi gambar.
+  const source = (item.question + ' ' + item.explanation).toLocaleLowerCase('id')
+  const totalMatch = source.match(/(?:terbagi menjadi|terdiri dari|tersusun (?:atas|dari))\s*(\d{1,2})\s*(?:bagian|kotak)/)
+    || source.match(/(\d{1,2})\s*(?:kotak|bagian)\s*(?:berukuran|sama besar)/)
+  const coloredMatch = source.match(/(?:terdapat|ada|dan terdapat)\s*(\d{1,2})\s*(?:bagian|kotak)\s*(?:yang\s*)?berwarna\s*(biru|oranye|jingga|merah|hijau|kuning)/)
+    || source.match(/(\d{1,2})\s*(?:bagian|kotak)\s*(?:yang\s*)?berwarna\s*(biru|oranye|jingga|merah|hijau|kuning)/)
+  if (!totalMatch || !coloredMatch) return null
 
-  const plain = /(?<![\d/])(\d{1,2})\s*\/\s*(\d{1,2})(?!\d)/g
-  while ((match = plain.exec(value)) !== null) add(Number(match[1]), Number(match[2]))
+  const total = Number(totalMatch[1])
+  const colored = Number(coloredMatch[1])
+  if (!Number.isInteger(total) || !Number.isInteger(colored) || total < 2 || total > 20 || colored < 1 || colored >= total) return null
 
-  const unicode: Record<string, [number, number]> = {
-    '½': [1, 2], '⅓': [1, 3], '⅔': [2, 3], '¼': [1, 4], '¾': [3, 4],
-    '⅕': [1, 5], '⅖': [2, 5], '⅗': [3, 5], '⅘': [4, 5],
-    '⅙': [1, 6], '⅚': [5, 6], '⅛': [1, 8], '⅜': [3, 8], '⅝': [5, 8], '⅞': [7, 8],
+  const shape = /lingkaran/.test(source)
+    ? 'circle'
+    : /persegi panjang|kotak-kotak|persegi panjang/.test(source)
+      ? 'rectangle'
+      : null
+  if (!shape) return null
+
+  const colorName = coloredMatch[2]
+  const colors: Record<string, string> = {
+    biru: '#2584e8',
+    oranye: '#f59e0b',
+    jingga: '#f59e0b',
+    merah: '#ef4444',
+    hijau: '#16a34a',
+    kuning: '#eab308',
   }
-  for (const [symbol, fraction] of Object.entries(unicode)) {
-    if (value.includes(symbol)) add(fraction[0], fraction[1])
-  }
-  return found.slice(0, 4)
+  return { shape, total, colored, color: colors[colorName] || '#2584e8' }
 }
 
 async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob | null> {
-  const source = [
-    item.question,
-    item.explanation,
-    item.image_prompt || '',
-    ...Object.values(item.options || {}),
-    ...(item.answers || []),
-    ...(item.statements || []).map((statement) => statement.text),
-  ].join(' ')
-  const fractions = extractFractions(source)
-  if (fractions.length === 0) return null
+  const visual = extractExactFractionVisual(item)
+  if (!visual) return null
 
   const canvas = document.createElement('canvas')
   canvas.width = 1600
@@ -82,41 +88,47 @@ async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob |
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
 
-  ctx.fillStyle = '#f8fafc'
+  ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
-  ctx.fillStyle = '#172554'
-  ctx.font = 'bold 58px Arial, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('MENGENAL PECAHAN', 800, 105)
 
-  const cellWidth = 1400 / fractions.length
-  const radius = Math.min(190, cellWidth * 0.31)
-  fractions.forEach(({ numerator, denominator }, index) => {
-    const centerX = 100 + cellWidth * (index + 0.5)
-    const centerY = 455
+  if (visual.shape === 'circle') {
+    const centerX = 800
+    const centerY = 440
+    const radius = 285
     const start = -Math.PI / 2
-    for (let part = 0; part < denominator; part++) {
-      const a0 = start + (part * Math.PI * 2) / denominator
-      const a1 = start + ((part + 1) * Math.PI * 2) / denominator
-      ctx!.beginPath()
-      ctx!.moveTo(centerX, centerY)
-      ctx!.arc(centerX, centerY, radius, a0, a1)
-      ctx!.closePath()
-      ctx!.fillStyle = part < numerator ? '#60a5fa' : '#e2e8f0'
-      ctx!.fill()
-      ctx!.strokeStyle = '#334155'
-      ctx!.lineWidth = 5
-      ctx!.stroke()
+    for (let part = 0; part < visual.total; part++) {
+      const a0 = start + (part * Math.PI * 2) / visual.total
+      const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
+      ctx.beginPath()
+      ctx.moveTo(centerX, centerY)
+      ctx.arc(centerX, centerY, radius, a0, a1)
+      ctx.closePath()
+      ctx.fillStyle = part < visual.colored ? visual.color : '#f1f5f9'
+      ctx.fill()
+      ctx.strokeStyle = '#334155'
+      ctx.lineWidth = 6
+      ctx.stroke()
     }
-    ctx!.fillStyle = '#0f172a'
-    ctx!.font = 'bold 62px Arial, sans-serif'
-    ctx!.textAlign = 'center'
-    ctx!.fillText(numerator + '/' + denominator, centerX, 735)
-    ctx!.fillStyle = '#475569'
-    ctx!.font = '30px Arial, sans-serif'
-    ctx!.fillText(numerator + ' dari ' + denominator + ' bagian', centerX, 795)
-  })
+  } else {
+    const columns = visual.total <= 10 ? visual.total : Math.ceil(Math.sqrt(visual.total))
+    const rows = Math.ceil(visual.total / columns)
+    const gap = 12
+    const cellWidth = Math.min(210, 1180 / columns)
+    const cellHeight = Math.min(170, 420 / rows)
+    const width = columns * cellWidth + (columns - 1) * gap
+    const height = rows * cellHeight + (rows - 1) * gap
+    const left = (canvas.width - width) / 2
+    const top = (canvas.height - height) / 2
+    for (let part = 0; part < visual.total; part++) {
+      const col = part % columns
+      const row = Math.floor(part / columns)
+      ctx.fillStyle = part < visual.colored ? visual.color : '#f1f5f9'
+      ctx.fillRect(left + col * (cellWidth + gap), top + row * (cellHeight + gap), cellWidth, cellHeight)
+      ctx.strokeStyle = '#334155'
+      ctx.lineWidth = 5
+      ctx.strokeRect(left + col * (cellWidth + gap), top + row * (cellHeight + gap), cellWidth, cellHeight)
+    }
+  }
 
   return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
