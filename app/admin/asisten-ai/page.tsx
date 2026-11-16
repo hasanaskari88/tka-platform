@@ -55,7 +55,7 @@ export default function AsistenAIPage() {
       : question))
 
     try {
-      setLoadingMessage('Gemini sedang merancang ilustrasi sesuai isi soal...')
+      setLoadingMessage('AI sedang merancang ilustrasi sesuai isi soal...')
       const planResponse = await fetch('/api/admin/ai/plan-question-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +82,7 @@ export default function AsistenAIPage() {
         throw new Error(planPayload.error || 'Gemini belum berhasil merancang ilustrasi.')
       }
 
-      setLoadingMessage('Cloudflare sedang menggambar sesuai rancangan Gemini...')
+      setLoadingMessage('Cloudflare sedang menggambar sesuai rancangan AI...')
       const imageResponse = await fetch('/api/admin/ai/generate-question-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
