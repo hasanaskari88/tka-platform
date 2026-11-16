@@ -28,10 +28,6 @@ function parseJsonObject(text: string | null | undefined): JsonObject {
   return parsed as JsonObject
 }
 
-function isRetryableProviderError(status: number) {
-  return status === 408 || status === 429 || status >= 500
-}
-
 async function generateWithGroq(input: GenerateJsonInput): Promise<JsonObject> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) throw new Error('GROQ_API_KEY belum dikonfigurasi.')
@@ -96,8 +92,6 @@ async function generateWithGemini(input: GenerateJsonInput): Promise<JsonObject>
  * rate-limited, or returns a transient/server error. API keys stay server-side.
  */
 export async function generateJsonWithFallback(input: GenerateJsonInput) {
-  const failures: string[] = []
-
   if (process.env.GROQ_API_KEY) {
     try {
       const data = await generateWithGroq(input)
@@ -107,16 +101,9 @@ export async function generateJsonWithFallback(input: GenerateJsonInput) {
         ? Number((error as { status?: unknown }).status)
         : 0
       const message = error instanceof Error ? error.message : String(error)
-      failures.push(message)
       console.error(`AI provider Groq failed for ${input.task}:`, message)
-
-      // Do not hide configuration/schema errors by repeatedly calling another provider.
-      if (status && !isRetryableProviderError(status)) {
-        throw new AIProvidersUnavailableError('Groq menolak format atau parameter permintaan AI. Periksa log server.', 502)
-      }
     }
   } else {
-    failures.push('GROQ_API_KEY belum dikonfigurasi; Groq dilewati.')
   }
 
   if (process.env.GEMINI_API_KEY) {
@@ -125,11 +112,9 @@ export async function generateJsonWithFallback(input: GenerateJsonInput) {
       return { data, provider: 'Gemini' as const }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      failures.push(message)
       console.error(`AI provider Gemini failed for ${input.task}:`, message)
     }
   } else {
-    failures.push('GEMINI_API_KEY belum dikonfigurasi.')
   }
 
   throw new AIProvidersUnavailableError(
