@@ -8,6 +8,7 @@ type GenerateJsonInput = {
   groqSchema: JsonObject
   geminiSchema: JsonObject
   timeoutMs?: number
+  maxOutputTokens?: number
 }
 
 export class AIProvidersUnavailableError extends Error {
@@ -52,7 +53,7 @@ async function generateWithGroq(input: GenerateJsonInput): Promise<JsonObject> {
           schema: input.groqSchema,
         },
       },
-      max_completion_tokens: 1200,
+      max_completion_tokens: input.maxOutputTokens ?? 1200,
     }),
     signal: AbortSignal.timeout(input.timeoutMs ?? 45000),
   })
@@ -81,6 +82,7 @@ async function generateWithGemini(input: GenerateJsonInput): Promise<JsonObject>
     config: {
       responseMimeType: 'application/json',
       responseSchema: input.geminiSchema as never,
+      maxOutputTokens: input.maxOutputTokens ?? 1200,
     },
   })
 
