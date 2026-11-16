@@ -266,6 +266,8 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
   const [showScoreSettings, setShowScoreSettings] = useState(false)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
+  const [aiEssaySuggestions, setAiEssaySuggestions] = useState<Record<string, { suggestedScore: number; maxScore: number; provider: string; feedback: string; strengths: string; improvements: string; error?: string }>>({})
+  const [aiEssayLoading, setAiEssayLoading] = useState<Record<string, boolean>>({})
   const [bonusPoints, setBonusPoints] = useState<number>(0)
   const [isOverrideScore, setIsOverrideScore] = useState<boolean>(false)
   const [customFinalScore, setCustomFinalScore] = useState<number>(0)
@@ -910,6 +912,50 @@ const goToGradingSession = (nextIndex: number) => {
     if (!isOverrideScore) {
       const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores, bonusPoints)
       setCustomFinalScore(autoCalculated)
+    }
+  }
+
+  const requestAiEssaySuggestion = async (question: any, rawAnswer: any, maxScore: number) => {
+    const questionId = String(question.id)
+    setAiEssayLoading((current) => ({ ...current, [questionId]: true }))
+    setAiEssaySuggestions((current) => ({ ...current, [questionId]: { ...(current[questionId] || { suggestedScore: 0, maxScore, provider: '', feedback: '', strengths: '', improvements: '' }), error: undefined } }))
+
+    try {
+      const answerText = typeof rawAnswer === 'string' ? rawAnswer : JSON.stringify(rawAnswer ?? '')
+      const response = await fetch('/api/admin/ai/grade-essay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: question.question_text,
+          answer: answerText,
+          rubric: question.explanation || '',
+          maxScore,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'AI belum berhasil menilai jawaban.')
+      setAiEssaySuggestions((current) => ({
+        ...current,
+        [questionId]: {
+          suggestedScore: payload.suggestedScore,
+          maxScore: payload.maxScore,
+          provider: payload.provider,
+          feedback: payload.feedback || '',
+          strengths: payload.strengths || '',
+          improvements: payload.improvements || '',
+        },
+      }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal meminta saran skor AI.'
+      setAiEssaySuggestions((current) => ({
+        ...current,
+        [questionId]: {
+          ...(current[questionId] || { suggestedScore: 0, maxScore, provider: '', feedback: '', strengths: '', improvements: '' }),
+          error: message,
+        },
+      }))
+    } finally {
+      setAiEssayLoading((current) => ({ ...current, [questionId]: false }))
     }
   }
 
@@ -2868,22 +2914,62 @@ const handleSaveAllQuestionScores = async () => {
 
                     {/* Input Penilaian Manual Khusus Soal Essay (Default Skor = 3) */}
                     {isEssay && (
-                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                        <div>
-                          <span className="font-bold text-indigo-950 text-xs block">✏️ Input Skor Uraian / Essay:</span>
-                          <span className="text-[10px] text-slate-500">Masukkan nilai perolehan siswa (0 s.d {qMax})</span>
+                      <div className="space-y-3 pt-2 border-t border-slate-200">
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                          <div>
+                            <span className="font-bold text-indigo-950 text-xs block">✏️ Input Skor Uraian / Essay:</span>
+                            <span className="text-[10px] text-slate-500">Nilai akhir tetap ditentukan guru (0 s.d. {qMax})</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              min={0}
+                              max={qMax}
+                              step={0.5}
+                              value={essayScores[q.id] ?? 0}
+                              onChange={(e) => handleEssayScoreChange(q.id, Number(e.target.value), qMax)}
+                              className="w-24 p-1.5 border-2 border-indigo-400 rounded-lg text-center font-black text-sm text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                            />
+                            <span className="font-bold text-indigo-900 text-xs">/ {qMax} Poin</span>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="number"
-                            min={0}
-                            max={qMax}
-                            step={0.5}
-                            value={essayScores[q.id] ?? 0}
-                            onChange={(e) => handleEssayScoreChange(q.id, Number(e.target.value), qMax)}
-                            className="w-24 p-1.5 border-2 border-indigo-400 rounded-lg text-center font-black text-sm text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                          />
-                          <span className="font-bold text-indigo-900 text-xs">/ {qMax} Poin</span>
+
+                        <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-xs font-bold text-violet-950">Bantuan penilaian AI</p>
+                              <p className="text-[10px] text-violet-800">AI memberi saran skor dan alasan. Tidak langsung menyimpan atau menetapkan nilai.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => requestAiEssaySuggestion(q, rawAns, qMax)}
+                              disabled={aiEssayLoading[q.id] || evalRes.isUnanswered}
+                              className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {aiEssayLoading[q.id] ? 'AI sedang menilai...' : '✨ Minta saran skor AI'}
+                            </button>
+                          </div>
+
+                          {aiEssaySuggestions[q.id]?.error && (
+                            <p role="alert" className="text-xs text-rose-700">{aiEssaySuggestions[q.id].error}</p>
+                          )}
+                          {aiEssaySuggestions[q.id] && !aiEssaySuggestions[q.id].error && (
+                            <div className="rounded-lg border border-violet-200 bg-white p-3 space-y-2 text-xs text-slate-700">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="font-bold text-violet-900">Saran AI: {aiEssaySuggestions[q.id].suggestedScore} / {qMax} poin · {aiEssaySuggestions[q.id].provider}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleEssayScoreChange(q.id, aiEssaySuggestions[q.id].suggestedScore, qMax)}
+                                  className="rounded-lg border border-violet-300 px-3 py-1.5 font-bold text-violet-800 hover:bg-violet-50"
+                                >
+                                  Gunakan skor saran
+                                </button>
+                              </div>
+                              {aiEssaySuggestions[q.id].strengths && <p><strong>Yang sudah baik:</strong> {aiEssaySuggestions[q.id].strengths}</p>}
+                              {aiEssaySuggestions[q.id].improvements && <p><strong>Yang perlu diperbaiki:</strong> {aiEssaySuggestions[q.id].improvements}</p>}
+                              {aiEssaySuggestions[q.id].feedback && <p><strong>Catatan:</strong> {aiEssaySuggestions[q.id].feedback}</p>}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
