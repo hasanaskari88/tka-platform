@@ -322,6 +322,8 @@ function AnalysisContent() {
   const [filterQuestionType, setFilterQuestionType] = useState('ALL')
   const [sortBy, setSortBy] = useState<'lowest_accuracy' | 'highest_accuracy' | 'number'>('lowest_accuracy')
   const [activeQuestionTab, setActiveQuestionTab] = useState<{ [key: string]: 'correct' | 'wrong' }>({})
+  const [aiAnalysisResults, setAiAnalysisResults] = useState<Record<string, { verdict: string; summary: string; strengths: string; concerns: string; recommendation: string; provider: string; error?: string }>>({})
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Record<string, boolean>>({})
 
   const [summaryStats, setSummaryStats] = useState({
     totalStudents: 0,
@@ -363,6 +365,69 @@ function AnalysisContent() {
   useEffect(() => {
     loadData()
   }, [examId])
+
+  const requestQuestionAiAnalysis = async (item: any) => {
+    const q = item.question
+    const questionId = String(q.id)
+    setAiAnalysisLoading((current) => ({ ...current, [questionId]: true }))
+    setAiAnalysisResults((current) => ({ ...current, [questionId]: { ...(current[questionId] || { verdict: '', summary: '', strengths: '', concerns: '', recommendation: '', provider: '' }), error: undefined } }))
+
+    try {
+      const response = await fetch('/api/admin/ai/analyze-question', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: {
+            type: q.question_type || 'multiple_choice',
+            text: q.question_text,
+            options: q.options ?? q.statements ?? null,
+            answerKey: q.correct_answers ?? q.correct_option ?? q.correct_answer ?? null,
+            explanation: q.explanation || q.discussion || '',
+          },
+          statistics: {
+            participants: totalFilteredStudents,
+            correct: item.correctCount,
+            wrong: item.wrongCount,
+            accuracyPercent: item.accuracyRate,
+            difficultyLabel: item.facilityLabel,
+            discriminationPercent: item.discriminationPercent,
+            discriminationLabel: item.discriminationLabel,
+            distractorCounts: item.optionCounts,
+            topDistractor: item.topDistractor,
+            gradedEssayCount: item.essayGradedStudents.length,
+            ungradedEssayCount: item.essayUngradedStudents.length,
+            essayAverage: item.essayAverage,
+            essayHighest: item.essayHighest,
+            essayLowest: item.essayLowest,
+          },
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'AI belum berhasil menganalisis soal.')
+      setAiAnalysisResults((current) => ({
+        ...current,
+        [questionId]: {
+          verdict: payload.verdict,
+          summary: payload.summary || '',
+          strengths: payload.strengths || '',
+          concerns: payload.concerns || '',
+          recommendation: payload.recommendation || '',
+          provider: payload.provider || 'AI',
+        },
+      }))
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Gagal menganalisis soal.'
+      setAiAnalysisResults((current) => ({
+        ...current,
+        [questionId]: {
+          ...(current[questionId] || { verdict: '', summary: '', strengths: '', concerns: '', recommendation: '', provider: '' }),
+          error: message,
+        },
+      }))
+    } finally {
+      setAiAnalysisLoading((current) => ({ ...current, [questionId]: false }))
+    }
+  }
 
   if (loading) {
     return (
@@ -818,6 +883,39 @@ function AnalysisContent() {
 
                   {/* RENDER RINCIAN SOAL UTUH */}
                   <RenderFullQuestionDetail question={q} />
+
+                  <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-bold text-violet-950">Analisis kualitas soal dengan AI</p>
+                        <p className="text-[10px] text-violet-800">AI membaca isi soal dan statistik kelas untuk memberi masukan. Kunci jawaban tidak diubah otomatis.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => requestQuestionAiAnalysis(item)}
+                        disabled={aiAnalysisLoading[q.id]}
+                        className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {aiAnalysisLoading[q.id] ? 'AI sedang menganalisis...' : '✨ Analisis dengan AI'}
+                      </button>
+                    </div>
+
+                    {aiAnalysisResults[q.id]?.error && (
+                      <p role="alert" className="text-xs text-rose-700">{aiAnalysisResults[q.id].error}</p>
+                    )}
+                    {aiAnalysisResults[q.id] && !aiAnalysisResults[q.id].error && (
+                      <div className="rounded-lg border border-violet-200 bg-white p-3 space-y-2 text-xs text-slate-700">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-bold text-violet-900">Kesimpulan: {aiAnalysisResults[q.id].verdict.toUpperCase()}</p>
+                          <span className="text-[10px] text-slate-500">Penyedia: {aiAnalysisResults[q.id].provider}</span>
+                        </div>
+                        <p>{aiAnalysisResults[q.id].summary}</p>
+                        {aiAnalysisResults[q.id].strengths && <p><strong>Kekuatan:</strong> {aiAnalysisResults[q.id].strengths}</p>}
+                        {aiAnalysisResults[q.id].concerns && <p><strong>Hal yang perlu diperiksa:</strong> {aiAnalysisResults[q.id].concerns}</p>}
+                        {aiAnalysisResults[q.id].recommendation && <p><strong>Saran tindak lanjut:</strong> {aiAnalysisResults[q.id].recommendation}</p>}
+                      </div>
+                    )}
+                  </div>
 
                   {/* DAFTAR SISWA: NILAI MANUAL ESSAY ATAU DIAGNOSTIK OBJEKTIF */}
                   {item.isEssay ? (
