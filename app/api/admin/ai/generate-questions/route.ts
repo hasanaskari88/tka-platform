@@ -88,6 +88,9 @@ export async function POST(request: Request) {
     const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
     const topic = typeof body.topic === 'string' ? body.topic.trim() : ''
     const count = Number(body.count)
+    const shortAnswerCount = Number(body.shortAnswerCount ?? 10)
+    const shortAnswerMaxScore = Number(body.shortAnswerMaxScore ?? 2)
+    const longEssayMaxScore = Number(body.longEssayMaxScore ?? 3)
     const indicator = typeof body.indicator === 'string' ? body.indicator.trim() : ''
     const cognitiveLevel = typeof body.cognitiveLevel === 'string' ? body.cognitiveLevel : 'AUTO'
     const questionType = (typeof body.questionType === 'string' ? body.questionType : 'multiple_choice') as QuestionType
@@ -95,7 +98,10 @@ export async function POST(request: Request) {
     if (!grade || grade.length > 40) return NextResponse.json({ error: 'Kelas harus diisi.' }, { status: 400 })
     if (!subject || subject.length > 80) return NextResponse.json({ error: 'Mata pelajaran harus diisi.' }, { status: 400 })
     if (!topic || topic.length > 300) return NextResponse.json({ error: 'Materi harus diisi (maksimal 300 karakter).' }, { status: 400 })
-    if (!Number.isInteger(count) || count < 1 || count > 10) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 10.' }, { status: 400 })
+    if (!Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 15.' }, { status: 400 })
+    if (!Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 15.' }, { status: 400 })
+    if (indicator.length > 200) || shortAnswerCount < 1 || shortAnswerCount >= count)) return NextResponse.json({ error: 'Jumlah soal isian singkat harus minimal 1 dan lebih kecil dari jumlah seluruh soal.' }, { status: 400 })
+    if (questionType === 'essay' && (![shortAnswerMaxScore, longEssayMaxScore].every((score) => Number.isFinite(score) && score > 0 && score <= 100))) return NextResponse.json({ error: 'Skor maksimal harus lebih dari 0 dan tidak lebih dari 100.' }, { status: 400 })
     if (indicator.length > 200) return NextResponse.json({ error: 'Indikator maksimal 200 karakter.' }, { status: 400 })
 
     const allowedCognitiveLevels = ['AUTO', 'LOTS', 'MOTS', 'HOTS', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
@@ -103,11 +109,14 @@ export async function POST(request: Request) {
     const allowedTypes: QuestionType[] = ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix', 'essay']
     if (!allowedTypes.includes(questionType)) return NextResponse.json({ error: 'Bentuk soal tidak valid.' }, { status: 400 })
 
+    if (questionType === 'essay' && (!Number.isInteger(shortAnswerCount) || shortAnswerCount < 1 || shortAnswerCount >= count)) return NextResponse.json({ error: 'Jumlah soal isian singkat harus minimal 1 dan lebih kecil dari jumlah seluruh soal.' }, { status: 400 })
+    if (questionType === 'essay' && (![shortAnswerMaxScore, longEssayMaxScore].every((score) => Number.isFinite(score) && score > 0 && score <= 100))) return NextResponse.json({ error: 'Skor maksimal harus lebih dari 0 dan tidak lebih dari 100.' }, { status: 400 })
+
     const typeInstruction = {
       multiple_choice: 'Setiap soal memiliki tepat 4 pilihan A, B, C, D dan tepat satu jawaban benar. Gunakan properti options sebagai objek A-D dan answer sebagai satu huruf.',
       complex_multiple_choice: 'Setiap soal memiliki tepat 4 pilihan A, B, C, D dan minimal dua jawaban benar. Gunakan properti options sebagai objek A-D dan answers sebagai array huruf jawaban yang benar.',
       true_false_matrix: 'Setiap soal memiliki 3 atau 4 pernyataan. Gunakan properti statements berupa array objek dengan id "1", "2", "3", "4" (maksimal 4), text, dan answer bernilai "Benar" atau "Salah".',
-      essay: 'Setiap soal berupa uraian terbuka. Sertakan model_answer sebagai contoh jawaban, rubric sebagai pedoman pemberian skor yang jelas dan bertahap, serta max_score berupa angka positif (gunakan 10). Guru tetap menentukan nilai akhir.',
+      essay: 'Buat ' + shortAnswerCount + ' soal pertama sebagai isian singkat dengan jawaban ringkas dan tepat, masing-masing skor maksimal ' + shortAnswerMaxScore + ' poin. Buat ' + (count - shortAnswerCount) + ' soal berikutnya sebagai uraian panjang yang membutuhkan penjelasan/penalaran, masing-masing skor maksimal ' + longEssayMaxScore + ' poin. Semua soal tetap bertipe essay/uraian agar kompatibel dengan CBT. Setiap soal wajib memiliki model_answer, rubric dengan kriteria dan pembagian skor yang jumlahnya tepat sesuai skor maksimal kelompoknya, serta max_score sesuai kelompok. Guru tetap menentukan nilai akhir.',
     }[questionType]
 
     const indicatorInstruction = indicator ? '\nIndikator yang harus diukur: ' + indicator + '.' : '\nBuat indikator soal yang relevan berdasarkan materi.'
@@ -149,6 +158,12 @@ export async function GET(request: Request) {
 
     const result = JSON.parse(interaction.output_text)
     if (!Array.isArray(result.questions) || result.questions.length !== count) return NextResponse.json({ error: 'Hasil AI belum sesuai jumlah soal yang diminta.' }, { status: 502 })
+    if (questionType === 'essay') {
+      result.questions = result.questions.map((question: Record<string, unknown>, index: number) => ({
+        ...question,
+        max_score: index < shortAnswerCount ? shortAnswerMaxScore : longEssayMaxScore,
+      }))
+    }
     return NextResponse.json({ status: 'completed', success: true, model: 'gemini-4-hydrogen', questions: result.questions })
   } catch (error) {
     console.error('Gemini background generation polling failed:', error)
