@@ -57,6 +57,17 @@ type ExactFractionVisual = {
   columns?: number
 }
 
+type AnalyzedVisualSpec = {
+  visualType: 'fraction_partition'
+  shape: 'circle' | 'rectangle' | 'line' | 'objects'
+  totalParts: number
+  selectedParts: number
+  meaning: 'selected' | 'removed' | 'remaining'
+  visibleParts: number
+  objectLabel?: string
+  confidence: number
+}
+
 function parseIndonesianNumber(value: string): number | null {
   const normalized = value.toLocaleLowerCase('id').trim()
   if (/^\d+$/.test(normalized)) return Number(normalized)
@@ -115,8 +126,10 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
   return { shape, total, colored, color: '#2584e8', columns }
 }
 
-async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob | null> {
-  const visual = extractExactFractionVisual(item)
+async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
+  const visual: ExactFractionVisual | null = analyzedSpec
+    ? { shape: analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : 'rectangle', total: analyzedSpec.totalParts, colored: analyzedSpec.visibleParts, color: '#2584e8' }
+    : extractExactFractionVisual(item)
   if (!visual) return null
 
   const canvas = document.createElement('canvas')
@@ -291,7 +304,7 @@ export default function AsistenAIPage() {
   const [model, setModel] = useState('')
   const [loadingMessage, setLoadingMessage] = useState('Menghubungi penyedia AI...')
 
-  async function generateImageForQuestion(index: number, item: GeneratedQuestion) {
+  async function generateImageForQuestion(index: number, item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null) {
     setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
       ? { ...question, image_status: 'generating', image_error: undefined }
       : question))
@@ -299,7 +312,7 @@ export default function AsistenAIPage() {
     try {
       // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
       const exactComparisonBlob = await createExactNumberComparisonImage(item.question)
-      const exactFractionBlob = exactComparisonBlob ? null : await createExactFractionImage(item)
+      const exactFractionBlob = exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
       const exactMathBlob = exactComparisonBlob || exactFractionBlob
       if (exactMathBlob) {
         setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
@@ -425,13 +438,45 @@ export default function AsistenAIPage() {
         if (imageTargets.length === 0) {
           setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
         } else {
+          setLoadingMessage('AI sedang memahami kebutuhan visual setiap soal...')
+          let visualSpecs: Record<number, AnalyzedVisualSpec> = {}
+          try {
+            const analysisResponse = await fetch('/api/admin/ai/analyze-question-visual', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                subject,
+                topic,
+                questions: imageTargets.map(({ index }) => ({
+                  question: generatedQuestions[index].question,
+                  explanation: generatedQuestions[index].explanation,
+                })),
+              }),
+            })
+            const analysisPayload = await analysisResponse.json()
+            if (analysisResponse.ok && Array.isArray(analysisPayload.results)) {
+              visualSpecs = Object.fromEntries(
+                analysisPayload.results
+                  .filter((entry: { index?: number; spec?: AnalyzedVisualSpec | null }) =>
+                    Number.isInteger(entry.index) && entry.spec?.visualType === 'fraction_partition'
+                  )
+                  .map((entry: { index: number; spec: AnalyzedVisualSpec }) => [imageTargets[entry.index]?.index, entry.spec])
+                  .filter(([index]) => typeof index === 'number')
+              )
+            } else {
+              console.warn('AI visual analyzer unavailable; legacy exact renderer will be used.', analysisPayload.error)
+            }
+          } catch (analysisError) {
+            console.warn('AI visual analyzer failed; legacy exact renderer will be used.', analysisError)
+          }
+
           let nextTarget = 0
           let finishedImages = 0
           const worker = async () => {
             while (nextTarget < imageTargets.length) {
               const target = imageTargets[nextTarget++]
               setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
-              await generateImageForQuestion(target.index, generatedQuestions[target.index])
+              await generateImageForQuestion(target.index, generatedQuestions[target.index], visualSpecs[target.index] || null)
               finishedImages += 1
               setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
             }
