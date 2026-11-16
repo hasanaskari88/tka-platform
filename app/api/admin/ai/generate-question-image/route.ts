@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       model: IMAGE_MODEL,
       input: prompt,
       background: true,
-      response_modalities: ['image'],
+      response_format: { type: 'image', aspect_ratio: aspectRatio },
     })
 
     if (!interaction.id) return NextResponse.json({ error: 'Gemini tidak memberikan ID proses gambar.' }, { status: 502 })
