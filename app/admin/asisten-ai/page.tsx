@@ -37,6 +37,95 @@ function extractNumberComparison(question: string): [number, number] | null {
   return [first, second]
 }
 
+
+function extractFractions(value: string): Array<{ numerator: number; denominator: number }> {
+  const found: Array<{ numerator: number; denominator: number }> = []
+  const add = (n: number, d: number) => {
+    if (Number.isInteger(n) && Number.isInteger(d) && d > 1 && d <= 12 && n > 0 && n <= d) {
+      if (!found.some((item) => item.numerator === n && item.denominator === d)) found.push({ numerator: n, denominator: d })
+    }
+  }
+
+  const latex = /\\frac\s*\{\s*(\d+)\s*\}\s*\{\s*(\d+)\s*\}/g
+  let match: RegExpExecArray | null
+  while ((match = latex.exec(value)) !== null) add(Number(match[1]), Number(match[2]))
+
+  const plain = /(?<![\d/])(\d{1,2})\s*\/\s*(\d{1,2})(?!\d)/g
+  while ((match = plain.exec(value)) !== null) add(Number(match[1]), Number(match[2]))
+
+  const unicode: Record<string, [number, number]> = {
+    '½': [1, 2], '⅓': [1, 3], '⅔': [2, 3], '¼': [1, 4], '¾': [3, 4],
+    '⅕': [1, 5], '⅖': [2, 5], '⅗': [3, 5], '⅘': [4, 5],
+    '⅙': [1, 6], '⅚': [5, 6], '⅛': [1, 8], '⅜': [3, 8], '⅝': [5, 8], '⅞': [7, 8],
+  }
+  for (const [symbol, fraction] of Object.entries(unicode)) {
+    if (value.includes(symbol)) add(fraction[0], fraction[1])
+  }
+  return found.slice(0, 4)
+}
+
+async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob | null> {
+  const source = [
+    item.question,
+    item.explanation,
+    item.image_prompt || '',
+    ...Object.values(item.options || {}),
+    ...(item.answers || []),
+    ...(item.statements || []).map((statement) => statement.text),
+  ].join(' ')
+  const fractions = extractFractions(source)
+  if (fractions.length === 0) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 1600
+  canvas.height = 900
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = '#172554'
+  ctx.font = 'bold 58px Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('MENGENAL PECAHAN', 800, 105)
+
+  const cellWidth = 1400 / fractions.length
+  const radius = Math.min(190, cellWidth * 0.31)
+  fractions.forEach(({ numerator, denominator }, index) => {
+    const centerX = 100 + cellWidth * (index + 0.5)
+    const centerY = 455
+    const start = -Math.PI / 2
+    for (let part = 0; part < denominator; part++) {
+      const a0 = start + (part * Math.PI * 2) / denominator
+      const a1 = start + ((part + 1) * Math.PI * 2) / denominator
+      ctx!.beginPath()
+      ctx!.moveTo(centerX, centerY)
+      ctx!.arc(centerX, centerY, radius, a0, a1)
+      ctx!.closePath()
+      ctx!.fillStyle = part < numerator ? '#60a5fa' : '#e2e8f0'
+      ctx!.fill()
+      ctx!.strokeStyle = '#334155'
+      ctx!.lineWidth = 5
+      ctx!.stroke()
+    }
+    ctx!.fillStyle = '#0f172a'
+    ctx!.font = 'bold 62px Arial, sans-serif'
+    ctx!.textAlign = 'center'
+    ctx!.fillText(numerator + '/' + denominator, centerX, 735)
+    ctx!.fillStyle = '#475569'
+    ctx!.font = '30px Arial, sans-serif'
+    ctx!.fillText(numerator + ' dari ' + denominator + ' bagian', centerX, 795)
+  })
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
+function isMathematicsVisual(item: GeneratedQuestion, subject: string, topic: string): boolean {
+  const text = (subject + ' ' + topic + ' ' + item.question + ' ' + item.explanation).toLocaleLowerCase('id')
+  return /matematika|pecahan|bilangan|penjumlahan|pengurangan|perkalian|pembagian|bangun datar|bangun ruang|keliling|luas|volume|sudut|pola bilangan|diagram|grafik|perbandingan angka|jam analog|nilai tempat|desimal|persen/.test(text)
+}
+
 async function createExactNumberComparisonImage(question: string): Promise<Blob | null> {
   const numbers = extractNumberComparison(question)
   if (!numbers) return null
@@ -126,20 +215,30 @@ export default function AsistenAIPage() {
       : question))
 
     try {
-      // Angka dalam soal perbandingan harus digambar secara deterministik,
-      // bukan oleh model gambar yang dapat keliru menulis atau mengganti angka.
+      // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
       const exactComparisonBlob = await createExactNumberComparisonImage(item.question)
-      if (exactComparisonBlob) {
-        setLoadingMessage('Membuat kartu angka yang tepat sesuai soal...')
+      const exactFractionBlob = exactComparisonBlob ? null : await createExactFractionImage(item)
+      const exactMathBlob = exactComparisonBlob || exactFractionBlob
+      if (exactMathBlob) {
+        setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
         const formData = new FormData()
-        formData.append('file', new File([exactComparisonBlob], `kartu-angka-soal-${index + 1}.png`, { type: 'image/png' }))
+        formData.append('file', new File([exactMathBlob], 'visual-matematika-soal-' + (index + 1) + '.png', { type: 'image/png' }))
         const uploadResponse = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
         const uploadPayload = await uploadResponse.json()
         if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
-          throw new Error(uploadPayload.error || 'Kartu angka dibuat, tetapi gagal disimpan ke Google Drive.')
+          throw new Error(uploadPayload.error || 'Visual matematika dibuat, tetapi gagal disimpan ke Google Drive.')
         }
         setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
           ? { ...question, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+          : question))
+        return
+      }
+
+      // Jangan meminta FLUX menggambar matematika yang belum memiliki renderer presisi.
+      // Lebih aman tidak menampilkan gambar daripada memberi diagram/pecahan yang salah.
+      if (isMathematicsVisual(item, subject, topic)) {
+        setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
+          ? { ...question, image_status: 'failed', image_error: 'Visual matematika untuk tipe soal ini belum didukung. Gambar otomatis dihentikan agar tidak menghasilkan angka, pecahan, atau diagram yang keliru.' }
           : question))
         return
       }
