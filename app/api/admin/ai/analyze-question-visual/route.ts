@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       const item = question && typeof question === 'object' ? question as Record<string, unknown> : {}
       return { index, question: cleanText(item.question, 3000), explanation: cleanText(item.explanation, 1500) }
     })
-    if (safeQuestions.some((item) => !item.question)) {
+    if (safeQuestions.some((item: { index: number; question: string; explanation: string }) => !item.question)) {
       return NextResponse.json({ error: 'Teks soal tidak boleh kosong.' }, { status: 400 })
     }
 
@@ -165,7 +165,7 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
     })
 
     const rawResults = Array.isArray(data.results) ? data.results : []
-    const results = safeQuestions.map((question, index) => {
+    const results = safeQuestions.map((question: { index: number; question: string; explanation: string }, index: number) => {
       const raw = rawResults.find((entry: unknown) => entry && typeof entry === 'object' && Number((entry as Record<string, unknown>).index) === index)
       const spec = validateSpec(raw)
       if (!spec || spec.visualType === 'none' || spec.confidence < 0.75) {
