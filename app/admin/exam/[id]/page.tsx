@@ -84,10 +84,40 @@ function docxZip(entries: {name:string;data:Uint8Array}[]) {
  const dir=join(central),end=join([u32(0x06054b50),u16(0),u16(0),u16(entries.length),u16(entries.length),u32(dir.length),u32(offset),u16(0)]);return join([...local,dir,end])
 }
 function docxP(value:string,bold=false,center=false,size=22){return '<w:p><w:pPr>'+(center?'<w:jc w:val="center"/>':'')+'<w:spacing w:before="0" w:after="100" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="'+size+'"/><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:eastAsia="Georgia" w:cs="Georgia"/></w:rPr><w:t xml:space="preserve">'+docxEsc(value)+'</w:t></w:r></w:p>'}
+function getGoogleDriveImageProxyUrl(src: string) {
+  if (!src) return src
+  try {
+    const url = new URL(src, window.location.origin)
+    if (url.hostname !== 'drive.google.com' && url.hostname !== 'www.drive.google.com') {
+      return src
+    }
+
+    let fileId = url.searchParams.get('id')
+    if (!fileId) {
+      const match = url.pathname.match(/\\/file\\/d\\/([a-zA-Z0-9_-]+)/)
+      fileId = match?.[1] || null
+    }
+
+    return fileId
+      ? `/api/google-drive/image?id=${encodeURIComponent(fileId)}`
+      : src
+  } catch {
+    return src
+  }
+}
+
+function rewriteGoogleDriveImageUrls(html: string) {
+  return String(html || '').replace(
+    /(<img\\b[^>]*\\bsrc\\s*=\\s*)(["'])(.*?)\\2/gi,
+    (_match, prefix, quote, src) =>
+      prefix + quote + getGoogleDriveImageProxyUrl(src) + quote
+  )
+}
+
 async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuestion[],examTitle:string,subtest:string,duration:number|null) {
  const media:{name:string;data:Uint8Array}[]=[],rels:string[]=[],types=new Set<string>();let imageNo=0,drawNo=0
  const addImage=async(src:string,alt:string)=>{
-  try{const response=await fetch(src,{mode:'cors',credentials:'omit'});if(!response.ok)throw Error();const blob=await response.blob(),mime=blob.type.toLowerCase();const ext=mime==='image/png'?'png':mime==='image/gif'?'gif':mime==='image/bmp'?'bmp':'jpg';if(!['image/png','image/jpeg','image/jpg','image/gif','image/bmp'].includes(mime))throw Error();const name='image'+(++imageNo)+'.'+ext,rid='rId'+(imageNo+1),type=mime==='image/jpg'?'image/jpeg':mime;types.add('<Default Extension="'+ext+'" ContentType="'+type+'"/>');media.push({name:'word/media/'+name,data:new Uint8Array(await blob.arrayBuffer())});rels.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/'+name+'"/>');const id=++drawNo,w=4200000,h=2600000;return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+w+'" cy="'+h+'"/><wp:docPr id="'+id+'" name="'+docxEsc(alt)+'"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="'+id+'" name="'+name+'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>'
+  try{const response=await fetch(getGoogleDriveImageProxyUrl(src),{credentials:'same-origin'});if(!response.ok)throw Error();const blob=await response.blob(),mime=blob.type.toLowerCase();const ext=mime==='image/png'?'png':mime==='image/gif'?'gif':mime==='image/bmp'?'bmp':'jpg';if(!['image/png','image/jpeg','image/jpg','image/gif','image/bmp'].includes(mime))throw Error();const name='image'+(++imageNo)+'.'+ext,rid='rId'+(imageNo+1),type=mime==='image/jpg'?'image/jpeg':mime;types.add('<Default Extension="'+ext+'" ContentType="'+type+'"/>');media.push({name:'word/media/'+name,data:new Uint8Array(await blob.arrayBuffer())});rels.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/'+name+'"/>');const id=++drawNo,w=4200000,h=2600000;return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+w+'" cy="'+h+'"/><wp:docPr id="'+id+'" name="'+docxEsc(alt)+'"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="'+id+'" name="'+name+'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>'
   }catch{return '<w:r><w:t>'+docxEsc('[Gambar '+alt+' tidak dapat disematkan: akses gambar dibatasi]')+'</w:t></w:r>'}
  }
  const rich=async(html:string)=>{
@@ -1107,13 +1137,13 @@ function QuestionManagerContent() {
                 <span className="font-bold shrink-0">{idx + 1}.</span>
                 <div className="space-y-1 w-full">
                   <div className="font-medium text-justify">
-                    <MathRenderer content={q.question_text} />
+                    <MathRenderer content={rewriteGoogleDriveImageUrls(q.question_text || '')} />
                   </div>
 
                   {/* GAMBAR SOAL JIKA ADA */}
                   {q.image_url && (
                     <img
-                      src={q.image_url}
+                      src={getGoogleDriveImageProxyUrl(q.image_url)}
                       alt="Gambar Soal"
                       className="max-h-36 object-contain rounded my-1 border border-slate-300"
                     />
@@ -1126,7 +1156,10 @@ function QuestionManagerContent() {
                         <div key={opt.key} className="flex items-start space-x-1.5">
                           <span className="font-bold">{opt.key}.</span>
                           <span>
-                            <MathRenderer content={opt.text} />
+                            <MathRenderer content={rewriteGoogleDriveImageUrls(opt.text || '')} />
+                            {opt.image_url && (
+                              <img src={getGoogleDriveImageProxyUrl(opt.image_url)} alt={`Gambar pilihan ${opt.key || ''}`} className="mt-1 max-h-28 object-contain" />
+                            )}
                           </span>
                         </div>
                       ))}
@@ -1147,7 +1180,10 @@ function QuestionManagerContent() {
                         {q.options.map((st: any) => (
                           <tr key={st.id}>
                             <td className="border border-black p-1">
-                              <MathRenderer content={st.text || ''} />
+                              <MathRenderer content={rewriteGoogleDriveImageUrls(st.text || '')} />
+                              {st.image_url && (
+                                <img src={getGoogleDriveImageProxyUrl(st.image_url)} alt="Gambar pernyataan" className="mt-1 max-h-28 object-contain" />
+                              )}
                             </td>
                             <td className="border border-black p-1 text-center">◯</td>
                             <td className="border border-black p-1 text-center">◯</td>
@@ -1209,7 +1245,7 @@ function QuestionManagerContent() {
                     {printSettings.includeExplanations && (
                       <td className="border border-black p-2 leading-relaxed">
                         {q.explanation ? (
-                          <MathRenderer content={q.explanation} />
+                          <MathRenderer content={rewriteGoogleDriveImageUrls(q.explanation || '')} />
                         ) : (
                           <span className="italic text-slate-500">Tidak ada pembahasan.</span>
                         )}
