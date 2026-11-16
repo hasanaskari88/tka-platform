@@ -11,7 +11,7 @@ type GeneratedQuestion = {
 }
 
 export default function AsistenAIPage() {
-  const [grade, setGrade] = useState('Kelas 2 SD')
+  const [grade, setGrade] = useState('Kelas 6 SD')
   const [subject, setSubject] = useState('Bahasa Indonesia')
   const [topic, setTopic] = useState('Kalimat sederhana dan penggunaan tanda baca')
   const [count, setCount] = useState(5)
