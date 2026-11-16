@@ -10,7 +10,7 @@ import Link from 'next/link'
 
 // 🛠️ HELPER EVALUASI PRESISI UNTUK 4 TIPE SOAL (PG, PG KOMPLEKS, MATRIKS, ESSAY)
 
-const evaluateQuestion = (q: any, userAns: any) => {
+const evaluateQuestion = (q: any, userAns: any, teacherScore: number | null = null) => {
   const qType = q.question_type || 'multiple_choice'
   const qMaxScore = Number(q.max_score) || 1
 
@@ -204,21 +204,15 @@ if (qType === 'true_false_matrix') {
   // 4. Essay / Uraian
   
   // Essay / Uraian - menunggu penilaian guru/admin
-  if (qType === 'essay') {
-    const essayText =
-      typeof userAns === 'string'
-        ? userAns.trim()
-        : String(userAns ?? '').trim()
-
+  if (qType === 'essay' || qType === 'uraian') {
+    const essayText = typeof userAns === 'string'
+      ? userAns.replace(/<br\s*\/?\s*>/gi, ' ').replace(/<\/p\s*>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;|&#xA0;/gi, ' ').replace(/[\u00a0\u200b\uFEFF]/g, ' ').trim()
+      : String(userAns ?? '').trim()
     const isFilled = essayText.length > 0
-
-    return {
-      isCorrect: false,
-      isUnanswered: !isFilled,
-      isPending: isFilled,
-      ratio: 0,
-      points: 0,
+    if (isFilled && teacherScore !== null && teacherScore !== undefined) {
+      return { isCorrect: Number(teacherScore) > 0, isUnanswered: false, isPending: false, isGraded: true, ratio: qMaxScore > 0 ? Number(teacherScore) / qMaxScore : 0, points: Number(teacherScore) }
     }
+    return { isCorrect: false, isUnanswered: !isFilled, isPending: isFilled, isGraded: false, ratio: 0, points: 0 }
   }
 
   return {
@@ -242,6 +236,7 @@ function ExamSummaryContent() {
   const [sessionData, setSessionData] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [userAnswersMap, setUserAnswersMap] = useState<{ [key: string]: any }>({})
+  const [teacherScoresMap, setTeacherScoresMap] = useState<{ [key: string]: number | null }>({})
   const [loading, setLoading] = useState(true)
 
   // Filter pembahasan: 'all' | 'correct' | 'wrong'
@@ -312,6 +307,7 @@ function ExamSummaryContent() {
 
         if (answersData) {
           const map: { [key: string]: any } = {}
+          const scores: { [key: string]: number | null } = {}
           answersData.forEach((ans) => {
             let rawVal = ans.user_answer !== undefined && ans.user_answer !== null
               ? ans.user_answer
@@ -326,8 +322,10 @@ function ExamSummaryContent() {
               }
             }
             map[ans.question_id] = rawVal
+            scores[ans.question_id] = ans.teacher_score === null || ans.teacher_score === undefined ? null : Number(ans.teacher_score)
           })
           setUserAnswersMap(map)
+          setTeacherScoresMap(scores)
         }
       }
 
@@ -343,15 +341,18 @@ function ExamSummaryContent() {
   let totalCorrect = 0
   let totalWrong = 0
   let totalUnanswered = 0
+  let totalPendingEssay = 0
 
   questions.forEach((q) => {
     const qMaxScore = Number(q.max_score) || 1
     totalMaxPoints += qMaxScore
 
     const userAns = userAnswersMap[q.id]
-    const evalResult = evaluateQuestion(q, userAns)
+    const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
 
-    if (evalResult.isUnanswered) {
+    if (evalResult.isPending) {
+      totalPendingEssay++
+    } else if (evalResult.isUnanswered) {
       totalUnanswered++
     } else if (evalResult.isCorrect) {
       totalCorrect++
@@ -372,10 +373,10 @@ function ExamSummaryContent() {
   // Filter Soal
   const filteredQuestions = questions.filter((q) => {
     const userAns = userAnswersMap[q.id]
-    const evalResult = evaluateQuestion(q, userAns)
+    const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
 
     if (filterType === 'correct') return evalResult.isCorrect
-    if (filterType === 'wrong') return !evalResult.isCorrect
+    if (filterType === 'wrong') return !evalResult.isCorrect && !evalResult.isPending
     return true
   })
 
@@ -447,7 +448,7 @@ function ExamSummaryContent() {
           <div className="flex items-center space-x-3 bg-white/10 px-5 py-3 rounded-2xl border border-white/15">
             <div className="text-4xl animate-bounce">⭐</div>
             <div className="text-right">
-              <span className="text-[10px] font-extrabold uppercase opacity-75 block">Skor Akhir</span>
+              <span className="text-[10px] font-extrabold uppercase opacity-75 block">{totalPendingEssay > 0 ? 'Nilai Sementara' : 'Skor Akhir'}</span>
               <span className="text-3xl font-black text-amber-400">
                   {sessionData?.score !== null && sessionData?.score !== undefined
                     ? Number(sessionData.score)
@@ -457,8 +458,14 @@ function ExamSummaryContent() {
           </div>
         </div>
 
+        {totalPendingEssay > 0 && (
+          <div className="rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed">
+            <strong>Nilai belum final.</strong> Masih ada {totalPendingEssay} jawaban essay/uraian yang menunggu penilaian guru. Nilai dapat berubah setelah guru menyelesaikan pemeriksaan.
+          </div>
+        )}
+
         {/* STATISTIK RINGKAS */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
           <div className={`p-4 rounded-2xl border backdrop-blur-md ${themeStyles.statBg}`}>
             <span className="text-[10px] font-bold uppercase opacity-75 block">Total Soal</span>
             <span className="text-xl font-black">{questions.length}</span>
@@ -472,6 +479,11 @@ function ExamSummaryContent() {
           <div className="p-4 rounded-2xl border bg-rose-500/10 border-rose-500/30 text-rose-400">
             <span className="text-[10px] font-bold uppercase opacity-75 block">Salah / Kosong</span>
             <span className="text-xl font-black">🔴 {totalWrong + totalUnanswered}</span>
+          </div>
+
+          <div className="p-4 rounded-2xl border bg-amber-500/10 border-amber-500/30 text-amber-500">
+            <span className="text-[10px] font-bold uppercase opacity-75 block">Essay Menunggu Nilai</span>
+            <span className="text-xl font-black">📝 {totalPendingEssay}</span>
           </div>
 
           <div className="p-4 rounded-2xl border bg-sky-500/10 border-sky-500/30 text-sky-400">
@@ -553,7 +565,9 @@ function ExamSummaryContent() {
                 <div
                   key={q.id}
                   className={`p-5 rounded-2xl border transition-all space-y-4 ${
-                    evalResult.isCorrect
+                    evalResult.isPending
+                      ? 'bg-sky-50 border-sky-300'
+                      : evalResult.isCorrect
                       ? 'bg-emerald-50 border-emerald-300'
                       : 'bg-rose-50 border-rose-300'
                   }`}
@@ -569,14 +583,18 @@ function ExamSummaryContent() {
                           ? 'PG Kompleks'
                           : qType === 'true_false_matrix'
                           ? 'Matriks'
-                          : qType === 'essay'
-                          ? 'Essay'
+                          : qType === 'essay' || qType === 'uraian'
+                          ? 'Essay / Uraian'
                           : 'Pilihan Ganda'}
                       </span>
                     </span>
 
                     {/* BADGE STATUS */}
-                    {evalResult.isCorrect ? (
+                    {evalResult.isPending ? (
+                      <span className="px-3 py-1 bg-sky-100 text-sky-900 border border-sky-300 text-xs font-bold rounded-xl flex items-center space-x-1"><span>📝</span><span>Menunggu Penilaian Guru</span></span>
+                    ) : evalResult.isGraded ? (
+                      <span className="px-3 py-1 bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold rounded-xl">Sudah Dinilai Guru</span>
+                    ) : evalResult.isCorrect ? (
                       <span className="px-3 py-1 bg-emerald-100 text-emerald-900 border border-emerald-500/40 text-xs font-bold rounded-xl flex items-center space-x-1">
                         <span>✅</span>
                         <span>Jawaban Benar</span>
