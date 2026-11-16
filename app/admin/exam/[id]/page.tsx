@@ -94,7 +94,7 @@ function getGoogleDriveImageProxyUrl(src: string) {
 
     let fileId = url.searchParams.get('id')
     if (!fileId) {
-      const match = url.pathname.match(/\\/file\\/d\\/([a-zA-Z0-9_-]+)/)
+      const match = url.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
       fileId = match?.[1] || null
     }
 
@@ -108,7 +108,7 @@ function getGoogleDriveImageProxyUrl(src: string) {
 
 function rewriteGoogleDriveImageUrls(html: string) {
   return String(html || '').replace(
-    /(<img\\b[^>]*\\bsrc\\s*=\\s*)(["'])(.*?)\\2/gi,
+    /(<img\b[^>]*\bsrc\s*=\s*)(["'])(.*?)\2/gi,
     (_match, prefix, quote, src) =>
       prefix + quote + getGoogleDriveImageProxyUrl(src) + quote
   )
