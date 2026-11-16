@@ -62,7 +62,11 @@ export async function POST(request: Request) {
       )
     }
 
-    const ai = new GoogleGenAI({ apiKey })
+    const ai = new GoogleGenAI({
+      apiKey,
+      // Jangan biarkan permintaan ke Gemini menggantung tanpa batas.
+      httpOptions: { timeout: 55_000 },
+    })
     const response = await ai.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: `Buat tepat ${count} soal pilihan ganda untuk siswa ${grade}, mata pelajaran ${subject}, dengan materi: ${topic}.
@@ -134,9 +138,13 @@ Ketentuan:
     })
   } catch (error) {
     console.error('Gemini AI test failed:', error)
+    const message = error instanceof Error ? error.message.toLowerCase() : ''
+    const timedOut = message.includes('timeout') || message.includes('timed out') || message.includes('abort')
     return NextResponse.json(
-      { error: 'Terjadi kendala saat menghubungi Gemini. Periksa konfigurasi API dan coba lagi.' },
-      { status: 500 }
+      { error: timedOut
+        ? 'Gemini membutuhkan waktu terlalu lama untuk merespons. Silakan coba lagi beberapa saat.'
+        : 'Terjadi kendala saat menghubungi Gemini. Periksa konfigurasi API dan coba lagi.' },
+      { status: timedOut ? 504 : 500 }
     )
   }
 }
