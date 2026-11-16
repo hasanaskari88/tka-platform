@@ -4,7 +4,7 @@ import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
 
-function getQuestionSchema(questionType: QuestionType) {
+function getQuestionSchema(questionType: QuestionType, includeImagePrompt = false) {
   const commonProperties = {
     question: { type: 'STRING' },
     explanation: { type: 'STRING' },
@@ -58,6 +58,11 @@ function getQuestionSchema(questionType: QuestionType) {
     required = ['question', 'model_answer', 'rubric', 'max_score', 'explanation']
   }
 
+  if (includeImagePrompt) {
+    itemProperties.image_prompt = { type: 'STRING' }
+    required.push('image_prompt')
+  }
+
   return {
     type: 'OBJECT',
     properties: {
@@ -94,6 +99,8 @@ export async function POST(request: Request) {
     const indicator = typeof body.indicator === 'string' ? body.indicator.trim() : ''
     const cognitiveLevel = typeof body.cognitiveLevel === 'string' ? body.cognitiveLevel : 'AUTO'
     const questionType = (typeof body.questionType === 'string' ? body.questionType : 'multiple_choice') as QuestionType
+    const includeImages = body.includeImages === true
+    const imageType = typeof body.imageType === 'string' ? body.imageType : 'auto'
 
     if (!grade || grade.length > 40) return NextResponse.json({ error: 'Kelas harus diisi.' }, { status: 400 })
     if (!subject || subject.length > 80) return NextResponse.json({ error: 'Mata pelajaran harus diisi.' }, { status: 400 })
@@ -101,6 +108,7 @@ export async function POST(request: Request) {
     if (!Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 15.' }, { status: 400 })
     if (questionType === 'essay' && (![shortAnswerMaxScore, longEssayMaxScore].every((score) => Number.isFinite(score) && score > 0 && score <= 100))) return NextResponse.json({ error: 'Skor maksimal harus lebih dari 0 dan tidak lebih dari 100.' }, { status: 400 })
     if (indicator.length > 200) return NextResponse.json({ error: 'Indikator maksimal 200 karakter.' }, { status: 400 })
+    if (!['auto', 'illustration', 'object', 'diagram', 'nature'].includes(imageType)) return NextResponse.json({ error: 'Jenis gambar tidak valid.' }, { status: 400 })
 
     const allowedCognitiveLevels = ['AUTO', 'LOTS', 'MOTS', 'HOTS', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
     if (!allowedCognitiveLevels.includes(cognitiveLevel)) return NextResponse.json({ error: 'Level kognitif tidak valid.' }, { status: 400 })
@@ -122,14 +130,17 @@ export async function POST(request: Request) {
     const prompt = 'Buat tepat ' + count + ' soal untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.' + indicatorInstruction +
       '\n\nLevel kognitif: ' + cognitiveInstruction +
       '\n\nKetentuan bentuk soal: ' + typeInstruction +
-      '\n\nKetentuan umum:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Pastikan soal sesuai materi dan indikator, tidak ambigu, serta memiliki jawaban yang dapat dipertanggungjawabkan.\n- Berikan pembahasan singkat dan jelas pada properti explanation.\n- Untuk LOTS, utamakan mengingat/memahami; MOTS menerapkan; HOTS menalar/menganalisis.\n- Jangan menambahkan teks di luar JSON.'
+      '\n\nKetentuan umum:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Pastikan soal sesuai materi dan indikator, tidak ambigu, serta memiliki jawaban yang dapat dipertanggungjawabkan.\n- Berikan pembahasan singkat dan jelas pada properti explanation.\n- Untuk LOTS, utamakan mengingat/memahami; MOTS menerapkan; HOTS menalar/menganalisis.\n- Jangan menambahkan teks di luar JSON' +
+      (includeImages
+        ? '\n\nKetentuan gambar penyerta:\n- Tambahkan properti image_prompt pada setiap soal.\n- Jika ilustrasi benar-benar membantu siswa memahami soal, isi image_prompt dengan deskripsi visual yang spesifik, akurat, dan siap digunakan generator gambar.\n- Jika soal tidak membutuhkan gambar, isi image_prompt dengan string kosong. Jangan memaksakan gambar pada semua soal.\n- Jenis visual yang diutamakan: ' + imageType + '.\n- Jangan meminta gambar memuat tulisan, label, angka, atau watermark. Untuk diagram matematika yang membutuhkan ukuran/angka presisi, tuliskan bentuk visual sederhana dan ingatkan bahwa guru harus memeriksa ketepatannya.'
+        : '')
 
     const interaction = await createAI().interactions.create({
       model: 'gemini-4-hydrogen',
       input: prompt,
       background: true,
       generation_config: { thinking_level: 'low' },
-      response_format: getQuestionSchema(questionType),
+      response_format: getQuestionSchema(questionType, includeImages),
     })
     if (!interaction.id) return NextResponse.json({ error: 'Gemini tidak memberikan ID proses.' }, { status: 502 })
     return NextResponse.json({ success: true, interactionId: interaction.id })

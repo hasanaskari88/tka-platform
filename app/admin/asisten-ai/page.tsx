@@ -14,6 +14,10 @@ type GeneratedQuestion = {
   model_answer?: string
   rubric?: string
   max_score?: number
+  image_prompt?: string
+  image_url?: string
+  image_status?: 'none' | 'pending' | 'generating' | 'ready' | 'failed'
+  image_error?: string
 }
 
 const questionTypeLabels: Record<QuestionType, string> = {
@@ -34,11 +38,76 @@ export default function AsistenAIPage() {
   const [shortAnswerCount, setShortAnswerCount] = useState(10)
   const [shortAnswerMaxScore, setShortAnswerMaxScore] = useState(2)
   const [longEssayMaxScore, setLongEssayMaxScore] = useState(3)
+  const [includeImages, setIncludeImages] = useState(false)
+  const [imageStyle, setImageStyle] = useState('3d_cartoon')
+  const [imageType, setImageType] = useState('auto')
+  const [imageAspectRatio, setImageAspectRatio] = useState('16:9')
+  const [imageCustomInstruction, setImageCustomInstruction] = useState('')
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [model, setModel] = useState('')
   const [loadingMessage, setLoadingMessage] = useState('Menghubungi Gemini...')
+
+  async function generateImageForQuestion(index: number, imagePrompt: string) {
+    setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
+      ? { ...item, image_status: 'generating', image_error: undefined }
+      : item))
+
+    try {
+      const startResponse = await fetch('/api/admin/ai/generate-question-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imagePrompt,
+          style: imageStyle,
+          imageType,
+          aspectRatio: imageAspectRatio,
+          customInstruction: imageCustomInstruction,
+        }),
+      })
+      const startPayload = await startResponse.json()
+      if (!startResponse.ok) throw new Error(startPayload.error || 'Gagal memulai pembuatan gambar.')
+      if (!startPayload.interactionId) throw new Error('Gemini tidak memberikan ID proses gambar.')
+
+      const startedAt = Date.now()
+      let imageResult: { imageBase64: string; mimeType: string } | null = null
+
+      while (!imageResult && Date.now() - startedAt < 240000) {
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        const checkResponse = await fetch('/api/admin/ai/generate-question-image?id=' + encodeURIComponent(startPayload.interactionId), { cache: 'no-store' })
+        const checkPayload = await checkResponse.json()
+        if (!checkResponse.ok) throw new Error(checkPayload.error || 'Gagal mengambil hasil gambar.')
+        if (checkPayload.status === 'completed') {
+          imageResult = { imageBase64: checkPayload.imageBase64, mimeType: checkPayload.mimeType }
+        } else if (checkPayload.status !== 'in_progress' && checkPayload.status !== 'requires_action') {
+          throw new Error(checkPayload.error || 'Proses pembuatan gambar gagal.')
+        }
+      }
+
+      if (!imageResult) throw new Error('Pembuatan gambar melebihi batas waktu 4 menit.')
+
+      const imageBlob = await (await fetch(`data:${imageResult.mimeType};base64,${imageResult.imageBase64}`)).blob()
+      const extension = imageResult.mimeType === 'image/jpeg' ? 'jpg' : imageResult.mimeType === 'image/webp' ? 'webp' : 'png'
+      const formData = new FormData()
+      formData.append('file', new File([imageBlob], `ai-soal-${index + 1}.${extension}`, { type: imageResult.mimeType }))
+
+      const uploadResponse = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+      const uploadPayload = await uploadResponse.json()
+      if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
+        throw new Error(uploadPayload.error || 'Gambar dibuat, tetapi gagal disimpan ke Google Drive.')
+      }
+
+      setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
+        ? { ...item, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+        : item))
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Gagal membuat gambar.'
+      setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
+        ? { ...item, image_status: 'failed', image_error: message }
+        : item))
+    }
+  }
 
   async function generateQuestions(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -51,7 +120,7 @@ export default function AsistenAIPage() {
       const response = await fetch('/api/admin/ai/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel, questionType, shortAnswerCount, shortAnswerMaxScore, longEssayMaxScore }),
+        body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel, questionType, shortAnswerCount, shortAnswerMaxScore, longEssayMaxScore, includeImages, imageType }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
@@ -66,9 +135,36 @@ export default function AsistenAIPage() {
         const result = await check.json()
         if (!check.ok) throw new Error(result.error || 'Gemini gagal membuat soal.')
         if (result.status === 'completed') {
-          setQuestions(result.questions || [])
+          const generatedQuestions = (result.questions || []) as GeneratedQuestion[]
+          setQuestions(generatedQuestions.map((item): GeneratedQuestion => ({
+            ...item,
+            image_status: includeImages && item.image_prompt?.trim() ? 'pending' : 'none',
+          })))
           setModel(result.model || 'Gemini')
           completed = true
+
+          if (includeImages) {
+            const imageTargets = generatedQuestions
+              .map((item, index) => ({ index, prompt: item.image_prompt?.trim() || '' }))
+              .filter((item) => item.prompt.length > 0)
+
+            if (imageTargets.length === 0) {
+              setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
+            } else {
+              let nextTarget = 0
+              let finishedImages = 0
+              const worker = async () => {
+                while (nextTarget < imageTargets.length) {
+                  const target = imageTargets[nextTarget++]
+                  setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
+                  await generateImageForQuestion(target.index, target.prompt)
+                  finishedImages += 1
+                  setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
+                }
+              }
+              await Promise.all(Array.from({ length: Math.min(2, imageTargets.length) }, () => worker()))
+            }
+          }
         } else if (result.status !== 'in_progress' && result.status !== 'requires_action') {
           throw new Error(result.error || 'Proses Gemini gagal.')
         }
@@ -150,6 +246,58 @@ export default function AsistenAIPage() {
                 <p className="text-xs text-violet-900">Contoh: jika jumlah soal 15 dan kelompok pertama 10, maka soal 1–10 mendapat maksimal {shortAnswerMaxScore} poin dan soal 11–15 maksimal {longEssayMaxScore} poin.</p>
               </div>
             )}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={includeImages}
+                  onChange={(e) => setIncludeImages(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>
+                  <span className="block text-sm font-bold text-slate-800">Buat gambar penyerta otomatis</span>
+                  <span className="mt-1 block text-xs font-normal leading-relaxed text-slate-600">AI menentukan soal yang benar-benar membutuhkan gambar. Soal tanpa kebutuhan visual tidak akan dipaksakan memiliki gambar.</span>
+                </span>
+              </label>
+
+              {includeImages && (
+                <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Gaya gambar
+                    <select value={imageStyle} onChange={(e) => setImageStyle(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                      <option value="3d_cartoon">3D Modern / 3D Cartoon</option>
+                      <option value="2d_flat">Ilustrasi 2D sederhana</option>
+                      <option value="semi_realistic">Semi-realistis</option>
+                      <option value="photo_realistic">Realistis seperti foto</option>
+                      <option value="black_white">Hitam putih untuk LKPD</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Jenis gambar
+                    <select value={imageType} onChange={(e) => setImageType(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                      <option value="auto">Otomatis sesuai soal</option>
+                      <option value="illustration">Ilustrasi penjelas</option>
+                      <option value="object">Objek nyata</option>
+                      <option value="nature">Alam / sains</option>
+                      <option value="diagram">Diagram konseptual sederhana</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Bentuk gambar
+                    <select value={imageAspectRatio} onChange={(e) => setImageAspectRatio(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                      <option value="16:9">Horizontal (16:9)</option>
+                      <option value="4:3">Landscape (4:3)</option>
+                      <option value="1:1">Persegi (1:1)</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Instruksi khusus gambar <span className="font-normal text-slate-400">(opsional)</span>
+                    <input value={imageCustomInstruction} onChange={(e) => setImageCustomInstruction(e.target.value)} maxLength={500} placeholder="Contoh: gunakan latar putih dan warna lembut" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Gemini dan disimpan ke Google Drive. Untuk diagram matematika yang memuat angka, ukuran, atau label presisi, guru tetap perlu memeriksa ketepatannya. Penggunaan gambar dapat menambah biaya API.</p>
+                </div>
+              )}
+            </div>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Level kognitif
               <select value={cognitiveLevel} onChange={(e) => setCognitiveLevel(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
@@ -207,6 +355,34 @@ export default function AsistenAIPage() {
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-sm font-black text-indigo-700">{index + 1}</span>
                   <h3 className="pt-1 font-bold leading-relaxed text-slate-800">{item.question}</h3>
                 </div>
+
+                {item.image_prompt && (
+                  <div className="ml-11 mt-3 space-y-2">
+                    {item.image_url ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                        <img src={item.image_url} alt={`Gambar penyerta soal nomor ${index + 1}`} className="max-h-80 w-full object-contain" />
+                        <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
+                          <span className="text-xs font-semibold text-emerald-700">Gambar tersimpan di Google Drive</span>
+                          <button type="button" onClick={() => generateImageForQuestion(index, item.image_prompt || '')} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
+                            Buat ulang gambar
+                          </button>
+                        </div>
+                      </div>
+                    ) : item.image_status === 'generating' ? (
+                      <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-xs font-semibold text-indigo-700">Sedang membuat dan menyimpan gambar...</div>
+                    ) : item.image_status === 'failed' ? (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs text-rose-700">
+                        <span>{item.image_error || 'Gambar gagal dibuat.'}</span>
+                        <button type="button" onClick={() => generateImageForQuestion(index, item.image_prompt || '')} className="font-bold underline">Coba lagi</button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
+                        <span>Soal ini membutuhkan gambar penyerta.</span>
+                        <button type="button" onClick={() => generateImageForQuestion(index, item.image_prompt || '')} className="font-bold text-indigo-700">Buat gambar</button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {questionType === 'multiple_choice' && item.options && (
                   <div className="ml-11 grid gap-2 sm:grid-cols-2">
