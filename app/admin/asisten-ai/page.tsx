@@ -28,9 +28,15 @@ const questionTypeLabels: Record<QuestionType, string> = {
   essay: 'Uraian',
 }
 
-function formatMathOption(value: string): string {
-  // Ubah pecahan sederhana seperti 3/8 menjadi format KaTeX bertingkat.
-  return value.replace(/(\d{1,3})\s*\/\s*(\d{1,3})/g, (_match, numerator, denominator) => '$\\frac{' + numerator + '}{' + denominator + '}$')
+function formatMathOption(value: string, context: string): string {
+  // Ubah pecahan biasa menjadi format KaTeX bertingkat.
+  let formatted = value.trim()
+  const denominatorMatch = context.match(/(?:dibagi\s+menjadi|penyebut(?:nya)?\s*(?:adalah)?|per\s*)\s*(\d{1,2})/i)
+  const denominator = denominatorMatch?.[1]
+  if (denominator && new RegExp('^([1-9])\\s*' + denominator + '$').test(formatted)) {
+    formatted = formatted.replace(new RegExp('^([1-9])\\s*(' + denominator + ')$'), '$1/$2')
+  }
+  return formatted.replace(/(\d{1,3})\s*\/\s*(\d{1,3})/g, (_match, numerator, bottom) => '$\\frac{' + numerator + '}{' + bottom + '}$')
 }
 function extractNumberComparison(question: string): [number, number] | null {
   const normalized = question.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
@@ -70,7 +76,7 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
   const totalMatch = source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)'))
     || source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari))\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)'))
     || source.match(new RegExp(numberPattern + '\\s*(?:kotak|bagian|sektor)\\s*(?:berukuran|yang sama|sama besar)'))
-  const coloredMatch = source.match(new RegExp('(?:terdapat|ada|dan terdapat)?\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)\\s*(?:yang\\s*)?(?:berwarna\\s*(biru|oranye|jingga|merah|hijau|kuning)?|diwarnai(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?|diberi warna(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?)'))
+  const coloredMatch = source.match(new RegExp('(?:terdapat|ada|dan terdapat)?\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)\\s*(?:yang\\s*)?(?:di\\s*antaranya\\s*)?(?:berwarna\\s*(biru|oranye|jingga|merah|hijau|kuning)?|diwarnai(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?|diberi warna(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?)'))
   if (!totalMatch || !coloredMatch) return null
 
   const total = parseIndonesianNumber(totalMatch[1])
@@ -125,7 +131,8 @@ async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob |
       ctx.stroke()
     }
   } else {
-    const columns = visual.total <= 4 ? visual.total : visual.total <= 10 ? 5 : Math.ceil(Math.sqrt(visual.total))
+    let columns = Math.ceil(Math.sqrt(visual.total))
+    while (columns < visual.total && visual.total % columns !== 0) columns += 1
     const rows = Math.ceil(visual.total / columns)
     const gap = 12
     const cellWidth = Math.min(210, 1180 / columns)
@@ -602,7 +609,7 @@ export default function AsistenAIPage() {
                   <div className="ml-11 grid gap-2 sm:grid-cols-2">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => (
                       <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '')} className="inline-block align-middle" />
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '', item.question + ' ' + item.explanation)} className="inline-block align-middle" />
                         {item.answer === key && <CheckCircle2 size={15} className="ml-2 inline" />}
                       </div>
                     ))}
@@ -614,7 +621,7 @@ export default function AsistenAIPage() {
                     {(['A', 'B', 'C', 'D'] as const).map((key) => {
                       const isCorrect = item.answers?.includes(key)
                       return <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${isCorrect ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '')} className="inline-block align-middle" />
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '', item.question + ' ' + item.explanation)} className="inline-block align-middle" />
                         {isCorrect && <span className="ml-2 text-xs font-bold">✓ Kunci benar</span>}
                       </div>
                     })}
