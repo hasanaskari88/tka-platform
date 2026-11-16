@@ -3,11 +3,24 @@
 import { useState } from 'react'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 
+type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
 type GeneratedQuestion = {
   question: string
-  options: { A: string; B: string; C: string; D: string }
-  answer: 'A' | 'B' | 'C' | 'D'
   explanation: string
+  options?: { A: string; B: string; C: string; D: string }
+  answer?: 'A' | 'B' | 'C' | 'D'
+  answers?: string[]
+  statements?: { id: string; text: string; answer: 'Benar' | 'Salah' }[]
+  model_answer?: string
+  rubric?: string
+  max_score?: number
+}
+
+const questionTypeLabels: Record<QuestionType, string> = {
+  multiple_choice: 'Pilihan ganda',
+  complex_multiple_choice: 'Pilihan ganda kompleks',
+  true_false_matrix: 'Benar / Salah (Matriks)',
+  essay: 'Uraian',
 }
 
 export default function AsistenAIPage() {
@@ -17,6 +30,7 @@ export default function AsistenAIPage() {
   const [count, setCount] = useState(5)
   const [indicator, setIndicator] = useState('')
   const [cognitiveLevel, setCognitiveLevel] = useState('AUTO')
+  const [questionType, setQuestionType] = useState<QuestionType>('multiple_choice')
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -31,10 +45,15 @@ export default function AsistenAIPage() {
 
     try {
       setLoadingMessage('Memulai proses pembuatan soal...')
-      const response = await fetch('/api/admin/ai/generate-questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel }) })
+      const response = await fetch('/api/admin/ai/generate-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel, questionType }),
+      })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
       if (!payload.interactionId) throw new Error('Gemini tidak memberikan ID proses.')
+
       setLoadingMessage('Gemini sedang menyusun soal. Hasil diperiksa otomatis setiap beberapa detik...')
       const startedAt = Date.now()
       let completed = false
@@ -43,8 +62,13 @@ export default function AsistenAIPage() {
         const check = await fetch('/api/admin/ai/generate-questions?id=' + encodeURIComponent(payload.interactionId) + '&count=' + count, { cache: 'no-store' })
         const result = await check.json()
         if (!check.ok) throw new Error(result.error || 'Gemini gagal membuat soal.')
-        if (result.status === 'completed') { setQuestions(result.questions || []); setModel(result.model || 'Gemini'); completed = true }
-        else if (result.status !== 'in_progress' && result.status !== 'requires_action') throw new Error(result.error || 'Proses Gemini gagal.')
+        if (result.status === 'completed') {
+          setQuestions(result.questions || [])
+          setModel(result.model || 'Gemini')
+          completed = true
+        } else if (result.status !== 'in_progress' && result.status !== 'requires_action') {
+          throw new Error(result.error || 'Proses Gemini gagal.')
+        }
       }
       if (!completed) throw new Error('Gemini masih memproses soal setelah 4 menit. Silakan coba lagi nanti.')
     } catch (err) {
@@ -59,9 +83,7 @@ export default function AsistenAIPage() {
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="rounded-2xl bg-gradient-to-r from-indigo-700 to-violet-600 p-5 text-white shadow-sm sm:p-7">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-white/15 p-3">
-              <Bot size={28} />
-            </div>
+            <div className="rounded-xl bg-white/15 p-3"><Bot size={28} /></div>
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-100">Fitur percobaan</p>
               <h1 className="text-2xl font-black sm:text-3xl">Asisten AI Guru</h1>
@@ -94,6 +116,15 @@ export default function AsistenAIPage() {
               <textarea value={indicator} onChange={(e) => setIndicator(e.target.value)} maxLength={200} rows={2} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Contoh: Disajikan sebuah teks, siswa dapat menentukan gagasan pokok." />
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+              Bentuk soal
+              <select value={questionType} onChange={(e) => setQuestionType(e.target.value as QuestionType)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                <option value="multiple_choice">Pilihan ganda (1 jawaban benar)</option>
+                <option value="complex_multiple_choice">Pilihan ganda kompleks (lebih dari 1 benar)</option>
+                <option value="true_false_matrix">Benar / Salah (beberapa pernyataan)</option>
+                <option value="essay">Uraian (dengan rubrik penilaian)</option>
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Level kognitif
               <select value={cognitiveLevel} onChange={(e) => setCognitiveLevel(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
                 <option value="AUTO">Otomatis sesuai materi</option>
@@ -113,7 +144,7 @@ export default function AsistenAIPage() {
               <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal text-slate-700">
                 <span className="font-semibold">Gemini 4 Hydrogen</span>
                 <span className="ml-2 text-xs text-emerald-700">Aktif</span>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">Varian 4 Hydrogen Thinking belum tersedia sebagai ID model API resmi yang dapat diverifikasi, jadi belum diaktifkan agar proses pembuatan soal tetap stabil.</p>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">Varian 4 Hydrogen Thinking belum diaktifkan karena ID model API-nya belum dapat diverifikasi.</p>
               </div>
             </div>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
@@ -131,13 +162,7 @@ export default function AsistenAIPage() {
           </form>
 
           {loading && <p className="mt-3 text-center text-xs text-slate-500" aria-live="polite">{loadingMessage}</p>}
-
-          {error && (
-            <div role="alert" className="mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-              <AlertCircle size={18} className="mt-0.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
+          {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"><AlertCircle size={18} className="mt-0.5 shrink-0" /><span>{error}</span></div>}
         </section>
 
         {questions.length > 0 && (
@@ -145,11 +170,9 @@ export default function AsistenAIPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-xl font-black text-slate-800">Hasil dari Asisten AI</h2>
-                <p className="text-sm text-slate-500">{questions.length} soal berhasil dibuat · {model}</p>
+                <p className="text-sm text-slate-500">{questions.length} soal berhasil dibuat · {model} · {questionTypeLabels[questionType]}</p>
               </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
-                <CheckCircle2 size={14} /> Berhasil
-              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><CheckCircle2 size={14} /> Berhasil</span>
             </div>
 
             {questions.map((item, index) => (
@@ -158,24 +181,63 @@ export default function AsistenAIPage() {
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-sm font-black text-indigo-700">{index + 1}</span>
                   <h3 className="pt-1 font-bold leading-relaxed text-slate-800">{item.question}</h3>
                 </div>
-                <div className="ml-11 grid gap-2 sm:grid-cols-2">
-                  {(['A', 'B', 'C', 'D'] as const).map((key) => (
-                    <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                      <span className="mr-2 font-black">{key}.</span>{item.options?.[key]}
-                      {item.answer === key && <CheckCircle2 size={15} className="ml-2 inline" />}
+
+                {questionType === 'multiple_choice' && item.options && (
+                  <div className="ml-11 grid gap-2 sm:grid-cols-2">
+                    {(['A', 'B', 'C', 'D'] as const).map((key) => (
+                      <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                        <span className="mr-2 font-black">{key}.</span>{item.options?.[key]}
+                        {item.answer === key && <CheckCircle2 size={15} className="ml-2 inline" />}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {questionType === 'complex_multiple_choice' && item.options && (
+                  <div className="ml-11 space-y-2">
+                    {(['A', 'B', 'C', 'D'] as const).map((key) => {
+                      const isCorrect = item.answers?.includes(key)
+                      return <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${isCorrect ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                        <span className="mr-2 font-black">{key}.</span>{item.options?.[key]}
+                        {isCorrect && <span className="ml-2 text-xs font-bold">✓ Kunci benar</span>}
+                      </div>
+                    })}
+                    <p className="text-xs font-bold text-emerald-700">Kunci jawaban: {item.answers?.join(', ')}</p>
+                  </div>
+                )}
+
+                {questionType === 'true_false_matrix' && (
+                  <div className="ml-11 overflow-x-auto rounded-xl border border-slate-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Pernyataan</th><th className="px-3 py-2 text-center">Kunci</th></tr></thead>
+                      <tbody>{item.statements?.map((statement) => <tr key={statement.id} className="border-t border-slate-200"><td className="px-3 py-2">{statement.id}. {statement.text}</td><td className="px-3 py-2 text-center font-bold text-emerald-700">{statement.answer}</td></tr>)}</tbody>
+                    </table>
+                  </div>
+                )}
+
+                {questionType === 'essay' && (
+                  <div className="ml-11 space-y-3">
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                      <p className="font-bold">Contoh jawaban</p>
+                      <p className="mt-1 whitespace-pre-wrap">{item.model_answer}</p>
                     </div>
-                  ))}
-                </div>
+                    <div className="rounded-xl border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
+                      <p className="font-bold">Pedoman penilaian · Skor maksimal {item.max_score ?? 10}</p>
+                      <p className="mt-1 whitespace-pre-wrap">{item.rubric}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="ml-11 mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
-                  <p className="font-bold">Kunci jawaban: {item.answer}</p>
-                  <p className="mt-1 leading-relaxed">{item.explanation}</p>
+                  <p className="font-bold">Pembahasan</p>
+                  <p className="mt-1 whitespace-pre-wrap leading-relaxed">{item.explanation}</p>
                 </div>
               </article>
             ))}
             <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
               <div className="flex items-start gap-2">
                 <BookOpen size={18} className="mt-0.5 shrink-0" />
-                <p><strong>Catatan:</strong> Hasil ini masih berupa draf uji coba dan belum disimpan ke bank soal. Guru perlu memeriksa ketepatan materi, kunci jawaban, dan pembahasannya sebelum digunakan.</p>
+                <p><strong>Catatan:</strong> Hasil ini masih berupa draf dan belum disimpan ke bank soal. Guru perlu memeriksa isi, kunci jawaban, contoh jawaban, serta pedoman penilaian sebelum digunakan. Khusus soal uraian, nilai akhir tetap ditentukan oleh guru.</p>
               </div>
             </div>
           </section>
