@@ -28,6 +28,41 @@ const questionTypeLabels: Record<QuestionType, string> = {
   essay: 'Uraian',
 }
 
+function formatMathOption(value: string): string {
+  // Ubah pecahan sederhana seperti 3/8 menjadi format KaTeX bertingkat.
+  return value.replace(/(\\d{1,3})\\s*\\/\\s*(\\d{1,3})/g, (_match, numerator, denominator) => `$\\\\frac{${numerator}}{${denominator}}'use client'
+
+import { useState } from 'react'
+import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
+import MathRenderer from '@/components/MathRenderer'
+
+type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
+type GeneratedQuestion = {
+  question: string
+  explanation: string
+  options?: { A: string; B: string; C: string; D: string }
+  answer?: 'A' | 'B' | 'C' | 'D'
+  answers?: string[]
+  statements?: { id: string; text: string; answer: 'Benar' | 'Salah' }[]
+  model_answer?: string
+  rubric?: string
+  max_score?: number
+  image_prompt?: string
+  image_url?: string
+  image_status?: 'none' | 'pending' | 'generating' | 'ready' | 'failed'
+  image_error?: string
+}
+
+const questionTypeLabels: Record<QuestionType, string> = {
+  multiple_choice: 'Pilihan ganda',
+  complex_multiple_choice: 'Pilihan ganda kompleks',
+  true_false_matrix: 'Benar / Salah (Matriks)',
+  essay: 'Uraian',
+}
+
+)
+}
+
 function extractNumberComparison(question: string): [number, number] | null {
   const normalized = question.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
   const match = normalized.match(/(?:angka|bilangan)?[^0-9]{0,80}(\d{1,3})\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\s*(\d{1,3})/i)
@@ -598,7 +633,7 @@ export default function AsistenAIPage() {
                   <div className="ml-11 grid gap-2 sm:grid-cols-2">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => (
                       <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={item.options?.[key] || ''} className="inline-block align-middle" />
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '')} className="inline-block align-middle" />
                         {item.answer === key && <CheckCircle2 size={15} className="ml-2 inline" />}
                       </div>
                     ))}
@@ -610,7 +645,7 @@ export default function AsistenAIPage() {
                     {(['A', 'B', 'C', 'D'] as const).map((key) => {
                       const isCorrect = item.answers?.includes(key)
                       return <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${isCorrect ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span>{item.options?.[key]}
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '')} className="inline-block align-middle" />
                         {isCorrect && <span className="ml-2 text-xs font-bold">✓ Kunci benar</span>}
                       </div>
                     })}
