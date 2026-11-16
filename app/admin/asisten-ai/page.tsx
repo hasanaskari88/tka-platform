@@ -46,13 +46,12 @@ type ExactFractionVisual = {
 }
 
 function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisual | null {
-  // Ambil data hanya dari kalimat soal dan pembahasan, bukan pilihan jawaban.
-  // Pilihan jawaban berisi pengecoh sehingga tidak boleh dijadikan isi gambar.
+  // Ambil fakta dari soal dan pembahasan saja, bukan pilihan jawaban.
   const source = (item.question + ' ' + item.explanation).toLocaleLowerCase('id')
-  const totalMatch = source.match(/(?:terbagi menjadi|terdiri dari|tersusun (?:atas|dari))\s*(\d{1,2})\s*(?:bagian|kotak)/)
-    || source.match(/(\d{1,2})\s*(?:kotak|bagian)\s*(?:berukuran|sama besar)/)
-  const coloredMatch = source.match(/(?:terdapat|ada|dan terdapat)\s*(\d{1,2})\s*(?:bagian|kotak)\s*(?:yang\s*)?berwarna\s*(biru|oranye|jingga|merah|hijau|kuning)/)
-    || source.match(/(\d{1,2})\s*(?:bagian|kotak)\s*(?:yang\s*)?berwarna\s*(biru|oranye|jingga|merah|hijau|kuning)/)
+  const totalMatch = source.match(/(?:dibagi|terbagi) menjadi\\s*(\\d{1,2})\\s*(?:bagian|sektor|kotak)/)
+    || source.match(/(?:terdiri dari|tersusun (?:atas|dari))\\s*(\\d{1,2})\\s*(?:bagian|sektor|kotak)/)
+    || source.match(/(\\d{1,2})\\s*(?:kotak|bagian|sektor)\\s*(?:berukuran|yang sama|sama besar)/)
+  const coloredMatch = source.match(/(?:terdapat|ada|dan terdapat)?\\s*(\\d{1,2})\\s*(?:bagian|sektor|kotak)\\s*(?:yang\\s*)?(?:berwarna\\s*(biru|oranye|jingga|merah|hijau|kuning)?|diwarnai(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?|diberi warna(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?)/)
   if (!totalMatch || !coloredMatch) return null
 
   const total = Number(totalMatch[1])
@@ -61,12 +60,13 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
 
   const shape = /lingkaran/.test(source)
     ? 'circle'
-    : /persegi panjang|kotak-kotak|persegi panjang/.test(source)
+    : /persegi panjang|kotak-kotak/.test(source)
       ? 'rectangle'
       : null
   if (!shape) return null
 
-  const colorName = coloredMatch[2]
+  // Jika warna tidak disebutkan, gunakan biru sebagai warna penanda yang konsisten.
+  const colorName = coloredMatch[2] || coloredMatch[3] || coloredMatch[4] || 'biru'
   const colors: Record<string, string> = {
     biru: '#2584e8',
     oranye: '#f59e0b',
@@ -110,7 +110,7 @@ async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob |
       ctx.stroke()
     }
   } else {
-    const columns = visual.total <= 10 ? visual.total : Math.ceil(Math.sqrt(visual.total))
+    const columns = visual.total <= 4 ? visual.total : visual.total <= 10 ? 5 : Math.ceil(Math.sqrt(visual.total))
     const rows = Math.ceil(visual.total / columns)
     const gap = 12
     const cellWidth = Math.min(210, 1180 / columns)
