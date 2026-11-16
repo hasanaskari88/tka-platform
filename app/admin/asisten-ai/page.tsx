@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
+import MathRenderer from '@/components/MathRenderer'
 
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
 type GeneratedQuestion = {
@@ -45,18 +46,32 @@ type ExactFractionVisual = {
   color: string
 }
 
+function parseIndonesianNumber(value: string): number | null {
+  const normalized = value.toLocaleLowerCase('id').trim()
+  if (/^\d+$/.test(normalized)) return Number(normalized)
+  const words: Record<string, number> = {
+    satu: 1, sebuah: 1, dua: 2, tiga: 3, empat: 4, lima: 5,
+    enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10,
+    sebelas: 11, 'dua belas': 12, 'tiga belas': 13, 'empat belas': 14,
+    'lima belas': 15, 'enam belas': 16, 'tujuh belas': 17, 'delapan belas': 18,
+    'sembilan belas': 19, 'dua puluh': 20,
+  }
+  return words[normalized] ?? null
+}
+
 function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisual | null {
   // Ambil fakta dari soal dan pembahasan saja, bukan pilihan jawaban.
   const source = (item.question + ' ' + item.explanation).toLocaleLowerCase('id')
-  const totalMatch = source.match(/(?:dibagi|terbagi) menjadi\\s*(\\d{1,2})\\s*(?:bagian|sektor|kotak)/)
-    || source.match(/(?:terdiri dari|tersusun (?:atas|dari))\\s*(\\d{1,2})\\s*(?:bagian|sektor|kotak)/)
-    || source.match(/(\\d{1,2})\\s*(?:kotak|bagian|sektor)\\s*(?:berukuran|yang sama|sama besar)/)
-  const coloredMatch = source.match(/(?:terdapat|ada|dan terdapat)?\\s*(\\d{1,2})\\s*(?:bagian|sektor|kotak)\\s*(?:yang\\s*)?(?:berwarna\\s*(biru|oranye|jingga|merah|hijau|kuning)?|diwarnai(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?|diberi warna(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?)/)
+  const numberPattern = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu|sebuah)'
+  const totalMatch = source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)'))
+    || source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari))\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)'))
+    || source.match(new RegExp(numberPattern + '\\s*(?:kotak|bagian|sektor)\\s*(?:berukuran|yang sama|sama besar)'))
+  const coloredMatch = source.match(new RegExp('(?:terdapat|ada|dan terdapat)?\\s*' + numberPattern + '\\s*(?:bagian|sektor|kotak)\\s*(?:yang\\s*)?(?:berwarna\\s*(biru|oranye|jingga|merah|hijau|kuning)?|diwarnai(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?|diberi warna(?:\\s*(biru|oranye|jingga|merah|hijau|kuning))?)'))
   if (!totalMatch || !coloredMatch) return null
 
-  const total = Number(totalMatch[1])
-  const colored = Number(coloredMatch[1])
-  if (!Number.isInteger(total) || !Number.isInteger(colored) || total < 2 || total > 20 || colored < 1 || colored >= total) return null
+  const total = parseIndonesianNumber(totalMatch[1])
+  const colored = parseIndonesianNumber(coloredMatch[1])
+  if (total === null || colored === null || total < 2 || total > 20 || colored < 1 || colored >= total) return null
 
   const shape = /lingkaran/.test(source)
     ? 'circle'
@@ -68,12 +83,8 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
   // Jika warna tidak disebutkan, gunakan biru sebagai warna penanda yang konsisten.
   const colorName = coloredMatch[2] || coloredMatch[3] || coloredMatch[4] || 'biru'
   const colors: Record<string, string> = {
-    biru: '#2584e8',
-    oranye: '#f59e0b',
-    jingga: '#f59e0b',
-    merah: '#ef4444',
-    hijau: '#16a34a',
-    kuning: '#eab308',
+    biru: '#2584e8', oranye: '#f59e0b', jingga: '#f59e0b',
+    merah: '#ef4444', hijau: '#16a34a', kuning: '#eab308',
   }
   return { shape, total, colored, color: colors[colorName] || '#2584e8' }
 }
@@ -587,7 +598,7 @@ export default function AsistenAIPage() {
                   <div className="ml-11 grid gap-2 sm:grid-cols-2">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => (
                       <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span>{item.options?.[key]}
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={item.options?.[key] || ''} className="inline-block align-middle" />
                         {item.answer === key && <CheckCircle2 size={15} className="ml-2 inline" />}
                       </div>
                     ))}
