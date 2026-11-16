@@ -15,6 +15,8 @@ export default function AsistenAIPage() {
   const [subject, setSubject] = useState('Bahasa Indonesia')
   const [topic, setTopic] = useState('Kalimat sederhana dan penggunaan tanda baca')
   const [count, setCount] = useState(5)
+  const [indicator, setIndicator] = useState('')
+  const [cognitiveLevel, setCognitiveLevel] = useState('AUTO')
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -29,7 +31,7 @@ export default function AsistenAIPage() {
 
     try {
       setLoadingMessage('Memulai proses pembuatan soal...')
-      const response = await fetch('/api/admin/ai/generate-questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grade, subject, topic, count }) })
+      const response = await fetch('/api/admin/ai/generate-questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel }) })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
       if (!payload.interactionId) throw new Error('Gemini tidak memberikan ID proses.')
@@ -87,6 +89,33 @@ export default function AsistenAIPage() {
               Materi / topik
               <textarea value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} required rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Contoh: penjumlahan bilangan sampai 100" />
             </label>
+            <label className="space-y-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
+              Indikator soal <span className="font-normal text-slate-400">(opsional)</span>
+              <textarea value={indicator} onChange={(e) => setIndicator(e.target.value)} maxLength={200} rows={2} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Contoh: Disajikan sebuah teks, siswa dapat menentukan gagasan pokok." />
+            </label>
+            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+              Level kognitif
+              <select value={cognitiveLevel} onChange={(e) => setCognitiveLevel(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                <option value="AUTO">Otomatis sesuai materi</option>
+                <option value="LOTS">LOTS — mengingat dan memahami</option>
+                <option value="MOTS">MOTS — menerapkan</option>
+                <option value="HOTS">HOTS — menganalisis dan menalar</option>
+                <option value="C1">C1 — Mengingat</option>
+                <option value="C2">C2 — Memahami</option>
+                <option value="C3">C3 — Menerapkan</option>
+                <option value="C4">C4 — Menganalisis</option>
+                <option value="C5">C5 — Mengevaluasi</option>
+                <option value="C6">C6 — Mencipta</option>
+              </select>
+            </label>
+            <div className="space-y-1.5 text-sm font-semibold text-slate-700">
+              Model AI
+              <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal text-slate-700">
+                <span className="font-semibold">Gemini 4 Hydrogen</span>
+                <span className="ml-2 text-xs text-emerald-700">Aktif</span>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">Varian 4 Hydrogen Thinking belum tersedia sebagai ID model API resmi yang dapat diverifikasi, jadi belum diaktifkan agar proses pembuatan soal tetap stabil.</p>
+              </div>
+            </div>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Jumlah soal
               <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
