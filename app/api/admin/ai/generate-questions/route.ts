@@ -139,12 +139,22 @@ Ketentuan:
   } catch (error) {
     console.error('Gemini AI test failed:', error)
     const message = error instanceof Error ? error.message.toLowerCase() : ''
-    const timedOut = message.includes('timeout') || message.includes('timed out') || message.includes('abort')
+    const status = typeof error === 'object' && error !== null && 'status' in error
+      ? Number((error as { status?: unknown }).status)
+      : 0
+    const timedOut = status === 504 || message.includes('timeout') || message.includes('timed out') || message.includes('abort')
+    const overloaded = status === 503 || message.includes('high demand') || message.includes('unavailable')
+    const invalidKey = status === 401 || status === 403
+    const userMessage = timedOut
+      ? 'Gemini terlalu lama merespons. Silakan coba lagi. Jika berulang, kemungkinan layanan AI sedang lambat.'
+      : overloaded
+        ? 'Layanan Gemini sedang ramai atau kelebihan beban. Tunggu sebentar lalu coba lagi.'
+        : invalidKey
+          ? 'Kunci API Gemini ditolak. Admin perlu memeriksa GEMINI_API_KEY di Vercel.'
+          : 'Terjadi kendala saat menghubungi Gemini. Silakan coba lagi beberapa saat.'
     return NextResponse.json(
-      { error: timedOut
-        ? 'Gemini membutuhkan waktu terlalu lama untuk merespons. Silakan coba lagi beberapa saat.'
-        : 'Terjadi kendala saat menghubungi Gemini. Periksa konfigurasi API dan coba lagi.' },
-      { status: timedOut ? 504 : 500 }
+      { error: userMessage },
+      { status: timedOut ? 504 : overloaded ? 503 : invalidKey ? status : 500 }
     )
   }
 }
