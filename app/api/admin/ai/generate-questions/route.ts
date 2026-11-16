@@ -147,7 +147,7 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams
     const id = params.get('id')
     const count = Number(params.get('count'))
-    if (!id || id.length > 200 || !Number.isInteger(count) || count < 1 || count > 10) return NextResponse.json({ error: 'Parameter proses tidak valid.' }, { status: 400 })
+    if (!id || id.length > 200 || !Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Parameter proses tidak valid.' }, { status: 400 })
 
     const interaction = await createAI().interactions.get(id)
     if (interaction.status === 'in_progress' || interaction.status === 'requires_action') return NextResponse.json({ status: interaction.status })
