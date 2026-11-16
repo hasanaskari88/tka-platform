@@ -6,6 +6,20 @@ import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import RichTextEditor from '@/components/editor/RichTextEditor'
 
+function getPlainAnswerText(value: any): string {
+  if (value === null || value === undefined) return ''
+  return String(value).replace(/<br\s*\/?\s*>/gi, ' ').replace(/<\/p\s*>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;|&#160;|&#xA0;/gi, ' ').replace(/[\u00a0\u200b\uFEFF]/g, ' ').trim()
+}
+
+function isQuestionAnswered(question: any, answer: any): boolean {
+  const type = question?.question_type || 'multiple_choice'
+  if (answer === undefined || answer === null) return false
+  if (type === 'essay' || type === 'uraian') return getPlainAnswerText(answer).length > 0
+  if (Array.isArray(answer)) return answer.length > 0
+  if (typeof answer === 'object') return Object.values(answer).some((value) => String(value ?? '').trim() !== '')
+  return String(answer).trim().length > 0
+}
+
 function ExamEngineContent() {
   const params = useParams()
   const examId = params?.id as string
@@ -37,6 +51,7 @@ function ExamEngineContent() {
   const [authCheckFailed, setAuthCheckFailed] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
   const [participantName, setParticipantName] = useState('')
   const [participantIdentifier, setParticipantIdentifier] = useState('')
   const [participantClass, setParticipantClass] = useState('')
@@ -111,6 +126,7 @@ function ExamEngineContent() {
       onConflict: 'session_id,question_id',
     })
     if (error) throw error
+    setSaveStatus('saved')
   }
 
   const queueAutosave = () => {
@@ -126,7 +142,8 @@ function ExamEngineContent() {
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     autosaveTimerRef.current = setTimeout(() => {
       autosaveTimerRef.current = null
-      queueAutosave().catch((error) => console.error('Autosave gagal:', error))
+      setSaveStatus('saving')
+      queueAutosave().catch((error) => { console.error('Autosave gagal:', error); setSaveStatus('error') })
     }, 800)
   }
 
@@ -153,6 +170,7 @@ function ExamEngineContent() {
   const updateAnswersState = (newAnswersMap: { [key: string]: any }) => {
     setUserAnswers(newAnswersMap)
     userAnswersRef.current = newAnswersMap
+    setSaveStatus('saving')
     if (examId) localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(newAnswersMap))
     scheduleAutosave()
   }
@@ -232,10 +250,14 @@ function ExamEngineContent() {
 
     if (questionData) {
       let processedQuestions = [...questionData]
-
-      if (examData.shuffle_questions) {
-        processedQuestions = shuffleArray(processedQuestions)
-      }
+      const groups = [
+        processedQuestions.filter((q) => q.question_type === 'multiple_choice'),
+        processedQuestions.filter((q) => q.question_type === 'complex_multiple_choice'),
+        processedQuestions.filter((q) => q.question_type === 'true_false_matrix'),
+        processedQuestions.filter((q) => q.question_type === 'essay' || q.question_type === 'uraian'),
+        processedQuestions.filter((q) => !['multiple_choice', 'complex_multiple_choice', 'true_false_matrix', 'essay', 'uraian'].includes(q.question_type || 'multiple_choice')),
+      ]
+      processedQuestions = groups.flatMap((group) => examData.shuffle_questions ? shuffleArray(group) : group)
 
       if (examData.shuffle_options) {
         processedQuestions = processedQuestions.map((q) => {
@@ -531,7 +553,7 @@ const { data: existingSession, error: sessionError } = await supabase
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [])
+  }, [loading, sessionStatus])
 
   // 🟢 TIMER COUNTDOWN PRESISI (HENTIKAN TIMER JIKA DIPAUSE)
       useEffect(() => {
@@ -604,7 +626,7 @@ const { data: existingSession, error: sessionError } = await supabase
 
   // Handler Jawaban Essay
   const handleEssayChange = (questionId: string, html: string) => {
-    const normalizedHtml = html.trim() === '<p></p>' ? '' : html
+    const normalizedHtml = getPlainAnswerText(html).length > 0 ? html : ''
     const updated = { ...userAnswersRef.current, [questionId]: normalizedHtml }
     updateAnswersState(updated)
   }
@@ -617,6 +639,7 @@ const { data: existingSession, error: sessionError } = await supabase
     }
     flaggedQuestionsRef.current = updated
     setFlaggedQuestions(updated)
+    setSaveStatus('saving')
     if (examId) localStorage.setItem(`cbt_flags_${examId}`, JSON.stringify(updated))
     scheduleAutosave()
   }
@@ -631,7 +654,13 @@ const { data: existingSession, error: sessionError } = await supabase
       alert('Sesi ujian tidak ditemukan. Silakan muat ulang halaman.')
       return
     }
-    if (!autoFinish && !confirm('Apakah Anda yakin ingin menyelesaikan ujian ini?')) return
+    if (!autoFinish) {
+      const questionsNow = questionsRef.current
+      const unansweredCount = questionsNow.filter((q) => !isQuestionAnswered(q, userAnswersRef.current[q.id])).length
+      const flaggedCount = questionsNow.filter((q) => Boolean(flaggedQuestionsRef.current[q.id])).length
+      const message = 'Apakah Anda yakin ingin mengumpulkan ujian?\n\nSoal belum dijawab: ' + unansweredCount + '\nSoal ditandai ragu-ragu: ' + flaggedCount + '\n\nSetelah dikumpulkan, jawaban tidak dapat diubah lagi.' + ((unansweredCount || flaggedCount) ? '\n\nSilakan periksa kembali soal yang belum dijawab atau masih ragu-ragu.' : '')
+      if (!confirm(message)) return
+    }
 
     isSubmittingRef.current = true
     setIsSubmitting(true)
@@ -661,9 +690,11 @@ const { data: existingSession, error: sessionError } = await supabase
 
     try {
       // Verifikasi sesi aktif sebelum flush; validasi penuh tetap dilakukan di bawah.
+      setSaveStatus('saving')
       await flushAutosave()
     } catch (error) {
       console.error('Autosave terakhir gagal:', error)
+      setSaveStatus('error')
       alert('Jawaban terakhir gagal disimpan. Ujian belum dikirim. Silakan coba lagi.')
       isSubmittingRef.current = false
       setIsSubmitting(false)
@@ -1058,6 +1089,10 @@ const { data: existingSession, error: sessionError } = await supabase
             {showQuestionNav ? 'Sembunyikan Nomor' : 'Tampilkan Nomor'}
           </button>
 
+          <div className="text-[10px] font-bold" aria-live="polite">
+            {saveStatus === 'saving' ? <span className="text-amber-300">⏳ Menyimpan jawaban…</span> : saveStatus === 'error' ? <span className="text-rose-300">⚠ Gagal menyimpan</span> : <span className="text-emerald-300">✓ Semua perubahan tersimpan</span>}
+          </div>
+
           <button
             onClick={() => handleFinishExam(false)}
             disabled={isSubmitting || sessionStatus !== 'ongoing'}
@@ -1097,7 +1132,7 @@ const { data: existingSession, error: sessionError } = await supabase
                       ? 'PG Kompleks'
                       : qType === 'true_false_matrix'
                       ? 'Matriks'
-                      : qType === 'essay'
+                      : qType === 'essay' || qType === 'uraian'
                       ? 'Uraian / Essay'
                       : 'Pilihan Ganda'}
                   </span>
@@ -1374,7 +1409,7 @@ const { data: existingSession, error: sessionError } = await supabase
               )}
 
               {/* 4. URAIAN / ESSAY */}
-              {qType === 'essay' && (
+              {(qType === 'essay' || qType === 'uraian') && (
                 <div className="space-y-2 pt-2">
                   <label className="block text-xs font-bold uppercase">Lembar Jawaban Essay Anda:</label>
                   <RichTextEditor
@@ -1438,14 +1473,7 @@ const { data: existingSession, error: sessionError } = await supabase
           <div className="grid grid-cols-5 gap-2">
             {questions.map((q, idx) => {
               const ans = userAnswers[q.id]
-              const isAnswered =
-                ans !== undefined &&
-                ans !== null &&
-                (Array.isArray(ans)
-                  ? ans.length > 0
-                  : typeof ans === 'object'
-                  ? Object.keys(ans).length > 0
-                  : true)
+              const isAnswered = isQuestionAnswered(q, ans)
               const isFlagged = !!flaggedQuestions[q.id]
               const isCurrent = idx === currentIndex
 
