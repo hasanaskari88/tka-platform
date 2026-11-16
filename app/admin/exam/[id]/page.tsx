@@ -312,7 +312,7 @@ function QuestionManagerContent() {
 
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Soal TKA')
-      const fileName = `Soal_${(exam?.title || 'Ujian').replace(/\\s+/g, '_')}.xlsx`
+      const fileName = `Soal_${(exam?.title || 'Ujian').replace(/\s+/g, '_')}.xlsx`
       XLSX.writeFile(workbook, fileName)
     } catch (err) {
       console.error('Gagal mengekspor soal ke Excel:', err)
