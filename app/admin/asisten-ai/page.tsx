@@ -30,39 +30,8 @@ const questionTypeLabels: Record<QuestionType, string> = {
 
 function formatMathOption(value: string): string {
   // Ubah pecahan sederhana seperti 3/8 menjadi format KaTeX bertingkat.
-  return value.replace(/(\\d{1,3})\\s*\\/\\s*(\\d{1,3})/g, (_match, numerator, denominator) => `$\\\\frac{${numerator}}{${denominator}}'use client'
-
-import { useState } from 'react'
-import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
-import MathRenderer from '@/components/MathRenderer'
-
-type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
-type GeneratedQuestion = {
-  question: string
-  explanation: string
-  options?: { A: string; B: string; C: string; D: string }
-  answer?: 'A' | 'B' | 'C' | 'D'
-  answers?: string[]
-  statements?: { id: string; text: string; answer: 'Benar' | 'Salah' }[]
-  model_answer?: string
-  rubric?: string
-  max_score?: number
-  image_prompt?: string
-  image_url?: string
-  image_status?: 'none' | 'pending' | 'generating' | 'ready' | 'failed'
-  image_error?: string
+  return value.replace(/(\d{1,3})\s*\/\s*(\d{1,3})/g, (_match, numerator, denominator) => '$\\frac{' + numerator + '}{' + denominator + '}$')
 }
-
-const questionTypeLabels: Record<QuestionType, string> = {
-  multiple_choice: 'Pilihan ganda',
-  complex_multiple_choice: 'Pilihan ganda kompleks',
-  true_false_matrix: 'Benar / Salah (Matriks)',
-  essay: 'Uraian',
-}
-
-)
-}
-
 function extractNumberComparison(question: string): [number, number] | null {
   const normalized = question.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
   const match = normalized.match(/(?:angka|bilangan)?[^0-9]{0,80}(\d{1,3})\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\s*(\d{1,3})/i)
