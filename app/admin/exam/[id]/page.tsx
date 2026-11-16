@@ -87,7 +87,7 @@ function docxP(value:string,bold=false,center=false,size=22){return '<w:p><w:pPr
 function getGoogleDriveImageProxyUrl(src: string) {
   if (!src) return src
   try {
-    const url = new URL(src, window.location.origin)
+    const url = new URL(src)
     if (url.hostname !== 'drive.google.com' && url.hostname !== 'www.drive.google.com') {
       return src
     }
@@ -358,7 +358,10 @@ function QuestionManagerContent() {
     setShowPrintPreview(true)
   }
 
-  const handlePrintNow = () => {
+  const handlePrintNow = async () => {
+    const printDocument = document.querySelector('.print-document')
+    const images = Array.from(printDocument?.querySelectorAll('img') || [])
+    await Promise.all(images.map((image) => image.decode().catch(() => undefined)))
     window.print()
   }
 
