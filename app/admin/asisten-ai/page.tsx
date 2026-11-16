@@ -215,7 +215,8 @@ async function createExactNumberComparisonImage(question: string): Promise<Blob 
     ctx!.beginPath()
     ctx!.roundRect(x, y, w, h, 38)
     ctx!.fill()
-    ctx!.stroke()    ctx!.fillStyle = '#0f172a'
+    ctx!.stroke()
+    ctx!.fillStyle = '#0f172a'
     ctx!.font = 'bold 250px Arial, sans-serif'
     ctx!.textAlign = 'center'
     ctx!.textBaseline = 'middle'
