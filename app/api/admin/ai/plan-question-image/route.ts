@@ -82,7 +82,6 @@ Isi imagePrompt dengan brief visual yang konkret, terukur, tidak ambigu, dan sia
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
-        thinkingConfig: { thinkingLevel: 'MEDIUM' },
       },
     })
 
