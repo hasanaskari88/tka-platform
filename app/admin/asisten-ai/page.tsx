@@ -31,6 +31,9 @@ export default function AsistenAIPage() {
   const [indicator, setIndicator] = useState('')
   const [cognitiveLevel, setCognitiveLevel] = useState('AUTO')
   const [questionType, setQuestionType] = useState<QuestionType>('multiple_choice')
+  const [shortAnswerCount, setShortAnswerCount] = useState(10)
+  const [shortAnswerMaxScore, setShortAnswerMaxScore] = useState(2)
+  const [longEssayMaxScore, setLongEssayMaxScore] = useState(3)
   const [questions, setQuestions] = useState<GeneratedQuestion[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -48,7 +51,7 @@ export default function AsistenAIPage() {
       const response = await fetch('/api/admin/ai/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel, questionType }),
+        body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel, questionType, shortAnswerCount, shortAnswerMaxScore, longEssayMaxScore }),
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
@@ -117,13 +120,36 @@ export default function AsistenAIPage() {
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Bentuk soal
-              <select value={questionType} onChange={(e) => setQuestionType(e.target.value as QuestionType)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+              <select value={questionType} onChange={(e) => { const nextType = e.target.value as QuestionType; setQuestionType(nextType); if (nextType === 'essay' && count < 2) setCount(15) }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
                 <option value="multiple_choice">Pilihan ganda (1 jawaban benar)</option>
                 <option value="complex_multiple_choice">Pilihan ganda kompleks (lebih dari 1 benar)</option>
                 <option value="true_false_matrix">Benar / Salah (beberapa pernyataan)</option>
                 <option value="essay">Uraian (dengan rubrik penilaian)</option>
               </select>
             </label>
+            {questionType === 'essay' && (
+              <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:col-span-2">
+                <div>
+                  <p className="text-sm font-bold text-violet-900">Pengaturan kelompok skor uraian</p>
+                  <p className="mt-1 text-xs font-normal text-violet-800">Semua soal tetap disimpan sebagai tipe uraian/essay agar kompatibel dengan CBT.</p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Jumlah soal isian singkat pertama
+                    <input type="number" min={1} max={Math.max(1, count - 1)} value={shortAnswerCount} onChange={(e) => setShortAnswerCount(Math.min(Math.max(1, Number(e.target.value)), Math.max(1, count - 1)))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Skor maksimal isian singkat
+                    <input type="number" min={1} max={100} value={shortAnswerMaxScore} onChange={(e) => setShortAnswerMaxScore(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Skor maksimal uraian panjang
+                    <input type="number" min={1} max={100} value={longEssayMaxScore} onChange={(e) => setLongEssayMaxScore(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                </div>
+                <p className="text-xs text-violet-900">Contoh: jika jumlah soal 15 dan kelompok pertama 10, maka soal 1–10 mendapat maksimal {shortAnswerMaxScore} poin dan soal 11–15 maksimal {longEssayMaxScore} poin.</p>
+              </div>
+            )}
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Level kognitif
               <select value={cognitiveLevel} onChange={(e) => setCognitiveLevel(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
@@ -149,8 +175,8 @@ export default function AsistenAIPage() {
             </div>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Jumlah soal
-              <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => <option key={n} value={n}>{n} soal</option>)}
+              <select value={count} onChange={(e) => { const nextCount = Number(e.target.value); setCount(nextCount); setShortAnswerCount((current) => Math.min(current, Math.max(1, nextCount - 1))) }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((n) => <option key={n} value={n}>{n} soal</option>)}
               </select>
             </label>
             <div className="flex items-end">
