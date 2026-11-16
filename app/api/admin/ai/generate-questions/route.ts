@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
     const ai = new GoogleGenAI({ apiKey })
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       contents: `Buat tepat ${count} soal pilihan ganda untuk siswa ${grade}, mata pelajaran ${subject}, dengan materi: ${topic}.
 
 Ketentuan:
@@ -129,7 +129,7 @@ Ketentuan:
 
     return NextResponse.json({
       success: true,
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       questions: result.questions,
     })
   } catch (error) {
