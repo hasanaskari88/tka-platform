@@ -27,6 +27,77 @@ const questionTypeLabels: Record<QuestionType, string> = {
   essay: 'Uraian',
 }
 
+function extractNumberComparison(question: string): [number, number] | null {
+  const normalized = question.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
+  const match = normalized.match(/(?:angka|bilangan)?[^0-9]{0,80}(\\d{1,3})\\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\\s*(\\d{1,3})/i)
+  if (!match) return null
+  const first = Number(match[1])
+  const second = Number(match[2])
+  if (!Number.isSafeInteger(first) || !Number.isSafeInteger(second) || first < 0 || second < 0) return null
+  return [first, second]
+}
+
+async function createExactNumberComparisonImage(question: string): Promise<Blob | null> {
+  const numbers = extractNumberComparison(question)
+  if (!numbers) return null
+
+  const [first, second] = numbers
+  const canvas = document.createElement('canvas')
+  canvas.width = 1600
+  canvas.height = 900
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const gradient = ctx.createLinearGradient(0, 0, 1600, 900)
+  gradient.addColorStop(0, '#eff6ff')
+  gradient.addColorStop(1, '#f5f3ff')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 1600, 900)
+
+  ctx.fillStyle = '#172554'
+  ctx.font = 'bold 54px Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('AYO BANDINGKAN ANGKA', 800, 135)
+
+  const drawCard = (x: number, value: number, fill: string, border: string) => {
+    const y = 270
+    const w = 440
+    const h = 430
+    ctx!.fillStyle = 'rgba(30, 41, 59, 0.10)'
+    ctx!.beginPath()
+    ctx!.roundRect(x + 8, y + 14, w, h, 38)
+    ctx!.fill()
+    ctx!.fillStyle = fill
+    ctx!.strokeStyle = border
+    ctx!.lineWidth = 10
+    ctx!.beginPath()
+    ctx!.roundRect(x, y, w, h, 38)
+    ctx!.fill()
+    ctx!.stroke()
+    ctx!.fillStyle = '#0f172a'
+    ctx!.font = 'bold 250px Arial, sans-serif'
+    ctx!.textAlign = 'center'
+    ctx!.textBaseline = 'middle'
+    ctx!.fillText(String(value), x + w / 2, y + h / 2 + 12)
+  }
+
+  drawCard(180, first, '#ffffff', '#60a5fa')
+  drawCard(980, second, '#ffffff', '#a78bfa')
+
+  ctx.fillStyle = '#334155'
+  ctx.font = 'bold 58px Arial, sans-serif'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('ATAU', 800, 485)
+
+  ctx.fillStyle = '#475569'
+  ctx.font = '36px Arial, sans-serif'
+  ctx.fillText('Perhatikan kedua angka', 800, 790)
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
 export default function AsistenAIPage() {
   const [grade, setGrade] = useState('Kelas 6 SD')
   const [subject, setSubject] = useState('Bahasa Indonesia')
@@ -55,6 +126,24 @@ export default function AsistenAIPage() {
       : question))
 
     try {
+      // Angka dalam soal perbandingan harus digambar secara deterministik,
+      // bukan oleh model gambar yang dapat keliru menulis atau mengganti angka.
+      const exactComparisonBlob = await createExactNumberComparisonImage(item.question)
+      if (exactComparisonBlob) {
+        setLoadingMessage('Membuat kartu angka yang tepat sesuai soal...')
+        const formData = new FormData()
+        formData.append('file', new File([exactComparisonBlob], `kartu-angka-soal-${index + 1}.png`, { type: 'image/png' }))
+        const uploadResponse = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+        const uploadPayload = await uploadResponse.json()
+        if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
+          throw new Error(uploadPayload.error || 'Kartu angka dibuat, tetapi gagal disimpan ke Google Drive.')
+        }
+        setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
+          ? { ...question, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+          : question))
+        return
+      }
+
       setLoadingMessage('AI sedang merancang ilustrasi sesuai isi soal...')
       const planResponse = await fetch('/api/admin/ai/plan-question-image', {
         method: 'POST',
