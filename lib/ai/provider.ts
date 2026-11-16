@@ -122,13 +122,14 @@ async function generateWithGroq(input: GenerateJsonInput): Promise<JsonObject> {
   throw new Error('Groq gagal menghasilkan JSON yang sesuai skema setelah satu kali percobaan ulang.')
 }
 
-async function generateWithGemini(input: GenerateJsonInput): Promise<JsonObject> {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY belum dikonfigurasi.')
-
+async function generateWithGemini(
+  input: GenerateJsonInput,
+  apiKey: string,
+  model: string
+): Promise<JsonObject> {
   const client = new GoogleGenAI({ apiKey, httpOptions: { timeout: input.timeoutMs ?? 45000 } })
   const response = await client.models.generateContent({
-    model: process.env.GEMINI_TEXT_MODEL || 'gemini-4-hydrogen',
+    model,
     contents: input.prompt,
     config: {
       responseMimeType: 'application/json',
@@ -164,15 +165,29 @@ export async function generateJsonWithFallback(input: GenerateJsonInput) {
     }
   }
 
-  if (process.env.GEMINI_API_KEY) {
+  const geminiAccounts = [
+    {
+      label: 'Gemini utama',
+      apiKey: process.env.GEMINI_API_KEY,
+      model: process.env.GEMINI_TEXT_MODEL || 'gemini-4-hydrogen',
+    },
+    {
+      label: 'Gemini cadangan akun kedua',
+      apiKey: process.env.GEMINI_API_KEY_2,
+      model: process.env.GEMINI_TEXT_MODEL_2 || 'gemini-3.5-flash-lite',
+    },
+  ].filter((account): account is { label: string; apiKey: string; model: string } => Boolean(account.apiKey))
+
+  for (const account of geminiAccounts) {
     try {
-      const data = await generateWithGemini(input)
+      const data = await generateWithGemini(input, account.apiKey, account.model)
+      console.info(`AI provider succeeded for ${input.task}: ${account.label} (${account.model})`)
       return { data, provider: 'Gemini' as const }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const details = error as Error & { status?: number }
       failures.push({ provider: 'Gemini', status: details.status, message })
-      console.error(`AI provider Gemini failed for ${input.task}:`, message)
+      console.error(`AI provider ${account.label} failed for ${input.task}:`, message)
     }
   }
 
