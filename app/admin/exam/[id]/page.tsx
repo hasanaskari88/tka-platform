@@ -231,7 +231,7 @@ function QuestionManagerContent() {
     loadData()
   }, [examId])
 
-  // 1. 📊 FUNGSI EXPORT KE EXCEL (.XLSX)
+  // 1. 📊 FUNGSI EXPORT KE EXCEL (.XLSX) — mengikuti 16 kolom template impor
   const handleExportExcel = async () => {
     if (questions.length === 0) {
       alert('Belum ada soal untuk diekspor!')
@@ -240,45 +240,85 @@ function QuestionManagerContent() {
 
     try {
       const XLSX = await import('xlsx')
-      const excelRows = questions.map((q, idx) => {
-        let optionsText = ''
-        if (Array.isArray(q.options)) {
-          optionsText = q.options
-            .map((o: any) => (o.key ? `${o.key}. ${o.text}` : `${o.id || ''}. ${o.text}`))
-            .join(' | ')
+      const headers = [
+        'question_type', 'question_text', 'image_url', 'indicator',
+        'cognitive_level', 'max_score', 'option_A', 'option_B',
+        'option_C', 'option_D', 'correct_option', 'statement_1',
+        'statement_1_key', 'statement_2', 'statement_2_key', 'explanation',
+      ]
+
+      const excelRows = questions.map((q) => {
+        const type = String(q.question_type || 'multiple_choice').toLowerCase()
+        const options = Array.isArray(q.options) ? q.options : []
+        const row: Record<string, any> = {
+          question_type: type,
+          question_text: q.question_text || '',
+          image_url: q.image_url || '',
+          indicator: q.indicator || '',
+          cognitive_level: q.cognitive_level || 'MOTS',
+          max_score: q.max_score ?? 1,
+          option_A: '',
+          option_B: '',
+          option_C: '',
+          option_D: '',
+          correct_option: '',
+          statement_1: '',
+          statement_1_key: '',
+          statement_2: '',
+          statement_2_key: '',
+          explanation: q.explanation || '',
         }
 
-        let keyText = ''
-        if (Array.isArray(q.correct_answers)) {
-          keyText = q.correct_answers.join(', ')
-        } else if (typeof q.correct_option === 'object' && q.correct_option !== null) {
-          keyText = JSON.stringify(q.correct_option)
+        if (type === 'true_false_matrix') {
+          const matrixAnswers = q.correct_answers && typeof q.correct_answers === 'object'
+            ? q.correct_answers
+            : {}
+          options.slice(0, 2).forEach((option: any, index: number) => {
+            const statementId = String(option.id ?? index + 1)
+            row[`statement_${index + 1}`] = option.text || ''
+            row[`statement_${index + 1}_key`] =
+              matrixAnswers[statementId] ?? matrixAnswers[String(index + 1)] ?? ''
+          })
+          row.correct_option = 'MATRIX'
         } else {
-          keyText = String(q.correct_option || '')
+          options.forEach((option: any, index: number) => {
+            const key = String(option.key || String.fromCharCode(65 + index)).toUpperCase()
+            if (['A', 'B', 'C', 'D'].includes(key)) {
+              row[`option_${key}`] = option.text || ''
+            }
+          })
+
+          if (type === 'essay') {
+            row.correct_option = 'ESSAY'
+          } else if (Array.isArray(q.correct_answers) && q.correct_answers.length > 0) {
+            row.correct_option = q.correct_answers.join(',')
+          } else if (q.correct_option !== undefined && q.correct_option !== null) {
+            row.correct_option = typeof q.correct_option === 'object'
+              ? JSON.stringify(q.correct_option)
+              : String(q.correct_option)
+          }
         }
 
-        return {
-          No: idx + 1,
-          'Tipe Soal': q.question_type || 'multiple_choice',
-          Pertanyaan: q.question_text || '',
-          'Pilihan / Pernyataan': optionsText,
-          'Kunci Jawaban': keyText,
-          Pembahasan: q.explanation || '-',
-          'Bobot Poin': q.max_score || 1,
-        }
+        return row
       })
 
-      const worksheet = XLSX.utils.json_to_sheet(excelRows)
-      const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Daftar Soal')
+      const worksheet = XLSX.utils.json_to_sheet(excelRows, { header: headers })
+      worksheet['!cols'] = [
+        { wch: 22 }, { wch: 45 }, { wch: 30 }, { wch: 35 },
+        { wch: 15 }, { wch: 10 }, { wch: 18 }, { wch: 18 },
+        { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 40 },
+        { wch: 15 }, { wch: 40 }, { wch: 15 }, { wch: 45 },
+      ]
 
-      const fileName = `Soal_${(exam?.title || 'Ujian').replace(/\s+/g, '_')}.xlsx`
+      const workbook = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Soal TKA')
+      const fileName = `Soal_${(exam?.title || 'Ujian').replace(/\\s+/g, '_')}.xlsx`
       XLSX.writeFile(workbook, fileName)
     } catch (err) {
-      alert('Gagal mengekspor ke Excel. Pastikan modul xlsx tersedia.')
+      console.error('Gagal mengekspor soal ke Excel:', err)
+      alert('Gagal mengekspor ke Excel. Silakan coba lagi.')
     }
   }
-
   // 2. 🖨️ FUNGSI EXPORT / CETAK PDF (A4 2 KOLOM)
   const handleExportPDF = () => {
     if (questions.length === 0) {
