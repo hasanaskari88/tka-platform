@@ -29,7 +29,7 @@ const questionTypeLabels: Record<QuestionType, string> = {
 
 function extractNumberComparison(question: string): [number, number] | null {
   const normalized = question.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
-  const match = normalized.match(/(?:angka|bilangan)?[^0-9]{0,80}(\\d{1,3})\\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\\s*(\\d{1,3})/i)
+  const match = normalized.match(/(?:angka|bilangan)?[^0-9]{0,80}(\d{1,3})\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\s*(\d{1,3})/i)
   if (!match) return null
   const first = Number(match[1])
   const second = Number(match[2])
