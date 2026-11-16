@@ -62,7 +62,7 @@ export default function AsistenAIPage() {
       let completed = false
       while (!completed && Date.now() - startedAt < 240000) {
         await new Promise((resolve) => setTimeout(resolve, 3000))
-        const check = await fetch('/api/admin/ai/generate-questions?id=' + encodeURIComponent(payload.interactionId) + '&count=' + count, { cache: 'no-store' })
+        const check = await fetch('/api/admin/ai/generate-questions?id=' + encodeURIComponent(payload.interactionId) + '&count=' + count + '&questionType=' + questionType + '&shortAnswerCount=' + shortAnswerCount + '&shortAnswerMaxScore=' + shortAnswerMaxScore + '&longEssayMaxScore=' + longEssayMaxScore, { cache: 'no-store' })
         const result = await check.json()
         if (!check.ok) throw new Error(result.error || 'Gemini gagal membuat soal.')
         if (result.status === 'completed') {
