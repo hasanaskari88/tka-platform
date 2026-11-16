@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
@@ -75,10 +75,26 @@ function getQuestionSchema(questionType: QuestionType, includeImagePrompt = fals
   }
 }
 
-function createAI() {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY belum dikonfigurasi di server.')
-  return new GoogleGenAI({ apiKey, httpOptions: { timeout: 20000 } })
+function toGroqSchema(value: any): any {
+  if (Array.isArray(value)) return value.map(toGroqSchema)
+  if (!value || typeof value !== 'object') return value
+
+  const result: Record<string, any> = {}
+  for (const [key, item] of Object.entries(value)) {
+    if (key === 'type' && typeof item === 'string') {
+      result.type = item.toLowerCase()
+    } else {
+      result[key] = toGroqSchema(item)
+    }
+  }
+
+  if (result.type === 'object') {
+    result.additionalProperties = false
+    if (result.properties && typeof result.properties === 'object') {
+      result.required = Object.keys(result.properties)
+    }
+  }
+  return result
 }
 
 export async function POST(request: Request) {
@@ -135,51 +151,39 @@ export async function POST(request: Request) {
         ? '\n\nKetentuan gambar penyerta:\n- Tambahkan properti image_prompt pada setiap soal.\n- Jika ilustrasi benar-benar membantu siswa memahami soal, isi image_prompt dengan deskripsi visual yang spesifik, akurat, dan siap digunakan generator gambar.\n- Jika soal tidak membutuhkan gambar, isi image_prompt dengan string kosong. Jangan memaksakan gambar pada semua soal.\n- Jenis visual yang diutamakan: ' + imageType + '.\n- Jangan meminta gambar memuat tulisan, label, angka, atau watermark. Untuk diagram matematika yang membutuhkan ukuran/angka presisi, tuliskan bentuk visual sederhana dan ingatkan bahwa guru harus memeriksa ketepatannya.'
         : '')
 
-    const interaction = await createAI().interactions.create({
-      model: 'gemini-4-hydrogen',
-      input: prompt,
-      background: true,
-      generation_config: { thinking_level: 'low' },
-      response_format: getQuestionSchema(questionType, includeImages),
+    const { data, provider } = await generateJsonWithFallback({
+      task: 'pembuatan soal otomatis',
+      prompt,
+      groqSchema: toGroqSchema(getQuestionSchema(questionType, includeImages)),
+      geminiSchema: getQuestionSchema(questionType, includeImages),
+      timeoutMs: 50000,
+      maxOutputTokens: 8000,
     })
-    if (!interaction.id) return NextResponse.json({ error: 'Gemini tidak memberikan ID proses.' }, { status: 502 })
-    return NextResponse.json({ success: true, interactionId: interaction.id })
-  } catch (error) {
-    console.error('Gemini background generation start failed:', error)
-    const status = typeof error === 'object' && error !== null && 'status' in error ? Number((error as { status?: unknown }).status) : 0
-    return NextResponse.json({ error: status === 503 ? 'Layanan Gemini sedang ramai. Tunggu sebentar lalu coba lagi.' : 'Gagal memulai proses Gemini. Silakan coba lagi.' }, { status: status === 503 ? 503 : 500 })
-  }
-}
 
-export async function GET(request: Request) {
-  try {
-    const auth = await requireTrustedAdmin()
-    if (!auth.authorized) return NextResponse.json({ error: auth.error }, { status: auth.status })
-    const params = new URL(request.url).searchParams
-    const id = params.get('id')
-    const count = Number(params.get('count'))
-    const questionType = (params.get('questionType') || 'multiple_choice') as QuestionType
-    const shortAnswerCount = Number(params.get('shortAnswerCount') ?? 10)
-    const shortAnswerMaxScore = Number(params.get('shortAnswerMaxScore') ?? 2)
-    const longEssayMaxScore = Number(params.get('longEssayMaxScore') ?? 3)
-    if (!id || id.length > 200 || !Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Parameter proses tidak valid.' }, { status: 400 })
-
-    const interaction = await createAI().interactions.get(id)
-    if (interaction.status === 'in_progress' || interaction.status === 'requires_action') return NextResponse.json({ status: interaction.status })
-    if (interaction.status !== 'completed') return NextResponse.json({ status: interaction.status, error: 'Gemini gagal menyelesaikan pembuatan soal. Silakan coba lagi.' }, { status: 502 })
-    if (!interaction.output_text) return NextResponse.json({ error: 'Gemini selesai tetapi tidak memberikan hasil teks.' }, { status: 502 })
-
-    const result = JSON.parse(interaction.output_text)
-    if (!Array.isArray(result.questions) || result.questions.length !== count) return NextResponse.json({ error: 'Hasil AI belum sesuai jumlah soal yang diminta.' }, { status: 502 })
-    if (questionType === 'essay') {
-      result.questions = result.questions.map((question: Record<string, unknown>, index: number) => ({
-        ...question,
-        max_score: index < shortAnswerCount ? shortAnswerMaxScore : longEssayMaxScore,
-      }))
+    const result = data as { questions?: unknown }
+    if (!Array.isArray(result.questions) || result.questions.length !== count) {
+      return NextResponse.json({ error: 'Hasil AI belum sesuai jumlah soal yang diminta. Silakan coba lagi.' }, { status: 502 })
     }
-    return NextResponse.json({ status: 'completed', success: true, model: 'gemini-4-hydrogen', questions: result.questions })
+
+    const generatedQuestions = questionType === 'essay'
+      ? result.questions.map((question: Record<string, unknown>, index: number) => ({
+          ...question,
+          max_score: index < shortAnswerCount ? shortAnswerMaxScore : longEssayMaxScore,
+        }))
+      : result.questions
+
+    return NextResponse.json({
+      success: true,
+      status: 'completed',
+      provider,
+      model: provider,
+      questions: generatedQuestions,
+    })
   } catch (error) {
-    console.error('Gemini background generation polling failed:', error)
-    return NextResponse.json({ error: 'Tidak dapat memeriksa hasil Gemini. Silakan coba lagi.' }, { status: 500 })
+    console.error('AI question generation failed:', error)
+    if (error instanceof AIProvidersUnavailableError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    return NextResponse.json({ error: 'Gagal membuat soal dengan AI. Silakan coba lagi.' }, { status: 500 })
   }
 }
