@@ -2,8 +2,6 @@ import { GoogleGenAI } from '@google/genai'
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
-export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
 
 function rejectCrossOriginMutation(request: Request) {
   const origin = request.headers.get('origin')
