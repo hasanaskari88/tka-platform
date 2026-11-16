@@ -50,7 +50,7 @@ export default function AsistenAIPage() {
   const [loadingMessage, setLoadingMessage] = useState('Menghubungi Gemini...')
 
   async function generateImageForQuestion(index: number, imagePrompt: string) {
-    setQuestions((current) => current.map((item, itemIndex) => itemIndex === index
+    setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
       ? { ...item, image_status: 'generating', image_error: undefined }
       : item))
 
@@ -98,12 +98,12 @@ export default function AsistenAIPage() {
         throw new Error(uploadPayload.error || 'Gambar dibuat, tetapi gagal disimpan ke Google Drive.')
       }
 
-      setQuestions((current) => current.map((item, itemIndex) => itemIndex === index
+      setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
         ? { ...item, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
         : item))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal membuat gambar.'
-      setQuestions((current) => current.map((item, itemIndex) => itemIndex === index
+      setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
         ? { ...item, image_status: 'failed', image_error: message }
         : item))
     }
@@ -136,7 +136,7 @@ export default function AsistenAIPage() {
         if (!check.ok) throw new Error(result.error || 'Gemini gagal membuat soal.')
         if (result.status === 'completed') {
           const generatedQuestions = (result.questions || []) as GeneratedQuestion[]
-          setQuestions(generatedQuestions.map((item) => ({
+          setQuestions(generatedQuestions.map((item): GeneratedQuestion => ({
             ...item,
             image_status: includeImages && item.image_prompt?.trim() ? 'pending' : 'none',
           })))
