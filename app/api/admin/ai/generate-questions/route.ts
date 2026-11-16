@@ -2,6 +2,8 @@ import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
+export const maxDuration = 60
+
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
 
 function getQuestionSchema(questionType: QuestionType, includeImagePrompt = false) {
