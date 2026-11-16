@@ -120,7 +120,7 @@ export default function AsistenAIPage() {
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Bentuk soal
-              <select value={questionType} onChange={(e) => { const nextType = e.target.value as QuestionType; setQuestionType(nextType); if (nextType === 'essay' && count < 2) setCount(15) }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+              <select value={questionType} onChange={(e) => { const nextType = e.target.value as QuestionType; setQuestionType(nextType); if (nextType === 'essay') { setCount(15); setShortAnswerCount(10) } }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
                 <option value="multiple_choice">Pilihan ganda (1 jawaban benar)</option>
                 <option value="complex_multiple_choice">Pilihan ganda kompleks (lebih dari 1 benar)</option>
                 <option value="true_false_matrix">Benar / Salah (beberapa pernyataan)</option>
