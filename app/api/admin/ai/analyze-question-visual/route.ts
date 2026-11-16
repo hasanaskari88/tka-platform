@@ -163,7 +163,7 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
                 confidence: { type: 'NUMBER' },
                 reason: { type: 'STRING' },
               },
-              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'confidence', 'reason'],
+              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'highlightColor', 'confidence', 'reason'],
             },
           },
         },
