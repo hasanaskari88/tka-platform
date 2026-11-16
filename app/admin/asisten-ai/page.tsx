@@ -47,7 +47,7 @@ export default function AsistenAIPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [model, setModel] = useState('')
-  const [loadingMessage, setLoadingMessage] = useState('Menghubungi Gemini...')
+  const [loadingMessage, setLoadingMessage] = useState('Menghubungi penyedia AI...')
 
   async function generateImageForQuestion(index: number, item: GeneratedQuestion) {
     setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
@@ -79,7 +79,7 @@ export default function AsistenAIPage() {
       })
       const planPayload = await planResponse.json()
       if (!planResponse.ok || !planPayload.imagePrompt) {
-        throw new Error(planPayload.error || 'Gemini belum berhasil merancang ilustrasi.')
+        throw new Error(planPayload.error || 'AI belum berhasil merancang ilustrasi.')
       }
 
       setLoadingMessage('Cloudflare sedang menggambar sesuai rancangan AI...')
@@ -129,7 +129,7 @@ export default function AsistenAIPage() {
     setQuestions([])
 
     try {
-      setLoadingMessage('Memulai proses pembuatan soal...')
+      setLoadingMessage('AI sedang menyusun soal...')
       const response = await fetch('/api/admin/ai/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -137,52 +137,38 @@ export default function AsistenAIPage() {
       })
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
-      if (!payload.interactionId) throw new Error('Gemini tidak memberikan ID proses.')
+      if (!Array.isArray(payload.questions)) throw new Error('AI tidak mengirimkan daftar soal.')
 
-      setLoadingMessage('Gemini sedang menyusun soal. Hasil diperiksa otomatis setiap beberapa detik...')
-      const startedAt = Date.now()
-      let completed = false
-      while (!completed && Date.now() - startedAt < 240000) {
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        const check = await fetch('/api/admin/ai/generate-questions?id=' + encodeURIComponent(payload.interactionId) + '&count=' + count + '&questionType=' + questionType + '&shortAnswerCount=' + shortAnswerCount + '&shortAnswerMaxScore=' + shortAnswerMaxScore + '&longEssayMaxScore=' + longEssayMaxScore, { cache: 'no-store' })
-        const result = await check.json()
-        if (!check.ok) throw new Error(result.error || 'Gemini gagal membuat soal.')
-        if (result.status === 'completed') {
-          const generatedQuestions = (result.questions || []) as GeneratedQuestion[]
-          setQuestions(generatedQuestions.map((item): GeneratedQuestion => ({
-            ...item,
-            image_status: includeImages && item.image_prompt?.trim() ? 'pending' : 'none',
-          })))
-          setModel(result.model || 'Gemini')
-          completed = true
+      const generatedQuestions = payload.questions as GeneratedQuestion[]
+      setQuestions(generatedQuestions.map((item): GeneratedQuestion => ({
+        ...item,
+        image_status: includeImages && item.image_prompt?.trim() ? 'pending' : 'none',
+      })))
+      setModel(payload.provider || payload.model || 'AI')
+      setLoadingMessage('Soal berhasil dibuat. Memeriksa kebutuhan gambar...')
 
-          if (includeImages) {
-            const imageTargets = generatedQuestions
-              .map((item, index) => ({ index, prompt: item.image_prompt?.trim() || '' }))
-              .filter((item) => item.prompt.length > 0)
+      if (includeImages) {
+        const imageTargets = generatedQuestions
+          .map((item, index) => ({ index, prompt: item.image_prompt?.trim() || '' }))
+          .filter((item) => item.prompt.length > 0)
 
-            if (imageTargets.length === 0) {
-              setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
-            } else {
-              let nextTarget = 0
-              let finishedImages = 0
-              const worker = async () => {
-                while (nextTarget < imageTargets.length) {
-                  const target = imageTargets[nextTarget++]
-                  setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
-                  await generateImageForQuestion(target.index, generatedQuestions[target.index])
-                  finishedImages += 1
-                  setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
-                }
-              }
-              await Promise.all(Array.from({ length: Math.min(2, imageTargets.length) }, () => worker()))
+        if (imageTargets.length === 0) {
+          setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
+        } else {
+          let nextTarget = 0
+          let finishedImages = 0
+          const worker = async () => {
+            while (nextTarget < imageTargets.length) {
+              const target = imageTargets[nextTarget++]
+              setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
+              await generateImageForQuestion(target.index, generatedQuestions[target.index])
+              finishedImages += 1
+              setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
             }
           }
-        } else if (result.status !== 'in_progress' && result.status !== 'requires_action') {
-          throw new Error(result.error || 'Proses Gemini gagal.')
+          await Promise.all(Array.from({ length: Math.min(2, imageTargets.length) }, () => worker()))
         }
       }
-      if (!completed) throw new Error('Gemini masih memproses soal setelah 4 menit. Silakan coba lagi nanti.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan.')
     } finally {
@@ -199,7 +185,7 @@ export default function AsistenAIPage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-100">Fitur percobaan</p>
               <h1 className="text-2xl font-black sm:text-3xl">Asisten AI Guru</h1>
-              <p className="mt-1 text-sm text-indigo-100">Bantu guru menyiapkan soal pembelajaran dengan Gemini.</p>
+              <p className="mt-1 text-sm text-indigo-100">Bantu guru menyiapkan soal pembelajaran dengan Groq dan Gemini cadangan.</p>
             </div>
           </div>
         </header>
@@ -329,9 +315,9 @@ export default function AsistenAIPage() {
             <div className="space-y-1.5 text-sm font-semibold text-slate-700">
               Model AI
               <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal text-slate-700">
-                <span className="font-semibold">Gemini 4 Hydrogen</span>
-                <span className="ml-2 text-xs text-emerald-700">Aktif</span>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">Varian 4 Hydrogen Thinking belum diaktifkan karena ID model API-nya belum dapat diverifikasi.</p>
+                <span className="font-semibold">Groq (utama)</span>
+                <span className="ml-2 text-xs text-emerald-700">Gemini cadangan</span>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">Jika Groq tidak tersedia atau kuotanya habis, sistem otomatis mencoba Gemini.</p>
               </div>
             </div>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
@@ -343,7 +329,7 @@ export default function AsistenAIPage() {
             <div className="flex items-end">
               <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                {loading ? 'Gemini sedang membuat soal...' : 'Buat soal dengan AI'}
+                {loading ? 'AI sedang membuat soal...' : 'Buat soal dengan AI'}
               </button>
             </div>
           </form>
