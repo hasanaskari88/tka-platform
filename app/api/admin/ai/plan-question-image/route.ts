@@ -89,7 +89,7 @@ Isi imagePrompt dengan brief visual yang konkret, terukur, tidak ambigu, dan sia
 
     const imagePrompt = cleanText(result.imagePrompt, 2500)
     if (!imagePrompt) {
-      return NextResponse.json({ error: 'Gemini menilai soal ini tidak membutuhkan ilustrasi yang aman dan relevan.' }, { status: 422 })
+      return NextResponse.json({ error: 'AI menilai soal ini tidak membutuhkan ilustrasi yang aman dan relevan.' }, { status: 422 })
     }
 
     return NextResponse.json({ success: true, imagePrompt, provider })
@@ -100,5 +100,5 @@ Isi imagePrompt dengan brief visual yang konkret, terukur, tidak ambigu, dan sia
       ? error.message
       : 'Gagal merancang ilustrasi. Silakan coba lagi.'
     return NextResponse.json({ error: message }, { status })
-
+  }
 }
