@@ -19,6 +19,7 @@ export default function AsistenAIPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [model, setModel] = useState('')
+  const [loadingMessage, setLoadingMessage] = useState('Menghubungi Gemini...')
 
   async function generateQuestions(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -27,19 +28,23 @@ export default function AsistenAIPage() {
     setQuestions([])
 
     try {
-      const response = await fetch('/api/admin/ai/generate-questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grade, subject, topic, count }),
-      })
+      setLoadingMessage('Memulai proses pembuatan soal...')
+      const response = await fetch('/api/admin/ai/generate-questions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ grade, subject, topic, count }) })
       const payload = await response.json()
-
-      if (!response.ok) {
-        throw new Error(payload.error || 'Gagal membuat soal.')
+      if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
+      if (!payload.interactionId) throw new Error('Gemini tidak memberikan ID proses.')
+      setLoadingMessage('Gemini sedang menyusun soal. Hasil diperiksa otomatis setiap beberapa detik...')
+      const startedAt = Date.now()
+      let completed = false
+      while (!completed && Date.now() - startedAt < 240000) {
+        await new Promise((resolve) => setTimeout(resolve, 3000))
+        const check = await fetch('/api/admin/ai/generate-questions?id=' + encodeURIComponent(payload.interactionId) + '&count=' + count, { cache: 'no-store' })
+        const result = await check.json()
+        if (!check.ok) throw new Error(result.error || 'Gemini gagal membuat soal.')
+        if (result.status === 'completed') { setQuestions(result.questions || []); setModel(result.model || 'Gemini'); completed = true }
+        else if (result.status !== 'in_progress' && result.status !== 'requires_action') throw new Error(result.error || 'Proses Gemini gagal.')
       }
-
-      setQuestions(payload.questions || [])
-      setModel(payload.model || 'Gemini')
+      if (!completed) throw new Error('Gemini masih memproses soal setelah 4 menit. Silakan coba lagi nanti.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Terjadi kesalahan.')
     } finally {
@@ -95,6 +100,8 @@ export default function AsistenAIPage() {
               </button>
             </div>
           </form>
+
+          {loading && <p className="mt-3 text-center text-xs text-slate-500" aria-live="polite">{loadingMessage}</p>}
 
           {error && (
             <div role="alert" className="mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
