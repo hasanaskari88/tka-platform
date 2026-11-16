@@ -1,14 +1,8 @@
-import { GoogleGenAI } from '@google/genai'
+import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
 export const maxDuration = 60
-
-function createAI() {
-  const apiKey = process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY belum dikonfigurasi di server.')
-  return new GoogleGenAI({ apiKey, httpOptions: { timeout: 45000 } })
-}
 
 function cleanText(value: unknown, maxLength: number) {
   return typeof value === 'string' ? value.trim().slice(0, maxLength) : ''
@@ -77,33 +71,34 @@ KELUARAN:
 Balas hanya dengan JSON valid berbentuk {"imagePrompt":"..."}.
 Isi imagePrompt dengan brief visual yang konkret, terukur, tidak ambigu, dan siap diberikan ke generator gambar. Maksimal 2500 karakter. Jangan menulis kunci jawaban atau penjelasan untuk guru di dalam brief gambar.`
 
-    const response = await createAI().models.generateContent({
-      model: 'gemini-4-hydrogen',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
+    const { data: result, provider } = await generateJsonWithFallback({
+      task: 'perencanaan ilustrasi soal',
+      prompt,
+      groqSchema: {
+        type: 'object',
+        properties: { imagePrompt: { type: 'string' } },
+        required: ['imagePrompt'],
+        additionalProperties: false,
+      },
+      geminiSchema: {
+        type: 'OBJECT',
+        properties: { imagePrompt: { type: 'STRING' } },
+        required: ['imagePrompt'],
       },
     })
-
-    const outputText = response.text?.trim()
-    if (!outputText) {
-      return NextResponse.json({ error: 'Gemini tidak menghasilkan rancangan ilustrasi.' }, { status: 502 })
-    }
-
-    const result = JSON.parse(outputText) as { imagePrompt?: unknown }
 
     const imagePrompt = cleanText(result.imagePrompt, 2500)
     if (!imagePrompt) {
       return NextResponse.json({ error: 'Gemini menilai soal ini tidak membutuhkan ilustrasi yang aman dan relevan.' }, { status: 422 })
     }
 
-    return NextResponse.json({ success: true, imagePrompt })
+    return NextResponse.json({ success: true, imagePrompt, provider })
   } catch (error) {
-    console.error('Gemini question image planning failed:', error)
-    const status = typeof error === 'object' && error !== null && 'status' in error ? Number((error as { status?: unknown }).status) : 0
-    return NextResponse.json(
-      { error: status === 503 ? 'Gemini sedang sibuk merancang ilustrasi. Silakan coba lagi.' : 'Gemini gagal merancang ilustrasi. Silakan coba lagi.' },
-      { status: status === 503 ? 503 : 500 }
-    )
-  }
+    console.error('Question image planning failed:', error)
+    const status = error instanceof AIProvidersUnavailableError ? error.status : 500
+    const message = error instanceof AIProvidersUnavailableError
+      ? error.message
+      : 'Gagal merancang ilustrasi. Silakan coba lagi.'
+    return NextResponse.json({ error: message }, { status })
+
 }
