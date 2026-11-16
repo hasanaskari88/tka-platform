@@ -89,7 +89,7 @@ async function generateWithGemini(input: GenerateJsonInput): Promise<JsonObject>
 
 /**
  * Groq is the primary provider. Gemini is used only when Groq is unavailable,
- * rate-limited, or returns a transient/server error. API keys stay server-side.
+ * rate-limited, rejects a request, or encounters a transient/server error. API keys stay server-side.
  */
 export async function generateJsonWithFallback(input: GenerateJsonInput) {
   if (process.env.GROQ_API_KEY) {
@@ -97,13 +97,9 @@ export async function generateJsonWithFallback(input: GenerateJsonInput) {
       const data = await generateWithGroq(input)
       return { data, provider: 'Groq' as const }
     } catch (error) {
-      const status = typeof error === 'object' && error !== null && 'status' in error
-        ? Number((error as { status?: unknown }).status)
-        : 0
       const message = error instanceof Error ? error.message : String(error)
       console.error(`AI provider Groq failed for ${input.task}:`, message)
     }
-  } else {
   }
 
   if (process.env.GEMINI_API_KEY) {
@@ -114,7 +110,6 @@ export async function generateJsonWithFallback(input: GenerateJsonInput) {
       const message = error instanceof Error ? error.message : String(error)
       console.error(`AI provider Gemini failed for ${input.task}:`, message)
     }
-  } else {
   }
 
   throw new AIProvidersUnavailableError(
