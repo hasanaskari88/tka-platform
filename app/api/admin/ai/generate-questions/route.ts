@@ -21,11 +21,18 @@ export async function POST(request: Request) {
     const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
     const topic = typeof body.topic === 'string' ? body.topic.trim() : ''
     const count = Number(body.count)
+    const indicator = typeof body.indicator === 'string' ? body.indicator.trim() : ''
+    const cognitiveLevel = typeof body.cognitiveLevel === 'string' ? body.cognitiveLevel : 'AUTO'
     if (!grade || grade.length > 40) return NextResponse.json({ error: 'Kelas harus diisi.' }, { status: 400 })
     if (!subject || subject.length > 80) return NextResponse.json({ error: 'Mata pelajaran harus diisi.' }, { status: 400 })
     if (!topic || topic.length > 300) return NextResponse.json({ error: 'Materi harus diisi (maksimal 300 karakter).' }, { status: 400 })
     if (!Number.isInteger(count) || count < 1 || count > 10) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 10.' }, { status: 400 })
-    const prompt = 'Buat tepat ' + count + ' soal pilihan ganda untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.\n\nKetentuan:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Setiap soal memiliki tepat 4 pilihan A, B, C, D.\n- Hanya satu jawaban benar.\n- Hindari soal ambigu.\n- Berikan pembahasan singkat dan jelas.\n- Jangan menambahkan teks di luar JSON.'
+    if (indicator.length > 200) return NextResponse.json({ error: 'Indikator maksimal 200 karakter.' }, { status: 400 })
+    const allowedCognitiveLevels = ['AUTO', 'LOTS', 'MOTS', 'HOTS', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+    if (!allowedCognitiveLevels.includes(cognitiveLevel)) return NextResponse.json({ error: 'Level kognitif tidak valid.' }, { status: 400 })
+    const indicatorInstruction = indicator ? '\nIndikator yang harus diukur: ' + indicator + '.' : '\nBuat indikator soal yang relevan berdasarkan materi.'
+    const cognitiveInstruction = cognitiveLevel === 'AUTO' ? 'Tentukan level kognitif yang paling sesuai dengan indikator dan materi.' : 'Gunakan level kognitif ' + cognitiveLevel + ' secara konsisten.'
+    const prompt = 'Buat tepat ' + count + ' soal pilihan ganda untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.' + indicatorInstruction + '\n\nLevel kognitif: ' + cognitiveInstruction + '\n\nKetentuan:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Setiap soal memiliki tepat 4 pilihan A, B, C, D.\n- Hanya satu jawaban benar.\n- Hindari soal ambigu dan pilihan jawaban yang saling tumpang tindih.\n- Untuk LOTS, utamakan mengingat/memahami; MOTS menerapkan; HOTS menalar/menganalisis.\n- Berikan pembahasan singkat dan jelas.\n- Jangan menambahkan teks di luar JSON.'
     const interaction = await createAI().interactions.create({ model: 'gemini-4-hydrogen', input: prompt, background: true, generation_config: { thinking_level: 'low' }, response_format: QUESTION_SCHEMA })
     if (!interaction.id) return NextResponse.json({ error: 'Gemini tidak memberikan ID proses.' }, { status: 502 })
     return NextResponse.json({ success: true, interactionId: interaction.id })
