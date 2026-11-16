@@ -4,6 +4,9 @@ import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
 const IMAGE_MODEL = 'gemini-3.1-flash-image'
 
+// Beri waktu hingga 60 detik untuk pemanggilan gambar sinkron di Vercel.
+export const maxDuration = 60
+
 const styleDescriptions: Record<string, string> = {
   '3d_cartoon': 'modern polished 3D cartoon educational illustration, friendly rounded shapes, appealing colors, soft studio lighting',
   '2d_flat': 'clean simple 2D flat vector illustration, clear shapes, limited harmonious colors',
@@ -23,7 +26,7 @@ const imageTypeDescriptions: Record<string, string> = {
 function createAI() {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY belum dikonfigurasi di server.')
-  return new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta', timeout: 20000 } })
+  return new GoogleGenAI({ apiKey, httpOptions: { apiVersion: 'v1beta', timeout: 55000 } })
 }
 
 export async function POST(request: Request) {
@@ -63,21 +66,55 @@ export async function POST(request: Request) {
       'The image must support learning and must not reveal or hint at the answer unless the visual brief explicitly requires it.',
     ].filter(Boolean).join('\n')
 
+    // Pembuatan gambar dijalankan langsung (sinkron), mengikuti contoh resmi Google.
     const interaction = await createAI().interactions.create({
       model: IMAGE_MODEL,
       input: prompt,
-      background: true,
       response_format: { type: 'image', aspect_ratio: aspectRatio },
     })
 
-    if (!interaction.id) return NextResponse.json({ error: 'Gemini tidak memberikan ID proses gambar.' }, { status: 502 })
-    return NextResponse.json({ success: true, interactionId: interaction.id })
+    const image = interaction.output_image
+    if (!image?.data) {
+      console.error('Gemini image interaction completed without image data:', {
+        model: IMAGE_MODEL,
+        status: interaction.status,
+        outputImagePresent: Boolean(image),
+      })
+      return NextResponse.json(
+        { error: 'Gemini merespons, tetapi tidak mengirimkan data gambar. Silakan coba lagi.' },
+        { status: 502 }
+      )
+    }
+
+    const mimeType = image.mime_type || 'image/png'
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) {
+      return NextResponse.json({ error: 'Format gambar hasil AI tidak didukung.' }, { status: 502 })
+    }
+
+    const size = Buffer.byteLength(image.data, 'base64')
+    if (size > 8 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Ukuran gambar hasil AI melebihi 8 MB.' }, { status: 502 })
+    }
+
+    return NextResponse.json({ success: true, imageBase64: image.data, mimeType })
   } catch (error) {
-    console.error('Gemini image generation start failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Gemini synchronous image generation failed:', {
+      message,
+      status: typeof error === 'object' && error !== null && 'status' in error
+        ? (error as { status?: unknown }).status
+        : undefined,
+    })
     const status = typeof error === 'object' && error !== null && 'status' in error ? Number((error as { status?: unknown }).status) : 0
     return NextResponse.json(
-      { error: status === 503 ? 'Layanan gambar Gemini sedang ramai. Coba lagi beberapa saat.' : 'Gagal memulai pembuatan gambar.' },
-      { status: status === 503 ? 503 : 500 }
+      {
+        error: status === 503
+          ? 'Layanan gambar Gemini sedang ramai. Coba lagi beberapa saat.'
+          : status === 429
+            ? 'Batas penggunaan Gemini tercapai. Silakan tunggu sebelum mencoba lagi.'
+            : 'Gagal membuat gambar secara langsung. Periksa log server untuk detailnya.',
+      },
+      { status: status === 503 || status === 429 ? status : 500 }
     )
   }
 }
