@@ -66,6 +66,7 @@ type AnalyzedVisualSpec = {
   visibleParts: number
   objectLabel?: string
   confidence: number
+  highlightColor: 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'brown' | 'gray'
 }
 
 function parseIndonesianNumber(value: string): number | null {
@@ -128,7 +129,7 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
 
 async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
   const visual: ExactFractionVisual | null = analyzedSpec
-    ? { shape: analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : 'rectangle', total: analyzedSpec.totalParts, colored: analyzedSpec.visibleParts, color: '#2584e8' }
+    ? { shape: analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : 'rectangle', total: analyzedSpec.totalParts, colored: analyzedSpec.visibleParts, color: ({ red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#2584e8', purple: '#a855f7', pink: '#ec4899', brown: '#92400e', gray: '#64748b' } as const)[analyzedSpec.highlightColor] }
     : extractExactFractionVisual(item)
   if (!visual) return null
 
