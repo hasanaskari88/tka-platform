@@ -70,7 +70,25 @@ function hasRichContent(value: string) {
   return text.length > 0 || /<img\b/i.test(html) || /data-type=["'](?:inline|block)-math["']/i.test(html)
 }
 
-type DocxSettings = { schoolName: string; schoolAddress: string; title: string; instructions: string; orientation: string; includeAnswerKey: boolean; includeExplanations: boolean }
+type DocxSettings = {
+  schoolName: string
+  schoolAddress: string
+  title: string
+  instructions: string
+  orientation: string
+  includeAnswerKey: boolean
+  includeExplanations: boolean
+  logoSizeMm: number
+  headerFontSize: number
+  identityFontSize: number
+  questionFontSize: number
+  lineHeight: number
+  questionSpacingMm: number
+  columnGapMm: number
+  twoColumns: boolean
+  className: string
+  phase: string
+}
 type DocxQuestion = { id: string; question_text?: string | null; image_url?: string | null; options?: any; question_type?: string | null; correct_option?: string | null; correct_answer?: string | null; correct_answers?: any; explanation?: string | null }
 const docxEncoder = new TextEncoder()
 function docxEsc(v: unknown) { return String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;') }
@@ -85,75 +103,188 @@ function docxZip(entries: {name:string;data:Uint8Array}[]) {
 }
 function docxP(value:string,bold=false,center=false,size=22){return '<w:p><w:pPr>'+(center?'<w:jc w:val="center"/>':'')+'<w:spacing w:before="0" w:after="100" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:rPr>'+(bold?'<w:b/>':'')+'<w:sz w:val="'+size+'"/><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:eastAsia="Georgia" w:cs="Georgia"/></w:rPr><w:t xml:space="preserve">'+docxEsc(value)+'</w:t></w:r></w:p>'}
 function getGoogleDriveImageProxyUrl(src: string) {
-  if (!src) return src
-  try {
-    const url = new URL(src)
-    if (url.hostname !== 'drive.google.com' && url.hostname !== 'www.drive.google.com') {
-      return src
-    }
-
-    let fileId = url.searchParams.get('id')
-    if (!fileId) {
-      const match = url.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
-      fileId = match?.[1] || null
-    }
-
-    return fileId
-      ? `/api/google-drive/image?id=${encodeURIComponent(fileId)}`
-      : src
-  } catch {
-    return src
-  }
+ if (!src) return src
+ try {
+  const url = new URL(src, window.location.origin)
+  if (url.hostname !== 'drive.google.com' && url.hostname !== 'www.drive.google.com') return src
+  let fileId = url.searchParams.get('id')
+  if (!fileId) { const match = url.pathname.match(/\/file\/d\/([a-zA-Z0-9_-]+)/); fileId = match?.[1] || null }
+  return fileId ? '/api/google-drive/image?id='+encodeURIComponent(fileId) : src
+ } catch { return src }
 }
-
 function rewriteGoogleDriveImageUrls(html: string) {
-  return String(html || '').replace(
-    /(<img\b[^>]*\bsrc\s*=\s*)(["'])(.*?)\2/gi,
-    (_match, prefix, quote, src) =>
-      prefix + quote + getGoogleDriveImageProxyUrl(src) + quote
-  )
+ return String(html || '').replace(/(<img\b[^>]*\bsrc\s*=\s*)(["'])(.*?)\2/gi,(_match,prefix,quote,src)=>prefix+quote+getGoogleDriveImageProxyUrl(src)+quote)
 }
 
 async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuestion[],examTitle:string,subtest:string,duration:number|null) {
- const media:{name:string;data:Uint8Array}[]=[],rels:string[]=[],types=new Set<string>();let imageNo=0,drawNo=0
- const addImage=async(src:string,alt:string)=>{
-  try{const response=await fetch(getGoogleDriveImageProxyUrl(src),{credentials:'same-origin'});if(!response.ok)throw Error();const blob=await response.blob(),mime=blob.type.toLowerCase();const ext=mime==='image/png'?'png':mime==='image/gif'?'gif':mime==='image/bmp'?'bmp':'jpg';if(!['image/png','image/jpeg','image/jpg','image/gif','image/bmp'].includes(mime))throw Error();const name='image'+(++imageNo)+'.'+ext,rid='rId'+(imageNo+1),type=mime==='image/jpg'?'image/jpeg':mime;types.add('<Default Extension="'+ext+'" ContentType="'+type+'"/>');media.push({name:'word/media/'+name,data:new Uint8Array(await blob.arrayBuffer())});rels.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/'+name+'"/>');const id=++drawNo,w=4200000,h=2600000;return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+w+'" cy="'+h+'"/><wp:docPr id="'+id+'" name="'+docxEsc(alt)+'"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="'+id+'" name="'+name+'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>'
-  }catch{return '<w:r><w:t>'+docxEsc('[Gambar '+alt+' tidak dapat disematkan: akses gambar dibatasi]')+'</w:t></w:r>'}
+ const media:{name:string;data:Uint8Array}[]=[],rels:string[]=[],types=new Set<string>()
+ let imageNo=0,drawNo=0
+ const questionSize=Math.max(14,Math.round((settings.questionFontSize||10)*2))
+ const headerSize=Math.max(12,Math.round((settings.headerFontSize||9)*2))
+ const identitySize=Math.max(12,Math.round((settings.identityFontSize||8)*2))
+
+ // Semua gambar dinormalisasi menjadi PNG agar WebP dan format lain yang didukung browser
+ // tetap dapat disematkan dengan konsisten oleh Microsoft Word.
+ const loadPng = async (src:string,alt:string) => {
+  if (!src) throw new Error('sumber gambar kosong')
+  let response:Response
+  try { response=await fetch(getGoogleDriveImageProxyUrl(src),{credentials:'same-origin'}) }
+  catch (error:any) { throw new Error('tidak dapat mengambil file ('+(error?.message||'koneksi/CORS')+')') }
+  if (!response.ok) {
+   let detail=''
+   try { const data=await response.clone().json(); detail=data?.error||'' } catch {}
+   throw new Error('server mengembalikan HTTP '+response.status+(detail?' — '+detail:''))
+  }
+  const sourceBlob=await response.blob()
+  if (!sourceBlob.size) throw new Error('file gambar kosong')
+  let bitmap:ImageBitmap|undefined
+  let objectUrl=''
+  try {
+   if (typeof createImageBitmap==='function') bitmap=await createImageBitmap(sourceBlob)
+   else {
+    objectUrl=URL.createObjectURL(sourceBlob)
+    const image=new Image()
+    image.src=objectUrl
+    await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error('browser tidak dapat membaca format gambar'));})
+    const canvas=document.createElement('canvas')
+    canvas.width=image.naturalWidth;canvas.height=image.naturalHeight
+    const ctx=canvas.getContext('2d')
+    if(!ctx)throw new Error('canvas gambar tidak tersedia')
+    ctx.drawImage(image,0,0)
+    const png=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('konversi PNG gagal')),'image/png'))
+    return {blob:png,width:canvas.width,height:canvas.height}
+   }
+   const canvas=document.createElement('canvas')
+   canvas.width=bitmap.width;canvas.height=bitmap.height
+   const ctx=canvas.getContext('2d')
+   if(!ctx)throw new Error('canvas gambar tidak tersedia')
+   ctx.drawImage(bitmap,0,0)
+   const png=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('konversi PNG gagal')),'image/png'))
+   return {blob:png,width:canvas.width,height:canvas.height}
+  } catch(error:any) {
+   throw new Error((error?.message||'format gambar tidak dapat dibaca')+' ['+alt+']')
+  } finally {
+   bitmap?.close()
+   if(objectUrl)URL.revokeObjectURL(objectUrl)
+  }
  }
+
+ const addImage=async(src:string,alt:string,maxWidthMm=70,maxHeightMm=45)=>{
+  let loaded:{blob:Blob;width:number;height:number}
+  try { loaded=await loadPng(src,alt) }
+  catch(error:any) { throw new Error('Gambar "'+alt+'" gagal disematkan: '+(error?.message||'penyebab tidak diketahui')) }
+  const name='image'+(++imageNo)+'.png',rid='rId'+(imageNo+1)
+  const bytes=new Uint8Array(await loaded.blob.arrayBuffer())
+  media.push({name:'word/media/'+name,data:bytes})
+  rels.push('<Relationship Id="'+rid+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/'+name+'"/>')
+  types.add('<Default Extension="png" ContentType="image/png"/>')
+  const scale=Math.min(maxWidthMm/loaded.width,maxHeightMm/loaded.height)
+  const w=Math.max(1,Math.round(loaded.width*scale*36000)),h=Math.max(1,Math.round(loaded.height*scale*36000))
+  const id=++drawNo
+  return '<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+w+'" cy="'+h+'"/><wp:docPr id="'+id+'" name="'+docxEsc(alt)+'"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="'+id+'" name="'+name+'"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="'+rid+'"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+w+'" cy="'+h+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>'
+ }
+
  const rich=async(html:string)=>{
-  if(!html)return '';const root=document.createElement('div');root.innerHTML=html;const out:string[]=[]
+  if(!html)return ''
+  const root=document.createElement('div')
+  root.innerHTML=rewriteGoogleDriveImageUrls(html)
+  const out:string[]=[]
   const inline=async(node:Node):Promise<string>=>{
-   if(node.nodeType===Node.TEXT_NODE){const text=docxMath(node.textContent||'');if(!text)return '';const rtl=/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/.test(text);return '<w:r><w:rPr><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:eastAsia="Georgia" w:cs="Georgia"/>'+(rtl?'<w:rtl/>':'')+'</w:rPr><w:t xml:space="preserve">'+docxEsc(text)+'</w:t></w:r>'}
-   if(!(node instanceof HTMLElement))return '';const tag=node.tagName.toLowerCase();if(tag==='br')return '<w:r><w:br/></w:r>';if(tag==='img')return addImage(node.getAttribute('src')||'',node.getAttribute('alt')||'gambar');if(node.classList.contains('katex-mathml'))return ''
-   const inner=(await Promise.all(Array.from(node.childNodes).map(inline))).join('');if(tag==='strong'||tag==='b')return inner.replace(/<w:rPr>/g,'<w:rPr><w:b/>');if(tag==='em'||tag==='i')return inner.replace(/<w:rPr>/g,'<w:rPr><w:i/>');if(tag==='u')return inner.replace(/<w:rPr>/g,'<w:rPr><w:u w:val="single"/>');return inner
+   if(node.nodeType===Node.TEXT_NODE){
+    const text=docxMath(node.textContent||'')
+    if(!text)return ''
+    const rtl=/[\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff]/.test(text)
+    return '<w:r><w:rPr><w:sz w:val="'+questionSize+'"/><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:eastAsia="Georgia" w:cs="Georgia"/>'+(rtl?'<w:rtl/>':'')+'</w:rPr><w:t xml:space="preserve">'+docxEsc(text)+'</w:t></w:r>'
+   }
+   if(!(node instanceof HTMLElement))return ''
+   const tag=node.tagName.toLowerCase()
+   if(tag==='br')return '<w:r><w:br/></w:r>'
+   if(tag==='img')return addImage(node.getAttribute('src')||'',node.getAttribute('alt')||'gambar')
+   if(node.classList.contains('katex-mathml'))return ''
+   const inner=(await Promise.all(Array.from(node.childNodes).map(inline))).join('')
+   if(tag==='strong'||tag==='b')return inner.replace(/<w:rPr>/g,'<w:rPr><w:b/>')
+   if(tag==='em'||tag==='i')return inner.replace(/<w:rPr>/g,'<w:rPr><w:i/>')
+   if(tag==='u')return inner.replace(/<w:rPr>/g,'<w:rPr><w:u w:val="single"/>')
+   return inner
   }
   for(const node of Array.from(root.childNodes)){
-   if(node instanceof HTMLElement&&node.tagName.toLowerCase()==='table'){const rows:string[]=[];for(const tr of Array.from(node.querySelectorAll('tr'))){const cells:string[]=[];for(const cell of Array.from(tr.children)){const runs=(await Promise.all(Array.from(cell.childNodes).map(inline))).join('');cells.push('<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/></w:tcPr><w:p>'+runs+'</w:p></w:tc>')}rows.push('<w:tr>'+cells.join('')+'</w:tr>')}out.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')}
-   else{const runs=await inline(node);if(runs)out.push('<w:p><w:pPr><w:spacing w:after="80"/></w:pPr>'+runs+'</w:p>')}
-  }return out.join('')
+   if(node instanceof HTMLElement&&node.tagName.toLowerCase()==='table'){
+    const rows:string[]=[]
+    for(const tr of Array.from(node.querySelectorAll('tr'))){
+     const cells:string[]=[]
+     for(const cell of Array.from(tr.children)){
+      const runs=(await Promise.all(Array.from(cell.childNodes).map(inline))).join('')
+      cells.push('<w:tc><w:tcPr><w:tcW w:w="3000" w:type="dxa"/></w:tcPr><w:p>'+runs+'</w:p></w:tc>')
+     }
+     rows.push('<w:tr>'+cells.join('')+'</w:tr>')
+    }
+    out.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')
+   } else {
+    const runs=await inline(node)
+    if(runs)out.push('<w:p><w:pPr><w:spacing w:after="'+Math.round((settings.questionSpacingMm||3)*56.7)+'"/></w:pPr>'+runs+'</w:p>')
+   }
+  }
+  return out.join('')
  }
- const identityCell=(value:string)=>'<w:tc><w:tcPr><w:tcW w:w="4680" w:type="dxa"/><w:tcMar><w:top w:w="70" w:type="dxa"/><w:bottom w:w="70" w:type="dxa"/></w:tcMar></w:tcPr>'+docxP(value,false,false,20)+'</w:tc>';
-  const identityTable='<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="4680"/><w:gridCol w:w="4680"/></w:tblGrid><w:tr>'+identityCell('Nama: ........................................................................')+identityCell('Kelas: ....................................')+'</w:tr><w:tr>'+identityCell('Nomor: ......................................................................')+identityCell('Tanggal: ................................')+'</w:tr></w:tbl>';
-  const instructionTable='<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="6" w:color="9CA3AF"/><w:left w:val="single" w:sz="6" w:color="9CA3AF"/><w:bottom w:val="single" w:sz="6" w:color="9CA3AF"/><w:right w:val="single" w:sz="6" w:color="9CA3AF"/></w:tblBorders><w:tblCellMar><w:top w:w="140" w:type="dxa"/><w:left w:w="180" w:type="dxa"/><w:bottom w:w="140" w:type="dxa"/><w:right w:w="180" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tr><w:tc><w:tcPr><w:tcW w:w="9360" w:type="dxa"/></w:tcPr>'+docxP('Petunjuk: '+(settings.instructions||'Bacalah setiap soal dengan teliti.'),false,false,20)+'</w:tc></w:tr></w:tbl>';
-  const body:string[]=[docxP(settings.schoolName||'Nama Sekolah',true,true,30),...(settings.schoolAddress?[docxP(settings.schoolAddress,false,true,18)]:[]),'<w:p><w:pPr><w:pBdr><w:bottom w:val="double" w:sz="12" w:space="5" w:color="111827"/></w:pBdr><w:spacing w:after="120"/></w:pPr><w:r><w:t></w:t></w:r></w:p>',docxP(settings.title||examTitle||'Naskah Soal',true,true,28),docxP((subtest||'Mata Pelajaran')+' · '+questions.length+' Soal · Waktu '+(duration||'—')+' menit',false,true,20),identityTable,instructionTable]
- for(let i=0;i<questions.length;i++){const q=questions[i],type=q.question_type||'multiple_choice',options=Array.isArray(q.options)?q.options:[];body.push(docxP((i+1)+'.',true));body.push(await rich(q.question_text||''));if(q.image_url)body.push('<w:p>'+await addImage(q.image_url,'ilustrasi soal')+'</w:p>')
-  if(type==='true_false_matrix'){const rows:string[]=[];for(const [index,opt] of options.entries()){const key=String(opt.key??opt.id??index+1),label=await rich(opt.text||''),image=opt.image_url?'<w:p>'+await addImage(opt.image_url,'gambar pernyataan '+key)+'</w:p>':'';rows.push('<w:tr><w:tc><w:tcPr><w:tcW w:w="7000" w:type="dxa"/></w:tcPr>'+label+image+'</w:tc><w:tc>'+docxP('Benar')+'</w:tc><w:tc>'+docxP('Salah')+'</w:tc></w:tr>')}body.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')}
-  else if(options.length){for(const [index,opt] of options.entries()){const key=String(opt.key??String.fromCharCode(65+index)),value=typeof opt==='string'?opt:opt.text||opt.title||'';body.push(docxP(key+'. ')+await rich(value));if(typeof opt==='object'&&opt.image_url)body.push('<w:p>'+await addImage(opt.image_url,'gambar pilihan '+key)+'</w:p>')}}
-  else if(type==='essay'){body.push(docxP('................................................................................................................'));body.push(docxP('................................................................................................................'));body.push(docxP('................................................................................................................'))}
-  if(settings.includeAnswerKey){const answers=q.correct_answers,key=type==='true_false_matrix'&&answers&&typeof answers==='object'?Object.entries(answers).map(([k,v])=>k+': '+String(v)).join('; '):Array.isArray(answers)?answers.join(', '):String(q.correct_answer||q.correct_option||'');body.push(docxP('Kunci: '+(key||'Belum diisi'),true,false,18));if(settings.includeExplanations&&q.explanation){body.push(docxP('Pembahasan:',true,false,18));body.push(await rich(q.explanation))}}
+
+ const logoRun=await addImage('/logo-sd-getasan.png','Logo SD Negeri Getasan',settings.logoSizeMm||14,settings.logoSizeMm||14)
+ const logoCell='<w:tc><w:tcPr><w:tcW w:w="1300" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="center"/></w:pPr>'+logoRun+'</w:p></w:tc>'
+ const schoolLines=[
+  'PEMERINTAH KABUPATEN SEMARANG',
+  'DINAS PENDIDIKAN, KEBUDAYAAN, KEPEMUDAAN DAN OLAHRAGA',
+  settings.schoolName||'SD NEGERI GETASAN',
+  settings.schoolAddress||'Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email: sdnegerigetasan@gmail.com'
+ ]
+ const schoolCell='<w:tc><w:tcPr><w:tcW w:w="8060" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'+schoolLines.map((line,index)=>docxP(line,index<3,true,index===2?headerSize+2:index===3?Math.max(12,headerSize-2):headerSize)).join('')+'</w:tc>'
+ const schoolHeader='<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="1300"/><w:gridCol w:w="8060"/></w:tblGrid><w:tr>'+logoCell+schoolCell+'</w:tr></w:tbl><w:p><w:pPr><w:pBdr><w:bottom w:val="double" w:sz="12" w:space="5" w:color="111827"/></w:pBdr><w:spacing w:after="120"/></w:pPr><w:r><w:t></w:t></w:r></w:p>'
+
+ const infoCell=(value:string)=>'<w:tc><w:tcPr><w:tcW w:w="3120" w:type="dxa"/><w:tcMar><w:top w:w="55" w:type="dxa"/><w:bottom w:w="55" w:type="dxa"/><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tcMar></w:tcPr>'+docxP(value,false,false,identitySize)+'</w:tc>'
+ const classPhase=[settings.className,settings.phase].filter(Boolean).join(' / ')
+ const identityTable='<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="3120"/><w:gridCol w:w="3120"/><w:gridCol w:w="3120"/></w:tblGrid><w:tr>'+infoCell('MATA PELAJARAN: '+(subtest||'MATEMATIKA'))+infoCell('NAMA UJIAN: '+(examTitle||''))+infoCell('ALOKASI WAKTU: '+(duration||'—')+' Menit')+'</w:tr><w:tr>'+infoCell('JUMLAH SOAL: '+questions.length+' Butir')+infoCell('NAMA: ........................................')+infoCell('KELAS/FASE: '+(classPhase||'........................'))+'</w:tr></w:tbl>'
+ const instructionTable='<w:tbl><w:tblPr><w:tblW w:w="9360" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="6" w:color="9CA3AF"/><w:left w:val="single" w:sz="6" w:color="9CA3AF"/><w:bottom w:val="single" w:sz="6" w:color="9CA3AF"/><w:right w:val="single" w:sz="6" w:color="9CA3AF"/></w:tblBorders><w:tblCellMar><w:top w:w="100" w:type="dxa"/><w:left w:w="140" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="140" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tr><w:tc><w:tcPr><w:tcW w:w="9360" w:type="dxa"/></w:tcPr>'+docxP('PETUNJUK: '+(settings.instructions||'Bacalah setiap soal dengan teliti.'),false,false,identitySize)+'</w:tc></w:tr></w:tbl>'
+
+ const body:string[]=[schoolHeader,docxP(settings.title||examTitle||'Naskah Soal',true,true,headerSize+2),docxP((subtest||'Mata Pelajaran')+' · '+questions.length+' Soal · Waktu '+(duration||'—')+' menit',false,true,identitySize),identityTable,instructionTable]
+ for(let i=0;i<questions.length;i++){
+  const q=questions[i],type=q.question_type||'multiple_choice',options=Array.isArray(q.options)?q.options:[]
+  body.push(docxP((i+1)+'.',true,false,questionSize))
+  body.push(await rich(q.question_text||''))
+  if(q.image_url)body.push('<w:p>'+await addImage(q.image_url,'ilustrasi soal')+'</w:p>')
+  if(type==='true_false_matrix'){
+   const rows:string[]=[]
+   for(const [index,opt] of options.entries()){
+    const key=String(opt.key??opt.id??index+1),label=await rich(opt.text||''),image=opt.image_url?'<w:p>'+await addImage(opt.image_url,'gambar pernyataan '+key)+'</w:p>':''
+    rows.push('<w:tr><w:tc><w:tcPr><w:tcW w:w="7000" w:type="dxa"/></w:tcPr>'+label+image+'</w:tc><w:tc>'+docxP('Benar')+'</w:tc><w:tc>'+docxP('Salah')+'</w:tc></w:tr>')
+   }
+   body.push('<w:tbl><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'+rows.join('')+'</w:tbl>')
+  } else if(options.length){
+   for(const [index,opt] of options.entries()){
+    const key=String(opt.key??String.fromCharCode(65+index)),value=typeof opt==='string'?opt:opt.text||opt.title||''
+    body.push(docxP(key+'. ',true,false,questionSize)+await rich(value))
+    if(typeof opt==='object'&&opt.image_url)body.push('<w:p>'+await addImage(opt.image_url,'gambar pilihan '+key)+'</w:p>')
+   }
+  } else if(type==='essay'){
+   body.push(docxP('................................................................................................................'))
+   body.push(docxP('................................................................................................................'))
+   body.push(docxP('................................................................................................................'))
+  }
+  if(settings.includeAnswerKey){
+   const answers=q.correct_answers,key=type==='true_false_matrix'&&answers&&typeof answers==='object'?Object.entries(answers).map(([k,v])=>k+': '+String(v)).join('; '):Array.isArray(answers)?answers.join(', '):String(q.correct_answer||q.correct_option||'')
+   body.push(docxP('Kunci: '+(key||'Belum diisi'),true,false,18))
+   if(settings.includeExplanations&&q.explanation){body.push(docxP('Pembahasan:',true,false,18));body.push(await rich(q.explanation))}
+  }
   body.push(docxP(''))
  }
- body.push('<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="9CA3AF"/></w:pBdr><w:spacing w:before="240" w:after="0"/></w:pPr><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="6B7280"/><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Georgia"/></w:rPr><w:t xml:space="preserve">'+docxEsc((settings.schoolName||'')+' · '+(examTitle||''))+'</w:t></w:r></w:p>');
-  const pw=settings.orientation==='landscape'?16838:11906,ph=settings.orientation==='landscape'?11906:16838
+ body.push('<w:p><w:pPr><w:pBdr><w:top w:val="single" w:sz="4" w:space="6" w:color="9CA3AF"/></w:pBdr><w:spacing w:before="240" w:after="0"/></w:pPr><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="6B7280"/><w:rFonts w:ascii="Georgia" w:hAnsi="Georgia" w:cs="Georgia"/></w:rPr><w:t xml:space="preserve">'+docxEsc((settings.schoolName||'')+' · '+(examTitle||''))+'</w:t></w:r></w:p>')
+ const pw=settings.orientation==='landscape'?16838:11906,ph=settings.orientation==='landscape'?11906:16838
  const doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>'+body.join('')+'<w:sectPr><w:pgSz w:w="'+pw+'" w:h="'+ph+'"/><w:pgMar w:top="850" w:right="850" w:bottom="850" w:left="850" w:header="500" w:footer="500"/></w:sectPr></w:body></w:document>'
  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'+Array.from(types).join('')+'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>'
  const root='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'
  const dr='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'+rels.join('')+'</Relationships>'
- const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="22"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>'
+ const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/><w:sz w:val="'+questionSize+'"/></w:rPr></w:rPrDefault></w:docDefaults></w:styles>'
  const entries=[{name:'[Content_Types].xml',data:docxEncoder.encode(ct)},{name:'_rels/.rels',data:docxEncoder.encode(root)},{name:'word/document.xml',data:docxEncoder.encode(doc)},{name:'word/styles.xml',data:docxEncoder.encode(styles)},{name:'word/_rels/document.xml.rels',data:docxEncoder.encode(dr)},...media]
- const blob=new Blob([docxZip(entries).buffer as ArrayBuffer],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),base=(settings.title||examTitle||'Naskah-Soal').replace(/[\\/:*?"<>|]+/g,'-').trim()||'Naskah-Soal',url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=base+'.docx';document.body.appendChild(a);a.click();a.remove();window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+ const blob=new Blob([docxZip(entries).buffer as ArrayBuffer],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),base=(settings.title||examTitle||'Naskah-Soal').replace(/[\\/:*?"<>|]+/g,'-').trim()||'Naskah-Soal',url=URL.createObjectURL(blob),a=document.createElement('a')
+ a.href=url;a.download=base+'.docx';document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000)
 }
-
 
 
 function QuestionManagerContent() {
@@ -804,7 +935,7 @@ function QuestionManagerContent() {
   const handleExportDocx = async () => {
     if (isDocxExporting || !questions.length) return
     setIsDocxExporting(true)
-    try { await exportQuestionPaperDocx({ schoolName: 'SD NEGERI GETASAN', schoolAddress: 'Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774)', title: exam?.title || 'Naskah Soal', instructions: 'Pilihlah jawaban yang paling tepat.', orientation: 'portrait', includeAnswerKey: printSettings.includeAnswerKey, includeExplanations: printSettings.includeExplanations }, questions, exam?.title || 'Naskah Soal', exam?.subtest || 'Mata Pelajaran', exam?.duration_minutes || null) }
+    try { await exportQuestionPaperDocx({ schoolName: 'SD NEGERI GETASAN', schoolAddress: 'Jl. P. Diponegoro Km 6, Getasan, Kab. Semarang (50774) | Email: sdnegerigetasan@gmail.com', title: exam?.title || 'Naskah Soal', instructions: 'Pilihlah satu atau beberapa jawaban yang paling tepat pada lembar jawaban yang telah disediakan!', orientation: 'portrait', includeAnswerKey: printSettings.includeAnswerKey, includeExplanations: printSettings.includeExplanations, logoSizeMm: printSettings.logoSizeMm, headerFontSize: printSettings.headerFontSize, identityFontSize: printSettings.identityFontSize, questionFontSize: printSettings.questionFontSize, lineHeight: printSettings.lineHeight, questionSpacingMm: printSettings.questionSpacingMm, columnGapMm: printSettings.columnGapMm, twoColumns: printSettings.twoColumns, className: printSettings.className, phase: printSettings.phase }, questions, exam?.title || 'Naskah Soal', exam?.subtest || 'Mata Pelajaran', exam?.duration_minutes || null) }
     catch (error: any) { alert(error?.message || 'Gagal membuat file Word.') }
     finally { setIsDocxExporting(false) }
   }
