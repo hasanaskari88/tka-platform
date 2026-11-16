@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     if (!topic || topic.length > 300) return NextResponse.json({ error: 'Materi harus diisi (maksimal 300 karakter).' }, { status: 400 })
     if (!Number.isInteger(count) || count < 1 || count > 10) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 10.' }, { status: 400 })
     const prompt = 'Buat tepat ' + count + ' soal pilihan ganda untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.\n\nKetentuan:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Setiap soal memiliki tepat 4 pilihan A, B, C, D.\n- Hanya satu jawaban benar.\n- Hindari soal ambigu.\n- Berikan pembahasan singkat dan jelas.\n- Jangan menambahkan teks di luar JSON.'
-    const interaction = await createAI().interactions.create({ model: 'gemini-3.8-flash', input: prompt, background: true, response_format: QUESTION_SCHEMA })
+    const interaction = await createAI().interactions.create({ model: 'gemini-4-hydrogen', input: prompt, background: true, generation_config: { thinking_level: 'low' }, response_format: QUESTION_SCHEMA })
     if (!interaction.id) return NextResponse.json({ error: 'Gemini tidak memberikan ID proses.' }, { status: 502 })
     return NextResponse.json({ success: true, interactionId: interaction.id })
   } catch (error) {
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     if (!interaction.output_text) return NextResponse.json({ error: 'Gemini selesai tetapi tidak memberikan hasil teks.' }, { status: 502 })
     const result = JSON.parse(interaction.output_text)
     if (!Array.isArray(result.questions) || result.questions.length !== count) return NextResponse.json({ error: 'Hasil AI belum sesuai jumlah soal yang diminta.' }, { status: 502 })
-    return NextResponse.json({ status: 'completed', success: true, model: 'gemini-3.8-flash', questions: result.questions })
+    return NextResponse.json({ status: 'completed', success: true, model: 'gemini-4-hydrogen', questions: result.questions })
   } catch (error) {
     console.error('Gemini background generation polling failed:', error)
     return NextResponse.json({ error: 'Tidak dapat memeriksa hasil Gemini. Silakan coba lagi.' }, { status: 500 })
