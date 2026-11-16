@@ -55,7 +55,7 @@ export default function AsistenAIPage() {
       : item))
 
     try {
-      setLoadingMessage('Gemini sedang membuat gambar secara langsung...')
+      setLoadingMessage('Cloudflare sedang membuat gambar...')
       const imageResponse = await fetch('/api/admin/ai/generate-question-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,7 +70,7 @@ export default function AsistenAIPage() {
       const imagePayload = await imageResponse.json()
       if (!imageResponse.ok) throw new Error(imagePayload.error || 'Gagal membuat gambar.')
       if (!imagePayload.imageBase64 || !imagePayload.mimeType) {
-        throw new Error('Gemini tidak mengirimkan data gambar yang dapat disimpan.')
+        throw new Error('Cloudflare tidak mengirimkan data gambar yang dapat disimpan.')
       }
 
       const imageBlob = await (await fetch(`data:${imagePayload.mimeType};base64,${imagePayload.imageBase64}`)).blob()
@@ -280,7 +280,7 @@ export default function AsistenAIPage() {
                     Instruksi khusus gambar <span className="font-normal text-slate-400">(opsional)</span>
                     <input value={imageCustomInstruction} onChange={(e) => setImageCustomInstruction(e.target.value)} maxLength={500} placeholder="Contoh: gunakan latar putih dan warna lembut" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
                   </label>
-                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Gemini dan disimpan ke Google Drive. Untuk diagram matematika yang memuat angka, ukuran, atau label presisi, guru tetap perlu memeriksa ketepatannya. Penggunaan gambar dapat menambah biaya API.</p>
+                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Cloudflare Workers AI (FLUX.1 Schnell) dan disimpan ke Google Drive. Untuk diagram matematika yang memuat angka, ukuran, atau label presisi, guru tetap perlu memeriksa ketepatannya. Penggunaan gambar dapat menambah biaya API.</p>
                 </div>
               )}
             </div>
