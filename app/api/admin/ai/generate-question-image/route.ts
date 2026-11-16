@@ -2,8 +2,6 @@ import { GoogleGenAI } from '@google/genai'
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
-export const runtime = 'nodejs'
-
 const IMAGE_MODEL = 'gemini-3.1-flash-image'
 
 const styleDescriptions: Record<string, string> = {
