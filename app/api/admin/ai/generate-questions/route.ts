@@ -147,6 +147,10 @@ export async function GET(request: Request) {
     const params = new URL(request.url).searchParams
     const id = params.get('id')
     const count = Number(params.get('count'))
+    const questionType = (params.get('questionType') || 'multiple_choice') as QuestionType
+    const shortAnswerCount = Number(params.get('shortAnswerCount') ?? 10)
+    const shortAnswerMaxScore = Number(params.get('shortAnswerMaxScore') ?? 2)
+    const longEssayMaxScore = Number(params.get('longEssayMaxScore') ?? 3)
     if (!id || id.length > 200 || !Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Parameter proses tidak valid.' }, { status: 400 })
 
     const interaction = await createAI().interactions.get(id)
