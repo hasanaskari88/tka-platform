@@ -76,7 +76,7 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
   const numberPattern = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu|sebuah)'
 
   const totalMatch =
-    source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|potong|irisan|sektor|kotak|kolom|kuadran|jam)')) ||
+    source.match(new RegExp('(?:dibagi|terbagi|dipotong) menjadi\\s*' + numberPattern + '\\s*(?:bagian|potong|irisan|sektor|kotak|kolom|kuadran|jam)')) ||
     source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari)|berisi)\\s*' + numberPattern + '\\s*(?:kotak kecil|kotak|bagian|sektor|kelereng|permen|stiker|jam)')) ||
     source.match(new RegExp(numberPattern + '\\s*(?:kotak kecil|kotak|bagian|sektor|kolom|kuadran|kelereng|permen|stiker|jam)\\s*(?:yang sama|sama besar|sama panjang)?')) ||
     source.match(new RegExp('ada\\s*' + numberPattern + '\\s*(?:kelereng|permen|stiker)'))
