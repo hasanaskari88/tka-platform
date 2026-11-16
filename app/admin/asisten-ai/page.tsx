@@ -50,10 +50,11 @@ function extractNumberComparison(question: string): [number, number] | null {
 
 
 type ExactFractionVisual = {
-  shape: 'circle' | 'rectangle'
+  shape: 'circle' | 'rectangle' | 'line'
   total: number
   colored: number
   color: string
+  columns?: number
 }
 
 function parseIndonesianNumber(value: string): number | null {
@@ -70,51 +71,48 @@ function parseIndonesianNumber(value: string): number | null {
 }
 
 function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisual | null {
-  // Gunakan teks soal sebagai sumber fakta utama agar pembahasan yang keliru
-  // tidak mengubah jumlah bagian pada diagram.
-  const source = item.question.toLocaleLowerCase('id')
+  // Fakta jumlah selalu diambil dari teks soal, bukan dari pembahasan atau tebakan AI.
+  const source = item.question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ')
   const numberPattern = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu|sebuah)'
 
   const totalMatch =
-    source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|potong|sektor|kotak)')) ||
-    source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari))\\s*' + numberPattern + '\\s*(?:kotak|bagian|sektor)')) ||
-    source.match(new RegExp(numberPattern + '\\s*(?:kotak|bagian|sektor)\\s*(?:kecil|yang sama|sama besar)'))
+    source.match(new RegExp('(?:dibagi|terbagi) menjadi\\s*' + numberPattern + '\\s*(?:bagian|potong|irisan|sektor|kotak|kolom|kuadran|jam)')) ||
+    source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari)|berisi)\\s*' + numberPattern + '\\s*(?:kotak kecil|kotak|bagian|sektor|kelereng|permen|stiker|jam)')) ||
+    source.match(new RegExp(numberPattern + '\\s*(?:kotak kecil|kotak|bagian|sektor|kolom|kuadran|kelereng|permen|stiker|jam)\\s*(?:yang sama|sama besar|sama panjang)?')) ||
+    source.match(new RegExp('ada\\s*' + numberPattern + '\\s*(?:kelereng|permen|stiker)'))
 
   if (!totalMatch) return null
   const total = parseIndonesianNumber(totalMatch[1])
   if (total === null || total < 2 || total > 20) return null
 
-  // Kenali bagian yang dimakan, diwarnai, atau diisi. Kata "sudah" dan
-  // keterangan objek seperti "air" boleh berada di antara jumlah dan kata kerja.
   const eatenMatch =
-    source.match(new RegExp(numberPattern + '\\s*potong\\s*(?:sudah\\s*)?(?:dimakan|dimakan habis)')) ||
-    source.match(new RegExp('dimakan\\s*' + numberPattern + '\\s*potong'))
+    source.match(new RegExp(numberPattern + '\\s*(?:potong|irisan|kotak)\\s*(?:sudah\\s*)?dimakan')) ||
+    source.match(new RegExp('dimakan\\s*' + numberPattern + '\\s*(?:potong|irisan|kotak)'))
 
-  const coloredMatch =
-    source.match(new RegExp(numberPattern + '\\s*(?:bagian|sektor|kotak)\\s*(?:(?:yang\\s*)?(?:di\\s*antaranya\\s*)?)?(?:sudah\\s*)?(?:berwarna|diwarnai|diberi warna|terisi|diisi)(?:\\s*(?:air|warna))?'))
+  const markedMatch =
+    source.match(new RegExp(numberPattern + '\\s*(?:bagian|sektor|kotak|kolom|kuadran|jam)\\s*(?:(?:yang\\s*)?(?:di\\s*antaranya\\s*)?)?(?:sudah\\s*)?(?:diwarnai|diberi warna|berwarna|terisi|diisi|ditandai)')) ||
+    source.match(new RegExp(numberPattern + '\\s*(?:di\\s*antaranya\\s*)?(?:berwarna|berbentuk|ditandai)'))
 
   const asksRemaining = /sisa|tersisa|masih ada|belum dimakan/.test(source)
   let colored: number
   if (asksRemaining && eatenMatch) {
     const eaten = parseIndonesianNumber(eatenMatch[1])
-    if (eaten === null || eaten < 0 || eaten >= total) return null
+    if (eaten === null || eaten <= 0 || eaten >= total) return null
     colored = total - eaten
-  } else if (coloredMatch) {
-    colored = parseIndonesianNumber(coloredMatch[1]) ?? 0
+  } else if (eatenMatch) {
+    colored = parseIndonesianNumber(eatenMatch[1]) ?? 0
+  } else if (markedMatch) {
+    colored = parseIndonesianNumber(markedMatch[1]) ?? 0
   } else {
     return null
   }
+  if (colored < 1 || colored > total) return null
 
-  if (colored < 1 || colored >= total) return null
-
-  const shape = /pizza|pai|lingkaran|roti bundar/.test(source)
-    ? 'circle'
-    : /cokelat|coklat|batang|tangki|persegi panjang|kotak-kotak/.test(source)
-      ? 'rectangle'
-      : null
-  if (!shape) return null
-
-  return { shape, total, colored, color: '#2584e8' }
+  const shape: ExactFractionVisual['shape'] =
+    /garis lurus|garis bilangan/.test(source) ? 'line' :
+    /pizza|pai|lingkaran|roti bundar|jam dinding|jam analog/.test(source) ? 'circle' : 'rectangle'
+  const columns = /kolom/.test(source) ? total : /kuadran/.test(source) ? 2 : undefined
+  return { shape, total, colored, color: '#2584e8', columns }
 }
 
 async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob | null> {
@@ -126,7 +124,6 @@ async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob |
   canvas.height = 900
   const ctx = canvas.getContext('2d')
   if (!ctx) return null
-
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -148,13 +145,47 @@ async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob |
       ctx.lineWidth = 6
       ctx.stroke()
     }
+    if (/jam dinding|jam analog/.test(item.question.toLocaleLowerCase('id'))) {
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, radius + 24, 0, Math.PI * 2)
+      ctx.strokeStyle = '#334155'
+      ctx.lineWidth = 18
+      ctx.stroke()
+      for (let hour = 0; hour < 12; hour++) {
+        const angle = (hour * Math.PI * 2) / 12 - Math.PI / 2
+        ctx.beginPath()
+        ctx.moveTo(centerX + Math.cos(angle) * (radius - 28), centerY + Math.sin(angle) * (radius - 28))
+        ctx.lineTo(centerX + Math.cos(angle) * (radius - 52), centerY + Math.sin(angle) * (radius - 52))
+        ctx.strokeStyle = '#334155'
+        ctx.lineWidth = 7
+        ctx.stroke()
+      }
+    }
+  } else if (visual.shape === 'line') {
+    const left = 170
+    const right = 1430
+    const y = 450
+    const segmentWidth = (right - left) / visual.total
+    for (let part = 0; part < visual.total; part++) {
+      ctx.fillStyle = part < visual.colored ? visual.color : '#e2e8f0'
+      ctx.fillRect(left + part * segmentWidth + 3, y - 55, segmentWidth - 6, 110)
+      ctx.strokeStyle = '#334155'
+      ctx.lineWidth = 4
+      ctx.strokeRect(left + part * segmentWidth + 3, y - 55, segmentWidth - 6, 110)
+    }
+    ctx.strokeStyle = '#334155'
+    ctx.lineWidth = 5
+    ctx.beginPath()
+    ctx.moveTo(left, y - 75)
+    ctx.lineTo(right, y - 75)
+    ctx.stroke()
   } else {
-    let columns = Math.ceil(Math.sqrt(visual.total))
-    while (columns < visual.total && visual.total % columns !== 0) columns += 1
+    let columns = visual.columns ?? Math.ceil(Math.sqrt(visual.total))
+    columns = Math.min(columns, visual.total)
     const rows = Math.ceil(visual.total / columns)
     const gap = 12
     const cellWidth = Math.min(210, 1180 / columns)
-    const cellHeight = Math.min(170, 420 / rows)
+    const cellHeight = Math.min(170, 520 / rows)
     const width = columns * cellWidth + (columns - 1) * gap
     const height = rows * cellHeight + (rows - 1) * gap
     const left = (canvas.width - width) / 2
@@ -169,7 +200,6 @@ async function createExactFractionImage(item: GeneratedQuestion): Promise<Blob |
       ctx.strokeRect(left + col * (cellWidth + gap), top + row * (cellHeight + gap), cellWidth, cellHeight)
     }
   }
-
   return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
 
