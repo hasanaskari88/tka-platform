@@ -455,14 +455,11 @@ export default function AsistenAIPage() {
             })
             const analysisPayload = await analysisResponse.json()
             if (analysisResponse.ok && Array.isArray(analysisPayload.results)) {
-              visualSpecs = Object.fromEntries(
-                analysisPayload.results
-                  .filter((entry: { index?: number; spec?: AnalyzedVisualSpec | null }) =>
-                    Number.isInteger(entry.index) && entry.spec?.visualType === 'fraction_partition'
-                  )
-                  .map((entry: { index: number; spec: AnalyzedVisualSpec }) => [imageTargets[entry.index]?.index, entry.spec])
-                  .filter(([index]) => typeof index === 'number')
-              )
+              for (const entry of analysisPayload.results as Array<{ index?: number; spec?: AnalyzedVisualSpec | null }>) {
+                if (!Number.isInteger(entry.index) || entry.spec?.visualType !== 'fraction_partition') continue
+                const target = imageTargets[entry.index as number]
+                if (target) visualSpecs[target.index] = entry.spec
+              }
             } else {
               console.warn('AI visual analyzer unavailable; legacy exact renderer will be used.', analysisPayload.error)
             }
