@@ -334,6 +334,7 @@ function QuestionManagerContent() {
   const [quickEditQuestion, setQuickEditQuestion] = useState<any>(null)
   const [quickEditData, setQuickEditData] = useState<any>(null)
   const [quickEditSaving, setQuickEditSaving] = useState(false)
+  const [quickEditUploading, setQuickEditUploading] = useState<string | null>(null)
   const [isBankImportModalOpen, setIsBankImportModalOpen] = useState(false)
   const [importSourceExams, setImportSourceExams] = useState<any[]>([])
   const [selectedImportExamId, setSelectedImportExamId] = useState('')
@@ -731,6 +732,34 @@ function QuestionManagerContent() {
       question_type: type,
     })
     setInlineQuickEditId(question.id)
+  }
+
+  const handleQuickEditImageUpload = async (file: File, fieldKey: string, onUploaded: (url: string) => void) => {
+    if (!file) return
+    setQuickEditUploading(fieldKey)
+    try {
+      const formData = new FormData()
+      formData.append('file', file, file.name || 'gambar-soal')
+      const response = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+      const result = await response.json()
+      if (!response.ok || !result.success || !result.file?.imageUrl) throw new Error(result.error || 'Gagal mengunggah gambar ke Google Drive.')
+      onUploaded(result.file.imageUrl)
+    } catch (error: any) {
+      alert(error?.message || 'Gagal mengunggah gambar.')
+    } finally {
+      setQuickEditUploading(null)
+    }
+  }
+
+  const updateQuickEditOptionImage = (index: number, imageUrl: string) => {
+    setQuickEditData((current: any) => ({
+      ...current,
+      options: current.options.map((item: any, itemIndex: number) => {
+        if (itemIndex !== index) return item
+        const base = item && typeof item === 'object' ? item : { key: String.fromCharCode(65 + index), text: String(item ?? '') }
+        return { ...base, image_url: imageUrl }
+      }),
+    }))
   }
 
   const handleSaveQuickEdit = async () => {
@@ -1970,7 +1999,19 @@ function QuestionManagerContent() {
                           <RichTextEditor showToolbar={false} content={quickEditData.question_text} onChange={(html) => setQuickEditData((current: any) => ({ ...current, question_text: html }))} placeholder="Perbaiki teks pertanyaan…" minHeight={100} className="border-slate-300" />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div><label className="mb-1 block text-xs font-bold text-slate-700">URL gambar utama</label><input value={quickEditData.image_url} onChange={(e) => setQuickEditData((current: any) => ({ ...current, image_url: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" placeholder="https://…" /></div>
+                          <div className="rounded-lg border border-slate-200 bg-white p-3">
+                            <label className="mb-2 block text-xs font-bold text-slate-700">Gambar utama soal</label>
+                            {quickEditData.image_url ? (
+                              <div className="mb-2 flex items-start gap-3">
+                                <img src={getGoogleDriveImageProxyUrl(quickEditData.image_url)} alt="Lampiran gambar soal" className="max-h-24 max-w-40 rounded border object-contain" />
+                                <button type="button" onClick={() => setQuickEditData((current: any) => ({ ...current, image_url: '' }))} className="text-xs font-bold text-rose-600">Hapus gambar</button>
+                              </div>
+                            ) : <p className="mb-2 text-[11px] text-slate-500">Belum ada gambar utama.</p>}
+                            <label className="inline-flex cursor-pointer items-center rounded-lg bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 hover:bg-cyan-100">
+                              {quickEditUploading === 'main' ? 'Mengunggah…' : quickEditData.image_url ? 'Ganti gambar' : 'Pilih gambar'}
+                              <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" disabled={Boolean(quickEditUploading)} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuickEditImageUpload(file, 'main', (url) => setQuickEditData((current: any) => ({ ...current, image_url: url }))); e.currentTarget.value = '' }} />
+                            </label>
+                          </div>
                           <div><label className="mb-1 block text-xs font-bold text-slate-700">Bobot / skor maksimum</label><input type="number" min="0.01" step="0.01" value={quickEditData.max_score} onChange={(e) => setQuickEditData((current: any) => ({ ...current, max_score: e.target.value }))} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" /></div>
                         </div>
                         {['multiple_choice', 'complex_multiple_choice', 'true_false_matrix'].includes(quickEditData.question_type) && (
@@ -1982,6 +2023,14 @@ function QuestionManagerContent() {
                               return <div key={key} className="rounded-lg border border-slate-200 bg-white p-3 space-y-2">
                                 <div className="text-xs font-bold text-slate-600">{quickEditData.question_type === 'true_false_matrix' ? 'Pernyataan ' : 'Pilihan '}{key}</div>
                                 <RichTextEditor showToolbar={false} content={label} onChange={(html) => setQuickEditData((current: any) => ({ ...current, options: current.options.map((item: any, itemIndex: number) => itemIndex === index ? (typeof item === 'string' ? html : { ...item, text: html }) : item) }))} minHeight={65} placeholder="Isi pilihan/pernyataan…" className="border-slate-300" />
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {option.image_url && <img src={getGoogleDriveImageProxyUrl(option.image_url)} alt={`Lampiran ${key}`} className="max-h-20 max-w-32 rounded border object-contain" />}
+                                  <label className="inline-flex cursor-pointer items-center rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200">
+                                    {quickEditUploading === ('option-' + index) ? 'Mengunggah…' : option.image_url ? 'Ganti gambar' : 'Tambah gambar'}
+                                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" disabled={Boolean(quickEditUploading)} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuickEditImageUpload(file, 'option-' + index, (url) => updateQuickEditOptionImage(index, url)); e.currentTarget.value = '' }} />
+                                  </label>
+                                  {option.image_url && <button type="button" onClick={() => updateQuickEditOptionImage(index, '')} className="text-[11px] font-bold text-rose-600">Hapus gambar</button>}
+                                </div>
                                 {quickEditData.question_type === 'true_false_matrix' && <select value={quickEditData.matrix_answers[key] || ''} onChange={(e) => setQuickEditData((current: any) => ({ ...current, matrix_answers: { ...current.matrix_answers, [key]: e.target.value } }))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800"><option value="">Pilih kunci…</option><option value="Benar">Benar</option><option value="Salah">Salah</option></select>}
                               </div>;
                             })}
