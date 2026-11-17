@@ -15,6 +15,7 @@ type StudentAnswerPhotosProps = {
   questionId: string
   userId: string
   disabled?: boolean
+  onUploadingChange?: (uploading: boolean) => void
 }
 
 async function compressPhoto(file: File): Promise<Blob> {
@@ -53,6 +54,7 @@ export default function StudentAnswerPhotos({
   questionId,
   userId,
   disabled = false,
+  onUploadingChange,
 }: StudentAnswerPhotosProps) {
   const supabase = useMemo(() => createClient(), [])
   const [photos, setPhotos] = useState<SavedPhoto[]>([])
@@ -132,6 +134,7 @@ export default function StudentAnswerPhotos({
   const uploadPhoto = async () => {
     if (!pendingFile || !userId || photos.length >= 5) return
     setUploading(true)
+    onUploadingChange?.(true)
     setErrorMessage('')
 
     let storagePath = ''
@@ -189,6 +192,7 @@ export default function StudentAnswerPhotos({
       setErrorMessage(error instanceof Error ? error.message : 'Foto gagal diunggah. Silakan coba lagi.')
     } finally {
       setUploading(false)
+      onUploadingChange?.(false)
     }
   }
 
