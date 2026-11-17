@@ -34,7 +34,7 @@ const consonants: Record<string, string> = {
   d: 'ꦢ', t: 'ꦠ', s: 'ꦱ', w: 'ꦮ', l: 'ꦭ',
   p: 'ꦥ', j: 'ꦗ', y: 'ꦪ', m: 'ꦩ', g: 'ꦒ', b: 'ꦧ',
 }
-const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦺ', é: 'ꦺ', ê: 'ꦼ', 'ě': 'ꦼ', o: 'ꦴ' }
+const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦺ', é: 'ꦺ', ê: 'ꦼ', 'ě': 'ꦼ', o: 'ꦺꦴ' }
 const independentVowels: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', ê: 'ꦌ', 'ě': 'ꦌ', o: 'ꦎ' }
 
 function latinToJavanese(input: string): string {
