@@ -1425,6 +1425,9 @@ const { data: existingSession, error: sessionError } = await supabase
               {(qType === 'essay' || qType === 'uraian') && (
                 <div className="space-y-2 pt-2">
                   <label className="block text-xs font-bold uppercase">Lembar Jawaban Essay Anda:</label>
+                  <p className="text-[11px] text-slate-500">
+                    Untuk menulis Arab, tekan tombol عربي pada toolbar. Untuk Aksara Jawa, tekan ꦗꦮ. Pastikan keyboard bahasa yang sesuai sudah aktif di HP.
+                  </p>
                   <RichTextEditor
                     content={typeof userAnswers[currentQuestion.id] === 'string' ? userAnswers[currentQuestion.id] : ''}
                     onChange={(html) => handleEssayChange(currentQuestion.id, html)}
