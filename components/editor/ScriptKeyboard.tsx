@@ -59,7 +59,8 @@ function latinToJavanese(input: string): string {
           else if (onset === 'h') output += 'ꦃ'
           else output += base + '꧀'
         } else {
-          output += base
+          // Konsonan di akhir kata dimatikan dengan pangkon.
+          output += base + '꧀'
         }
         continue
       }
