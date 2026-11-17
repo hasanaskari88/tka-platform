@@ -38,44 +38,47 @@ const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦺ'
 const independentVowels: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', ê: 'ꦌ', 'ě': 'ꦌ', o: 'ꦎ' }
 
 function latinToJavanese(input: string): string {
-  return input.toLowerCase().normalize('NFC').replace(/\\s+/g, '').split(/(\\s+)/).map((word) => {
-    if (!word.trim()) return word
-    let output = ''
-    let rest = word
-    while (rest.length > 0) {
-      const vowel = rest.match(/^(a|i|u|e|é|o)/)
-      if (vowel) {
-        output += independentVowels[vowel[0]]
-        rest = rest.slice(vowel[0].length)
-        continue
-      }
+  // Aksara Jawa ditulis berurutan; spasi dari input Latin dihilangkan.
+  let rest = input.toLowerCase().normalize('NFC').replace(/\s+/g, '')
+  let output = ''
 
-      const onset = Object.keys(consonants).sort((a, b) => b.length - a.length)
-        .find((key) => rest.startsWith(key))
-      if (onset) {
-        const base = consonants[onset]
-        rest = rest.slice(onset.length)
-        const nextVowel = rest.match(/^(a|i|u|e|é|o)/)
-        if (nextVowel) {
-          output += base + vowelMarks[nextVowel[0]]
-          rest = rest.slice(nextVowel[0].length)
-        } else if (rest.length > 0) {
-          if (onset === 'ng') output += 'ꦁ'
-          else if (onset === 'r') output += 'ꦂ'
-          else if (onset === 'h') output += 'ꦃ'
-          else output += base + '꧀‍'
-        } else {
-          // Konsonan di akhir kata dimatikan dengan pangkon.
-          output += base + '꧀'
-        }
-        continue
-      }
-
-      output += rest[0]
-      rest = rest.slice(1)
+  while (rest.length > 0) {
+    const vowel = rest.match(/^(a|i|u|e|é|ê|ě|o)/)
+    if (vowel) {
+      output += independentVowels[vowel[0]]
+      rest = rest.slice(vowel[0].length)
+      continue
     }
-    return output
-  }).join('')
+
+    const onset = Object.keys(consonants).sort((a, b) => b.length - a.length)
+      .find((key) => rest.startsWith(key))
+    if (onset) {
+      const base = consonants[onset]
+      rest = rest.slice(onset.length)
+      const nextVowel = rest.match(/^(a|i|u|e|é|ê|ě|o)/)
+      if (nextVowel) {
+        output += base + vowelMarks[nextVowel[0]]
+        rest = rest.slice(nextVowel[0].length)
+      } else if (rest.length > 0) {
+        if (onset === 'ng') output += 'ꦁ'
+        else if (onset === 'r') output += 'ꦂ'
+        else if (onset === 'h') output += 'ꦃ'
+        else output += base + '꧀‍'
+      } else {
+        // Pangkon hanya untuk konsonan mati di akhir seluruh rangkaian.
+        if (onset === 'ng') output += 'ꦁ'
+        else if (onset === 'r') output += 'ꦂ'
+        else if (onset === 'h') output += 'ꦃ'
+        else output += base + '꧀'
+      }
+      continue
+    }
+
+    output += rest[0]
+    rest = rest.slice(1)
+  }
+
+  return output
 }
 
 export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
