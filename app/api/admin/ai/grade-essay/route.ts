@@ -10,12 +10,12 @@ function cleanText(value: unknown, maxLength: number) {
 
 function hasStudentAttempt(value: string) {
   const withoutHtml = value
-    .replace(/<img\\b[^>]*>/gi, ' gambar ')
+    .replace(/<img\b[^>]*>/gi, ' gambar ')
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;|&#160;|&#xA0;/gi, ' ')
     .replace(/&amp;/gi, '&')
-    .replace(/&#\\d+;|&#x[\\da-f]+;/gi, ' ')
-    .replace(/[\\u200B-\\u200D\\uFEFF]/g, '')
+    .replace(/&#\d+;|&#x[\da-f]+;/gi, ' ')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .trim()
   return withoutHtml.length > 0
 }
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
       '',
       'Keluarkan JSON saja dengan properti suggestedScore (number), feedback (string), strengths (string), improvements (string).',
       'Jangan menyatakan rekomendasi ini sebagai keputusan nilai final.',
-    ].join('\\n')
+    ].join('\n')
 
     const { data, provider } = await generateJsonWithFallback({
       task: 'rekomendasi penilaian jawaban uraian',
