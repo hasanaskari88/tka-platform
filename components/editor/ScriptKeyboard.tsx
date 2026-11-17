@@ -77,9 +77,11 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
   const [latin, setLatin] = useState('')
 
   const insert = (value: string, lang: 'jv' | 'ar' = language) => {
-    editor.chain().focus().insertContent(value).run()
-    if (lang === 'jv') editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()
-    else editor.chain().focus().setFontFamily('Noto Arabic Local').setTextAlign('right').run()
+    if (lang === 'jv') {
+      editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').insertContent(value).run()
+    } else {
+      editor.chain().focus().setFontFamily('Noto Arabic Local').setTextAlign('right').insertContent(value).run()
+    }
   }
 
   const javaneseKeys =
