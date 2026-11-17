@@ -107,7 +107,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       provider,
-      suggestedScore: Math.round(Math.max(Math.min(1, maxScore), Math.min(maxScore, suggestedScore)) * 10) / 10,
+      suggestedScore: Math.round(Math.max(isFlexibleEssay ? Math.min(1, maxScore) : 0, Math.min(maxScore, suggestedScore)) * 10) / 10,
       maxScore,
       feedback: cleanText(data.feedback, 1200),
       strengths: cleanText(data.strengths, 1200),
