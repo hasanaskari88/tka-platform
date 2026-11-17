@@ -107,7 +107,7 @@
 
 .rich-text-editor .editor-content [lang='jv'],
 .rich-text-editor .editor-content .font-aksara-jawa {
-  font-family: 'Noto Javanese Local', sans-serif;
+  font-family: 'Nyk Ngayogyan Jejeg', sans-serif;
   line-height: 2.2;
 }
 
@@ -234,7 +234,7 @@
   unicode-bidi: plaintext;
   line-height: 2;
 }
-.rich-text-editor .editor-content [style*="Noto Javanese Local"] {
-  font-family: 'Noto Javanese Local', sans-serif !important;
+.rich-text-editor .editor-content [style*="Nyk Ngayogyan Jejeg"] {
+  font-family: 'Nyk Ngayogyan Jejeg', sans-serif !important;
   line-height: 2.2;
 }
