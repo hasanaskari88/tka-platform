@@ -22,52 +22,52 @@ const arabicMarks = ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ', 'ٰ', 'ٓ',
 
 // Konversi dasar berbasis suku kata terbuka. Untuk ejaan khusus, pasangan,
 // sandhangan, dan kata serapan, hasil tetap perlu diperiksa oleh guru.
-const syllables: Record<string, string> = {
-  nga: 'ꦔ', nya: 'ꦚ', tha: 'ꦛ', dha: 'ꦝ',
-  ha: 'ꦲ', na: 'ꦤ', ca: 'ꦕ', ra: 'ꦫ', ka: 'ꦏ',
-  da: 'ꦢ', ta: 'ꦠ', sa: 'ꦱ', wa: 'ꦮ', la: 'ꦭ',
-  pa: 'ꦥ', ja: 'ꦗ', ya: 'ꦪ', ma: 'ꦩ', ga: 'ꦒ', ba: 'ꦧ',
+const consonants: Record<string, string> = {
+  ng: 'ꦔ', ny: 'ꦚ', th: 'ꦛ', dh: 'ꦝ',
+  h: 'ꦲ', n: 'ꦤ', c: 'ꦕ', r: 'ꦫ', k: 'ꦏ',
+  d: 'ꦢ', t: 'ꦠ', s: 'ꦱ', w: 'ꦮ', l: 'ꦭ',
+  p: 'ꦥ', j: 'ꦗ', y: 'ꦪ', m: 'ꦩ', g: 'ꦒ', b: 'ꦧ',
 }
-const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦺ', é: 'ꦺ', o: 'ꦴ' }
+const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦼ', é: 'ꦺ', o: 'ꦴ' }
+const independentVowels: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', o: 'ꦎ' }
 
 function latinToJavanese(input: string): string {
-  const words = input.toLowerCase().trim().split(/(\s+)/)
-  return words.map((word) => {
+  return input.toLowerCase().normalize('NFC').split(/(\\s+)/).map((word) => {
     if (!word.trim()) return word
-    let result = ''
-    let rest = word.normalize('NFC')
-    while (rest.length) {
-      const digraph = ['nga', 'nya', 'tha', 'dha'].find((part) => rest.startsWith(part))
-      if (digraph) {
-        result += syllables[digraph]
-        rest = rest.slice(digraph.length)
-        continue
-      }
-      const consonant = ['ha', 'na', 'ca', 'ra', 'ka', 'da', 'ta', 'sa', 'wa', 'la', 'pa', 'ja', 'ya', 'ma', 'ga', 'ba']
-        .find((part) => rest.startsWith(part))
-      if (consonant) {
-        result += syllables[consonant]
-        rest = rest.slice(consonant.length)
-        continue
-      }
+    let output = ''
+    let rest = word
+    while (rest.length > 0) {
       const vowel = rest.match(/^(a|i|u|e|é|o)/)
       if (vowel) {
-        const independent: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', o: 'ꦎ' }
-        result += independent[vowel[0]]
+        output += independentVowels[vowel[0]]
         rest = rest.slice(vowel[0].length)
         continue
       }
-      const finalConsonant = rest.match(/^(ng|ny|th|dh|[bcdfghjklmnpqrstvwxyz])/)
-      if (finalConsonant) {
-        const finals: Record<string, string> = { ng: 'ꦁ', r: 'ꦂ', h: 'ꦃ' }
-        result += finals[finalConsonant[0]] || '꧀'
-        rest = rest.slice(finalConsonant[0].length)
+
+      const onset = Object.keys(consonants).sort((a, b) => b.length - a.length)
+        .find((key) => rest.startsWith(key))
+      if (onset) {
+        const base = consonants[onset]
+        rest = rest.slice(onset.length)
+        const nextVowel = rest.match(/^(a|i|u|e|é|o)/)
+        if (nextVowel) {
+          output += base + vowelMarks[nextVowel[0]]
+          rest = rest.slice(nextVowel[0].length)
+        } else if (rest.length > 0) {
+          if (onset === 'ng') output += 'ꦁ'
+          else if (onset === 'r') output += 'ꦂ'
+          else if (onset === 'h') output += 'ꦃ'
+          else output += base + '꧀'
+        } else {
+          output += base
+        }
         continue
       }
-      result += rest[0]
+
+      output += rest[0]
       rest = rest.slice(1)
     }
-    return result
+    return output
   }).join('')
 }
 
