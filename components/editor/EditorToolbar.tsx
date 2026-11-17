@@ -8,6 +8,7 @@ import type { Editor } from '@tiptap/react'
 import MathFormulaDialog from './MathFormulaDialog'
 import ImageDialog from './ImageDialog'
 import TableControls from './TableControls'
+import ScriptKeyboard from './ScriptKeyboard'
 
 interface EditorToolbarProps {
   editor: Editor | null
@@ -51,6 +52,7 @@ const alignments = [
 export default function EditorToolbar({ editor, editorId, mode = 'full' }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
+  const [scriptKeyboardOpen, setScriptKeyboardOpen] = useState(false)
 
   // Memantau perubahan format sesuai posisi kursor atau teks terpilih.
   const state = useEditorState({
@@ -129,6 +131,11 @@ export default function EditorToolbar({ editor, editorId, mode = 'full' }: Edito
             className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm underline text-slate-700 hover:bg-slate-100 ${current?.underline ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
+          <button type="button" title="Buka keyboard virtual Arab dan Aksara Jawa" aria-label="Keyboard virtual"
+            className={`h-9 shrink-0 rounded-md border px-2.5 text-sm font-semibold ${scriptKeyboardOpen ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-violet-200 bg-white text-violet-800 hover:bg-violet-50'}`}
+            aria-expanded={scriptKeyboardOpen}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setScriptKeyboardOpen((open) => !open)}>⌨ Huruf</button>
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
             onMouseDown={(e) => e.preventDefault()}
@@ -417,6 +424,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full' }: Edito
         )}
       </div>
 
+      {scriptKeyboardOpen && <ScriptKeyboard editor={editor} />}
       {toolbarOpen && <TableControls editor={editor} />}
 
       <ImageDialog
