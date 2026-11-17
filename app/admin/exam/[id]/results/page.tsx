@@ -209,6 +209,7 @@ function ExamResultsContent() {
   const examId = params?.id as string
   const searchParams = useSearchParams()
   const autoOpenedSession = useRef<string | null>(null)
+  const answerPhotoLoadRef = useRef<string | null>(null)
 
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
@@ -265,6 +266,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
   // Panel pengaturan nilai akhir
   const [showScoreSettings, setShowScoreSettings] = useState(false)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
+  const [sessionAnswerPhotos, setSessionAnswerPhotos] = useState<Record<string, { id: string; signedUrl: string; created_at: string }[]>>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
   const [aiEssaySuggestions, setAiEssaySuggestions] = useState<Record<string, { suggestedScore: number; maxScore: number; provider: string; feedback: string; strengths: string; improvements: string; error?: string }>>({})
   const [aiEssayLoading, setAiEssayLoading] = useState<Record<string, boolean>>({})
@@ -796,7 +798,9 @@ const getFilteredGradingQuestions = () => {
 }
 
 
-  const handleOpenDetailModal = (session: any) => {
+  const handleOpenDetailModal = async (session: any) => {
+    answerPhotoLoadRef.current = session.id
+    setSessionAnswerPhotos({})
     const map: { [key: string]: any } = {}
     const answerScoreMap: { [key: string]: number } = {}
 
@@ -811,67 +815,85 @@ const getFilteredGradingQuestions = () => {
     setSessionAnswersMap(map)
 
     const initialEssayScores: { [key: string]: number } = {}
-      questions.forEach((q) => {
-        const qType = q.question_type || 'multiple_choice'
-      
-        if (qType === 'essay' || qType === 'uraian') {
-          const savedScore = answerScoreMap[q.id]
-          const rawAnswer = map[q.id]
-      
-          const hasAnswer =
-            rawAnswer !== null &&
-            rawAnswer !== undefined &&
-            (
-              typeof rawAnswer === 'string'
-                ? rawAnswer.trim() !== ''
-                : Array.isArray(rawAnswer)
-                  ? rawAnswer.length > 0
-                  : typeof rawAnswer === 'object'
-                    ? Object.values(rawAnswer).some(
-                        (value: any) =>
-                          value !== null &&
-                          value !== undefined &&
-                          String(value).trim() !== ''
-                      )
-                    : true
-            )
-      
-          initialEssayScores[q.id] =
-            savedScore !== undefined
-              ? savedScore
-              : hasAnswer
-                ? 1
-                : 0
-        }
-      })
+    questions.forEach((q) => {
+      const qType = q.question_type || 'multiple_choice'
+      if (qType !== 'essay' && qType !== 'uraian') return
+
+      const savedScore = answerScoreMap[q.id]
+      const rawAnswer = map[q.id]
+      const hasAnswer =
+        rawAnswer !== null &&
+        rawAnswer !== undefined &&
+        (
+          typeof rawAnswer === 'string'
+            ? rawAnswer.trim() !== ''
+            : Array.isArray(rawAnswer)
+              ? rawAnswer.length > 0
+              : typeof rawAnswer === 'object'
+                ? Object.values(rawAnswer).some((value: any) => value !== null && value !== undefined && String(value).trim() !== '')
+                : true
+        )
+
+      initialEssayScores[q.id] = savedScore !== undefined ? savedScore : hasAnswer ? 1 : 0
+    })
 
     setEssayScores(initialEssayScores)
     const savedBonus = Number(session.bonus_points) || 0
-    const overrideActive =
-      session.score_override !== null &&
-      session.score_override !== undefined
-    
+    const overrideActive = session.score_override !== null && session.score_override !== undefined
     setBonusPoints(savedBonus)
     setIsOverrideScore(overrideActive)
-    const autoCalculated = calculateAutoScore(
-      map,
-      initialEssayScores,
-      savedBonus
-    )
-    
-    setCustomFinalScore(
-      overrideActive
-        ? Number(session.score_override)
-        : autoCalculated
-    )
-    const currentIndex = sortedSessions.findIndex(
-      (s) => s.id === session.id
-    )
-    
-    if (currentIndex >= 0) {
-      setGradingSessionIndex(currentIndex)
-    }
+    const autoCalculated = calculateAutoScore(map, initialEssayScores, savedBonus)
+    setCustomFinalScore(overrideActive ? Number(session.score_override) : autoCalculated)
+
+    const currentIndex = sortedSessions.findIndex((s) => s.id === session.id)
+    if (currentIndex >= 0) setGradingSessionIndex(currentIndex)
     setSelectedSessionForDetail(session)
+
+    try {
+      const supabase = createClient()
+      const { data: imageRows, error: imageError } = await supabase
+        .from('answer_images')
+        .select('id, question_id, storage_path, created_at')
+        .eq('session_id', session.id)
+        .order('created_at', { ascending: true })
+
+      if (imageError) throw imageError
+      if (answerPhotoLoadRef.current !== session.id) return
+
+      const rows = imageRows || []
+      const { data: signedRows, error: signedError } = rows.length
+        ? await supabase.storage.from('student-answer-photos').createSignedUrls(
+            rows.map((row: any) => row.storage_path),
+            60 * 60
+          )
+        : { data: [], error: null }
+      if (signedError) throw signedError
+      if (answerPhotoLoadRef.current !== session.id) return
+
+      const grouped: Record<string, { id: string; signedUrl: string; created_at: string }[]> = {}
+      rows.forEach((row: any, index: number) => {
+        const signedUrl = signedRows?.[index]?.signedUrl
+        if (!signedUrl) return
+        if (!grouped[row.question_id]) grouped[row.question_id] = []
+        grouped[row.question_id].push({ id: row.id, signedUrl, created_at: row.created_at })
+      })
+      setSessionAnswerPhotos(grouped)
+
+      setEssayScores((current) => {
+        const updated = { ...current }
+        Object.keys(grouped).forEach((questionId) => {
+          if (answerScoreMap[questionId] !== undefined) return
+          const textAnswer = map[questionId]
+          const hasText = typeof textAnswer === 'string'
+            ? textAnswer.replace(/<[^>]*>/g, ' ').trim().length > 0
+            : Boolean(textAnswer)
+          if (!hasText) updated[questionId] = 1
+        })
+        return updated
+      })
+    } catch (error) {
+      console.error('Gagal memuat foto jawaban siswa:', error)
+    }
   }
 
   useEffect(() => {
@@ -2905,10 +2927,24 @@ const handleSaveAllQuestionScores = async () => {
                       <span className="text-slate-400 block text-[10px] uppercase font-bold mb-1">Jawaban Siswa:</span>
                       {isEssay ? (
                         <div className="text-slate-900 bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm leading-relaxed min-h-[60px]">
-                          <MathRenderer content={evalRes.displayVal} />
+                          <MathRenderer content={evalRes.displayVal === 'Kosong' && sessionAnswerPhotos[q.id]?.length ? 'Jawaban dikirim melalui foto.' : evalRes.displayVal} />
                         </div>
                       ) : (
                         <span>{evalRes.displayVal}</span>
+                      )}
+                      {isEssay && sessionAnswerPhotos[q.id]?.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs font-bold text-sky-800">📷 Foto jawaban siswa ({sessionAnswerPhotos[q.id].length})</p>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                            {sessionAnswerPhotos[q.id].map((photo, photoIndex) => (
+                              <a key={photo.id} href={photo.signedUrl} target="_blank" rel="noreferrer" className="block rounded-lg border border-sky-200 bg-sky-50 p-1.5">
+                                <img src={photo.signedUrl} alt={`Foto jawaban siswa ${photoIndex + 1}`} className="h-40 w-full rounded object-contain bg-white" />
+                                <span className="block text-center text-[10px] font-semibold text-sky-800">Buka foto {photoIndex + 1}</span>
+                              </a>
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-amber-700">Foto dapat diperiksa dan dinilai manual. Bantuan AI saat ini menilai teks yang diketik, belum membaca tulisan tangan pada foto.</p>
+                        </div>
                       )}
                     </div>
 
