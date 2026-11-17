@@ -52,6 +52,7 @@ function ExamEngineContent() {
   const [authCheckFailed, setAuthCheckFailed] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [photoUploadInProgress, setPhotoUploadInProgress] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
   const [participantName, setParticipantName] = useState('')
   const [participantIdentifier, setParticipantIdentifier] = useState('')
@@ -647,6 +648,10 @@ const { data: existingSession, error: sessionError } = await supabase
 
   // 🟢 SELAYAKAN UJIAN, POPULASI NILAI PRESISI, & SIMPAN HASIL KE DATABASE
     const handleFinishExam = async (autoFinish = false) => {
+    if (photoUploadInProgress) {
+      alert('Tunggu sampai foto jawaban selesai dikirim sebelum mengumpulkan ujian.')
+      return
+    }
     if (isSubmittingRef.current) return
 
     if (sessionStatus === 'completed') return
@@ -1443,6 +1448,7 @@ const { data: existingSession, error: sessionError } = await supabase
                       questionId={currentQuestion.id}
                       userId={userIdRef.current}
                       disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
+                      onUploadingChange={setPhotoUploadInProgress}
                     />
                   )}
                 </div>
