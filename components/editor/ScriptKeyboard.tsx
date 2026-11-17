@@ -10,6 +10,12 @@ const javaneseRows = [
   ['ꦥ', 'ꦝ', 'ꦗ', 'ꦪ', 'ꦚ', 'ꦩ', 'ꦒ', 'ꦧ', 'ꦛ', 'ꦔ'],
 ]
 const javaneseVowels = ['ꦄ', 'ꦆ', 'ꦈ', 'ꦌ', 'ꦎ']
+const javanesePasangan = [
+  ['ꦲ', 'Ha'], ['ꦤ', 'Na'], ['ꦕ', 'Ca'], ['ꦫ', 'Ra'], ['ꦏ', 'Ka'],
+  ['ꦢ', 'Da'], ['ꦠ', 'Ta'], ['ꦱ', 'Sa'], ['ꦮ', 'Wa'], ['ꦭ', 'La'],
+  ['ꦥ', 'Pa'], ['ꦝ', 'Dha'], ['ꦗ', 'Ja'], ['ꦪ', 'Ya'], ['ꦚ', 'Nya'],
+  ['ꦩ', 'Ma'], ['ꦒ', 'Ga'], ['ꦧ', 'Ba'], ['ꦛ', 'Tha'], ['ꦔ', 'Nga'],
+] as const
 const javaneseMarks = ['ꦶ', 'ꦸ', 'ꦺ', 'ꦼ', 'ꦴ', 'ꦁ', 'ꦂ', 'ꦃ', '꧀']
 const javanesePunctuation = ['꧈', '꧉', '꧊', '꧋', '꧌', '꧍', '꧇']
 
@@ -74,7 +80,7 @@ function latinToJavanese(input: string): string {
 
 export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
   const [language, setLanguage] = useState<'jv' | 'ar'>('jv')
-  const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
+  const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'pasangan' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
   const [latin, setLatin] = useState('')
 
   const insert = (value: string, lang: 'jv' | 'ar' = language) => {
@@ -87,6 +93,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
 
   const javaneseKeys =
     javaneseTab === 'aksara' ? javaneseRows.flat()
+      : javaneseTab === 'pasangan' ? javanesePasangan.map(([character]) => character)
       : javaneseTab === 'sandhangan' ? javaneseMarks
         : javaneseTab === 'swara' ? javaneseVowels
           : javanesePunctuation
@@ -109,6 +116,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
           <div className="mb-2 flex flex-wrap gap-1">
             {([
               ['aksara', 'Aksara nglegena'],
+              ['pasangan', 'Pasangan'],
               ['sandhangan', 'Sandhangan'],
               ['swara', 'Aksara swara'],
               ['tanda', 'Tanda baca'],
@@ -120,16 +128,35 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
-            {javaneseKeys.map((character, index) => (
-              <button key={character + index} type="button" title={character}
-                onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
-                className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
-                style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>
-                {character}
-              </button>
-            ))}
-          </div>
+          {javaneseTab === 'pasangan' ? (
+            <>
+              <p className="mb-2 text-xs leading-relaxed text-slate-600">
+                Letakkan kursor tepat setelah aksara induk, lalu pilih pasangan yang diperlukan. Contoh tampilan di bawah memakai aksara Ka sebagai induk.
+              </p>
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-5">
+                {javanesePasangan.map(([character, label]) => (
+                  <button key={character} type="button" title={'Pasangan ' + label}
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => insert('꧀' + character, 'jv')}
+                    className="flex min-h-14 flex-col items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
+                    <span className="text-2xl" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{'ꦏ꧀' + character}</span>
+                    <span className="text-[10px] text-slate-500">{'Pasangan ' + label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+              {javaneseKeys.map((character, index) => (
+                <button key={character + index} type="button" title={character}
+                  onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                  className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
+                  style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>
+                  {character}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mt-3 rounded-lg bg-slate-50 p-3">
             <label className="mb-1 block text-xs font-semibold text-slate-700">Ketik Latin, lalu ubah ke Aksara Jawa (konversi dasar)</label>
             <div className="flex flex-col gap-2 sm:flex-row">
