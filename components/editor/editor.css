@@ -99,7 +99,7 @@
 
 .rich-text-editor .editor-content [lang='ar'],
 .rich-text-editor .editor-content .font-arabic {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: 'Noto Arabic Local', serif;
   direction: rtl;
   text-align: right;
   line-height: 2;
@@ -107,7 +107,7 @@
 
 .rich-text-editor .editor-content [lang='jv'],
 .rich-text-editor .editor-content .font-aksara-jawa {
-  font-family: 'Noto Sans Javanese', sans-serif;
+  font-family: 'Noto Javanese Local', sans-serif;
   line-height: 2.2;
 }
 
@@ -223,4 +223,18 @@
 .rich-text-editor .editor-image-controls button:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+
+/* Mode font Arab dan Aksara Jawa dari tombol cepat toolbar siswa */
+.rich-text-editor .editor-content [style*="Noto Arabic Local"] {
+  font-family: 'Noto Arabic Local', serif !important;
+  direction: rtl;
+  text-align: right;
+  unicode-bidi: plaintext;
+  line-height: 2;
+}
+.rich-text-editor .editor-content [style*="Noto Javanese Local"] {
+  font-family: 'Noto Javanese Local', sans-serif !important;
+  line-height: 2.2;
 }
