@@ -1,4 +1,3 @@
-
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
@@ -21,6 +20,17 @@ const INITIAL_CONTENT = `
 `
 
 type SaveStatus = 'loading' | 'saving' | 'saved' | 'error'
+
+const JAVANESE_SAMPLES = [
+  { label: 'Aksara ra', text: 'ꦫ' },
+  { label: 'Ra + wulu', text: 'ꦫꦶ' },
+  { label: 'Ra + suku', text: 'ꦫꦸ' },
+  { label: 'Ra + taling', text: 'ꦫꦺ' },
+  { label: 'Ra + taling tarung', text: 'ꦫꦺꦴ' },
+  { label: 'Ra dalam kata', text: 'ꦥꦸꦫ' },
+  { label: 'Ka + pasangan ra', text: 'ꦏ꧀ꦫ' },
+  { label: 'Rama', text: 'ꦫꦩ' },
+]
 
 export default function FontTestPage() {
   const [content, setContent] = useState(INITIAL_CONTENT)
@@ -150,11 +160,74 @@ export default function FontTestPage() {
           </p>
         </header>
 
+        <section className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm md:p-6">
+          <div className="mb-4">
+            <h2 className="font-bold text-slate-800">
+              1. Perbandingan Font Aksara Jawa
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Kedua font ditampilkan berdampingan menggunakan rangkaian aksara
+              dan sandhangan yang sama. Perhatikan terutama bentuk aksara ra
+              serta tampilannya ketika menjadi pasangan.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3">
+                <h3 className="font-semibold text-slate-800">Noto Sans Javanese</h3>
+                <p className="text-xs text-slate-500">Font lama · pembanding</p>
+              </div>
+              <div className="space-y-3">
+                {JAVANESE_SAMPLES.map((sample) => (
+                  <div key={sample.label} className="border-t border-slate-200 pt-2">
+                    <div className="text-xs text-slate-500">{sample.label}</div>
+                    <div
+                      lang="jv"
+                      className="mt-1 text-3xl leading-relaxed"
+                      style={{ fontFamily: "'Noto Javanese Local', sans-serif" }}
+                    >
+                      {sample.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-4">
+              <div className="mb-3">
+                <h3 className="font-semibold text-slate-800">nyk Ngayogyan Jejeg</h3>
+                <p className="text-xs text-slate-500">Font baru · kandidat</p>
+              </div>
+              <div className="space-y-3">
+                {JAVANESE_SAMPLES.map((sample) => (
+                  <div key={sample.label} className="border-t border-violet-100 pt-2">
+                    <div className="text-xs text-slate-500">{sample.label}</div>
+                    <div
+                      lang="jv"
+                      className="mt-1 text-3xl leading-relaxed"
+                      style={{ fontFamily: "'Nyk Ngayogyan Jejeg', sans-serif" }}
+                    >
+                      {sample.text}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+            Catatan: ini hanya pengujian tampilan. Font utama website dan font
+            editor belum diubah, sehingga pilihan font baru tidak akan
+            memengaruhi halaman lain.
+          </div>
+        </section>
+
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="font-bold text-slate-800">
-                1. Area Editor
+                2. Area Editor
               </h2>
               <p className="text-xs text-slate-500">
                 Uji seluruh tombol toolbar dan isi editor.
@@ -224,7 +297,7 @@ export default function FontTestPage() {
         <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
           <div className="mb-4">
             <h2 className="font-bold text-slate-800">
-              2. Pratinjau Hasil
+              3. Pratinjau Hasil
             </h2>
             <p className="text-xs text-slate-500">
               Gambaran hasil konten setelah dibaca oleh komponen MathRenderer.
@@ -246,7 +319,7 @@ export default function FontTestPage() {
 
         <section className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <h2 className="mb-2 font-bold text-slate-800">
-            3. Daftar Pengujian
+            4. Daftar Pengujian
           </h2>
 
           <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
@@ -256,7 +329,7 @@ export default function FontTestPage() {
             <li>Tabel dan gambar.</li>
             <li>Pengaturan ukuran dan posisi gambar.</li>
             <li>Penulisan Arab beserta harakat dan arah RTL.</li>
-            <li>Aksara Jawa beserta sandhangan.</li>
+            <li>Aksara Jawa beserta sandhangan dan pasangan.</li>
             <li>Kesesuaian hasil editor dengan pratinjau.</li>
             <li>Penyimpanan otomatis dan pemuatan kembali setelah reload.</li>
           </ul>
