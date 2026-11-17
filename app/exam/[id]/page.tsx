@@ -657,7 +657,19 @@ const { data: existingSession, error: sessionError } = await supabase
     }
     if (!autoFinish) {
       const questionsNow = questionsRef.current
-      const unansweredCount = questionsNow.filter((q) => !isQuestionAnswered(q, userAnswersRef.current[q.id])).length
+      const { data: photoAnswers, error: photoAnswerError } = await createClient()
+        .from('answer_images')
+        .select('question_id')
+        .eq('session_id', sessionIdRef.current)
+      if (photoAnswerError) {
+        console.error('Gagal memeriksa foto jawaban:', photoAnswerError)
+        alert('Foto jawaban belum dapat diverifikasi. Periksa koneksi internet lalu coba kumpulkan kembali.')
+        return
+      }
+      const questionsWithPhotos = new Set((photoAnswers || []).map((item: any) => item.question_id))
+      const unansweredCount = questionsNow.filter((q) =>
+        !isQuestionAnswered(q, userAnswersRef.current[q.id]) && !questionsWithPhotos.has(q.id)
+      ).length
       const flaggedCount = questionsNow.filter((q) => Boolean(flaggedQuestionsRef.current[q.id])).length
       const message = 'Apakah Anda yakin ingin mengumpulkan ujian?\n\nSoal belum dijawab: ' + unansweredCount + '\nSoal ditandai ragu-ragu: ' + flaggedCount + '\n\nSetelah dikumpulkan, jawaban tidak dapat diubah lagi.' + ((unansweredCount || flaggedCount) ? '\n\nSilakan periksa kembali soal yang belum dijawab atau masih ragu-ragu.' : '')
       if (!confirm(message)) return
