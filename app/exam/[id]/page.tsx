@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 import RichTextEditor from '@/components/editor/RichTextEditor'
+import StudentAnswerPhotos from '@/components/exam/StudentAnswerPhotos'
 
 function getPlainAnswerText(value: any): string {
   if (value === null || value === undefined) return ''
@@ -1421,6 +1422,14 @@ const { data: existingSession, error: sessionError } = await supabase
                     minHeight={180}
                     className="w-full shadow-inner"
                   />
+                  {sessionId && userIdRef.current && (
+                    <StudentAnswerPhotos
+                      sessionId={sessionId}
+                      questionId={currentQuestion.id}
+                      userId={userIdRef.current}
+                      disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
+                    />
+                  )}
                 </div>
               )}
             </div>
