@@ -879,18 +879,19 @@ const getFilteredGradingQuestions = () => {
       })
       setSessionAnswerPhotos(grouped)
 
-      setEssayScores((current) => {
-        const updated = { ...current }
-        Object.keys(grouped).forEach((questionId) => {
-          if (answerScoreMap[questionId] !== undefined) return
-          const textAnswer = map[questionId]
-          const hasText = typeof textAnswer === 'string'
-            ? textAnswer.replace(/<[^>]*>/g, ' ').trim().length > 0
-            : Boolean(textAnswer)
-          if (!hasText) updated[questionId] = 1
-        })
-        return updated
+      const updatedEssayScores = { ...initialEssayScores }
+      Object.keys(grouped).forEach((questionId) => {
+        if (answerScoreMap[questionId] !== undefined) return
+        const textAnswer = map[questionId]
+        const hasText = typeof textAnswer === 'string'
+          ? textAnswer.replace(/<[^>]*>/g, ' ').trim().length > 0
+          : Boolean(textAnswer)
+        if (!hasText) updatedEssayScores[questionId] = 1
       })
+      setEssayScores(updatedEssayScores)
+      if (!overrideActive) {
+        setCustomFinalScore(calculateAutoScore(map, updatedEssayScores, savedBonus))
+      }
     } catch (error) {
       console.error('Gagal memuat foto jawaban siswa:', error)
     }
