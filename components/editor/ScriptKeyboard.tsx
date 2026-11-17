@@ -34,11 +34,11 @@ const consonants: Record<string, string> = {
   d: 'ꦢ', t: 'ꦠ', s: 'ꦱ', w: 'ꦮ', l: 'ꦭ',
   p: 'ꦥ', j: 'ꦗ', y: 'ꦪ', m: 'ꦩ', g: 'ꦒ', b: 'ꦧ',
 }
-const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦼ', é: 'ꦺ', o: 'ꦴ' }
-const independentVowels: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', o: 'ꦎ' }
+const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦺ', é: 'ꦺ', ê: 'ꦼ', 'ě': 'ꦼ', o: 'ꦴ' }
+const independentVowels: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', ê: 'ꦌ', 'ě': 'ꦌ', o: 'ꦎ' }
 
 function latinToJavanese(input: string): string {
-  return input.toLowerCase().normalize('NFC').split(/(\\s+)/).map((word) => {
+  return input.toLowerCase().normalize('NFC').replace(/\\s+/g, '').split(/(\\s+)/).map((word) => {
     if (!word.trim()) return word
     let output = ''
     let rest = word
@@ -63,7 +63,7 @@ function latinToJavanese(input: string): string {
           if (onset === 'ng') output += 'ꦁ'
           else if (onset === 'r') output += 'ꦂ'
           else if (onset === 'h') output += 'ꦃ'
-          else output += base + '꧀'
+          else output += base + '꧀‍'
         } else {
           // Konsonan di akhir kata dimatikan dengan pangkon.
           output += base + '꧀'
@@ -137,7 +137,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
                 {javanesePasangan.map(([character, label]) => (
                   <button key={character} type="button" title={'Pasangan ' + label}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => insert('꧀' + character, 'jv')}
+                    onClick={() => insert('꧀‍' + character, 'jv')}
                     className="flex min-h-14 flex-col items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
                     <span className="text-2xl" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{'ꦏ꧀' + character}</span>
                     <span className="text-[10px] text-slate-500">{'Pasangan ' + label}</span>
@@ -161,7 +161,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
             <label className="mb-1 block text-xs font-semibold text-slate-700">Ketik Latin, lalu ubah ke Aksara Jawa (konversi dasar)</label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <input value={latin} onChange={(event) => setLatin(event.target.value)}
-                placeholder="Contoh: basa jawa" className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" />
+                placeholder="Contoh: mangan sega" className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" />
               <button type="button" disabled={!latin.trim()} onMouseDown={(event) => event.preventDefault()}
                 onClick={() => { insert(latinToJavanese(latin), 'jv'); setLatin('') }}
                 className="rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-40">
@@ -169,7 +169,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
               </button>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Konversi awal mendukung suku kata sederhana seperti ha, na, ca, ra, ka, nga, nya, tha, dan dha. Periksa kembali pasangan, sandhangan khusus, dan ejaan sebelum menyimpan soal.
+              Spasi Latin diabaikan agar rangkaian aksara tersambung. Huruf e memakai taling; gunakan ê atau ě untuk pepet. Periksa kembali pasangan dan ejaan sebelum menyimpan soal.
             </p>
           </div>
         </>
