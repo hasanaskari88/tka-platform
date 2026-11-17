@@ -27,7 +27,7 @@ const fontOptions = [
   { label: 'Times New Roman', value: 'Times New Roman' },
   { label: 'Verdana', value: 'Verdana' },
   { label: 'Font Arab', value: 'Noto Arabic Local' },
-  { label: 'Aksara Jawa', value: 'Noto Javanese Local' },
+  { label: 'Aksara Jawa · nyk Ngayogyan Jejeg', value: 'Nyk Ngayogyan Jejeg' },
 ]
 
 const sizeOptions = [
@@ -136,7 +136,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full' }: Edito
           <button type="button" title="Mode Aksara Jawa" aria-label="Mode Aksara Jawa"
             className="h-9 shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().setFontFamily('Noto Javanese Local').setTextAlign('left').run()}>ꦗꦮ</button>
+            onClick={() => editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()}>ꦗꦮ</button>
           {mode !== 'essay' && (
             <button type="button" title="Sisipkan gambar" aria-label="Sisipkan gambar"
               className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg text-slate-700 hover:bg-slate-100"
