@@ -1659,7 +1659,7 @@ function QuestionManagerContent() {
                       {opt.image_url && (
                         <div className="pl-6">
                           <img
-                            src={opt.image_url}
+                            src={getGoogleDriveImageProxyUrl(opt.image_url)}
                             alt={`Gambar lama opsi ${opt.key}`}
                             className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
                           />
@@ -1701,7 +1701,7 @@ function QuestionManagerContent() {
                       {opt.image_url && (
                         <div className="pl-6">
                           <img
-                            src={opt.image_url}
+                            src={getGoogleDriveImageProxyUrl(opt.image_url)}
                             alt={`Gambar lama opsi ${opt.key}`}
                             className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
                           />
@@ -1765,7 +1765,7 @@ function QuestionManagerContent() {
                       {st.image_url && (
                         <div className="pl-8">
                           <img
-                            src={st.image_url}
+                            src={getGoogleDriveImageProxyUrl(st.image_url)}
                             alt={`Gambar lama pernyataan ${idx + 1}`}
                             className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
                           />
@@ -2007,7 +2007,7 @@ function QuestionManagerContent() {
 
                     {q.image_url && (
                       <div className="my-2">
-                        <img src={q.image_url} alt="Gambar Soal" className="max-h-56 rounded-xl border" />
+                        <img src={getGoogleDriveImageProxyUrl(q.image_url)} alt="Gambar Soal" className="max-h-56 rounded-xl border" />
                       </div>
                     )}
 
@@ -2037,7 +2037,7 @@ function QuestionManagerContent() {
                                 <div className="flex-1">
                                   <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
                                   {opt.image_url && (
-                                    <img src={opt.image_url} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
+                                    <img src={getGoogleDriveImageProxyUrl(opt.image_url)} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
                                   )}
                                 </div>
                                 {isKey && <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded font-bold">Kunci</span>}
@@ -2065,7 +2065,7 @@ function QuestionManagerContent() {
                                   <td className="p-2.5">
                                     <MathRenderer content={typeof st === 'string' ? st : st.text} />
                                     {st.image_url && (
-                                      <img src={st.image_url} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
+                                      <img src={getGoogleDriveImageProxyUrl(st.image_url)} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
                                     )}
                                   </td>
                                   <td className="p-2.5 text-center border-l font-bold text-indigo-700">
@@ -2158,7 +2158,7 @@ function QuestionManagerContent() {
                             {!isDuplicate && <span className="text-emerald-300">Siap diimpor</span>}
                           </div>
                           <div className="text-xs text-slate-100 leading-relaxed"><MathRenderer content={question.question_text || '(Pertanyaan kosong)'} className="flow-root" normalizeRotatedImages /></div>
-                          {question.image_url && <img src={question.image_url} alt="Pratinjau gambar soal" className="max-h-24 max-w-full rounded-lg border border-slate-700 object-contain" />}
+                          {question.image_url && <img src={getGoogleDriveImageProxyUrl(question.image_url)} alt="Pratinjau gambar soal" className="max-h-24 max-w-full rounded-lg border border-slate-700 object-contain" />}
                           {Array.isArray(question.options) && question.options.length > 0 && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1">
                               {question.options.map((option: any, optionIndex: number) => (
