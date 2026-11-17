@@ -63,7 +63,7 @@ function latinToJavanese(input: string): string {
         if (onset === 'ng') output += 'ꦁ'
         else if (onset === 'r') output += 'ꦂ'
         else if (onset === 'h') output += 'ꦃ'
-        else output += base + '꧀‍'
+        else output += base + '꧀'
       } else {
         // Pangkon hanya untuk konsonan mati di akhir seluruh rangkaian.
         if (onset === 'ng') output += 'ꦁ'
@@ -140,7 +140,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
                 {javanesePasangan.map(([character, label]) => (
                   <button key={character} type="button" title={'Pasangan ' + label}
                     onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => insert('꧀‍' + character, 'jv')}
+                    onClick={() => insert('꧀' + character, 'jv')}
                     className="flex min-h-14 flex-col items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
                     <span className="text-2xl" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{'ꦏ꧀' + character}</span>
                     <span className="text-[10px] text-slate-500">{'Pasangan ' + label}</span>
