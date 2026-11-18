@@ -221,9 +221,15 @@ export default function StudentAnswerPhotos({
   }
 
   return (
-    <section className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 space-y-3">
+    <details className="group rounded-xl border border-sky-200 bg-sky-50/70 p-3">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-bold text-sky-900 [&::-webkit-details-marker]:hidden">
+        <span>{`📷 Sertakan foto jawaban (opsional)${photos.length > 0 ? ` · ${photos.length} foto` : ""}`}</span>
+        <span className="text-xs font-semibold text-sky-700 group-open:hidden">Buka</span>
+        <span className="hidden text-xs font-semibold text-sky-700 group-open:inline">Tutup</span>
+      </summary>
+      <div className="mt-3 space-y-3">
       <div>
-        <p className="text-sm font-bold text-slate-800">📷 Foto jawaban tulisan tangan (opsional)</p>
+        <p className="text-sm font-bold text-slate-800">Foto jawaban tulisan tangan</p>
         <p className="text-xs text-slate-600 mt-1">
           Jika lebih mudah, tulis jawaban di kertas lalu foto dengan jelas. Foto akan otomatis diperkecil sebelum dikirim.
           Maksimal 5 foto untuk setiap soal.
@@ -313,6 +319,7 @@ export default function StudentAnswerPhotos({
       {photos.length >= 5 && <p className="text-xs font-semibold text-amber-700">Batas 5 foto untuk soal ini sudah tercapai.</p>}
       {errorMessage && <p role="alert" className="text-xs font-semibold text-rose-700">{errorMessage}</p>}
       {!loading && photos.length === 0 && !pendingPreview && <p className="text-[11px] text-slate-500">Belum ada foto yang dikirim untuk soal ini.</p>}
-    </section>
+      </div>
+    </details>
   )
 }

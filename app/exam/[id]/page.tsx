@@ -1008,7 +1008,7 @@ const { data: existingSession, error: sessionError } = await supabase
 
   return (
     <div
-      className={`min-h-screen flex flex-col font-sans select-none transition-colors duration-200 ${
+      className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${
         isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
@@ -1131,7 +1131,24 @@ const { data: existingSession, error: sessionError } = await supabase
           }`}
         >
           {currentQuestion ? (
-            <div className="space-y-4">
+            <div
+              className="space-y-4 select-none"
+              onContextMenu={(event) => {
+                const target = event.target as HTMLElement
+                if (target.closest('[contenteditable="true"], input, textarea, select')) return
+                event.preventDefault()
+              }}
+              onCopy={(event) => {
+                const target = event.target as HTMLElement
+                if (target.closest('[contenteditable="true"], input, textarea, select')) return
+                event.preventDefault()
+              }}
+              onSelectStart={(event) => {
+                const target = event.target as HTMLElement
+                if (target.closest('[contenteditable="true"], input, textarea, select')) return
+                event.preventDefault()
+              }}
+            >
               <div
                 className={`flex justify-between items-center border-b pb-3 ${
                   isDark ? 'border-slate-800' : 'border-slate-200'
@@ -1440,7 +1457,7 @@ const { data: existingSession, error: sessionError } = await supabase
                     editable={!isSubmitting && timeLeft !== 0 && sessionStatus === 'ongoing'}
                     toolbarMode="essay"
                     minHeight={180}
-                    className="w-full shadow-inner"
+                    className="w-full shadow-inner select-text"
                   />
                   {sessionId && userIdRef.current && (
                     <StudentAnswerPhotos
