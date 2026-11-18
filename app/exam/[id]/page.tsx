@@ -646,7 +646,8 @@ const { data: existingSession, error: sessionError } = await supabase
       setTimeLeft((prev) => {
         if (prev !== null && prev <= 1) {
           clearInterval(timer)
-          handleFinishExam(true)
+          // Auto-submit ditangani oleh effect setelah timeLeft menjadi 0.
+          // Jika sedang offline, pengiriman menunggu koneksi pulih.
           return 0
         }
         return prev !== null ? prev - 1 : null
@@ -1034,9 +1035,10 @@ const { data: existingSession, error: sessionError } = await supabase
   // Jika halaman dibuka kembali setelah batas waktu, kirim sesi yang masih aktif
   // menggunakan jawaban hasil pemulihan Supabase + localStorage.
   useEffect(() => {
-    if (loading || timeLeft !== 0 || sessionStatus !== 'ongoing' || !sessionId) return
+    // Jika waktu habis saat offline, tunggu sampai koneksi pulih sebelum submit.
+    if (loading || !isOnline || timeLeft !== 0 || sessionStatus !== 'ongoing' || !sessionId) return
     handleFinishExam(true)
-  }, [loading, timeLeft, sessionStatus, sessionId])
+  }, [loading, isOnline, timeLeft, sessionStatus, sessionId])
 
   if (loading) {
     return (
