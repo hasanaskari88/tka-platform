@@ -49,6 +49,21 @@ function SmartLogo({
 }
 
 // 🟢 HELPER EVALUASI MULTI-TIPE SOAL
+function hasMeaningfulGradingAnswer(value: any): boolean {
+  if (value === null || value === undefined) return false
+  if (Array.isArray(value)) return value.some((item) => hasMeaningfulGradingAnswer(item))
+  if (typeof value === 'object') return Object.values(value).some((item) => hasMeaningfulGradingAnswer(item))
+
+  const text = String(value)
+    .replace(/<br\\s*\\/?\\s*>/gi, ' ')
+    .replace(/<\\/p>|<\\/div>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/[\\u200B-\\u200D\\uFEFF]/g, '')
+    .trim()
+  return text.length > 0
+}
+
 function normalizeGradingAnswerContent(value: any): string {
   const raw = Array.isArray(value) ? value.join(', ') : String(value ?? '')
   if (!raw.trim()) return ''
@@ -845,7 +860,7 @@ const getFilteredGradingQuestions = () => {
     const autoCalculated = calculateAutoScore(map, initialEssayScores, savedBonus)
     setCustomFinalScore(overrideActive ? Number(session.score_override) : autoCalculated)
 
-    const currentIndex = sortedSessions.findIndex((s) => s.id === session.id)
+    const currentIndex = gradingSortedSessions.findIndex((s) => s.id === session.id)
     if (currentIndex >= 0) setGradingSessionIndex(currentIndex)
     setSelectedSessionForDetail(session)
 
@@ -909,7 +924,7 @@ const getFilteredGradingQuestions = () => {
   }, [loading, sessions, questions, searchParams])
 
 const goToGradingSession = (nextIndex: number) => {
-  if (nextIndex < 0 || nextIndex >= sortedSessions.length) return
+  if (nextIndex < 0 || nextIndex >= gradingSortedSessions.length) return
 
   if (gradingHasChanges) {
     const confirmLeave = window.confirm(
@@ -919,7 +934,7 @@ const goToGradingSession = (nextIndex: number) => {
     if (!confirmLeave) return
   }
 
-  const nextSession = sortedSessions[nextIndex]
+  const nextSession = gradingSortedSessions[nextIndex]
 
   setGradingHasChanges(false)
   setGradingSessionIndex(nextIndex)
@@ -1070,27 +1085,16 @@ const getQuestionGradingData = () => {
 
   if (!currentQuestion) return []
 
-  return sortedSessions.map((session) => {
+  const rows = sortedSessions.map((session) => {
     const answer = (session.rawAnswers || []).find(
-      (ans: any) => ans.question_id === currentQuestion.id
+      (ans: any) => String(ans.question_id) === String(currentQuestion.id)
     )
-
     const rawAnswer = answer
       ? answer.user_answer ?? answer.selected_answers ?? answer.selected_option
       : null
-
-    const hasAnswer =
-      rawAnswer !== null &&
-      rawAnswer !== undefined &&
-      (
-        Array.isArray(rawAnswer)
-          ? rawAnswer.some((item) => String(item).trim() !== '')
-          : String(rawAnswer).trim() !== ''
-      )
-
+    const hasAnswer = hasMeaningfulGradingAnswer(rawAnswer)
     const savedScore =
-      answer?.teacher_score !== null &&
-      answer?.teacher_score !== undefined
+      answer?.teacher_score !== null && answer?.teacher_score !== undefined
         ? Number(answer.teacher_score)
         : null
 
@@ -1100,14 +1104,20 @@ const getQuestionGradingData = () => {
       classCode: session.class_code,
       answerId: answer?.id ?? null,
       answerText: hasAnswer
-        ? Array.isArray(rawAnswer)
-          ? rawAnswer.join(', ')
-          : String(rawAnswer)
+        ? Array.isArray(rawAnswer) ? rawAnswer.join(', ') : String(rawAnswer)
         : '',
       hasAnswer,
       score: savedScore,
       maxScore: Number(currentQuestion.max_score) || 1,
     }
+  })
+
+  // Jawaban belum dinilai di atas, lalu sudah dinilai, kemudian belum menjawab.
+  // Jika status sama, urutan peserta sebelumnya tetap dipertahankan.
+  return rows.sort((a, b) => {
+    const rankA = !a.hasAnswer ? 2 : a.score === null ? 0 : 1
+    const rankB = !b.hasAnswer ? 2 : b.score === null ? 0 : 1
+    return rankA - rankB
   })
 }
 
@@ -1360,6 +1370,23 @@ const handleSaveAllQuestionScores = async () => {
     if (valA < valB) return sortOrderStudent === 'asc' ? -1 : 1
     if (valA > valB) return sortOrderStudent === 'asc' ? 1 : -1
     return 0
+  })
+
+  const gradingSortedSessions = [...sortedSessions].sort((a, b) => {
+    const pendingCount = (session: any) =>
+      essayQuestions.filter((q) => {
+        const answer = (session.rawAnswers || []).find(
+          (item: any) => String(item.question_id) === String(q.id)
+        )
+        const rawAnswer = answer
+          ? answer.user_answer ?? answer.selected_answers ?? answer.selected_option
+          : null
+        return hasMeaningfulGradingAnswer(rawAnswer) &&
+          (answer?.teacher_score === null || answer?.teacher_score === undefined)
+      }).length
+
+    // Peserta dengan jawaban belum dinilai paling atas.
+    return pendingCount(b) - pendingCount(a)
   })
 
   const sortedItems = [...itemAnalysisList].sort((a, b) => {
@@ -2066,7 +2093,7 @@ const handleSaveAllQuestionScores = async () => {
                       </thead>
             
                       <tbody className="divide-y divide-slate-100">
-                        {sortedSessions.map((session, idx) => {
+                        {gradingSortedSessions.map((session, idx) => {
                           const essayQuestions = questions.filter((q) => {
                             const type = q.question_type || 'multiple_choice'
                             return type === 'essay' || type === 'uraian'
@@ -2085,9 +2112,7 @@ const handleSaveAllQuestionScores = async () => {
                               ans?.selected_answers ??
                               ans?.selected_option
             
-                            return answer !== null &&
-                              answer !== undefined &&
-                              answer !== ''
+                            return hasMeaningfulGradingAnswer(answer)
                           }).length
             
                           const pendingEssays = essayQuestions.filter((q) => {
@@ -2099,10 +2124,8 @@ const handleSaveAllQuestionScores = async () => {
                               ans?.selected_answers ??
                               ans?.selected_option
             
-                            return answer !== null &&
-                              answer !== undefined &&
-                              answer !== '' &&
-                              ans?.teacher_score == null
+                            return hasMeaningfulGradingAnswer(answer) &&
+                              (ans?.teacher_score === null || ans?.teacher_score === undefined)
                           }).length
             
                           return (
