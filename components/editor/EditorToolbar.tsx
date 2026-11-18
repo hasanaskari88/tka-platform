@@ -136,6 +136,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full' }: Edito
             aria-expanded={scriptKeyboardOpen}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => setScriptKeyboardOpen((open) => !open)}>⌨ Huruf</button>
+          <MathFormulaDialog editor={editor} editorId={editorId} compact />
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
             onMouseDown={(e) => e.preventDefault()}
@@ -150,7 +151,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full' }: Edito
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setImageOpen(true)}>▧</button>
           )}
-          <MathFormulaDialog editor={editor} editorId={editorId} compact />
+
           {mode !== 'essay' && (
             <>
               <span className="mx-1 h-6 shrink-0 border-l border-slate-300" />
