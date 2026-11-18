@@ -231,9 +231,10 @@ function ExamResultsContent() {
   const [sessions, setSessions] = useState<any[]>([])
   const [itemAnalysisList, setItemAnalysisList] = useState<any[]>([])
   const [showItemAnalysis, setShowItemAnalysis] = useState(false)
-  const [showParticipantList, setShowParticipantList] = useState(false)
+  const [showParticipantList, setShowParticipantList] = useState(true)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [filterStatus, setFilterStatus] = useState<'ALL' | 'completed' | 'ongoing' | 'paused'>('ALL')
 
   // State Tab Utama
   const [mainActiveTab, setMainActiveTab] = useState<
@@ -253,7 +254,7 @@ function ExamResultsContent() {
   const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([])
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const [sortByStudent, setSortByStudent] = useState<'score' | 'name' | 'class' | 'date'>('score')
+  const [sortByStudent, setSortByStudent] = useState<'score' | 'name' | 'class' | 'date' | 'status' | 'duration' | 'progress' | 'correct'>('score')
   const [sortOrderStudent, setSortOrderStudent] = useState<'asc' | 'desc'>('desc')
 
   const [sortByItem, setSortByItem] = useState<'no' | 'accuracy'>('no')
@@ -1373,7 +1374,8 @@ const handleSaveAllQuestionScores = async () => {
       (filterClass === 'ASSIGNED'
         ? assignedClassCodes.includes(s.class_code)
         : s.class_code === filterClass)
-    return matchSearch && matchClass
+    const matchStatus = filterStatus === 'ALL' || s.status === filterStatus
+    return matchSearch && matchClass && matchStatus
   })
 
   const uniqueClasses = Array.from(new Set(sessions.map((s) => s.class_code)))
@@ -1391,12 +1393,48 @@ const handleSaveAllQuestionScores = async () => {
     } else if (sortByStudent === 'date') {
       valA = new Date(a.completed_at || 0).getTime()
       valB = new Date(b.completed_at || 0).getTime()
+    } else if (sortByStudent === 'status') {
+      const statusOrder: Record<string, number> = { completed: 3, ongoing: 2, paused: 1 }
+      valA = statusOrder[a.status] || 0
+      valB = statusOrder[b.status] || 0
+    } else if (sortByStudent === 'duration') {
+      valA = Number(a.duration_seconds) || 0
+      valB = Number(b.duration_seconds) || 0
+    } else if (sortByStudent === 'progress') {
+      valA = a.total_questions > 0 ? a.answered_count / a.total_questions : 0
+      valB = b.total_questions > 0 ? b.answered_count / b.total_questions : 0
+    } else if (sortByStudent === 'correct') {
+      valA = Number(a.correct_count) || 0
+      valB = Number(b.correct_count) || 0
     }
 
     if (valA < valB) return sortOrderStudent === 'asc' ? -1 : 1
     if (valA > valB) return sortOrderStudent === 'asc' ? 1 : -1
     return 0
   })
+
+  const handleStudentSort = (field: 'name' | 'class' | 'status' | 'duration' | 'progress' | 'correct' | 'score') => {
+    if (sortByStudent === field) {
+      setSortOrderStudent((current) => current === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortByStudent(field)
+      setSortOrderStudent(field === 'name' || field === 'class' ? 'asc' : 'desc')
+    }
+  }
+
+  const studentSortLabel = (field: string, label: string) => (
+    <button
+      type="button"
+      onClick={() => handleStudentSort(field as 'name' | 'class' | 'status' | 'duration' | 'progress' | 'correct' | 'score')}
+      className="inline-flex items-center justify-center gap-1 hover:text-indigo-700 transition-colors"
+      title={`Urutkan berdasarkan ${label}`}
+    >
+      {label}
+      <span className={sortByStudent === field ? 'text-indigo-600' : 'text-slate-400'}>
+        {sortByStudent === field ? (sortOrderStudent === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
+    </button>
+  )
 
   const gradingSortedSessions = [...sortedSessions].sort((a, b) => {
     const pendingCount = (session: any) =>
@@ -1818,6 +1856,18 @@ const handleSaveAllQuestionScores = async () => {
                     ))}
                   </select>
 
+                  <select
+                    value={filterStatus}
+                    onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+                    className="px-3 py-1.5 border rounded-lg text-xs font-bold text-slate-700 bg-slate-50"
+                    aria-label="Filter status pengerjaan"
+                  >
+                    <option value="ALL">Semua Status</option>
+                    <option value="completed">Selesai</option>
+                    <option value="ongoing">Sedang Dikerjakan</option>
+                    <option value="paused">Dijeda</option>
+                  </select>
+
                   <button
                       onClick={() => setShowBulkRaporModal(true)}
                       className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm"
@@ -1848,12 +1898,12 @@ const handleSaveAllQuestionScores = async () => {
                         />
                       </th>
                       <th className="p-3 text-center w-12">No</th>
-                      <th className="p-3">Nama Siswa & Username</th>
-                      <th className="p-3 text-center">Kelas</th>
-                      <th className="p-3 text-center">Status & Progres</th>
-                      <th className="p-3 text-center">Waktu Pengerjaan</th>
-                      <th className="p-3 text-center">Benar / Total</th>
-                      <th className="p-3 text-center">Nilai Akhir</th>
+                      <th className="p-3">{studentSortLabel('name', 'Nama Siswa & Username')}</th>
+                      <th className="p-3 text-center">{studentSortLabel('class', 'Kelas')}</th>
+                      <th className="p-3 text-center">{studentSortLabel('status', 'Status & Progres')}</th>
+                      <th className="p-3 text-center">{studentSortLabel('duration', 'Waktu Pengerjaan')}</th>
+                      <th className="p-3 text-center">{studentSortLabel('correct', 'Benar / Total')}</th>
+                      <th className="p-3 text-center">{studentSortLabel('score', 'Nilai Akhir')}</th>
                       <th className="p-3 text-center">Aksi</th>
                     </tr>
                   </thead>
