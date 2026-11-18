@@ -55,11 +55,11 @@ function hasMeaningfulGradingAnswer(value: any): boolean {
   if (typeof value === 'object') return Object.values(value).some((item) => hasMeaningfulGradingAnswer(item))
 
   const text = String(value)
-    .replace(/<br\\s*\\/?\\s*>/gi, ' ')
-    .replace(/<\\/p>|<\\/div>/gi, ' ')
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/p>|<\/div>/gi, ' ')
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/[\\u200B-\\u200D\\uFEFF]/g, '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
     .trim()
   return text.length > 0
 }
