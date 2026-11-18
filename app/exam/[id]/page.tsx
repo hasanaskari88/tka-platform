@@ -832,6 +832,9 @@ const { data: existingSession, error: sessionError } = await supabase
     const currentAnswers = { ...localAnswerSnapshot, ...userAnswersRef.current }
     const currentFlags = { ...localFlagSnapshot, ...flaggedQuestionsRef.current }
 
+    let totalPointsEarned = 0
+    let totalMaxPoints = 0
+
     currentQuestions.forEach((q) => {
       const qMaxScore = Number(q.max_score) || 1
       totalMaxPoints += qMaxScore
