@@ -178,10 +178,12 @@ function ExamEngineContent() {
     scheduleAutosave()
   }
 
-  const getSessionLocalKeys = (activeSessionId: string | null = sessionIdRef.current) => ({
-    answers: activeSessionId ? `cbt_answers_${examId}_${activeSessionId}` : `cbt_answers_${examId}`,
-    flags: activeSessionId ? `cbt_flags_${examId}_${activeSessionId}` : `cbt_flags_${examId}`,
-  })
+  function getSessionLocalKeys(activeSessionId: string | null = sessionIdRef.current) {
+    return {
+      answers: activeSessionId ? `cbt_answers_${examId}_${activeSessionId}` : `cbt_answers_${examId}`,
+      flags: activeSessionId ? `cbt_flags_${examId}_${activeSessionId}` : `cbt_flags_${examId}`,
+    }
+  }
 
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
@@ -432,7 +434,7 @@ const { data: existingSession, error: sessionError } = await supabase
         localStorage.removeItem(legacyAnswersKey)
       }
       try {
-        const savedFlags = localStorage.getItem(sessionLocalKeys.flags)
+        const savedFlags = localStorage.getItem(sessionLocalKeys.flags) ?? localStorage.getItem(legacyFlagsKey)
         if (savedFlags) localFlags = JSON.parse(savedFlags) || {}
       } catch (e) {
         console.error('Gagal memulihkan status ragu lokal:', e)
@@ -449,7 +451,10 @@ const { data: existingSession, error: sessionError } = await supabase
           mergedAnswers[questionId] = value
         }
       })
-      const mergedFlags = hasSessionLocalAnswers
+      const hasLocalFlagBackup =
+        localStorage.getItem(sessionLocalKeys.flags) !== null ||
+        localStorage.getItem(legacyFlagsKey) !== null
+      const mergedFlags = hasLocalFlagBackup
         ? { ...remoteFlags, ...localFlags }
         : { ...remoteFlags }
       localStorage.setItem(sessionLocalKeys.answers, JSON.stringify(mergedAnswers))
