@@ -230,6 +230,8 @@ function ExamResultsContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [sessions, setSessions] = useState<any[]>([])
   const [itemAnalysisList, setItemAnalysisList] = useState<any[]>([])
+  const [showItemAnalysis, setShowItemAnalysis] = useState(false)
+  const [showParticipantList, setShowParticipantList] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -521,6 +523,27 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
       }
 
       const finishTime = session.end_time || session.submitted_at || session.completed_at || null
+      const startTime = session.start_time || null
+      const startTimeMs = startTime ? new Date(startTime).getTime() : NaN
+      const finishTimeMs = finishTime ? new Date(finishTime).getTime() : Date.now()
+      const pausedAtMs = session.status === 'paused' && session.paused_at
+        ? new Date(session.paused_at).getTime()
+        : NaN
+      const totalPausedSeconds =
+        (Number(session.paused_duration_seconds) || 0) +
+        (Number.isFinite(pausedAtMs) ? Math.max(0, (Date.now() - pausedAtMs) / 1000) : 0)
+      const durationSeconds = Number.isFinite(startTimeMs)
+        ? Math.max(0, Math.floor((finishTimeMs - startTimeMs) / 1000 - totalPausedSeconds))
+        : null
+      const formatDuration = (seconds: number | null) => {
+        if (seconds === null) return '-'
+        const hours = Math.floor(seconds / 3600)
+        const minutes = Math.floor((seconds % 3600) / 60)
+        const remainingSeconds = seconds % 60
+        if (hours > 0) return `${hours}j ${minutes}m`
+        if (minutes > 0) return `${minutes}m ${remainingSeconds}dtk`
+        return `${remainingSeconds}dtk`
+      }
       const answeredCount = (questionData || []).filter((q) => {
         const answer = userAnswers.find((a) => a.question_id === q.id)
         const rawAnswer = answer
@@ -543,6 +566,9 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         status: session.status || 'ongoing',
         sitting_label: session.sitting_label ?? null,
         completed_at: finishTime,
+        start_time: startTime,
+        duration_seconds: durationSeconds,
+        duration_label: formatDuration(durationSeconds),
         answered_count: answeredCount,
         correct_count: correctCount,
         total_questions: totalQ,
@@ -1411,7 +1437,9 @@ const handleSaveAllQuestionScores = async () => {
       Username: s.username,
       'Kode Kelas': s.class_code,
       'Sesi Ujian': s.sitting_label || 'Data lama',
+      'Waktu Mulai': s.start_time ? new Date(s.start_time).toLocaleString('id-ID') : '-',
       'Waktu Selesai': s.completed_at ? new Date(s.completed_at).toLocaleString('id-ID') : '-',
+      'Durasi Pengerjaan': s.duration_label || '-',
       'Jawaban Benar': `${s.correct_count} / ${s.total_questions}`,
       'Nilai Akhir': s.earned_score,
     }))
@@ -1633,12 +1661,17 @@ const handleSaveAllQuestionScores = async () => {
             </div>
 
             {/* TABEL ANALISIS SOAL */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
-              <div className="border-b pb-3 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <button type="button" onClick={() => setShowItemAnalysis((value) => !value)} aria-expanded={showItemAnalysis} className="w-full p-4 flex flex-col sm:flex-row justify-between sm:items-center gap-2 text-left hover:bg-slate-50 transition-colors">
+                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                   <span>🎯</span>
                   <span>Analisis Butir Soal, Sebaran Opsi & Daya Beda ($D$)</span>
+                  <span className="text-xs font-semibold text-slate-400">({itemAnalysisList.length} soal)</span>
                 </h2>
+                <span className="text-xs font-semibold text-indigo-600 flex items-center gap-2">{showItemAnalysis ? 'Tutup analisis' : 'Lihat analisis'} <span className={`transition-transform ${showItemAnalysis ? 'rotate-180' : ''}`}>⌄</span></span>
+              </button>
+              {showItemAnalysis && <div className="p-5 pt-0 space-y-3">
+              <div className="border-b pb-3 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                 <div className="flex items-center space-x-2 shrink-0">
                   <span className="text-xs font-semibold text-slate-600">Urutkan:</span>
                   <select
@@ -1728,15 +1761,20 @@ const handleSaveAllQuestionScores = async () => {
                   </tbody>
                 </table>
               </div>
+              </div>}
             </div>
 
             {/* TABEL DAFTAR PESERTA & KONTROL HAPUS */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden space-y-3 p-5">
-              <div className="border-b pb-3 flex flex-col md:flex-row justify-between items-center gap-3">
-                <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <button type="button" onClick={() => setShowParticipantList((value) => !value)} aria-expanded={showParticipantList} className="w-full p-4 flex flex-col md:flex-row justify-between items-center gap-3 text-left hover:bg-slate-50 transition-colors">
+                <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
                   <span>📋</span>
                   <span>Daftar Nilai Peserta Ujian ({sortedSessions.length})</span>
                 </h2>
+                <span className="text-xs font-semibold text-indigo-600 flex items-center gap-2">{showParticipantList ? 'Tutup daftar' : 'Lihat daftar'} <span className={`transition-transform ${showParticipantList ? 'rotate-180' : ''}`}>⌄</span></span>
+              </button>
+              {showParticipantList && <div className="p-5 pt-0 space-y-3">
+              <div className="border-b pb-3 flex flex-col md:flex-row justify-between items-center gap-3">
 
                 <div className="flex flex-wrap items-center gap-2">
                   {/* Tombol Hapus Terpilih / Bulk Delete */}
@@ -1813,7 +1851,7 @@ const handleSaveAllQuestionScores = async () => {
                       <th className="p-3">Nama Siswa & Username</th>
                       <th className="p-3 text-center">Kelas</th>
                       <th className="p-3 text-center">Status & Progres</th>
-                      <th className="p-3 text-center">Waktu Selesai</th>
+                      <th className="p-3 text-center">Waktu Pengerjaan</th>
                       <th className="p-3 text-center">Benar / Total</th>
                       <th className="p-3 text-center">Nilai Akhir</th>
                       <th className="p-3 text-center">Aksi</th>
@@ -1869,10 +1907,12 @@ const handleSaveAllQuestionScores = async () => {
                               </span>
                             </div>
                           </td>
-                          <td className="p-3 text-center text-slate-600">
-                            {session.completed_at
-                              ? new Date(session.completed_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
-                              : 'Belum selesai'}
+                          <td className="p-3 text-center text-slate-600 min-w-[150px]">
+                            <div className="space-y-1">
+                              <div className="text-[10px] text-slate-500"><span className="font-semibold">Mulai:</span>{' '}{session.start_time ? new Date(session.start_time).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '—'}</div>
+                              <div className="text-[10px] text-slate-500"><span className="font-semibold">Selesai:</span>{' '}{session.completed_at ? new Date(session.completed_at).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : 'Belum selesai'}</div>
+                              <span className="inline-flex px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-[10px] font-bold">Durasi: {session.duration_label || '—'}</span>
+                            </div>
                           </td>
                           <td className="p-3 text-center font-bold text-slate-700">
                             {session.correct_count} / {session.total_questions}
@@ -1915,6 +1955,7 @@ const handleSaveAllQuestionScores = async () => {
                   </tbody>
                 </table>
               </div>
+              </div>}
             </div>
           </div>
         )}
