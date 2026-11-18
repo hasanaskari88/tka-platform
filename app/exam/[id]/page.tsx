@@ -54,6 +54,7 @@ function ExamEngineContent() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [photoUploadInProgress, setPhotoUploadInProgress] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
+  const [isOnline, setIsOnline] = useState(true)
   const [participantName, setParticipantName] = useState('')
   const [participantIdentifier, setParticipantIdentifier] = useState('')
   const [participantClass, setParticipantClass] = useState('')
@@ -173,9 +174,14 @@ function ExamEngineContent() {
     setUserAnswers(newAnswersMap)
     userAnswersRef.current = newAnswersMap
     setSaveStatus('saving')
-    if (examId) localStorage.setItem(`cbt_answers_${examId}`, JSON.stringify(newAnswersMap))
+    if (examId) localStorage.setItem(getSessionLocalKeys().answers, JSON.stringify(newAnswersMap))
     scheduleAutosave()
   }
+
+  const getSessionLocalKeys = (activeSessionId: string | null = sessionIdRef.current) => ({
+    answers: activeSessionId ? `cbt_answers_${examId}_${activeSessionId}` : `cbt_answers_${examId}`,
+    flags: activeSessionId ? `cbt_flags_${examId}_${activeSessionId}` : `cbt_flags_${examId}`,
+  })
 
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
@@ -388,8 +394,9 @@ const { data: existingSession, error: sessionError } = await supabase
       if (placeholderError) throw new Error(`Gagal membuat baris jawaban awal: ${placeholderError.message}`)
     }
 
-    const localAnswersKey = `cbt_answers_${examId}`
-    const localFlagsKey = `cbt_flags_${examId}`
+    const sessionLocalKeys = getSessionLocalKeys(currentSessId)
+    const legacyAnswersKey = `cbt_answers_${examId}`
+    const legacyFlagsKey = `cbt_flags_${examId}`
 
     if (existingSession && currentSessId) {
       const { data: savedRows, error: savedRowsError } = await supabase
@@ -417,29 +424,45 @@ const { data: existingSession, error: sessionError } = await supabase
       let localAnswers: { [key: string]: any } = {}
       let localFlags: { [key: string]: boolean } = {}
       try {
-        const savedAns = localStorage.getItem(localAnswersKey)
+        const savedAns = localStorage.getItem(sessionLocalKeys.answers) ?? localStorage.getItem(legacyAnswersKey)
         if (savedAns) localAnswers = JSON.parse(savedAns) || {}
       } catch (e) {
         console.error('Gagal memulihkan jawaban lokal:', e)
-        localStorage.removeItem(localAnswersKey)
+        localStorage.removeItem(sessionLocalKeys.answers)
+        localStorage.removeItem(legacyAnswersKey)
       }
       try {
-        const savedFlags = localStorage.getItem(localFlagsKey)
+        const savedFlags = localStorage.getItem(sessionLocalKeys.flags)
         if (savedFlags) localFlags = JSON.parse(savedFlags) || {}
       } catch (e) {
         console.error('Gagal memulihkan status ragu lokal:', e)
-        localStorage.removeItem(localFlagsKey)
+        localStorage.removeItem(sessionLocalKeys.flags)
       }
 
-      const mergedAnswers = { ...remoteAnswers, ...localAnswers }
-      const mergedFlags = { ...remoteFlags, ...localFlags }
+      // Data lokal baru yang sudah memakai kunci sesi boleh memulihkan jawaban yang belum tersinkron.
+      // Data legacy hanya dipakai untuk mengisi jawaban yang masih kosong di server agar cache
+      // ujian/percobaan sebelumnya tidak menimpa jawaban sesi aktif.
+      const hasSessionLocalAnswers = localStorage.getItem(sessionLocalKeys.answers) !== null
+      const mergedAnswers = { ...remoteAnswers }
+      Object.entries(localAnswers).forEach(([questionId, value]) => {
+        if (hasSessionLocalAnswers || remoteAnswers[questionId] === undefined || remoteAnswers[questionId] === null) {
+          mergedAnswers[questionId] = value
+        }
+      })
+      const mergedFlags = hasSessionLocalAnswers
+        ? { ...remoteFlags, ...localFlags }
+        : { ...remoteFlags }
+      localStorage.setItem(sessionLocalKeys.answers, JSON.stringify(mergedAnswers))
+      localStorage.setItem(sessionLocalKeys.flags, JSON.stringify(mergedFlags))
       setUserAnswers(mergedAnswers)
       userAnswersRef.current = mergedAnswers
       setFlaggedQuestions(mergedFlags)
       flaggedQuestionsRef.current = mergedFlags
     } else {
-      localStorage.removeItem(localAnswersKey)
-      localStorage.removeItem(localFlagsKey)
+      localStorage.removeItem(sessionLocalKeys.answers)
+      localStorage.removeItem(sessionLocalKeys.flags)
+      localStorage.removeItem(legacyAnswersKey)
+      localStorage.removeItem(legacyFlagsKey)
       localStorage.removeItem(`cbt_start_time_${examId}`)
       setUserAnswers({})
       userAnswersRef.current = {}
@@ -544,6 +567,29 @@ const { data: existingSession, error: sessionError } = await supabase
     return () => clearInterval(statusInterval)
 }, [examId, loading, sessionId, router])
 
+  // Pantau koneksi. Saat tersambung kembali, kirim ulang snapshot jawaban sesi aktif.
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true)
+      if (sessionIdRef.current && !isSubmittingRef.current) {
+        setSaveStatus('saving')
+        queueAutosave().catch((error) => {
+          console.error('Sinkronisasi setelah koneksi pulih gagal:', error)
+          setSaveStatus('error')
+        })
+      }
+    }
+    const handleOffline = () => setIsOnline(false)
+
+    setIsOnline(typeof navigator === 'undefined' ? true : navigator.onLine)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   // 🟢 PROTEKSI RELOAD & BACK BROWSER
   useEffect(() => {
     if (loading || sessionStatus !== 'ongoing') return
@@ -642,7 +688,7 @@ const { data: existingSession, error: sessionError } = await supabase
     flaggedQuestionsRef.current = updated
     setFlaggedQuestions(updated)
     setSaveStatus('saving')
-    if (examId) localStorage.setItem(`cbt_flags_${examId}`, JSON.stringify(updated))
+    if (examId) localStorage.setItem(getSessionLocalKeys().flags, JSON.stringify(updated))
     scheduleAutosave()
   }
 
@@ -722,13 +768,14 @@ const { data: existingSession, error: sessionError } = await supabase
     const currentQuestions = questionsRef.current
     let localAnswerSnapshot: { [key: string]: any } = {}
     let localFlagSnapshot: { [key: string]: boolean } = {}
+    const submitLocalKeys = getSessionLocalKeys(activeSessId)
     try {
-      localAnswerSnapshot = JSON.parse(localStorage.getItem(`cbt_answers_${examId}`) || '{}') || {}
+      localAnswerSnapshot = JSON.parse(localStorage.getItem(submitLocalKeys.answers) || '{}') || {}
     } catch (error) {
       console.error('Cadangan jawaban lokal tidak dapat dibaca:', error)
     }
     try {
-      localFlagSnapshot = JSON.parse(localStorage.getItem(`cbt_flags_${examId}`) || '{}') || {}
+      localFlagSnapshot = JSON.parse(localStorage.getItem(submitLocalKeys.flags) || '{}') || {}
     } catch (error) {
       console.error('Cadangan status ragu lokal tidak dapat dibaca:', error)
     }
@@ -926,6 +973,9 @@ const { data: existingSession, error: sessionError } = await supabase
       }
 
       // 6. Hapus cadangan lokal hanya setelah penyimpanan berhasil
+      localStorage.removeItem(submitLocalKeys.answers)
+      localStorage.removeItem(submitLocalKeys.flags)
+      // Bersihkan juga format lama setelah sesi berhasil dikumpulkan.
       localStorage.removeItem(`cbt_answers_${examId}`)
       localStorage.removeItem(`cbt_flags_${examId}`)
       localStorage.removeItem(`cbt_start_time_${examId}`)
@@ -1108,7 +1158,7 @@ const { data: existingSession, error: sessionError } = await supabase
           </button>
 
           <div className="text-[10px] font-bold" aria-live="polite">
-            {saveStatus === 'saving' ? <span className="text-amber-300">⏳ Menyimpan jawaban…</span> : saveStatus === 'error' ? <span className="text-rose-300">⚠ Gagal menyimpan</span> : <span className="text-emerald-300">✓ Semua perubahan tersimpan</span>}
+            {!isOnline ? <span className="text-rose-300">⚠ Offline — jawaban tersimpan sementara di perangkat</span> : saveStatus === 'saving' ? <span className="text-amber-300">⏳ Menyimpan jawaban…</span> : saveStatus === 'error' ? <span className="text-rose-300">⚠ Gagal menyimpan — akan dicoba lagi</span> : <span className="text-emerald-300">✓ Semua perubahan tersimpan</span>}
           </div>
 
           <button
