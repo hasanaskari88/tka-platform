@@ -771,6 +771,7 @@ const { data: existingSession, error: sessionError } = await supabase
     }
 
     const currentQuestions = questionsRef.current
+    const activeSessId = sessionIdRef.current || sessionId
     let localAnswerSnapshot: { [key: string]: any } = {}
     let localFlagSnapshot: { [key: string]: boolean } = {}
     const submitLocalKeys = getSessionLocalKeys(activeSessId)
@@ -864,7 +865,6 @@ const { data: existingSession, error: sessionError } = await supabase
 
     
     const endTimeIso = new Date().toISOString()
-    let activeSessId = sessionIdRef.current || sessionId
 
     try {
       // 1. Pastikan pengguna masih login
