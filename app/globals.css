@@ -70,16 +70,22 @@ body {
   line-height: 2.2;
 }
 
-/* Pengaturan teks Arab dan Aksara Jawa */
-.math-rendered-content [dir="rtl"] {
+/* Standar font Aksara Jawa untuk seluruh website, editor, dan hasil jawaban.
+   Nama font lama pada HTML tersimpan dipetakan ke font utama agar konsisten. */
+.font-aksara-jawa,
+[lang="jv"],
+.math-renderer .aksara-jawa,
+.math-renderer [style*="Nyk Ngayogyan Jejeg"],
+.math-renderer [style*="Noto Javanese Local"] {
+  font-family: "Nyk Ngayogyan Jejeg", sans-serif !important;
+  line-height: 2.2;
+}
+
+/* Dukungan arah tulisan Arab pada hasil render. */
+.math-renderer [dir="rtl"] {
   direction: rtl;
   text-align: right;
   unicode-bidi: plaintext;
-}
-
-.math-rendered-content .aksara-jawa {
-  font-family: "Nyk Ngayogyan Jejeg", sans-serif;
-  line-height: 2.2;
 }
 
 /* Jangan memaksa warna semua judul, link, dan tombol. */
