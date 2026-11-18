@@ -1143,11 +1143,6 @@ const { data: existingSession, error: sessionError } = await supabase
                 if (target.closest('[contenteditable="true"], input, textarea, select')) return
                 event.preventDefault()
               }}
-              onSelectStart={(event) => {
-                const target = event.target as HTMLElement
-                if (target.closest('[contenteditable="true"], input, textarea, select')) return
-                event.preventDefault()
-              }}
             >
               <div
                 className={`flex justify-between items-center border-b pb-3 ${
