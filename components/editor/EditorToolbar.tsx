@@ -14,6 +14,7 @@ interface EditorToolbarProps {
   editor: Editor | null
   editorId: string
   mode?: 'full' | 'essay'
+  showJavaneseLatinConversion?: boolean
 }
 
 const buttonClass =
@@ -49,7 +50,7 @@ const alignments = [
   { value: 'justify', label: '☰ Rata', title: 'Rata kiri-kanan' },
 ] as const
 
-export default function EditorToolbar({ editor, editorId, mode = 'full' }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, editorId, mode = 'full', showJavaneseLatinConversion = true }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
   const [scriptKeyboardOpen, setScriptKeyboardOpen] = useState(false)
@@ -425,7 +426,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full' }: Edito
         )}
       </div>
 
-      {scriptKeyboardOpen && <ScriptKeyboard editor={editor} />}
+      {scriptKeyboardOpen && <ScriptKeyboard editor={editor} showLatinConversion={showJavaneseLatinConversion} />}
       {toolbarOpen && <TableControls editor={editor} />}
 
       <ImageDialog

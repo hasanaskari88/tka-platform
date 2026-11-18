@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 
-type ScriptKeyboardProps = { editor: Editor }
+type ScriptKeyboardProps = { editor: Editor; showLatinConversion?: boolean }
 
 const javaneseRows = [
   ['ꦲ', 'ꦤ', 'ꦕ', 'ꦫ', 'ꦏ', 'ꦢ', 'ꦠ', 'ꦱ', 'ꦮ', 'ꦭ'],
@@ -81,7 +81,7 @@ function latinToJavanese(input: string): string {
   return output
 }
 
-export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
+export default function ScriptKeyboard({ editor, showLatinConversion = true }: ScriptKeyboardProps) {
   const [language, setLanguage] = useState<'jv' | 'ar'>('jv')
   const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'pasangan' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
   const [latin, setLatin] = useState('')
@@ -160,6 +160,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
               ))}
             </div>
           )}
+          {showLatinConversion && (
           <div className="mt-3 rounded-lg bg-slate-50 p-3">
             <label className="mb-1 block text-xs font-semibold text-slate-700">Ketik Latin, lalu ubah ke Aksara Jawa (konversi dasar)</label>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -175,6 +176,7 @@ export default function ScriptKeyboard({ editor }: ScriptKeyboardProps) {
               Spasi Latin diabaikan agar rangkaian aksara tersambung. Huruf e memakai taling; gunakan ê atau ě untuk pepet. Periksa kembali pasangan dan ejaan sebelum menyimpan soal.
             </p>
           </div>
+          )}
         </>
       ) : (
         <>

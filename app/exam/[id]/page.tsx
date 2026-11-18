@@ -1451,6 +1451,7 @@ const { data: existingSession, error: sessionError } = await supabase
                     placeholder="Tuliskan jawaban lengkap Anda di sini..."
                     editable={!isSubmitting && timeLeft !== 0 && sessionStatus === 'ongoing'}
                     toolbarMode="essay"
+                    showJavaneseLatinConversion={false}
                     minHeight={180}
                     className="w-full shadow-inner select-text"
                   />
