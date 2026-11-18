@@ -185,6 +185,15 @@ function ExamEngineContent() {
     }
   }
 
+  function clearLocalSubmissionBackup(activeSessionId: string | null) {
+    const keys = getSessionLocalKeys(activeSessionId)
+    localStorage.removeItem(keys.answers)
+    localStorage.removeItem(keys.flags)
+    localStorage.removeItem(`cbt_answers_${examId}`)
+    localStorage.removeItem(`cbt_flags_${examId}`)
+    localStorage.removeItem(`cbt_start_time_${examId}`)
+  }
+
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
     if (!examId) return
@@ -767,24 +776,45 @@ const { data: existingSession, error: sessionError } = await supabase
       return
     }
 
-    let totalPointsEarned = 0
-    let totalMaxPoints = 0
+    const currentQuestions = questionsRef.current
+    const activeSessId = sessionIdRef.current || sessionId
 
     try {
-      // Verifikasi sesi aktif sebelum flush; validasi penuh tetap dilakukan di bawah.
+      if (!user) throw new Error('Sesi login tidak ditemukan. Silakan login kembali.')
+      if (!activeSessId) throw new Error('Sesi ujian tidak ditemukan. Silakan muat ulang halaman.')
+
+      // Periksa status di server sebelum autosave terakhir. Jika permintaan submit
+      // sebelumnya sebenarnya berhasil tetapi responsnya terputus, jangan tulis ulang
+      // jawaban; cukup bersihkan backup dan arahkan peserta ke ringkasan.
+      const { data: latestSession, error: latestSessionError } = await supabase
+        .from('exam_sessions')
+        .select('id, status')
+        .eq('id', activeSessId)
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (latestSessionError) throw new Error(`Gagal memeriksa status sesi: ${latestSessionError.message}`)
+      if (!latestSession) throw new Error('Sesi ujian tidak ditemukan. Cadangan jawaban lokal tetap dipertahankan.')
+      if (latestSession.status === 'completed') {
+        clearLocalSubmissionBackup(activeSessId)
+        router.replace(`/exam/${examId}/summary?session_id=${activeSessId}`)
+        return
+      }
+      if (latestSession.status !== 'ongoing') {
+        throw new Error('Sesi ujian tidak lagi aktif. Muat ulang halaman untuk memeriksa status terbaru.')
+      }
+
       setSaveStatus('saving')
       await flushAutosave()
     } catch (error) {
-      console.error('Autosave terakhir gagal:', error)
+      console.error('Verifikasi sesi atau autosave terakhir gagal:', error)
       setSaveStatus('error')
-      alert('Jawaban terakhir gagal disimpan. Ujian belum dikirim. Silakan coba lagi.')
+      alert(`${error instanceof Error ? error.message : 'Jawaban terakhir gagal disimpan.'}\\n\\nUjian belum dikirim. Cadangan jawaban lokal tetap disimpan; silakan coba lagi.`)
       isSubmittingRef.current = false
       setIsSubmitting(false)
       return
     }
-
-    const currentQuestions = questionsRef.current
-    const activeSessId = sessionIdRef.current || sessionId
     let localAnswerSnapshot: { [key: string]: any } = {}
     let localFlagSnapshot: { [key: string]: boolean } = {}
     const submitLocalKeys = getSessionLocalKeys(activeSessId)
@@ -885,40 +915,8 @@ const { data: existingSession, error: sessionError } = await supabase
         throw new Error('Sesi login tidak ditemukan. Silakan login kembali.')
       }
 
-      // 2. Pastikan sesi ujian tersedia
-      // 2. Pastikan sesi yang akan diselesaikan masih ada dan aktif
-      if (!activeSessId) {
-        throw new Error(
-          'Sesi ujian tidak ditemukan. Silakan muat ulang halaman.'
-        )
-      }
-
-      const { data: activeSession, error: sessionCheckError } = await supabase
-        .from('exam_sessions')
-        .select('id, status')
-        .eq('id', activeSessId)
-        .eq('exam_id', examId)
-        .eq('user_id', user.id)
-        .maybeSingle()
-
-      if (sessionCheckError) {
-        throw new Error(
-          `Gagal memeriksa sesi ujian: ${sessionCheckError.message}`
-        )
-      }
-
-      if (!activeSession) {
-        throw new Error(
-          'Sesi ujian sudah dihapus atau tidak ditemukan. Muat ulang halaman untuk memulai kembali.'
-        )
-      }
-
-      if (activeSession.status !== 'ongoing') {
-        throw new Error(
-          'Sesi ujian tidak lagi aktif. Muat ulang halaman untuk memeriksa status terbaru.'
-        )
-      }
-
+      // Status sesi sudah diverifikasi sebelum flushAutosave agar sesi selesai
+      // tidak menerima penulisan ulang dari proses autosave.
       // 3. Siapkan semua jawaban, termasuk soal yang tidak dijawab
       const answerRecords = currentQuestions.map((q) => {
         const rawAns = currentAnswers[q.id]
@@ -983,20 +981,31 @@ const { data: existingSession, error: sessionError } = await supabase
         .maybeSingle()
 
       if (finishError || !completedSession) {
+        // Update bisa saja berhasil di database tetapi respons jaringan terputus.
+        // Baca ulang status sebelum menampilkan kegagalan agar submit bersifat idempoten.
+        const { data: verifiedSession, error: verifyError } = await supabase
+          .from('exam_sessions')
+          .select('id, status')
+          .eq('id', activeSessId)
+          .eq('exam_id', examId)
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (!verifyError && verifiedSession?.status === 'completed') {
+          clearLocalSubmissionBackup(activeSessId)
+          router.replace(`/exam/${examId}/summary?session_id=${activeSessId}`)
+          return
+        }
+
         throw new Error(
-          `Jawaban sudah dikirim, tetapi status selesai gagal diperbarui: ${
-            finishError?.message || 'Sesi tidak ditemukan atau akses ditolak'
+          `Jawaban sudah tersimpan, tetapi status selesai belum dapat dikonfirmasi: ${
+            finishError?.message || verifyError?.message || 'Sesi belum berstatus selesai'
           }`
         )
       }
 
-      // 6. Hapus cadangan lokal hanya setelah penyimpanan berhasil
-      localStorage.removeItem(submitLocalKeys.answers)
-      localStorage.removeItem(submitLocalKeys.flags)
-      // Bersihkan juga format lama setelah sesi berhasil dikumpulkan.
-      localStorage.removeItem(`cbt_answers_${examId}`)
-      localStorage.removeItem(`cbt_flags_${examId}`)
-      localStorage.removeItem(`cbt_start_time_${examId}`)
+      // 6. Hapus cadangan lokal hanya setelah penyimpanan dan status selesai terkonfirmasi.
+      clearLocalSubmissionBackup(activeSessId)
 
       router.push(
         `/exam/${examId}/summary?session_id=${activeSessId}`
