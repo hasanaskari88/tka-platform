@@ -269,33 +269,46 @@ function ExamSummaryContent() {
       if (questionData) setQuestions(questionData)
 
       // 3. Data Sesi Ujian & Jawaban Siswa
+      // Ringkasan hanya boleh dibuka oleh pemilik sesi yang sedang login.
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        router.replace('/login')
+        setLoading(false)
+        return
+      }
+
       let currentSessionId = sessionId
 
       if (!currentSessionId) {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-          const { data: lastSession } = await supabase
-            .from('exam_sessions')
-            .select('*')
-            .eq('exam_id', examId)
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single()
+        const { data: lastSession } = await supabase
+          .from('exam_sessions')
+          .select('*')
+          .eq('exam_id', examId)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
 
-          if (lastSession) {
-            currentSessionId = lastSession.id
-            setSessionData(lastSession)
-          }
+        if (lastSession) {
+          currentSessionId = lastSession.id
+          setSessionData(lastSession)
         }
       } else {
         const { data: session } = await supabase
           .from('exam_sessions')
           .select('*')
           .eq('id', currentSessionId)
+          .eq('user_id', user.id)
           .single()
 
-        if (session) setSessionData(session)
+        if (!session) {
+          // Jangan memuat jawaban jika sesi bukan milik akun ini atau tidak ditemukan.
+          setLoading(false)
+          router.replace('/')
+          return
+        }
+
+        setSessionData(session)
       }
 
       // 4. Jawaban Rinci dengan Auto-Parsing JSON
