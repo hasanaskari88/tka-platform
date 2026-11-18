@@ -2747,13 +2747,13 @@ const handleSaveAllQuestionScores = async () => {
                   </button>
             
                   <span className="text-xs text-slate-300">
-                    Peserta {gradingSessionIndex + 1} dari {sortedSessions.length}
+                    Peserta {gradingSessionIndex + 1} dari {gradingSortedSessions.length}
                   </span>
             
                   <button
                     type="button"
                     onClick={() => goToGradingSession(gradingSessionIndex + 1)}
-                    disabled={gradingSessionIndex >= sortedSessions.length - 1}
+                    disabled={gradingSessionIndex >= gradingSortedSessions.length - 1}
                     className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold"
                   >
                     Berikutnya →
