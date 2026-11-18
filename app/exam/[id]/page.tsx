@@ -1035,10 +1035,17 @@ const { data: existingSession, error: sessionError } = await supabase
   // Jika halaman dibuka kembali setelah batas waktu, kirim sesi yang masih aktif
   // menggunakan jawaban hasil pemulihan Supabase + localStorage.
   useEffect(() => {
-    // Jika waktu habis saat offline, tunggu sampai koneksi pulih sebelum submit.
-    if (loading || !isOnline || timeLeft !== 0 || sessionStatus !== 'ongoing' || !sessionId) return
+    // Jika waktu habis saat offline atau foto masih diunggah, tunggu hingga aman submit.
+    if (
+      loading ||
+      !isOnline ||
+      photoUploadInProgress ||
+      timeLeft !== 0 ||
+      sessionStatus !== 'ongoing' ||
+      !sessionId
+    ) return
     handleFinishExam(true)
-  }, [loading, isOnline, timeLeft, sessionStatus, sessionId])
+  }, [loading, isOnline, photoUploadInProgress, timeLeft, sessionStatus, sessionId])
 
   if (loading) {
     return (
