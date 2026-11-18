@@ -239,11 +239,15 @@ function ExamEngineContent() {
     setParticipantClass(participantProfile?.class_code || '')
 
     // B. Fetch Data Ujian
-    const { data: examData } = await supabase
+    const { data: examData, error: examError } = await supabase
       .from('exams')
       .select('*')
       .eq('id', examId)
       .single()
+
+    if (examError) {
+      throw new Error(`Gagal memuat data ujian: ${examError.message}`)
+    }
 
     if (!examData) {
       alert('Ujian tidak ditemukan!')
@@ -252,11 +256,15 @@ function ExamEngineContent() {
     }
 
     // C. Fetch Data Soal
-    const { data: questionData } = await supabase
+    const { data: questionData, error: questionError } = await supabase
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
       .order('created_at', { ascending: true })
+
+    if (questionError) {
+      throw new Error(`Gagal memuat daftar soal: ${questionError.message}`)
+    }
 
     if (questionData) {
       let processedQuestions = [...questionData]
@@ -406,7 +414,12 @@ const { data: existingSession, error: sessionError } = await supabase
         .select('question_id, user_answer, selected_option, selected_answers, is_flagged')
         .eq('session_id', currentSessId)
 
-      if (savedRowsError) console.error('Gagal memulihkan jawaban dari Supabase:', savedRowsError)
+      if (savedRowsError) {
+        // Jangan lanjutkan dengan jawaban kosong: autosave berikutnya bisa menimpa
+        // jawaban server yang sebenarnya. Error akan menampilkan opsi coba lagi,
+        // sementara cadangan lokal tetap dipertahankan.
+        throw new Error(`Gagal memulihkan jawaban dari Supabase: ${savedRowsError.message}`)
+      }
 
       const remoteAnswers: { [key: string]: any } = {}
       const remoteFlags: { [key: string]: boolean } = {}
