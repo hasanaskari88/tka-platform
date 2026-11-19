@@ -115,8 +115,8 @@ export default function ExamPreviewPage() {
   }
 
   if (loading) return <main className="min-h-screen bg-slate-100 p-8 text-slate-600">Memuat preview ujian...</main>
-  if (error) return <main className="min-h-screen bg-slate-100 p-8"><p className="text-red-700">{error}</p><Link href={`/admin/exam/${examId}/questions`} className="mt-4 inline-block text-blue-700 underline">Kembali ke bank soal</Link></main>
-  if (!questions.length) return <main className="min-h-screen bg-slate-100 p-8"><p>Belum ada soal untuk dipreview.</p><Link href={`/admin/exam/${examId}/questions`} className="text-blue-700 underline">Kembali ke bank soal</Link></main>
+  if (error) return <main className="min-h-screen bg-slate-100 p-8"><p className="text-red-700">{error}</p><Link href={`/admin/exam/${examId}`} className="mt-4 inline-block text-blue-700 underline">Kembali ke bank soal</Link></main>
+  if (!questions.length) return <main className="min-h-screen bg-slate-100 p-8"><p>Belum ada soal untuk dipreview.</p><Link href={`/admin/exam/${examId}`} className="text-blue-700 underline">Kembali ke bank soal</Link></main>
 
   return (
     <main className="min-h-screen bg-slate-100 text-slate-900">
@@ -128,7 +128,7 @@ export default function ExamPreviewPage() {
         <div className="flex items-center gap-3 text-xs">
           <span>{index + 1}/{questions.length} soal</span>
           <span className="rounded-lg bg-slate-800 px-3 py-2">{answeredCount} dijawab</span>
-          <Link href={`/admin/exam/${examId}/questions`} className="rounded-lg border border-slate-600 px-3 py-2 hover:bg-slate-800">Keluar Preview</Link>
+          <Link href={`/admin/exam/${examId}`} className="rounded-lg border border-slate-600 px-3 py-2 hover:bg-slate-800">Keluar Preview</Link>
         </div>
       </header>
 
