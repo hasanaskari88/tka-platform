@@ -72,6 +72,7 @@ function BankSoalManagementContent() {
   const [quickAuthorName, setQuickAuthorName] = useState('')
   const [editingAuthorExamId, setEditingAuthorExamId] = useState<string | null>(null)
   const [quickExamAuthorName, setQuickExamAuthorName] = useState('')
+  const [expandedDescriptionIds, setExpandedDescriptionIds] = useState<string[]>([])
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [duplicatingExamId, setDuplicatingExamId] = useState<string | null>(null)
@@ -1077,240 +1078,237 @@ const handleQuickExamAuthorSave = async (examId: string) => {
             </h2>
 
             
-            {/* MULAI PERBAIKAN DAFTAR UJIAN */}
+            {/* DAFTAR PAKET — layout responsif agar judul, deskripsi, dan tombol tidak saling berebut ruang */}
             {loading ? (
-              <p className="text-slate-500 text-sm">
+              <p className="rounded-xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
                 Memuat daftar ujian...
               </p>
             ) : filteredAndSortedExams.length > 0 ? (
-              filteredAndSortedExams.map((exam) => (
-                <div
-                  key={exam.id}
-                  className={`bg-white p-5 rounded-xl border shadow-sm space-y-3 ${
-                    exam.is_published
-                      ? 'border-slate-200'
-                      : 'border-amber-300 bg-amber-50/30'
-                  }`}
-                >
-                  {/* BAGIAN ATAS: INFORMASI DAN TOMBOL */}
-                  <div className="flex flex-col sm:flex-row justify-between gap-4">
+              <div className="grid grid-cols-1 gap-4">
+                {filteredAndSortedExams.map((exam) => {
+                  const examDescription = String(exam.description || '')
+                  const descriptionExpanded = expandedDescriptionIds.includes(exam.id)
+                  const hasLongDescription = examDescription.length > 150
 
-                    {/* KOLOM KIRI: INFORMASI UJIAN */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <span className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-full uppercase">
-                          {exam.subtest}
-                        </span>
+                  return (
+                    <article
+                      key={exam.id}
+                      className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md ${
+                        exam.is_published
+                          ? 'border-slate-200'
+                          : 'border-amber-300 bg-amber-50/20'
+                      }`}
+                    >
+                      <div className="grid grid-cols-1 gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+                        {/* Informasi paket */}
+                        <section className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="max-w-full break-words rounded-full bg-indigo-50 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-indigo-700">
+                              {exam.subtest || 'Tanpa Subtes'}
+                            </span>
 
-                        <button
-                          type="button"
-                          onClick={() => handleTogglePublish(exam)}
-                          className={`px-2 py-0.5 text-[10px] font-bold rounded border cursor-pointer transition-colors ${
-                            exam.is_published
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
-                          }`}
-                          title="Klik untuk mengubah status visibilitas siswa"
-                        >
-                          {exam.is_published
-                            ? '🟢 Tampil pada Siswa'
-                            : '🔴 Sembunyi dari Siswa'}
-                        </button>
-
-                        <span className="text-xs text-slate-400">
-                          ⏱ {exam.duration_minutes || 15} Menit
-                        </span>
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
-                          getExamScheduleStatus(exam) === 'OPEN' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                          getExamScheduleStatus(exam) === 'UPCOMING' ? 'bg-sky-50 text-sky-700 border-sky-200' :
-                          getExamScheduleStatus(exam) === 'CLOSED' || getExamScheduleStatus(exam) === 'INCOMPLETE' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                          'bg-slate-100 text-slate-600 border-slate-200'
-                        }`}>
-                          {getExamScheduleLabel(exam)}
-                        </span>
-                      </div>
-
-                      <h3 className="text-base font-bold text-slate-800 mt-1">
-                        {exam.title}
-                      </h3>
-
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {exam.description || 'Tidak ada deskripsi'}
-                      </p>
-
-                      {/* TOMBOL EDIT DAN EDIT PENULIS */}
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        <button
-                          type="button"
-                          onClick={() => handleEditClick(exam)}
-                          className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold rounded-lg"
-                        >
-                          ✏️ Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingAuthorExamId(exam.id)
-                            setQuickExamAuthorName(
-                              exam.author_display_name ||
-                              exam.author?.full_name ||
-                              ''
-                            )
-                          }}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
-                        >
-                          ✍️ Edit Penulis
-                        </button>
-                      </div>
-
-                      {/* FORM EDIT NAMA PENULIS */}
-                      {editingAuthorExamId === exam.id && (
-                        <div className="mt-3 p-3 rounded-lg bg-indigo-50 border border-indigo-200 space-y-2">
-                          <label className="block text-xs font-bold text-indigo-800">
-                            UBAH NAMA PENULIS UJIAN
-                          </label>
-
-                          <input
-                            type="text"
-                            value={quickExamAuthorName}
-                            onChange={(e) =>
-                              setQuickExamAuthorName(e.target.value)
-                            }
-                            placeholder="Masukkan nama penulis..."
-                            className="w-full p-2 border border-indigo-200 rounded-lg text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-
-                          <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() =>
-                                handleQuickExamAuthorSave(exam.id)
-                              }
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg"
+                              onClick={() => handleTogglePublish(exam)}
+                              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors ${
+                                exam.is_published
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                  : 'border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100'
+                              }`}
+                              title="Klik untuk mengubah status visibilitas siswa"
                             >
-                              💾 Simpan
+                              {exam.is_published ? '🟢 Tampil pada Siswa' : '🔴 Sembunyi dari Siswa'}
+                            </button>
+
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-600">
+                              ⏱ {exam.duration_minutes || 15} menit
+                            </span>
+
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+                              getExamScheduleStatus(exam) === 'OPEN' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' :
+                              getExamScheduleStatus(exam) === 'UPCOMING' ? 'border-sky-200 bg-sky-50 text-sky-700' :
+                              getExamScheduleStatus(exam) === 'CLOSED' || getExamScheduleStatus(exam) === 'INCOMPLETE' ? 'border-amber-200 bg-amber-50 text-amber-700' :
+                              'border-slate-200 bg-slate-100 text-slate-600'
+                            }`}>
+                              {getExamScheduleLabel(exam)}
+                            </span>
+                          </div>
+
+                          <h3 className="mt-3 break-words text-lg font-extrabold leading-snug text-slate-900 [overflow-wrap:anywhere]">
+                            {exam.title || 'Paket tanpa judul'}
+                          </h3>
+
+                          <div className="mt-1.5">
+                            <p className={`break-words text-xs leading-relaxed text-slate-600 [overflow-wrap:anywhere] ${
+                              descriptionExpanded ? 'whitespace-pre-line' : 'line-clamp-2'
+                            }`}>
+                              {examDescription || 'Tidak ada deskripsi atau petunjuk.'}
+                            </p>
+                            {hasLongDescription && (
+                              <button
+                                type="button"
+                                onClick={() => setExpandedDescriptionIds((current) =>
+                                  descriptionExpanded
+                                    ? current.filter((id) => id !== exam.id)
+                                    : [...current, exam.id]
+                                )}
+                                className="mt-1 text-[11px] font-bold text-indigo-600 hover:text-indigo-800"
+                              >
+                                {descriptionExpanded ? 'Tutup deskripsi' : 'Baca deskripsi lengkap'}
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditClick(exam)}
+                              className="inline-flex min-h-9 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-800 transition hover:bg-amber-100"
+                            >
+                              ✏️ Edit Paket
                             </button>
 
                             <button
                               type="button"
                               onClick={() => {
-                                setEditingAuthorExamId(null)
-                                setQuickExamAuthorName('')
+                                setEditingAuthorExamId(exam.id)
+                                setQuickExamAuthorName(exam.author_display_name || exam.author?.full_name || '')
                               }}
-                              className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg"
+                              className="inline-flex min-h-9 items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-indigo-700"
                             >
-                              Batal
+                              ✍️ Edit Penulis
                             </button>
                           </div>
-                        </div>
-                      )}
-                    </div>
 
-                    {/* KOLOM KANAN: TOMBOL KELOLA UJIAN */}
-                    <div className="flex items-start flex-wrap gap-2 shrink-0">
-                      <Link
-                        href={`/admin/exam/${exam.id}/results`}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        📊 Rekap Nilai
-                      </Link>
+                          {editingAuthorExamId === exam.id && (
+                            <div className="mt-3 space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3">
+                              <label className="block text-xs font-bold text-indigo-900">
+                                Ubah nama penulis ujian
+                              </label>
+                              <input
+                                type="text"
+                                value={quickExamAuthorName}
+                                onChange={(e) => setQuickExamAuthorName(e.target.value)}
+                                placeholder="Masukkan nama penulis..."
+                                className="w-full rounded-lg border border-indigo-200 bg-white p-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickExamAuthorSave(exam.id)}
+                                  className="min-h-9 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700"
+                                >
+                                  💾 Simpan
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingAuthorExamId(null)
+                                    setQuickExamAuthorName('')
+                                  }}
+                                  className="min-h-9 rounded-lg bg-white px-3 py-2 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50"
+                                >
+                                  Batal
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </section>
 
-                      <Link
-                        href={`/admin/exam/${exam.id}/monitor`}
-                        className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        👁️ Pengawasan Live
-                      </Link>
+                        {/* Aksi utama: grid pada layar kecil, panel rapi pada desktop */}
+                        <aside className="min-w-0 border-t border-slate-100 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+                          <p className="mb-2 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                            Aksi pengelolaan
+                          </p>
+                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2">
+                            <Link
+                              href={`/admin/exam/${exam.id}/results`}
+                              className="flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-2 py-2 text-center text-[11px] font-bold leading-tight text-white transition hover:bg-emerald-700"
+                            >
+                              📊 Rekap Nilai
+                            </Link>
+                            <Link
+                              href={`/admin/exam/${exam.id}/monitor`}
+                              className="flex min-h-10 items-center justify-center rounded-lg bg-sky-600 px-2 py-2 text-center text-[11px] font-bold leading-tight text-white transition hover:bg-sky-700"
+                            >
+                              👁️ Pengawasan Live
+                            </Link>
+                            <Link
+                              href={`/admin/exam/${exam.id}`}
+                              className="flex min-h-10 items-center justify-center rounded-lg bg-indigo-600 px-2 py-2 text-center text-[11px] font-bold leading-tight text-white transition hover:bg-indigo-700"
+                            >
+                              📝 Kelola Soal
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDuplicateExam(exam)}
+                              disabled={duplicatingExamId !== null}
+                              className="flex min-h-10 items-center justify-center rounded-lg bg-violet-50 px-2 py-2 text-center text-[11px] font-bold leading-tight text-violet-700 transition hover:bg-violet-100 disabled:opacity-50"
+                            >
+                              {duplicatingExamId === exam.id ? 'Menyalin…' : '⧉ Duplikasi'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteExam(exam.id, exam.title)}
+                              className="col-span-2 flex min-h-10 items-center justify-center rounded-lg border border-rose-200 bg-rose-50 px-2 py-2 text-center text-[11px] font-bold leading-tight text-rose-700 transition hover:bg-rose-100 sm:col-span-1 lg:col-span-2"
+                            >
+                              🗑️ Hapus Paket
+                            </button>
+                          </div>
+                        </aside>
+                      </div>
 
-                      <Link
-                        href={`/admin/exam/${exam.id}`}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        Kelola Soal →
-                      </Link>
+                      {/* Ringkasan pengaturan paket */}
+                      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50/70 px-4 py-3 text-[10px] font-semibold sm:px-5">
+                        {exam.token || exam.token_code ? (
+                          <span className="max-w-full break-words rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 font-mono text-amber-800">
+                            🔑 Token: {exam.token || exam.token_code}
+                          </span>
+                        ) : (
+                          <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-emerald-700">
+                            🔓 Tanpa Token
+                          </span>
+                        )}
 
-                      <button
-                        type="button"
-                        onClick={() => handleDuplicateExam(exam)}
-                        disabled={duplicatingExamId !== null}
-                        className="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 disabled:opacity-50 text-violet-700 text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        {duplicatingExamId === exam.id ? 'Menyalin…' : '⧉ Duplikasi'}
-                      </button>
+                        {exam.start_time && exam.end_time ? (
+                          <span className="max-w-full break-words rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-sky-800">
+                            🗓️ {formatJakartaDateTime(exam.start_time)} – {formatJakartaDateTime(exam.end_time)} WIB
+                          </span>
+                        ) : exam.start_time || exam.end_time ? (
+                          <span className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-amber-800">
+                            ⚠️ Jadwal belum lengkap — edit paket
+                          </span>
+                        ) : (
+                          <span className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-600">
+                            ⚡ Tanpa jadwal
+                          </span>
+                        )}
 
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleDeleteExam(exam.id, exam.title)
-                        }
-                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold rounded-lg transition-colors"
-                      >
-                        Hapus
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* BAGIAN BAWAH: TOKEN DAN PENGATURAN UJIAN */}
-                  <div className="flex flex-wrap gap-2 text-[11px] pt-3 border-t border-slate-100 font-medium">
-                    {exam.token || exam.token_code ? (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded font-mono font-bold">
-                        🔑 Token: {exam.token || exam.token_code}
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded font-semibold">
-                        🔓 Tanpa Token
-                      </span>
-                    )}
-
-                    {exam.start_time && exam.end_time ? (
-                      <span className="px-2 py-0.5 bg-sky-50 text-sky-800 border border-sky-200 rounded">
-                        🗓️ {formatJakartaDateTime(exam.start_time)} – {formatJakartaDateTime(exam.end_time)} WIB
-                      </span>
-                    ) : exam.start_time || exam.end_time ? (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-800 border border-amber-200 rounded">
-                        ⚠️ Jadwal belum lengkap — edit paket
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-slate-50 text-slate-600 border border-slate-200 rounded">
-                        ⚡ Tanpa jadwal
-                      </span>
-                    )}
-
-                    {exam.shuffle_questions && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
-                        🔀 Soal Diacak
-                      </span>
-                    )}
-
-                    {exam.shuffle_options && (
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded">
-                        🔀 Opsi Diacak
-                      </span>
-                    )}
-
-                    {exam.show_results ? (
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
-                        📊 Tampil Nilai
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded">
-                        🚫 Nilai Sembunyi
-                      </span>
-                    )}
-
-                    <span className="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-bold uppercase">
-                      {exam.target_mode === 'PRACTICE_ONLY'
-                        ? '🎮 Latihan Mandiri'
-                        : exam.target_mode === 'EXAM_ONLY'
-                        ? '🎯 Ujian Resmi'
-                        : '🌐 CBT & Latihan'}
-                    </span>
-                  </div>
-                </div>
-              ))
+                        {exam.shuffle_questions && (
+                          <span className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-indigo-700">🔀 Soal Diacak</span>
+                        )}
+                        {exam.shuffle_options && (
+                          <span className="rounded-lg border border-indigo-100 bg-indigo-50 px-2.5 py-1.5 text-indigo-700">🔀 Opsi Diacak</span>
+                        )}
+                        {exam.show_results ? (
+                          <span className="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-emerald-700">📊 Tampil Nilai</span>
+                        ) : (
+                          <span className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-rose-700">🚫 Nilai Disembunyikan</span>
+                        )}
+                        <span className="rounded-lg border border-purple-100 bg-purple-50 px-2.5 py-1.5 font-bold uppercase text-purple-700">
+                          {exam.target_mode === 'PRACTICE_ONLY'
+                            ? '🎮 Latihan Mandiri'
+                            : exam.target_mode === 'EXAM_ONLY'
+                            ? '🎯 Ujian Resmi'
+                            : '🌐 CBT & Latihan'}
+                        </span>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
             ) : (
-              <div className="bg-white p-8 text-center rounded-xl border border-slate-200 text-slate-500 text-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
                 Tidak ada modul / paket ujian pada kategori tab atau filter subtes ini.
               </div>
             )}
