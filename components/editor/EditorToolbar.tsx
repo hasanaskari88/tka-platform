@@ -29,7 +29,7 @@ const fontOptions = [
   { label: 'Times New Roman', value: 'Times New Roman' },
   { label: 'Verdana', value: 'Verdana' },
   { label: 'Font Arab', value: 'Noto Arabic Local' },
-  { label: 'Aksara Jawa · nyk Ngayogyan Jejeg', value: 'Nyk Ngayogyan Jejeg' },
+  { label: 'Aksara Jawa · Nyk Ngayogyan Jejeg', value: 'Nyk Ngayogyan Jejeg' },
 ]
 
 const sizeOptions = [
