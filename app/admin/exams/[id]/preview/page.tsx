@@ -105,6 +105,8 @@ export default function ExamPreviewPage() {
   const options = Array.isArray(question?.options) ? question.options : []
   const currentAnswer = question ? answers[question.id] : undefined
   const answeredCount = Object.values(answers).filter((value) => value !== undefined && value !== null && value !== '').length
+  const checkedCount = Object.values(checkedQuestions).filter(Boolean).length
+  const correctCount = questions.filter((item) => checkedQuestions[item.id] && getAnswerCheck(item, answers[item.id]).status === 'correct').length
 
   function setAnswer(value: any) {
     if (!question) return
@@ -201,6 +203,7 @@ export default function ExamPreviewPage() {
         <aside className="h-fit rounded-2xl bg-white p-4 shadow-sm">
           <h2 className="mb-1 font-bold">Navigasi Soal</h2>
           <p className="mb-4 text-xs text-slate-500">Klik nomor untuk berpindah soal.</p>
+          <div className="mb-4 rounded-xl bg-indigo-50 p-3 text-xs text-indigo-900"><p className="font-bold">Hasil latihan sementara</p><p className="mt-1">Sudah diperiksa: {checkedCount} soal</p><p>Jawaban benar: {correctCount}</p></div>
           <div className="grid grid-cols-5 gap-2">{questions.map((item, i) => {
             const answered = answers[item.id] !== undefined && answers[item.id] !== null && answers[item.id] !== '' && (!Array.isArray(answers[item.id]) || answers[item.id].length > 0)
             return <button key={item.id} type="button" onClick={() => setIndex(i)} className={`aspect-square rounded-lg text-sm font-bold ${index === i ? 'bg-indigo-600 text-white' : answered ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>{i + 1}</button>
