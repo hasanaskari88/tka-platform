@@ -9,19 +9,10 @@
   font-display: swap;
 }
 
-/* FONT ALTERNATIF AKSARA JAWA: NYK NGAYOGYAN JEJEG */
+/* FONT AKSARA JAWA LOKAL UTAMA: NYK NGAYOGYAN JEJEG */
 @font-face {
   font-family: 'Nyk Ngayogyan Jejeg';
   src: url('/fonts/javanese/nyk%20Ngayogyan%20Jejeg.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* FONT AKSARA JAWA LOKAL */
-@font-face {
-  font-family: 'Noto Javanese Local';
-  src: url('/fonts/javanese/NotoSansJavanese-Regular.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -63,21 +54,15 @@ body {
   line-height: 2;
 }
 
-/* FONT KHUSUS AKSARA JAWA */
-.font-aksara-jawa,
-[lang="jv"] {
-  font-family: "Nyk Ngayogyan Jejeg", sans-serif;
-  line-height: 2.2;
-}
-
-/* Standar font Aksara Jawa untuk seluruh website, editor, dan hasil jawaban.
-   Nama font lama pada HTML tersimpan dipetakan ke font utama agar konsisten. */
+/* FONT AKSARA JAWA: SATU FONT LOKAL UNTUK SELURUH WEBSITE.
+   Nama font Noto pada HTML lama tetap dipetakan ke Nyk agar kompatibel. */
 .font-aksara-jawa,
 [lang="jv"],
-.math-renderer .aksara-jawa,
-.math-renderer [style*="Nyk Ngayogyan Jejeg"],
-.math-renderer [style*="Noto Javanese Local"] {
+.aksara-jawa,
+[style*="Nyk Ngayogyan Jejeg"],
+[style*="Noto Javanese Local"] {
   font-family: "Nyk Ngayogyan Jejeg", sans-serif !important;
+  font-synthesis: weight;
   line-height: 2.2;
 }
 
