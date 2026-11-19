@@ -847,6 +847,16 @@ function BankSoalContent() {
           </div>
         </div>
 
+        {/* Akses preview interaktif yang tidak menyimpan jawaban */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href={`/admin/exams/${examId}/preview`}
+            className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md transition-all"
+          >
+            👁 Preview seperti Siswa
+          </Link>
+        </div>
+
         {/* 4 TOMBOL AKSI */}
         <div className="flex flex-wrap items-center gap-2">
           {/* TOMBOL 1 */}
