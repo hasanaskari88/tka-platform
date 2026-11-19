@@ -133,7 +133,19 @@ function renderLegacyMath(html: string): string {
         return renderKatex(part.slice(1, -1), false)
       }
 
-      let formatted = part
+      // Konversi pecahan sederhana pada teks biasa menjadi KaTeX.
+      // Tag HTML (termasuk atribut/link) dilewati agar URL dan markup aman.
+      const formattedText = part.split(/(<[^>]*>)/g).map((segment) => {
+        if (segment.startsWith('<') && segment.endsWith('>')) return segment
+
+        return segment.replace(
+          /(^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./])/g,
+          (_match, prefix: string, numerator: string, denominator: string) =>
+            prefix + renderKatex('\\frac{' + numerator + '}{' + denominator + '}', false)
+        )
+      }).join('')
+
+      let formatted = formattedText
 
       // Dukungan format Markdown lama.
       formatted = formatted
