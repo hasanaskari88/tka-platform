@@ -3,6 +3,9 @@
 import { Suspense, useEffect, useState } from 'react'
 import RichTextEditor from '@/components/editor/RichTextEditor'
 import MathRenderer from '@/components/MathRenderer'
+import * as XLSX from 'xlsx'
+
+type LabQuestion = { question_text: string; image_url?: string | null; options: any[]; question_type: string; correct_option?: string; correct_answers?: any; correct_answer?: string; explanation?: string }
 
 const STORAGE_KEY = 'tka-platform-font-test-content-v1'
 
@@ -37,6 +40,10 @@ export default function FontTestPage() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('loading')
   const [lastSaved, setLastSaved] = useState<string | null>(null)
+  const [labQuestions, setLabQuestions] = useState<LabQuestion[]>([])
+  const [labAnswers, setLabAnswers] = useState<Record<number, any>>({})
+  const [activeLabQuestion, setActiveLabQuestion] = useState(0)
+  const [importMessage, setImportMessage] = useState('')
 
   // Memuat isi editor yang sebelumnya tersimpan di browser.
   useEffect(() => {
@@ -124,6 +131,71 @@ export default function FontTestPage() {
       setContent(INITIAL_CONTENT)
       setSaveStatus('error')
     }
+  }
+
+  // Impor hanya ke state halaman ini. Tidak ada penulisan ke Supabase.
+  async function importQuestionFile(file?: File) {
+    if (!file) return
+    try {
+      let rows: any[] = []
+      if (/\\.json$/i.test(file.name)) {
+        const parsed = JSON.parse(await file.text())
+        if (!Array.isArray(parsed)) throw new Error('File JSON harus berisi daftar soal berbentuk array.')
+        rows = parsed
+      } else {
+        const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' })
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]]
+        rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' })
+      }
+
+      const read = (row: any, names: string[]) => {
+        const key = Object.keys(row).find((item) => names.includes(item.trim().toLowerCase()))
+        return key ? row[key] : ''
+      }
+      const parsedQuestions: LabQuestion[] = rows.map((row: any, index: number) => {
+        const questionText = String(read(row, ['question_text', 'pertanyaan', 'soal', 'question']) || '').trim()
+        if (!questionText) return null
+        let options: any[] = []
+        const rawOptions = read(row, ['options', 'pilihan'])
+        if (Array.isArray(rawOptions)) options = rawOptions
+        else if (typeof rawOptions === 'string' && rawOptions.trim()) {
+          try { options = JSON.parse(rawOptions) } catch { options = [] }
+        }
+        if (!options.length) {
+          options = ['A', 'B', 'C', 'D'].map((key) => ({
+            key,
+            text: String(read(row, [`option_${key.toLowerCase()}`, `pilihan_${key.toLowerCase()}`, key.toLowerCase()]) || ''),
+          })).filter((option) => option.text)
+        }
+        const type = String(read(row, ['question_type', 'tipe_soal', 'jenis_soal']) || 'multiple_choice').toLowerCase()
+        let correctAnswers: any = read(row, ['correct_answers', 'kunci_jawaban', 'jawaban_benar'])
+        if (typeof correctAnswers === 'string' && /^[\\[{]/.test(correctAnswers.trim())) {
+          try { correctAnswers = JSON.parse(correctAnswers) } catch { /* pertahankan teks */ }
+        }
+        return {
+          question_text: questionText,
+          image_url: String(read(row, ['image_url', 'gambar']) || '') || null,
+          options,
+          question_type: type,
+          correct_option: String(read(row, ['correct_option', 'correct_answer', 'kunci', 'jawaban']) || 'A').toUpperCase(),
+          correct_answers: correctAnswers,
+          correct_answer: String(read(row, ['correct_answer', 'kunci', 'jawaban']) || ''),
+          explanation: String(read(row, ['explanation', 'pembahasan']) || ''),
+        }
+      }).filter(Boolean) as LabQuestion[]
+      if (!parsedQuestions.length) throw new Error('Tidak ditemukan soal. Pastikan kolom Pertanyaan/Soal terisi.')
+      setLabQuestions(parsedQuestions)
+      setLabAnswers({})
+      setActiveLabQuestion(0)
+      setImportMessage(`Berhasil memuat ${parsedQuestions.length} soal sementara. Data hanya berada di halaman ini.`)
+    } catch (error: any) {
+      setImportMessage(error?.message || 'File tidak dapat dibaca. Periksa format file.')
+    }
+  }
+
+  function resetLab() {
+    setLabAnswers({})
+    setActiveLabQuestion(0)
   }
 
   const saveStatusText = {
@@ -317,9 +389,71 @@ export default function FontTestPage() {
           </div>
         </section>
 
+        <section className="rounded-xl border border-emerald-200 bg-white p-4 shadow-sm md:p-6">
+          <div className="mb-3">
+            <h2 className="font-bold text-slate-800">4. Import Soal & Simulasi Siswa</h2>
+            <p className="mt-1 text-sm text-slate-600">Impor file Excel (.xlsx/.xls), CSV, atau JSON. Soal dan jawaban simulasi hanya disimpan sementara di memori halaman ini, tidak masuk database.</p>
+          </div>
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-emerald-300 bg-emerald-50 p-5 text-center hover:bg-emerald-100">
+            <span className="text-sm font-semibold text-emerald-800">Pilih file soal untuk dicoba</span>
+            <span className="text-xs text-emerald-700">Excel, CSV, atau JSON · gunakan sheet pertama untuk Excel</span>
+            <input type="file" accept=".xlsx,.xls,.csv,.json" className="max-w-full text-xs" onChange={(event) => importQuestionFile(event.target.files?.[0])} />
+          </label>
+          {importMessage && <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-700">{importMessage}</p>}
+          <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900">
+            Nama kolom yang dikenali: Pertanyaan/Soal, Pilihan A–D (atau kolom options), Kunci/Jawaban, Tipe Soal, Gambar, dan Pembahasan. Baris pertama file harus berisi judul kolom.
+          </div>
+          {labQuestions.length > 0 && (
+            <div className="mt-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Simulasi ujian sementara</p>
+                  <p className="text-xs text-slate-500">Soal {activeLabQuestion + 1} dari {labQuestions.length}</p>
+                </div>
+                <button type="button" onClick={resetLab} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Reset jawaban</button>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full bg-emerald-500" style={{ width: `${((activeLabQuestion + 1) / labQuestions.length) * 100}%` }} /></div>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-emerald-700">Mode Preview · Tidak menyimpan</span>
+                  <span className="text-xs text-slate-500">{labQuestions[activeLabQuestion].question_type}</span>
+                </div>
+                <div className="mb-3 font-medium text-slate-900"><MathRenderer content={labQuestions[activeLabQuestion].question_text} /></div>
+                {labQuestions[activeLabQuestion].image_url && <img src={labQuestions[activeLabQuestion].image_url || ''} alt="Gambar soal" className="mb-3 max-h-64 max-w-full rounded-lg object-contain" />}
+                {labQuestions[activeLabQuestion].question_type === 'essay' || labQuestions[activeLabQuestion].question_type === 'uraian' ? (
+                  <textarea value={labAnswers[activeLabQuestion] || ''} onChange={(event) => setLabAnswers((old) => ({ ...old, [activeLabQuestion]: event.target.value }))} rows={5} placeholder="Tuliskan jawaban..." className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900" />
+                ) : labQuestions[activeLabQuestion].question_type === 'true_false_matrix' ? (
+                  <div className="space-y-2">{labQuestions[activeLabQuestion].options.map((option: any, index: number) => {
+                    const label = option.text || option.statement || option.key || `Pernyataan ${index + 1}`
+                    const current = labAnswers[activeLabQuestion]?.[option.key || String(index)] || ''
+                    return <div key={option.key || index} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 p-3 text-sm text-slate-800"><span>{label}</span><select value={current} onChange={(event) => setLabAnswers((old) => ({ ...old, [activeLabQuestion]: { ...(old[activeLabQuestion] || {}), [option.key || String(index)]: event.target.value } }))} className="rounded border border-slate-300 p-2"><option value="">Pilih</option><option value="true">Benar</option><option value="false">Salah</option></select></div>
+                  })}</div>
+                ) : (
+                  <div className="space-y-2">{labQuestions[activeLabQuestion].options.map((option: any, index: number) => {
+                    const key = String(option.key || String.fromCharCode(65 + index))
+                    const text = typeof option === 'string' ? option : option.text || option.title || ''
+                    const multi = labQuestions[activeLabQuestion].question_type === 'complex_multiple_choice'
+                    const selected = labAnswers[activeLabQuestion]
+                    const checked = multi ? Array.isArray(selected) && selected.includes(key) : selected === key
+                    return <label key={key} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${checked ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}>
+                      <input type={multi ? 'checkbox' : 'radio'} name={`lab-question-${activeLabQuestion}`} checked={checked} onChange={() => setLabAnswers((old) => ({ ...old, [activeLabQuestion]: multi ? (checked ? selected.filter((item: string) => item !== key) : [...(selected || []), key]) : key }))} />
+                      <span className="font-semibold">{key}.</span><span>{text}</span>
+                    </label>
+                  })}</div>
+                )}
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <button type="button" disabled={activeLabQuestion === 0} onClick={() => setActiveLabQuestion((index) => Math.max(0, index - 1))} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-40">Sebelumnya</button>
+                <span className="text-xs text-slate-500">{Object.keys(labAnswers).length} soal dijawab</span>
+                <button type="button" disabled={activeLabQuestion >= labQuestions.length - 1} onClick={() => setActiveLabQuestion((index) => Math.min(labQuestions.length - 1, index + 1))} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">Berikutnya</button>
+              </div>
+            </div>
+          )}
+        </section>
+
         <section className="rounded-xl border border-blue-100 bg-blue-50 p-4">
           <h2 className="mb-2 font-bold text-slate-800">
-            4. Daftar Pengujian
+            5. Daftar Pengujian
           </h2>
 
           <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
