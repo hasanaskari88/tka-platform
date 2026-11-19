@@ -24,6 +24,47 @@ const INITIAL_CONTENT = `
 
 type SaveStatus = 'loading' | 'saving' | 'saved' | 'error'
 
+function labParseKeys(value: any): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim().toUpperCase()).filter(Boolean)
+  if (typeof value === 'string') {
+    const raw = value.trim()
+    if (!raw) return []
+    try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) return parsed.map((item: any) => String(item).trim().toUpperCase()).filter(Boolean) } catch {}
+    return raw.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean)
+  }
+  return []
+}
+
+function checkLabAnswer(q: LabQuestion, answer: any): { status: 'correct' | 'wrong' | 'incomplete' | 'no-key' | 'essay'; keyText: string } {
+  const type = q.question_type
+  if (type === 'essay' || type === 'uraian') {
+    const key = q.correct_answer || q.correct_answers || q.correct_option || ''
+    return { status: 'essay', keyText: typeof key === 'string' ? key : JSON.stringify(key || '') }
+  }
+  if (type === 'true_false_matrix') {
+    const keys = q.correct_answers && typeof q.correct_answers === 'object' && !Array.isArray(q.correct_answers) ? q.correct_answers : null
+    if (!keys || !Object.keys(keys).length) return { status: 'no-key', keyText: '' }
+    const ids = Object.keys(keys)
+    const keyText = Object.entries(keys).map(([id, val]) => `${id}: ${String(val).toLowerCase() === 'true' ? 'Benar' : 'Salah'}`).join(' · ')
+    if (!answer || !ids.every((id) => answer[id] !== undefined && answer[id] !== '')) return { status: 'incomplete', keyText }
+    return { status: ids.every((id) => String(answer[id]).toLowerCase() === String(keys[id]).toLowerCase()) ? 'correct' : 'wrong', keyText }
+  }
+  if (type === 'complex_multiple_choice') {
+    const keys = labParseKeys(q.correct_answers ?? q.correct_option ?? q.correct_answer)
+    if (!keys.length) return { status: 'no-key', keyText: '' }
+    const selected = Array.isArray(answer) ? answer.map((v) => String(v).toUpperCase()) : labParseKeys(answer)
+    if (!selected.length) return { status: 'incomplete', keyText: keys.join(', ') }
+    const ok = selected.length === keys.length && keys.every((key) => selected.includes(key)) && selected.every((key) => keys.includes(key))
+    return { status: ok ? 'correct' : 'wrong', keyText: keys.join(', ') }
+  }
+  const key = String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
+  if (!key) return { status: 'no-key', keyText: '' }
+  const selected = String(answer ?? '').trim().toUpperCase()
+  if (!selected) return { status: 'incomplete', keyText: key }
+  return { status: selected === key ? 'correct' : 'wrong', keyText: key }
+}
+
+
 const JAVANESE_SAMPLES = [
   { label: 'Aksara ra', text: 'ꦫ' },
   { label: 'Ra + wulu', text: 'ꦫꦶ' },
@@ -42,6 +83,7 @@ export default function FontTestPage() {
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [labQuestions, setLabQuestions] = useState<LabQuestion[]>([])
   const [labAnswers, setLabAnswers] = useState<Record<number, any>>({})
+  const [labChecked, setLabChecked] = useState<Record<number, boolean>>({})
   const [activeLabQuestion, setActiveLabQuestion] = useState(0)
   const [importMessage, setImportMessage] = useState('')
 
@@ -186,6 +228,7 @@ export default function FontTestPage() {
       if (!parsedQuestions.length) throw new Error('Tidak ditemukan soal. Pastikan kolom Pertanyaan/Soal terisi.')
       setLabQuestions(parsedQuestions)
       setLabAnswers({})
+      setLabChecked({})
       setActiveLabQuestion(0)
       setImportMessage(`Berhasil memuat ${parsedQuestions.length} soal sementara. Data hanya berada di halaman ini.`)
     } catch (error: any) {
@@ -195,6 +238,7 @@ export default function FontTestPage() {
 
   function resetLab() {
     setLabAnswers({})
+    setLabChecked({})
     setActiveLabQuestion(0)
   }
 
@@ -441,6 +485,18 @@ export default function FontTestPage() {
                     </label>
                   })}</div>
                 )}
+                <div className="mt-5 space-y-3 border-t border-slate-100 pt-4">
+                  <button type="button" onClick={() => setLabChecked((old) => ({ ...old, [activeLabQuestion]: true }))} disabled={!((labAnswers[activeLabQuestion] !== undefined) && (typeof labAnswers[activeLabQuestion] !== 'string' || labAnswers[activeLabQuestion].trim() !== ''))} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40">Periksa Jawaban</button>
+                  {labChecked[activeLabQuestion] && (() => {
+                    const q = labQuestions[activeLabQuestion]
+                    const result = checkLabAnswer(q, labAnswers[activeLabQuestion])
+                    return <div className={`rounded-lg border p-3 text-sm ${result.status === 'correct' ? 'border-emerald-200 bg-emerald-50' : result.status === 'wrong' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
+                      <p className="font-bold">{result.status === 'correct' ? '✓ Jawaban benar!' : result.status === 'wrong' ? '✕ Jawaban belum tepat.' : result.status === 'incomplete' ? 'Jawaban belum lengkap.' : result.status === 'essay' ? 'Periksa jawaban uraian dengan membandingkan kunci.' : 'Kunci jawaban belum tersedia.'}</p>
+                      {result.keyText && <p className="mt-2"><strong>Kunci jawaban:</strong> {result.keyText}</p>}
+                    </div>
+                  })()}
+                  {labQuestions[activeLabQuestion].explanation ? <details open={Boolean(labChecked[activeLabQuestion])} className="rounded-lg bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-semibold">Pembahasan</summary><div className="mt-2 text-sm"><MathRenderer content={labQuestions[activeLabQuestion].explanation || ''} /></div></details> : <p className="text-xs text-slate-500">Belum ada pembahasan untuk soal ini.</p>}
+                </div>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <button type="button" disabled={activeLabQuestion === 0} onClick={() => setActiveLabQuestion((index) => Math.max(0, index - 1))} className="rounded-lg border border-slate-300 px-4 py-2 text-sm disabled:opacity-40">Sebelumnya</button>
