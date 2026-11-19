@@ -6,12 +6,64 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
 
+
+function parseKeys(value: any): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim().toUpperCase()).filter(Boolean)
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return []
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) return parsed.map((item: any) => String(item).trim().toUpperCase()).filter(Boolean)
+      if (parsed && typeof parsed === 'object') return Object.keys(parsed)
+    } catch {}
+    return trimmed.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean)
+  }
+  return []
+}
+
+function getAnswerCheck(q: any, answer: any): { status: 'correct' | 'wrong' | 'incomplete' | 'no-key'; keyText: string } {
+  const type = q?.question_type || 'multiple_choice'
+  if (type === 'essay' || type === 'uraian') {
+    const key = q.correct_answer ?? q.correct_answers ?? q.correct_option ?? ''
+    return { status: 'no-key', keyText: typeof key === 'string' ? key : JSON.stringify(key || '') }
+  }
+  if (type === 'true_false_matrix') {
+    const keys = q.correct_answers && typeof q.correct_answers === 'object' && !Array.isArray(q.correct_answers)
+      ? q.correct_answers
+      : null
+    if (!keys || !Object.keys(keys).length) return { status: 'no-key', keyText: '' }
+    const ids = Object.keys(keys)
+    if (!answer || typeof answer !== 'object' || !ids.every((id) => answer[id] !== undefined && answer[id] !== '')) {
+      return { status: 'incomplete', keyText: Object.entries(keys).map(([id, val]) => `${id}: ${String(val).toLowerCase() === 'true' ? 'Benar' : 'Salah'}`).join(' · ') }
+    }
+    const correct = ids.every((id) => String(answer[id]).toLowerCase() === String(keys[id]).toLowerCase())
+    return { status: correct ? 'correct' : 'wrong', keyText: Object.entries(keys).map(([id, val]) => `${id}: ${String(val).toLowerCase() === 'true' ? 'Benar' : 'Salah'}`).join(' · ') }
+  }
+  if (type === 'complex_multiple_choice') {
+    const raw = q.correct_answers ?? q.correct_option ?? q.correct_answer
+    const keys = parseKeys(raw)
+    if (!keys.length) return { status: 'no-key', keyText: '' }
+    const selected = Array.isArray(answer) ? answer.map((v) => String(v).toUpperCase()) : parseKeys(answer)
+    if (!selected.length) return { status: 'incomplete', keyText: keys.join(', ') }
+    const correct = selected.length === keys.length && keys.every((key) => selected.includes(key)) && selected.every((key) => keys.includes(key))
+    return { status: correct ? 'correct' : 'wrong', keyText: keys.join(', ') }
+  }
+  const raw = q.correct_option ?? q.correct_answer ?? q.correct_key ?? q.answer ?? ''
+  const key = String(raw).trim().toUpperCase()
+  if (!key) return { status: 'no-key', keyText: '' }
+  const selected = String(answer ?? '').trim().toUpperCase()
+  if (!selected) return { status: 'incomplete', keyText: key }
+  return { status: selected === key ? 'correct' : 'wrong', keyText: key }
+}
+
 export default function ExamPreviewPage() {
   const params = useParams()
   const examId = params?.id as string
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [answers, setAnswers] = useState<Record<string, any>>({})
+  const [checkedQuestions, setCheckedQuestions] = useState<Record<string, boolean>>({})
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -57,6 +109,7 @@ export default function ExamPreviewPage() {
   function setAnswer(value: any) {
     if (!question) return
     setAnswers((old) => ({ ...old, [question.id]: value }))
+    setCheckedQuestions((old) => ({ ...old, [question.id]: false }))
   }
 
   if (loading) return <main className="min-h-screen bg-slate-100 p-8 text-slate-600">Memuat preview ujian...</main>
@@ -107,7 +160,37 @@ export default function ExamPreviewPage() {
             })}</div>
           )}
 
-          {question?.explanation && <details className="mt-6 rounded-xl bg-slate-50 p-3"><summary className="cursor-pointer text-sm font-semibold">Lihat pembahasan (mode guru)</summary><div className="mt-3 text-sm"><MathRenderer content={question.explanation} /></div></details>}
+          
+          <div className="mt-6 space-y-3">
+            <button
+              type="button"
+              onClick={() => setCheckedQuestions((old) => ({ ...old, [question.id]: true }))}
+              disabled={type !== 'essay' && type !== 'uraian' && !currentAnswer}
+              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Periksa Jawaban
+            </button>
+            {checkedQuestions[question.id] && (() => {
+              const result = getAnswerCheck(question, currentAnswer)
+              return (
+                <div className={`rounded-xl border p-4 ${result.status === 'correct' ? 'border-emerald-200 bg-emerald-50' : result.status === 'wrong' ? 'border-rose-200 bg-rose-50' : 'border-amber-200 bg-amber-50'}`}>
+                  <p className="font-bold text-sm">
+                    {result.status === 'correct' ? '✓ Jawaban benar!' : result.status === 'wrong' ? '✕ Jawaban belum tepat.' : result.status === 'incomplete' ? 'Jawaban belum lengkap.' : (type === 'essay' || type === 'uraian') ? 'Bandingkan dengan kunci jawaban berikut.' : 'Kunci jawaban belum diatur.'}
+                  </p>
+                  {result.keyText && <p className="mt-2 text-sm"><strong>Kunci jawaban:</strong> {result.keyText}</p>}
+                  {(type === 'essay' || type === 'uraian') && currentAnswer && <p className="mt-2 text-sm"><strong>Jawaban yang ditulis:</strong> {currentAnswer}</p>}
+                </div>
+              )
+            })()}
+            {question?.explanation ? (
+              <details open={Boolean(checkedQuestions[question.id])} className="rounded-xl bg-slate-50 p-3">
+                <summary className="cursor-pointer text-sm font-semibold">Pembahasan</summary>
+                <div className="mt-3 text-sm"><MathRenderer content={question.explanation} /></div>
+              </details>
+            ) : (
+              <p className="text-xs text-slate-500">Belum ada pembahasan yang diisi untuk soal ini.</p>
+            )}
+          </div>
 
           <div className="mt-8 flex justify-between gap-3 border-t border-slate-100 pt-4">
             <button type="button" disabled={index === 0} onClick={() => setIndex((value) => Math.max(0, value - 1))} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold disabled:opacity-40">Sebelumnya</button>
@@ -122,7 +205,7 @@ export default function ExamPreviewPage() {
             const answered = answers[item.id] !== undefined && answers[item.id] !== null && answers[item.id] !== '' && (!Array.isArray(answers[item.id]) || answers[item.id].length > 0)
             return <button key={item.id} type="button" onClick={() => setIndex(i)} className={`aspect-square rounded-lg text-sm font-bold ${index === i ? 'bg-indigo-600 text-white' : answered ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}`}>{i + 1}</button>
           })}</div>
-          <button type="button" onClick={() => { setAnswers({}); setIndex(0) }} className="mt-5 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">Reset simulasi</button>
+          <button type="button" onClick={() => { setAnswers({}); setCheckedQuestions({}); setIndex(0) }} className="mt-5 w-full rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600">Reset simulasi</button>
           <p className="mt-4 rounded-lg bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">Mode preview tidak membuat sesi ujian, tidak menyimpan jawaban atau nilai, dan tidak menambah XP. Semua jawaban hilang saat halaman ditutup.</p>
         </aside>
       </div>
