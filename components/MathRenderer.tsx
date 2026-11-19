@@ -110,7 +110,7 @@ function renderTiptapMathNodes(html: string): string {
 function applyJavaneseFont(html: string): string {
   return html.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
     const decodedText = decodeHtmlEntities(text)
-    if (!/[\\uA980-\\uA9DF]/.test(decodedText)) return full
+    if (!/[\uA980-\uA9DF]/.test(decodedText)) return full
     return prefix + '<span class="font-aksara-jawa" lang="jv">' + text + '</span>'
   })
 }
