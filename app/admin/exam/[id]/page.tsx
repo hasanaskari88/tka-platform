@@ -2132,7 +2132,16 @@ function QuestionManagerContent() {
                     {qType === 'essay' && (
                       <div className="p-3 bg-slate-50 rounded-xl border text-xs text-slate-600 space-y-1">
                         <span className="font-bold text-slate-800 block">Rubrik / Pedoman Guru:</span>
-                        <p>{q.explanation || 'Tidak ada pedoman penskoran khusus.'}</p>
+                        {q.explanation ? (
+                          <MathRenderer
+                            content={q.explanation}
+                            className="text-xs leading-relaxed text-slate-700"
+                          />
+                        ) : (
+                          <p className="text-xs italic text-slate-400">
+                            Tidak ada pedoman penskoran khusus.
+                          </p>
+                        )}
                       </div>
                     )}
                       </>
