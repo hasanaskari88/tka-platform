@@ -46,12 +46,25 @@ function escapeMathText(value: string): string {
 
 /** Ubah rumus format lama menjadi node matematika Tiptap saat dibuka di editor. */
 function prepareEditorContent(value: string): string {
-  return value.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g, (_match, blockLatex, inlineLatex) => {
+  const withMath = value.replace(/\$\$([\s\S]+?)\$\$|\$([^$\n]+?)\$/g, (_match, blockLatex, inlineLatex) => {
     const isBlock = blockLatex !== undefined
     const latex = String(isBlock ? blockLatex : inlineLatex).trim()
     const tag = isBlock ? 'div' : 'span'
     const type = isBlock ? 'block-math' : 'inline-math'
-    return '<' + tag + ' data-type=\"' + type + '\" data-latex=\"' + escapeMathAttribute(latex) + '\">' + escapeMathText(latex) + '</' + tag + '>'
+    return '<' + tag + ' data-type="' + type + '" data-latex="' + escapeMathAttribute(latex) + '">' + escapeMathText(latex) + '</' + tag + '>'
+  })
+
+  // Jawaban lama atau teks Aksara Jawa tanpa atribut font tetap ditampilkan
+  // menggunakan font lokal Nyk, termasuk pada editor mode baca-saja.
+  return withMath.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
+    const decoded = text
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&#(\\d+);/g, (_entity, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (_entity, code) => String.fromCodePoint(parseInt(code, 16)))
+    if (!/[\\uA980-\\uA9DF]/.test(decoded)) return full
+    return prefix + '<span class="font-aksara-jawa" lang="jv">' + text + '</span>'
   })
 }
 
