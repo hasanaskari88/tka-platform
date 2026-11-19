@@ -104,6 +104,18 @@ function renderTiptapMathNodes(html: string): string {
 }
 
 /**
+ * Tandai teks Aksara Jawa yang belum membawa atribut font.
+ * Ini menjaga jawaban lama/teks biasa tetap memakai font lokal Nyk.
+ */
+function applyJavaneseFont(html: string): string {
+  return html.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
+    const decodedText = decodeHtmlEntities(text)
+    if (!/[\\uA980-\\uA9DF]/.test(decodedText)) return full
+    return prefix + '<span class="font-aksara-jawa" lang="jv">' + text + '</span>'
+  })
+}
+
+/**
  * Merender format rumus lama:
  * $rumus$ untuk inline
  * $$rumus$$ untuk display
@@ -160,10 +172,11 @@ export default function MathRenderer({
 
     // 3. Render rumus lama yang menggunakan tanda dolar.
     const legacyRendered = renderLegacyMath(tiptapRendered)
+    const javaneseRendered = applyJavaneseFont(legacyRendered)
 
     // 4. Bersihkan kembali hasil akhir, termasuk HTML KaTeX.
     htmlContent = String(
-      DOMPurify.sanitize(legacyRendered, {
+      DOMPurify.sanitize(javaneseRendered, {
         ADD_ATTR: [
           'class',
           'style',
