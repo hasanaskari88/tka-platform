@@ -107,9 +107,11 @@
 
 .rich-text-editor .editor-content [lang='jv'],
 .rich-text-editor .editor-content .font-aksara-jawa,
+.rich-text-editor .editor-content .aksara-jawa,
 .rich-text-editor .editor-content [style*="Nyk Ngayogyan Jejeg"],
 .rich-text-editor .editor-content [style*="Noto Javanese Local"] {
   font-family: 'Nyk Ngayogyan Jejeg', sans-serif !important;
+  font-synthesis: weight;
   line-height: 2.2;
 }
 
@@ -236,7 +238,9 @@
   unicode-bidi: plaintext;
   line-height: 2;
 }
-.rich-text-editor .editor-content [style*="Nyk Ngayogyan Jejeg"] {
+.rich-text-editor .editor-content [style*="Nyk Ngayogyan Jejeg"],
+.rich-text-editor .editor-content [style*="Noto Javanese Local"] {
   font-family: 'Nyk Ngayogyan Jejeg', sans-serif !important;
+  font-synthesis: weight;
   line-height: 2.2;
 }
