@@ -1476,6 +1476,14 @@ function QuestionManagerContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/admin/exam/${examId}/preview`}
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm flex items-center space-x-1.5"
+            >
+              <span>👁️</span>
+              <span>Preview seperti Siswa</span>
+            </Link>
+
             {/* 📄 1. TOMBOL CETAK FORM LJK */}
             <Link
               href={`/admin/exam/${examId}/ljk-print`}
