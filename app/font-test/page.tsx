@@ -280,63 +280,40 @@ export default function FontTestPage() {
         <section className="rounded-xl border border-violet-200 bg-white p-4 shadow-sm md:p-6">
           <div className="mb-4">
             <h2 className="font-bold text-slate-800">
-              1. Perbandingan Font Aksara Jawa
+              1. Standar Font Aksara Jawa
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Kedua font ditampilkan berdampingan menggunakan rangkaian aksara
-              dan sandhangan yang sama. Perhatikan terutama bentuk aksara ra
-              serta tampilannya ketika menjadi pasangan.
+              Seluruh contoh Aksara Jawa di halaman ini menggunakan satu font
+              lokal yang sama: Nyk Ngayogyan Jejeg. Periksa bentuk aksara,
+              pasangan, sandhangan, dan tanda baca berikut.
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-3">
-                <h3 className="font-semibold text-slate-800">Noto Sans Javanese</h3>
-                <p className="text-xs text-slate-500">Font lama · pembanding</p>
-              </div>
-              <div className="space-y-3">
-                {JAVANESE_SAMPLES.map((sample) => (
-                  <div key={sample.label} className="border-t border-slate-200 pt-2">
-                    <div className="text-xs text-slate-500">{sample.label}</div>
-                    <div
-                      lang="jv"
-                      className="mt-1 text-3xl leading-relaxed"
-                      style={{ fontFamily: "'Noto Javanese Local', sans-serif" }}
-                    >
-                      {sample.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="rounded-xl border border-violet-200 bg-violet-50/50 p-4">
+            <div className="mb-3">
+              <h3 className="font-semibold text-violet-900">Nyk Ngayogyan Jejeg</h3>
+              <p className="text-xs text-violet-700">Font standar Aksara Jawa website</p>
             </div>
-
-            <div className="rounded-lg border border-violet-200 bg-violet-50/50 p-4">
-              <div className="mb-3">
-                <h3 className="font-semibold text-slate-800">nyk Ngayogyan Jejeg</h3>
-                <p className="text-xs text-slate-500">Font baru · kandidat</p>
-              </div>
-              <div className="space-y-3">
-                {JAVANESE_SAMPLES.map((sample) => (
-                  <div key={sample.label} className="border-t border-violet-100 pt-2">
-                    <div className="text-xs text-slate-500">{sample.label}</div>
-                    <div
-                      lang="jv"
-                      className="mt-1 text-3xl leading-relaxed"
-                      style={{ fontFamily: "'Nyk Ngayogyan Jejeg', sans-serif" }}
-                    >
-                      {sample.text}
-                    </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {JAVANESE_SAMPLES.map((sample) => (
+                <div key={sample.label} className="min-w-0 rounded-lg border border-violet-100 bg-white p-3">
+                  <div className="text-xs font-medium text-slate-500">{sample.label}</div>
+                  <div
+                    lang="jv"
+                    className="mt-2 break-words text-3xl leading-relaxed"
+                    style={{ fontFamily: "'Nyk Ngayogyan Jejeg', sans-serif" }}
+                  >
+                    {sample.text}
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
-            Catatan: ini hanya pengujian tampilan. Font utama website dan font
-            editor belum diubah, sehingga pilihan font baru tidak akan
-            memengaruhi halaman lain.
+          <div className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+            Standar font ini berlaku untuk editor, keyboard virtual, pratinjau,
+            dan tampilan jawaban. Font Arab tetap menggunakan font Arab lokal
+            tersendiri.
           </div>
         </section>
 
