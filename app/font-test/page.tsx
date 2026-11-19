@@ -84,6 +84,7 @@ export default function FontTestPage() {
   const [labQuestions, setLabQuestions] = useState<LabQuestion[]>([])
   const [labAnswers, setLabAnswers] = useState<Record<number, any>>({})
   const [labChecked, setLabChecked] = useState<Record<number, boolean>>({})
+  useEffect(() => { setLabChecked({}) }, [labAnswers])
   const [activeLabQuestion, setActiveLabQuestion] = useState(0)
   const [importMessage, setImportMessage] = useState('')
 
@@ -453,6 +454,7 @@ export default function FontTestPage() {
                 <div>
                   <p className="text-sm font-bold text-slate-800">Simulasi ujian sementara</p>
                   <p className="text-xs text-slate-500">Soal {activeLabQuestion + 1} dari {labQuestions.length}</p>
+                  <p className="text-xs font-semibold text-emerald-700">Benar: {labQuestions.filter((q, i) => labChecked[i] && checkLabAnswer(q, labAnswers[i]).status === "correct").length} dari {Object.values(labChecked).filter(Boolean).length} diperiksa</p>
                 </div>
                 <button type="button" onClick={resetLab} className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700">Reset jawaban</button>
               </div>
