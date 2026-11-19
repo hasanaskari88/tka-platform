@@ -61,9 +61,9 @@ function prepareEditorContent(value: string): string {
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
-      .replace(/&#(\\d+);/g, (_entity, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#(\d+);/g, (_entity, code) => String.fromCodePoint(Number(code)))
       .replace(/&#x([0-9a-f]+);/gi, (_entity, code) => String.fromCodePoint(parseInt(code, 16)))
-    if (!/[\\uA980-\\uA9DF]/.test(decoded)) return full
+    if (!/[\uA980-\uA9DF]/.test(decoded)) return full
     return prefix + '<span class="font-aksara-jawa" lang="jv">' + text + '</span>'
   })
 }
