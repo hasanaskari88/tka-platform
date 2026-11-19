@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
+import RichTextEditor from '@/components/editor/RichTextEditor'
 
 
 function parseKeys(value: any): string[] {
@@ -142,7 +143,21 @@ export default function ExamPreviewPage() {
           {question?.image_url && <img src={question.image_url} alt="Ilustrasi soal" className="my-4 max-h-80 max-w-full rounded-lg object-contain" />}
 
           {type === 'essay' || type === 'uraian' ? (
-            <textarea rows={6} value={currentAnswer || ''} onChange={(event) => setAnswer(event.target.value)} placeholder="Tuliskan jawaban Anda..." className="mt-5 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-indigo-500 focus:outline-none" />
+            <div className="mt-5 space-y-2">
+              <label className="block text-sm font-bold text-slate-700">
+                Jawaban Anda
+              </label>
+              <RichTextEditor
+                content={currentAnswer || ''}
+                onChange={setAnswer}
+                placeholder="Tuliskan jawaban uraian Anda. Anda dapat mengatur format teks, memasukkan rumus, gambar, huruf Arab, dan Aksara Jawa."
+                minHeight={220}
+                toolbarMode="full"
+              />
+              <p className="text-xs text-slate-500">
+                Editor ini hanya untuk simulasi preview. Jawaban tidak dikirim atau disimpan.
+              </p>
+            </div>
           ) : type === 'true_false_matrix' ? (
             <div className="mt-5 space-y-3">{options.map((option: any, i: number) => {
               const key = String(option.key || i)
@@ -180,7 +195,12 @@ export default function ExamPreviewPage() {
                     {result.status === 'correct' ? '✓ Jawaban benar!' : result.status === 'wrong' ? '✕ Jawaban belum tepat.' : result.status === 'incomplete' ? 'Jawaban belum lengkap.' : (type === 'essay' || type === 'uraian') ? 'Bandingkan dengan kunci jawaban berikut.' : 'Kunci jawaban belum diatur.'}
                   </p>
                   {result.keyText && <p className="mt-2 text-sm"><strong>Kunci jawaban:</strong> {result.keyText}</p>}
-                  {(type === 'essay' || type === 'uraian') && currentAnswer && <p className="mt-2 text-sm"><strong>Jawaban yang ditulis:</strong> {currentAnswer}</p>}
+                  {(type === 'essay' || type === 'uraian') && currentAnswer && (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-white p-3">
+                      <p className="mb-2 text-sm font-bold">Jawaban yang ditulis:</p>
+                      <MathRenderer content={currentAnswer} />
+                    </div>
+                  )}
                 </div>
               )
             })()}
