@@ -220,7 +220,7 @@ export default function FontTestPage() {
           image_url: String(read(row, ['image_url', 'gambar']) || '') || null,
           options,
           question_type: type,
-          correct_option: String(read(row, ['correct_option', 'correct_answer', 'kunci', 'jawaban']) || 'A').toUpperCase(),
+          correct_option: String(read(row, ['correct_option', 'correct_answer', 'kunci', 'jawaban']) || '').toUpperCase(),
           correct_answers: correctAnswers,
           correct_answer: String(read(row, ['correct_answer', 'kunci', 'jawaban']) || ''),
           explanation: String(read(row, ['explanation', 'pembahasan']) || ''),
