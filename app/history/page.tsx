@@ -60,6 +60,7 @@ function HistoryContent() {
   const [examSearch, setExamSearch] = useState('')
   const [examStatus, setExamStatus] = useState('all')
   const [examSort, setExamSort] = useState('newest')
+  const [examQuestionType, setExamQuestionType] = useState('all')
   const [examPageSize, setExamPageSize] = useState(10)
   const [examPage, setExamPage] = useState(1)
 
@@ -155,6 +156,37 @@ function HistoryContent() {
     if (examData) {
       examData.forEach((e) => examMap.set(e.id, e))
     }
+
+    // Ambil tipe soal dan hasil penilaian per sesi agar status nilai ikut berubah
+    // setelah guru menyimpan penilaian essay/uraian.
+    const examIds = [...new Set((sessionData || []).map((session: any) => session.exam_id).filter(Boolean))]
+    const sessionIds = (sessionData || []).map((session: any) => session.id).filter(Boolean)
+    const { data: questionRows, error: questionError } = examIds.length
+      ? await supabase.from('questions').select('id,exam_id,question_type').in('exam_id', examIds)
+      : { data: [], error: null }
+    const { data: answerRows, error: answerError } = sessionIds.length
+      ? await supabase.from('answers').select('session_id,question_id,user_answer,selected_option,teacher_score').in('session_id', sessionIds)
+      : { data: [], error: null }
+
+    if (questionError) console.error('Gagal mengambil tipe soal riwayat:', questionError)
+    if (answerError) console.error('Gagal mengambil status penilaian riwayat:', answerError)
+
+    const questionMap = new Map<string, any>()
+    ;(questionRows || []).forEach((question: any) => {
+      questionMap.set(question.id, question)
+    })
+    const questionsByExam = new Map<string, any[]>()
+    ;(questionRows || []).forEach((question: any) => {
+      const list = questionsByExam.get(question.exam_id) || []
+      list.push(question)
+      questionsByExam.set(question.exam_id, list)
+    })
+    const answersBySession = new Map<string, any[]>()
+    ;(answerRows || []).forEach((answer: any) => {
+      const list = answersBySession.get(answer.session_id) || []
+      list.push(answer)
+      answersBySession.set(answer.session_id, list)
+    })
     const processedPracticeHistory = (practiceData || []).map((attempt) => {
       const exam = examMap.get(attempt.exam_id)
     
@@ -187,6 +219,21 @@ function HistoryContent() {
         completed_at: finishDate,
         show_results: exam.show_results ?? true,
         show_explanations: exam.show_explanations ?? true,
+        questionTypes: [...new Set((questionsByExam.get(session.exam_id) || []).map((q: any) => q.question_type || 'multiple_choice'))],
+        pendingEssayCount: (answersBySession.get(session.id) || []).filter((answer: any) => {
+          const question = questionMap.get(answer.question_id)
+          const type = question?.question_type || 'multiple_choice'
+          const rawAnswer = answer.user_answer ?? answer.selected_option
+          const hasAnswer = rawAnswer !== null && rawAnswer !== undefined && String(rawAnswer).trim() !== '' && String(rawAnswer) !== '[]' && String(rawAnswer) !== '{}'
+          return (type === 'essay' || type === 'uraian') && hasAnswer && (answer.teacher_score === null || answer.teacher_score === undefined)
+        }).length,
+        answeredEssayCount: (answersBySession.get(session.id) || []).filter((answer: any) => {
+          const question = questionMap.get(answer.question_id)
+          const type = question?.question_type || 'multiple_choice'
+          const rawAnswer = answer.user_answer ?? answer.selected_option
+          const hasAnswer = rawAnswer !== null && rawAnswer !== undefined && String(rawAnswer).trim() !== '' && String(rawAnswer) !== '[]' && String(rawAnswer) !== '{}'
+          return (type === 'essay' || type === 'uraian') && hasAnswer
+        }).length,
       }
     })
 
@@ -266,7 +313,8 @@ function HistoryContent() {
     .filter((item) => {
       const matchesSearch = String(item.exam_title || '').toLowerCase().includes(examSearch.toLowerCase())
       const matchesStatus = examStatus === 'all' || item.status === examStatus
-      return matchesSearch && matchesStatus
+      const matchesQuestionType = examQuestionType === 'all' || (item.questionTypes || []).includes(examQuestionType)
+      return matchesSearch && matchesStatus && matchesQuestionType
     })
     .sort((a, b) => {
       if (examSort === 'oldest') return new Date(a.completed_at || 0).getTime() - new Date(b.completed_at || 0).getTime()
@@ -299,7 +347,7 @@ function HistoryContent() {
     return (
       <div className="grid grid-cols-3 gap-6 text-center text-xs pt-8 border-t-2 border-slate-200">
         <div className="space-y-1">
-          <p className="text-slate-500 font-medium">Orang Tua / Wali Murid,</p>
+          <p className="text-slate-700 font-medium">Orang Tua / Wali Murid,</p>
           <div className="h-16"></div>
           <p className="font-bold text-slate-800 border-b-2 border-slate-400 inline-block px-4 pb-0.5">
             ( .................................... )
@@ -409,7 +457,7 @@ function HistoryContent() {
                 </div>
                 <div>
                   <div className="font-bold text-slate-800">{profile.full_name}</div>
-                  <div className="text-slate-400">
+                  <div className="text-slate-600">
                     @{profile.username} | Kelas:{' '}
                     <span className="font-semibold text-indigo-600">
                       {profile.class_code || '-'}
@@ -636,6 +684,13 @@ function HistoryContent() {
             <select value={examStatus} onChange={(e) => { setExamStatus(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
               <option value="all">Semua status</option><option value="completed">Selesai</option><option value="ongoing">Sedang dikerjakan</option><option value="paused">Dijeda</option><option value="expired">Kedaluwarsa</option>
             </select>
+            <select value={examQuestionType} onChange={(e) => { setExamQuestionType(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800 bg-white">
+              <option value="all">Semua tipe soal</option>
+              <option value="multiple_choice">Pilihan ganda</option>
+              <option value="complex_multiple_choice">PG kompleks</option>
+              <option value="true_false_matrix">Matriks benar/salah</option>
+              <option value="essay">Essay / uraian</option>
+            </select>
             <select value={examSort} onChange={(e) => { setExamSort(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
               <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
             </select>
@@ -694,17 +749,30 @@ function HistoryContent() {
                               Dalam Proses
                             </span>
                           ) : item.show_results ? (
-                            <span
-                              className={`px-2.5 py-1 rounded-lg font-bold ${
-                                item.score >= 75
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : item.score >= 50
-                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
-                              }`}
-                            >
-                              {item.score} / 100
-                            </span>
+                            <div className="flex flex-col items-center gap-1.5">
+                              <span
+                                className={`px-2.5 py-1 rounded-lg font-bold ${
+                                  item.score >= 75
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : item.score >= 50
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                                }`}
+                              >
+                                {item.score} / 100
+                              </span>
+                              {item.pendingEssayCount > 0 ? (
+                                <span className="text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1">
+                                  {item.pendingEssayCount} essay menunggu nilai
+                                </span>
+                              ) : item.answeredEssayCount > 0 ? (
+                                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+                                  Penilaian guru selesai
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-medium text-slate-700">Nilai otomatis</span>
+                              )}
+                            </div>
                           ) : (
                             <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded font-medium text-[11px]">
                               🔒 Nilai Disembunyikan
