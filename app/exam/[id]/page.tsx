@@ -1,11 +1,34 @@
 'use client'
 
 import { useEffect, useState, useRef, Suspense } from 'react'
+import dynamic from 'next/dynamic'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MathRenderer from '@/components/MathRenderer'
-import RichTextEditor from '@/components/editor/RichTextEditor'
-import StudentAnswerPhotos from '@/components/exam/StudentAnswerPhotos'
+
+const RichTextEditor = dynamic(
+  () => import('@/components/editor/RichTextEditor'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[180px] rounded-xl border border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
+        Menyiapkan editor jawaban...
+      </div>
+    ),
+  }
+)
+
+const StudentAnswerPhotos = dynamic(
+  () => import('@/components/exam/StudentAnswerPhotos'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
+        Menyiapkan fitur foto jawaban...
+      </div>
+    ),
+  }
+)
 
 function getPlainAnswerText(value: any): string {
   if (value === null || value === undefined) return ''
@@ -232,13 +255,41 @@ function ExamEngineContent() {
 
     userIdRef.current = user.id
 
-    // Ambil identitas peserta dari tabel profiles berdasarkan ID akun login.
-    const { data: participantProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('full_name, username, class_code')
-      .eq('id', user.id)
-      .maybeSingle()
+    // Profil, paket ujian, daftar soal, dan sesi adalah permintaan independen.
+    // Jalankan bersamaan untuk mengurangi waktu tunggu jaringan.
+    const [
+      profileResult,
+      examResult,
+      questionResult,
+      sessionResult,
+    ] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('full_name, username, class_code')
+        .eq('id', user.id)
+        .maybeSingle(),
+      supabase
+        .from('exams')
+        .select('*')
+        .eq('id', examId)
+        .single(),
+      supabase
+        .from('questions')
+        .select('*')
+        .eq('exam_id', examId)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('exam_sessions')
+        .select('*')
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .in('status', ['ongoing', 'paused'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
 
+    const { data: participantProfile, error: profileError } = profileResult
     if (profileError) {
       console.error('Gagal mengambil profil peserta:', profileError)
     }
@@ -247,13 +298,7 @@ function ExamEngineContent() {
     setParticipantIdentifier(participantProfile?.username || '')
     setParticipantClass(participantProfile?.class_code || '')
 
-    // B. Fetch Data Ujian
-    const { data: examData, error: examError } = await supabase
-      .from('exams')
-      .select('*')
-      .eq('id', examId)
-      .single()
-
+    const { data: examData, error: examError } = examResult
     if (examError) {
       throw new Error(`Gagal memuat data ujian: ${examError.message}`)
     }
@@ -264,13 +309,7 @@ function ExamEngineContent() {
       return
     }
 
-    // C. Fetch Data Soal
-    const { data: questionData, error: questionError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('exam_id', examId)
-      .order('created_at', { ascending: true })
-
+    const { data: questionData, error: questionError } = questionResult
     if (questionError) {
       throw new Error(`Gagal memuat daftar soal: ${questionError.message}`)
     }
@@ -311,25 +350,13 @@ function ExamEngineContent() {
     setExam(examData)
 
     // D. RESTORE JAWABAN DARI LOCALSTORAGE
-    
 
     // E. 🟢 PROSES SESI REAL-TIME DI SUPABASE (AGAR MUNCUL DI LIVE PROCTORING)
-    // E. Cari sesi terbaru, termasuk sesi yang sudah selesai
     let currentSessId: string | null = null
     let startTimeIso = new Date().toISOString()
     let currentSession: any = null
 
-    
-const { data: existingSession, error: sessionError } = await supabase
-  .from('exam_sessions')
-  .select('*')
-  .eq('exam_id', examId)
-  .eq('user_id', user.id)
-  .in('status', ['ongoing', 'paused'])
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle()
-
+    const { data: existingSession, error: sessionError } = sessionResult
 
     if (sessionError) {
       console.error('Gagal memuat sesi:', sessionError)
