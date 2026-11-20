@@ -268,9 +268,12 @@ export default function PracticeHubPage() {
       if (examData) {
         const filteredExams = examData.filter(
           (exam: any) =>
-            !exam.target_mode ||
-            exam.target_mode === 'PRACTICE_ONLY' ||
-            exam.target_mode === 'BOTH'
+            exam.show_results !== false &&
+            (
+              !exam.target_mode ||
+              exam.target_mode === 'PRACTICE_ONLY' ||
+              exam.target_mode === 'BOTH'
+            )
         )
         setExams(filteredExams)
         const typeByExam = new Map(examData.map((exam: any) => [String(exam.id), String(exam.activity_type || 'QUIZ').toUpperCase()]))
