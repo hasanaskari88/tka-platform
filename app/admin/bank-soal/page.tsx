@@ -265,7 +265,7 @@ function BankSoalManagementContent() {
     setDuration(exam.duration_minutes || 15)
     setExamToken(exam.token || exam.token_code || '')
     setIsPublished(exam.is_published ?? true)
-    setTargetMode(exam.target_mode || 'BOTH')
+    setTargetMode(exam.show_results === false ? 'EXAM_ONLY' : (exam.target_mode || 'BOTH'))
     setShuffleQuestions(exam.shuffle_questions ?? true)
     setShuffleOptions(exam.shuffle_options ?? true)
     setShowResults(exam.show_results ?? true)
@@ -313,7 +313,7 @@ function BankSoalManagementContent() {
       start_time: useSchedule ? jakartaDateTimeToIso(startTime) : null,
       end_time: useSchedule ? jakartaDateTimeToIso(endTime) : null,
       is_published: isPublished,
-      target_mode: targetMode,
+      target_mode: showResults ? targetMode : 'EXAM_ONLY',
       shuffle_questions: shuffleQuestions,
       shuffle_options: shuffleOptions,
       show_results: showResults,
@@ -423,7 +423,7 @@ const handleQuickExamAuthorSave = async (examId: string) => {
           shuffle_options: exam.shuffle_options ?? true,
           show_results: exam.show_results ?? true,
           show_explanations: exam.show_explanations ?? true,
-          target_mode: exam.target_mode || 'BOTH',
+          target_mode: exam.show_results === false ? 'EXAM_ONLY' : (exam.target_mode || 'BOTH'),
           activity_type: exam.activity_type || 'QUIZ',
           created_by: user.id,
           author_display_name: exam.author_display_name || null,
@@ -807,8 +807,9 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                     Mode Peruntukan
                   </label>
                   <select
-                    value={targetMode}
+                    value={showResults ? targetMode : 'EXAM_ONLY'}
                     onChange={(e: any) => setTargetMode(e.target.value)}
+                    disabled={!showResults}
                     className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs font-bold text-indigo-800 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600"
                     suppressHydrationWarning
                   >
@@ -816,6 +817,11 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                     <option value="EXAM_ONLY">🎯 Hanya Ujian Resmi (CBT)</option>
                     <option value="PRACTICE_ONLY">🎮 Hanya Latihan Mandiri</option>
                   </select>
+                  {!showResults && (
+                    <p className="mt-1 text-[10px] font-medium text-amber-700">
+                      Nilai disembunyikan: paket otomatis dikunci untuk CBT saja.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -943,7 +949,11 @@ const handleQuickExamAuthorSave = async (examId: string) => {
                   <input
                     type="checkbox"
                     checked={showResults}
-                    onChange={(e) => setShowResults(e.target.checked)}
+                    onChange={(e) => {
+                      const checked = e.target.checked
+                      setShowResults(checked)
+                      if (!checked) setTargetMode('EXAM_ONLY')
+                    }}
                     className="rounded text-indigo-600"
                     suppressHydrationWarning
                   />
