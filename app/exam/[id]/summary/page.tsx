@@ -380,6 +380,48 @@ function ExamSummaryContent() {
     ? Math.round((totalPointsEarned / totalMaxPoints) * 100)
     : 0
 
+  // Rekap poin berdasarkan tipe soal. Nilai essay yang belum diperiksa
+  // tetap dihitung sebagai menunggu, bukan dianggap sudah mendapat nol final.
+  const questionTypeLabels: Record<string, string> = {
+    multiple_choice: 'Pilihan ganda',
+    complex_multiple_choice: 'Pilihan ganda kompleks',
+    true_false_matrix: 'Matriks benar / salah',
+    essay: 'Essay / uraian',
+    uraian: 'Essay / uraian',
+  }
+
+  const pointsByType = Object.values(
+    questions.reduce((groups: Record<string, any>, q) => {
+      const rawType = String(q.question_type || 'multiple_choice')
+      const typeKey = rawType === 'uraian' ? 'essay' : rawType
+      const userAns = userAnswersMap[q.id]
+      const result = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
+      const maxPoints = Number(q.max_score) || 1
+      const group = groups[typeKey] || {
+        key: typeKey,
+        label: questionTypeLabels[typeKey] || rawType.replaceAll('_', ' '),
+        count: 0,
+        maxPoints: 0,
+        earnedPoints: 0,
+        correct: 0,
+        wrong: 0,
+        unanswered: 0,
+        pending: 0,
+      }
+
+      group.count += 1
+      group.maxPoints += maxPoints
+      group.earnedPoints += result.points || 0
+      if (result.isPending) group.pending += 1
+      else if (result.isUnanswered) group.unanswered += 1
+      else if (result.isCorrect) group.correct += 1
+      else group.wrong += 1
+
+      groups[typeKey] = group
+      return groups
+    }, {})
+  )
+
   // Auto Update database jika nilai / end_time null
   
 
@@ -448,7 +490,7 @@ function ExamSummaryContent() {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left border-b border-white/10 pb-6">
           <div className="space-y-1">
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold border uppercase tracking-wider ${themeStyles.badgeColor}`}>
-              🏆 HASIL UJIAN SELESAI
+              {totalPendingEssay > 0 ? '⏳ HASIL UJIAN · NILAI SEMENTARA' : '🏆 HASIL UJIAN SELESAI'}
             </span>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
               {exam?.title || 'Evaluasi Ujian TKA'}
@@ -471,9 +513,13 @@ function ExamSummaryContent() {
           </div>
         </div>
 
-        {totalPendingEssay > 0 && (
+        {totalPendingEssay > 0 ? (
           <div className="rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed">
-            <strong>Nilai belum final.</strong> Masih ada {totalPendingEssay} jawaban essay/uraian yang menunggu penilaian guru. Nilai dapat berubah setelah guru menyelesaikan pemeriksaan.
+            <strong>Nilai belum final.</strong> Masih ada {totalPendingEssay} jawaban essay/uraian yang menunggu penilaian guru. Nilai dan rincian poin dapat berubah setelah guru menyelesaikan pemeriksaan.
+          </div>
+        ) : (
+          <div className="rounded-xl border border-emerald-300/40 bg-emerald-500/10 px-4 py-3 text-xs leading-relaxed">
+            <strong>Penilaian selesai.</strong> Seluruh jawaban yang perlu dinilai sudah memiliki hasil penilaian.
           </div>
         )}
 
@@ -504,6 +550,61 @@ function ExamSummaryContent() {
             <span className="text-xl font-black">🎯 {calculatedScore}%</span>
           </div>
         </div>
+
+        {/* RINCIAN PEROLEHAN POIN BERDASARKAN TIPE SOAL */}
+        <section className="rounded-2xl border border-white/15 bg-black/10 p-4 sm:p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+            <div>
+              <h2 className="text-sm sm:text-base font-black">📊 Rincian Poin per Tipe Soal</h2>
+              <p className="text-[11px] opacity-75 mt-1">Poin yang diperoleh dibandingkan dengan poin maksimal setiap tipe soal.</p>
+            </div>
+            <span className="text-[11px] font-bold opacity-80">
+              Total: {Number(totalPointsEarned.toFixed(2))} / {Number(totalMaxPoints.toFixed(2))} poin
+            </span>
+          </div>
+
+          {pointsByType.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {pointsByType.map((item: any) => {
+                const percentage = item.maxPoints > 0
+                  ? Math.max(0, Math.min(100, (item.earnedPoints / item.maxPoints) * 100))
+                  : 0
+                return (
+                  <div key={item.key} className="rounded-xl border border-white/15 bg-white/5 p-3 space-y-2">
+                    <div className="flex justify-between items-start gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-extrabold capitalize">{item.label}</p>
+                        <p className="text-[10px] opacity-70">{item.count} soal</p>
+                      </div>
+                      <p className="text-xs font-black tabular-nums whitespace-nowrap">
+                        {Number(item.earnedPoints.toFixed(2))} / {Number(item.maxPoints.toFixed(2))}
+                      </p>
+                    </div>
+                    <div className="h-2 rounded-full bg-black/20 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400 transition-all"
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold opacity-80">
+                      {item.correct > 0 && <span>✓ Benar {item.correct}</span>}
+                      {item.wrong > 0 && <span>✕ Salah {item.wrong}</span>}
+                      {item.unanswered > 0 && <span>○ Kosong {item.unanswered}</span>}
+                      {item.pending > 0 && <span className="text-amber-300">⏳ Menunggu nilai {item.pending}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="text-xs opacity-70">Belum ada data soal untuk ditampilkan.</p>
+          )}
+          {totalPendingEssay > 0 && (
+            <p className="text-[10px] leading-relaxed opacity-75">
+              Catatan: poin uraian yang belum diperiksa belum masuk ke perolehan poin. Rincian dan skor akhir akan berubah setelah guru memberikan nilai.
+            </p>
+          )}
+        </section>
 
         {/* NAVIGASI CEPAT */}
         <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
