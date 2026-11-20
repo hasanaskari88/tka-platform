@@ -571,7 +571,7 @@ function ExamSummaryContent() {
           {filteredQuestions.length > 0 ? (
             filteredQuestions.map((q) => {
               const userAns = userAnswersMap[q.id]
-              const evalResult = evaluateQuestion(q, userAns)
+              const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id] ?? null)
               const qType = q.question_type || 'multiple_choice'
 
               return (
