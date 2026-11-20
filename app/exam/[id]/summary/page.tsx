@@ -493,6 +493,11 @@ function ExamSummaryContent() {
           <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-sm">
             🔒 Nilai ujian ini disembunyikan sesuai pengaturan paket.
           </div>
+          <div className="mt-4 rounded-xl border border-sky-300/40 bg-sky-500/10 px-4 py-4 text-sm leading-relaxed">
+            <p className="font-extrabold">🌟 Tetap semangat belajar!</p>
+            <p className="mt-1">Nilai bukan satu-satunya ukuran kemampuanmu. Terus berlatih, jangan takut salah, dan jadikan setiap pengalaman sebagai langkah untuk menjadi lebih baik.</p>
+            <p className="mt-2 font-semibold">Kamu hebat karena sudah berusaha menyelesaikan ujian ini. Terus maju! 💪</p>
+          </div>
         </div>
       ) : (
       <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl space-y-6 transition-all ${themeStyles.card}`}>
@@ -532,6 +537,10 @@ function ExamSummaryContent() {
             <strong>Penilaian selesai.</strong> Seluruh jawaban yang perlu dinilai sudah memiliki hasil penilaian.
           </div>
         )}
+
+        <div className="rounded-xl border border-sky-300/40 bg-sky-500/10 px-4 py-3 text-xs leading-relaxed">
+          🌟 <strong>Terus tingkatkan kemampuanmu!</strong> Hasil hari ini adalah bekal untuk belajar lebih baik esok hari. Tetap percaya diri, rajin berlatih, dan jangan menyerah saat menemui soal yang sulit. Kamu pasti bisa! 💪
+        </div>
 
         {/* STATISTIK RINGKAS */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
@@ -636,6 +645,7 @@ function ExamSummaryContent() {
       )}
 
       {/* 2. BAGIAN PEMBAHASAN SOAL */}
+      {exam?.show_results !== false && exam?.show_explanations !== false ? (
       <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl space-y-6 ${themeStyles.card}`}>
         
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-white/10 pb-4">
@@ -965,6 +975,19 @@ function ExamSummaryContent() {
         </div>
 
       </div>
+      ) : exam?.show_results !== false && exam?.show_explanations === false ? (
+        <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl ${themeStyles.card}`}>
+          <h2 className="text-lg sm:text-xl font-black">📖 Pembahasan & Kunci Jawaban</h2>
+          <div className="mt-3 rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed">
+            🔒 Kunci jawaban dan pembahasan tidak ditampilkan sesuai pengaturan paket ujian.
+          </div>
+          <div className="mt-4 rounded-xl border border-sky-300/40 bg-sky-500/10 px-4 py-4 text-sm leading-relaxed">
+            <p className="font-extrabold">🌱 Jangan berhenti belajar!</p>
+            <p className="mt-1">Kamu sudah menyelesaikan satu tahap dengan baik. Terus berlatih, perbaiki hal yang masih sulit, dan rayakan setiap kemajuan kecilmu.</p>
+            <p className="mt-2 font-semibold">Usaha yang tekun akan membawamu semakin dekat dengan cita-cita. Semangat! ⭐</p>
+          </div>
+        </div>
+      ) : null}
 
       {/* MODAL ZOOM GAMBAR SOAL */}
       {zoomedImageUrl && (
