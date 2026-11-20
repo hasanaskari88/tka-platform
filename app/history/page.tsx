@@ -187,14 +187,25 @@ function HistoryContent() {
       list.push(answer)
       answersBySession.set(answer.session_id, list)
     })
-    const processedPracticeHistory = (practiceData || []).map((attempt) => {
-      const exam = examMap.get(attempt.exam_id)
-    
-      return {
-        ...attempt,
-        exam_title: exam?.title || 'Latihan tanpa judul',
-      }
-    })
+    const processedPracticeHistory = (practiceData || [])
+      .filter((attempt) => {
+        const exam = examMap.get(attempt.exam_id)
+        return exam &&
+          exam.show_results !== false &&
+          (
+            !exam.target_mode ||
+            exam.target_mode === 'PRACTICE_ONLY' ||
+            exam.target_mode === 'BOTH'
+          )
+      })
+      .map((attempt) => {
+        const exam = examMap.get(attempt.exam_id)
+
+        return {
+          ...attempt,
+          exam_title: exam?.title || 'Latihan tanpa judul',
+        }
+      })
     
     setPracticeHistoryList(processedPracticeHistory)
     const processedHistory = (sessionData || []).map((session) => {
