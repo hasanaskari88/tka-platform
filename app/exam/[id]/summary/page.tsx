@@ -430,6 +430,7 @@ function ExamSummaryContent() {
     const userAns = userAnswersMap[q.id]
     const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
 
+    if (exam?.show_results === false) return true
     if (filterType === 'correct') return evalResult.isCorrect
     if (filterType === 'wrong') return !evalResult.isCorrect && !evalResult.isPending
     return true
@@ -485,6 +486,15 @@ function ExamSummaryContent() {
     <div className="min-h-screen p-4 sm:p-8 font-sans relative z-10 max-w-5xl mx-auto space-y-8">
       
       {/* 1. KARTU UTAMA SKOR & PRESTASI */}
+      {exam?.show_results === false ? (
+        <div className={`p-6 rounded-3xl border backdrop-blur-2xl shadow-2xl ${themeStyles.card}`}>
+          <h1 className="text-xl sm:text-2xl font-black">{exam?.title || 'Ujian CBT'}</h1>
+          <p className="mt-2 text-sm opacity-80">Subtes: <strong className="uppercase">{exam?.subtest || 'Umum'}</strong></p>
+          <div className="mt-4 rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-sm">
+            🔒 Nilai ujian ini disembunyikan sesuai pengaturan paket.
+          </div>
+        </div>
+      ) : (
       <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl space-y-6 transition-all ${themeStyles.card}`}>
         
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left border-b border-white/10 pb-6">
@@ -623,6 +633,7 @@ function ExamSummaryContent() {
           </Link>
         </div>
       </div>
+      )}
 
       {/* 2. BAGIAN PEMBAHASAN SOAL */}
       <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl space-y-6 ${themeStyles.card}`}>
@@ -639,6 +650,7 @@ function ExamSummaryContent() {
           </div>
 
           {/* FILTER TAB */}
+          {exam?.show_results !== false && (
           <div className="flex bg-black/20 p-1 rounded-xl border border-white/10 space-x-1 text-xs font-bold">
             <button
               onClick={() => setFilterType('all')}
@@ -665,6 +677,7 @@ function ExamSummaryContent() {
               Salah ({totalWrong + totalUnanswered})
             </button>
           </div>
+          )}
         </div>
 
         {/* DAFTAR SOAL & PEMBAHASAN */}
@@ -679,7 +692,9 @@ function ExamSummaryContent() {
                 <div
                   key={q.id}
                   className={`p-5 rounded-2xl border transition-all space-y-4 ${
-                    evalResult.isPending
+                    exam?.show_results === false
+                      ? 'bg-slate-50 border-slate-200'
+                      : evalResult.isPending
                       ? 'bg-sky-50 border-sky-300'
                       : evalResult.isCorrect
                       ? 'bg-emerald-50 border-emerald-300'
@@ -704,7 +719,7 @@ function ExamSummaryContent() {
                     </span>
 
                     {/* BADGE STATUS */}
-                    {evalResult.isPending ? (
+                    {exam?.show_results !== false && (evalResult.isPending ? (
                       <span className="px-3 py-1 bg-sky-100 text-sky-900 border border-sky-300 text-xs font-bold rounded-xl flex items-center space-x-1"><span>📝</span><span>Menunggu Penilaian Guru</span></span>
                     ) : evalResult.isGraded ? (
                       <span className="px-3 py-1 bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold rounded-xl">Sudah Dinilai Guru</span>
@@ -723,7 +738,7 @@ function ExamSummaryContent() {
                         <span>❌</span>
                         <span>Jawaban Kurang Tepat</span>
                       </span>
-                    )}
+                    ))}
                   </div>
 
                   {/* TEKS SOAL */}
