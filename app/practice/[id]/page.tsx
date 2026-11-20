@@ -199,6 +199,12 @@ function PracticeContent() {
         return
       }
 
+      if (examData.show_results === false || examData.target_mode === 'EXAM_ONLY') {
+        alert('Paket ini khusus untuk Ujian CBT dan tidak tersedia di halaman Latihan.')
+        router.replace('/practice')
+        return
+      }
+
       let questionQuery = supabase
         .from('questions')
         .select('*')
