@@ -430,7 +430,7 @@ function ExamSummaryContent() {
     const userAns = userAnswersMap[q.id]
     const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
 
-    if (exam?.show_results === false) return true
+    if (exam?.show_results === false || exam?.show_explanations === false) return true
     if (filterType === 'correct') return evalResult.isCorrect
     if (filterType === 'wrong') return !evalResult.isCorrect && !evalResult.isPending
     return true
@@ -645,22 +645,22 @@ function ExamSummaryContent() {
       )}
 
       {/* 2. BAGIAN PEMBAHASAN SOAL */}
-      {exam?.show_results !== false && exam?.show_explanations !== false ? (
+      {exam?.show_results !== false ? (
       <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl space-y-6 ${themeStyles.card}`}>
         
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-b border-white/10 pb-4">
           <div>
             <h2 className="text-xl font-black flex items-center space-x-2">
               <span>📖</span>
-              <span>Pembahasan & Kunci Jawaban</span>
+              <span>{exam?.show_explanations === false ? 'Ringkasan Jawaban' : 'Pembahasan & Kunci Jawaban'}</span>
             </h2>
             <p className="text-xs opacity-75 mt-0.5">
-              Pelajari kembali soal dan kunci jawaban resmi untuk meningkatkan pemahaman.
+              {exam?.show_explanations === false ? 'Berikut soal dan jawaban yang telah kamu kirim. Kunci jawaban dan pembahasan tidak ditampilkan.' : 'Pelajari kembali soal dan kunci jawaban resmi untuk meningkatkan pemahaman.'}
             </p>
           </div>
 
           {/* FILTER TAB */}
-          {exam?.show_results !== false && (
+          {exam?.show_results !== false && exam?.show_explanations !== false && (
           <div className="flex bg-black/20 p-1 rounded-xl border border-white/10 space-x-1 text-xs font-bold">
             <button
               onClick={() => setFilterType('all')}
@@ -701,8 +701,8 @@ function ExamSummaryContent() {
               return (
                 <div
                   key={q.id}
-                  className={`p-5 rounded-2xl border transition-all space-y-4 ${
-                    exam?.show_results === false
+                  className={`p-5 rounded-2xl border transition-all space-y-4 text-slate-900 ${
+                    exam?.show_results === false || exam?.show_explanations === false
                       ? 'bg-slate-50 border-slate-200'
                       : evalResult.isPending
                       ? 'bg-sky-50 border-sky-300'
@@ -729,7 +729,7 @@ function ExamSummaryContent() {
                     </span>
 
                     {/* BADGE STATUS */}
-                    {exam?.show_results !== false && (evalResult.isPending ? (
+                    {exam?.show_results !== false && exam?.show_explanations !== false && (evalResult.isPending ? (
                       <span className="px-3 py-1 bg-sky-100 text-sky-900 border border-sky-300 text-xs font-bold rounded-xl flex items-center space-x-1"><span>📝</span><span>Menunggu Penilaian Guru</span></span>
                     ) : evalResult.isGraded ? (
                       <span className="px-3 py-1 bg-indigo-100 text-indigo-900 border border-indigo-300 text-xs font-bold rounded-xl">Sudah Dinilai Guru</span>
@@ -779,12 +779,12 @@ function ExamSummaryContent() {
                         const userOpt = String(userAns || '').trim().toUpperCase()
 
                         const isSelected = userOpt === optKey.toUpperCase()
-                        const isCorrectOpt = correctOpt === optKey.toUpperCase()
+                        const isCorrectOpt = exam?.show_explanations !== false && correctOpt === optKey.toUpperCase()
 
                         let optionStyle = 'border-slate-300 bg-slate-50 text-slate-800'
-                        if (isCorrectOpt) {
+                        if (exam?.show_explanations !== false && isCorrectOpt) {
                           optionStyle = 'border-emerald-400 bg-emerald-50 text-emerald-950 font-bold ring-1 ring-emerald-300'
-                        } else if (isSelected && !evalResult.isCorrect) {
+                        } else if (exam?.show_explanations !== false && isSelected && !evalResult.isCorrect) {
                           optionStyle = 'border-rose-400 bg-rose-50 text-rose-950 font-bold ring-1 ring-rose-300'
                         }
 
@@ -812,7 +812,7 @@ function ExamSummaryContent() {
 
                             <div className="flex items-center space-x-2 text-[10px] font-bold">
                               {isSelected && <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-800">Jawabanmu</span>}
-                              {isCorrectOpt && (
+                              {exam?.show_explanations !== false && isCorrectOpt && (
                                 <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
                                   Kunci Jawaban ✔
                                 </span>
@@ -847,12 +847,12 @@ function ExamSummaryContent() {
                         }
 
                         const isSelected = userKeys.includes(optKey.toUpperCase())
-                        const isCorrectOpt = correctKeys.includes(optKey.toUpperCase())
+                        const isCorrectOpt = exam?.show_explanations !== false && correctKeys.includes(optKey.toUpperCase())
 
                         let optionStyle = 'border-slate-300 bg-slate-50 text-slate-800'
-                        if (isCorrectOpt) {
+                        if (exam?.show_explanations !== false && isCorrectOpt) {
                           optionStyle = 'border-emerald-400 bg-emerald-50 text-emerald-950 font-bold ring-1 ring-emerald-300'
-                        } else if (isSelected && !isCorrectOpt) {
+                        } else if (exam?.show_explanations !== false && isSelected && !isCorrectOpt) {
                           optionStyle = 'border-rose-400 bg-rose-50 text-rose-950 font-bold ring-1 ring-rose-300'
                         }
 
@@ -891,7 +891,7 @@ function ExamSummaryContent() {
                           <tr>
                             <th className="p-3">Pernyataan</th>
                             <th className="p-3 w-28 text-center border-l border-slate-200">Jawabanmu</th>
-                            <th className="p-3 w-28 text-center border-l border-slate-200">Kunci Jawaban</th>
+                            {exam?.show_explanations !== false && <th className="p-3 w-28 text-center border-l border-slate-200">Kunci Jawaban</th>}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
@@ -912,7 +912,7 @@ function ExamSummaryContent() {
 
                             const userVal = userObj[stId] || 'Kosong'
                             const correctVal = correctObj[stId] || 'Benar'
-                            const isRowCorrect = String(userVal).trim().toLowerCase() === String(correctVal).trim().toLowerCase()
+                            const isRowCorrect = exam?.show_explanations !== false && String(userVal).trim().toLowerCase() === String(correctVal).trim().toLowerCase()
 
                             return (
                               <tr key={stId} className="hover:bg-slate-50">
@@ -930,9 +930,7 @@ function ExamSummaryContent() {
                                     {userVal}
                                   </span>
                                 </td>
-                                <td className="p-3 text-center border-l border-slate-200 font-bold text-emerald-900">
-                                  {correctVal}
-                                </td>
+                                {exam?.show_explanations !== false && <td className="p-3 text-center border-l border-slate-200 font-bold text-emerald-900">{correctVal}</td>}
                               </tr>
                             )
                           })}
@@ -952,7 +950,7 @@ function ExamSummaryContent() {
                   )}
 
                   {/* PEMBAHASAN SOAL */}
-                  {(q.explanation || q.pembahasan) && (
+                  {exam?.show_explanations !== false && (q.explanation || q.pembahasan) && (
                     <div className="mt-3 p-4 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs space-y-1">
                       <span className="font-extrabold uppercase tracking-wider block flex items-center space-x-1">
                         <span>💡</span>
@@ -975,7 +973,7 @@ function ExamSummaryContent() {
         </div>
 
       </div>
-      ) : exam?.show_results !== false && exam?.show_explanations === false ? (
+      ) : false ? (
         <div className={`p-6 sm:p-8 rounded-3xl border backdrop-blur-2xl shadow-2xl ${themeStyles.card}`}>
           <h2 className="text-lg sm:text-xl font-black">📖 Pembahasan & Kunci Jawaban</h2>
           <div className="mt-3 rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-sm leading-relaxed">
