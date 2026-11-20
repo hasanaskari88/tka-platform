@@ -705,7 +705,7 @@ function HistoryContent() {
               <option value="essay">Essay / uraian</option>
             </select>
             <select value={examSort} onChange={(e) => { setExamSort(e.target.value); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
-              <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option>
+              <option value="newest">Tanggal terbaru</option><option value="oldest">Tanggal terlama</option><option value="score-high">Nilai tertinggi</option><option value="score-low">Nilai terendah</option><option value="type-az">Tipe soal A–Z</option>
             </select>
             <select value={examPageSize} onChange={(e) => { setExamPageSize(Number(e.target.value)); setExamPage(1) }} className="rounded-lg border border-slate-300 px-3 py-2 text-xs text-slate-800">
               <option value={10}>10 riwayat / halaman</option><option value={25}>25 riwayat / halaman</option><option value={50}>50 riwayat / halaman</option><option value={100}>100 riwayat / halaman</option>
