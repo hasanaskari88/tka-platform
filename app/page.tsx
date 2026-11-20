@@ -40,127 +40,161 @@ function HomePageContent() {
   const [selectedArcadeMission, setSelectedArcadeMission] = useState(0)
 
   useEffect(() => {
+    let isMounted = true
+
     async function fetchData() {
       try {
         const supabase = createClient()
 
-        // 0. Ambil profil pengguna untuk widget XP dan level.
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+        // Data utama halaman dimuat bersamaan agar tidak saling menunggu.
+        const [
+          authResult,
+          examResult,
+          announcementResult,
+          materialResult,
+        ] = await Promise.all([
+          supabase.auth.getUser(),
+          supabase
+            .from('exams')
+            .select('*, author:profiles!exams_created_by_fkey(full_name)')
+            .eq('is_published', true)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('announcements')
+            .select('*')
+            .eq('is_active', true)
+            .order('created_at', { ascending: false }),
+          supabase
+            .from('study_materials')
+            .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
+            .order('created_at', { ascending: false }),
+        ])
 
+        const user = authResult.data?.user || null
         let currentProfile: any = null
 
+        // Profil diperlukan untuk identitas siswa dan peringkat kelas.
         if (user) {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
             .maybeSingle()
 
+          if (profileError) {
+            console.error('Gagal memuat profil pengguna:', profileError)
+          }
+
           if (profile) {
             currentProfile = profile
-            setUserProfile(profile)
+            if (isMounted) setUserProfile(profile)
           }
         }
 
-        // Papan juara memakai sumber dan urutan XP yang sama dengan halaman latihan.
-        const { data: globalTop } = await supabase
-          .from('profiles')
-          .select('id, full_name, username, class_code, xp, level, avatar_url')
-          .not('class_code', 'ilike', 'guru')
-          .order('xp', { ascending: false })
-          .limit(3)
+        if (!isMounted) return
 
-        setGlobalLeaderboard(
-          (globalTop || []).filter(
-            (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
-          )
-        )
-
-        // Distribusi XP seluruh siswa dipakai untuk menentukan gelar secara relatif,
-        // bukan memakai angka level/XP tetap. Hanya mengambil kolom minimum yang diperlukan.
-        const { data: studentScores } = await supabase
-          .from('profiles')
-          .select('id, class_code, xp')
-          .order('xp', { ascending: false })
-
-        setGlobalStudentScores(
-          (studentScores || []).filter(
-            (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
-          )
-        )
-
-        if (currentProfile?.class_code) {
-          const { data: classTop } = await supabase
-            .from('profiles')
-            .select('id, full_name, username, class_code, xp, level, avatar_url')
-            .eq('class_code', currentProfile.class_code)
-            .not('class_code', 'ilike', 'guru')
-            .order('xp', { ascending: false })
-            .limit(3)
-
-          setClassLeaderboard(
-            (classTop || []).filter(
-              (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
-            )
-          )
+        if (examResult.error) {
+          setError(examResult.error.message)
         } else {
-          setClassLeaderboard([])
-        }
-
-        // 1. Ambil ujian yang dipublikasikan.
-        const { data: examData, error: examErr } = await supabase
-          .from('exams')
-          .select('*, author:profiles!exams_created_by_fkey(full_name)')
-          .eq('is_published', true)
-          .order('created_at', { ascending: false })
-
-        if (examErr) {
-          setError(examErr.message)
-        } else {
-          const filteredExams = (examData || []).filter(
+          const filteredExams = (examResult.data || []).filter(
             (exam: any) =>
               !exam.target_mode ||
               exam.target_mode === 'CBT_ONLY' ||
               exam.target_mode === 'BOTH',
           )
-
           setExams(filteredExams)
         }
 
-        // 2. Ambil pengumuman sekolah.
-        try {
-          const { data: annData } = await supabase
-            .from('announcements')
-            .select('*')
-            .eq('is_active', true)
-            .order('created_at', { ascending: false })
-
-          if (annData) setAnnouncements(annData)
-        } catch {
-          console.log('Tabel announcements belum tersedia atau kosong.')
+        if (announcementResult.error) {
+          console.log('Pengumuman belum dapat dimuat:', announcementResult.error.message)
+        } else if (announcementResult.data) {
+          setAnnouncements(announcementResult.data)
         }
 
-        // 3. Ambil materi belajar.
-        try {
-          const { data: matData } = await supabase
-            .from('study_materials')
-            .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
-            .order('created_at', { ascending: false })
-
-          if (matData) setMaterials(matData)
-        } catch {
-          console.log('Tabel study_materials belum tersedia atau kosong.')
+        if (materialResult.error) {
+          console.log('Materi belajar belum dapat dimuat:', materialResult.error.message)
+        } else if (materialResult.data) {
+          setMaterials(materialResult.data)
         }
-      } catch (err: any) {
-        setError(err.message || 'Terjadi kesalahan saat memuat data.')
-      } finally {
+
+        // Tampilkan konten utama tanpa menunggu distribusi XP seluruh siswa.
         setLoading(false)
+
+        // Data papan juara dan gelar arcade bersifat sekunder; muat paralel
+        // setelah halaman utama sudah dapat digunakan.
+        const leaderboardRequests = [
+          supabase
+            .from('profiles')
+            .select('id, full_name, username, class_code, xp, level, avatar_url')
+            .not('class_code', 'ilike', 'guru')
+            .order('xp', { ascending: false })
+            .limit(3),
+          supabase
+            .from('profiles')
+            .select('id, class_code, xp')
+            .order('xp', { ascending: false }),
+        ]
+
+        if (currentProfile?.class_code) {
+          leaderboardRequests.push(
+            supabase
+              .from('profiles')
+              .select('id, full_name, username, class_code, xp, level, avatar_url')
+              .eq('class_code', currentProfile.class_code)
+              .not('class_code', 'ilike', 'guru')
+              .order('xp', { ascending: false })
+              .limit(3)
+          )
+        }
+
+        const [globalTopResult, studentScoresResult, classTopResult] =
+          await Promise.all([
+            ...leaderboardRequests,
+            ...(currentProfile?.class_code ? [] : [Promise.resolve({ data: [], error: null })]),
+          ])
+
+        if (!isMounted) return
+
+        if (globalTopResult.error) {
+          console.error('Gagal memuat papan juara global:', globalTopResult.error)
+        }
+        setGlobalLeaderboard(
+          (globalTopResult.data || []).filter(
+            (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
+          )
+        )
+
+        if (studentScoresResult.error) {
+          console.error('Gagal memuat distribusi XP siswa:', studentScoresResult.error)
+        }
+        setGlobalStudentScores(
+          (studentScoresResult.data || []).filter(
+            (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
+          )
+        )
+
+        if (classTopResult.error) {
+          console.error('Gagal memuat papan juara kelas:', classTopResult.error)
+        }
+        setClassLeaderboard(
+          (classTopResult.data || []).filter(
+            (student: any) => String(student.class_code || '').trim().toLowerCase() !== 'guru'
+          )
+        )
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message || 'Terjadi kesalahan saat memuat data.')
+        }
+      } finally {
+        if (isMounted) setLoading(false)
       }
     }
 
     fetchData()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const handleOpenTokenModal = (exam: any) => {
