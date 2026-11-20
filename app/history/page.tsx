@@ -313,7 +313,7 @@ function HistoryContent() {
     .filter((item) => {
       const matchesSearch = String(item.exam_title || '').toLowerCase().includes(examSearch.toLowerCase())
       const matchesStatus = examStatus === 'all' || item.status === examStatus
-      const matchesQuestionType = examQuestionType === 'all' || (item.questionTypes || []).includes(examQuestionType)
+      const matchesQuestionType = examQuestionType === 'all' || (item.questionTypes || []).some((type: string) => examQuestionType === 'essay' ? type === 'essay' || type === 'uraian' : type === examQuestionType)
       return matchesSearch && matchesStatus && matchesQuestionType
     })
     .sort((a, b) => {
