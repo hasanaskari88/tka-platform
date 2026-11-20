@@ -240,7 +240,7 @@ function HistoryContent() {
     const subtestMap = new Map<string, { totalScore: number; count: number; maxScore: number }>()
 
     processedHistory
-      .filter((item) => item.status === 'completed')
+      .filter((item) => item.status === 'completed' && item.show_results)
       .forEach((item) => {
         const stName = item.subtest.toUpperCase()
         const current = subtestMap.get(stName) || { totalScore: 0, count: 0, maxScore: 0 }
@@ -341,14 +341,15 @@ function HistoryContent() {
     Math.min(examPage, examPageCount) * examPageSize
   )
 
-  const completedHistory = historyList.filter((h) => h.status === 'completed')
-  const totalCompleted = completedHistory.length
+  const allCompletedHistory = historyList.filter((h) => h.status === 'completed')
+  const completedHistory = allCompletedHistory.filter((h) => h.show_results)
+  const totalCompleted = allCompletedHistory.length
   const totalAllScores = completedHistory.map((h) => h.score)
   const overallAverage =
-    totalCompleted > 0
-      ? Math.round(totalAllScores.reduce((a, b) => a + b, 0) / totalCompleted)
-      : 0
-  const overallHighest = totalCompleted > 0 ? Math.max(...totalAllScores) : 0
+    totalAllScores.length > 0
+      ? Math.round(totalAllScores.reduce((a, b) => a + b, 0) / totalAllScores.length)
+      : null
+  const overallHighest = totalAllScores.length > 0 ? Math.max(...totalAllScores) : null
 
   const classTeachers = signatories.filter((item) => item.position === 'class_teacher' && item.class_code === profile?.class_code)
   const principals = signatories.filter((item) => item.position === 'principal')
@@ -497,7 +498,7 @@ function HistoryContent() {
               📈 Rata-Rata Skor Gabungan
             </span>
             <span className="text-2xl font-extrabold text-indigo-600">
-              {overallAverage} <span className="text-xs font-normal text-slate-500">/ 100 Poin</span>
+              {overallAverage === null ? '—' : overallAverage} <span className="text-xs font-normal text-slate-500">/ 100 Poin</span>
             </span>
           </div>
 
@@ -506,7 +507,7 @@ function HistoryContent() {
               🏆 Skor Tertinggi Saya
             </span>
             <span className="text-2xl font-extrabold text-emerald-600">
-              {overallHighest} <span className="text-xs font-normal text-slate-500">/ 100 Poin</span>
+              {overallHighest === null ? '—' : overallHighest} <span className="text-xs font-normal text-slate-500">/ 100 Poin</span>
             </span>
           </div>
         </div>
@@ -824,13 +825,15 @@ function HistoryContent() {
                                 <span>👁️ Review</span>
                               </Link>
 
-                              <button
-                                onClick={() => setSelectedCertSession(item)}
-                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
-                                title="Cetak Sertifikat Tes"
-                              >
-                                <span>📜 Sertifikat</span>
-                              </button>
+                              {item.show_results && (
+                                <button
+                                  onClick={() => setSelectedCertSession(item)}
+                                  className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-lg transition-colors inline-flex items-center space-x-1 shadow-sm"
+                                  title="Cetak Sertifikat Tes"
+                                >
+                                  <span>📜 Sertifikat</span>
+                                </button>
+                              )}
 
                               <button
                                 onClick={() => handleRetakeExam(item.exam_id, item.exam_title)}
