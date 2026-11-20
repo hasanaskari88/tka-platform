@@ -317,6 +317,19 @@ function HistoryContent() {
       return matchesSearch && matchesStatus && matchesQuestionType
     })
     .sort((a, b) => {
+      if (examSort === 'type-az') {
+        const typeNames: Record<string, string> = {
+          multiple_choice: '1 pilihan ganda',
+          complex_multiple_choice: '2 pilihan ganda kompleks',
+          true_false_matrix: '3 matriks benar salah',
+          essay: '4 essay uraian',
+          uraian: '4 essay uraian',
+        }
+        const getTypeName = (item: any) => (item.questionTypes || [])
+          .map((type: string) => typeNames[type] || type)
+          .sort()[0] || '9 lainnya'
+        return getTypeName(a).localeCompare(getTypeName(b), 'id')
+      }
       if (examSort === 'oldest') return new Date(a.completed_at || 0).getTime() - new Date(b.completed_at || 0).getTime()
       if (examSort === 'score-high') return Number(b.score || 0) - Number(a.score || 0)
       if (examSort === 'score-low') return Number(a.score || 0) - Number(b.score || 0)
@@ -722,6 +735,18 @@ function HistoryContent() {
                         </td>
                         <td className="p-3">
                           <div className="font-bold text-slate-800">{item.exam_title}</div>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {(item.questionTypes || []).map((type: string) => {
+                              const typeLabel: Record<string, string> = {
+                                multiple_choice: 'Pilihan ganda',
+                                complex_multiple_choice: 'PG kompleks',
+                                true_false_matrix: 'Matriks benar/salah',
+                                essay: 'Essay/uraian',
+                                uraian: 'Essay/uraian',
+                              }
+                              return <span key={type} className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-700">{typeLabel[type] || type}</span>
+                            })}
+                          </div>
                         </td>
                         <td className="p-3 text-center">
                           <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded font-bold uppercase text-[10px]">
