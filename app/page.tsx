@@ -122,35 +122,27 @@ function HomePageContent() {
 
         // Data papan juara dan gelar arcade bersifat sekunder; muat paralel
         // setelah halaman utama sudah dapat digunakan.
-        const leaderboardRequests = [
-          supabase
-            .from('profiles')
-            .select('id, full_name, username, class_code, xp, level, avatar_url')
-            .not('class_code', 'ilike', 'guru')
-            .order('xp', { ascending: false })
-            .limit(3),
-          supabase
-            .from('profiles')
-            .select('id, class_code, xp')
-            .order('xp', { ascending: false }),
-        ]
-
-        if (currentProfile?.class_code) {
-          leaderboardRequests.push(
+        const [globalTopResult, studentScoresResult, classTopResult] =
+          await Promise.all([
             supabase
               .from('profiles')
               .select('id, full_name, username, class_code, xp, level, avatar_url')
-              .eq('class_code', currentProfile.class_code)
               .not('class_code', 'ilike', 'guru')
               .order('xp', { ascending: false })
-              .limit(3)
-          )
-        }
-
-        const [globalTopResult, studentScoresResult, classTopResult] =
-          await Promise.all([
-            ...leaderboardRequests,
-            ...(currentProfile?.class_code ? [] : [Promise.resolve({ data: [], error: null })]),
+              .limit(3),
+            supabase
+              .from('profiles')
+              .select('id, class_code, xp')
+              .order('xp', { ascending: false }),
+            currentProfile?.class_code
+              ? supabase
+                  .from('profiles')
+                  .select('id, full_name, username, class_code, xp, level, avatar_url')
+                  .eq('class_code', currentProfile.class_code)
+                  .not('class_code', 'ilike', 'guru')
+                  .order('xp', { ascending: false })
+                  .limit(3)
+              : Promise.resolve({ data: [], error: null }),
           ])
 
         if (!isMounted) return
