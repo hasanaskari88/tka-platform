@@ -331,8 +331,15 @@ function HistoryContent() {
         return getTypeName(a).localeCompare(getTypeName(b), 'id')
       }
       if (examSort === 'oldest') return new Date(a.completed_at || 0).getTime() - new Date(b.completed_at || 0).getTime()
-      if (examSort === 'score-high') return Number(b.score || 0) - Number(a.score || 0)
-      if (examSort === 'score-low') return Number(a.score || 0) - Number(b.score || 0)
+      if (examSort === 'score-high' || examSort === 'score-low') {
+        if (a.show_results !== b.show_results) return a.show_results ? -1 : 1
+        if (!a.show_results) {
+          return new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
+        }
+        return examSort === 'score-high'
+          ? Number(b.score || 0) - Number(a.score || 0)
+          : Number(a.score || 0) - Number(b.score || 0)
+      }
       return new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
     })
   const examPageCount = Math.max(1, Math.ceil(filteredExamHistory.length / examPageSize))
