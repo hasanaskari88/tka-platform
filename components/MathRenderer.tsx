@@ -138,7 +138,16 @@ function renderLegacyMath(html: string): string {
       const formattedText = part.split(/(<[^>]*>)/g).map((segment) => {
         if (segment.startsWith('<') && segment.endsWith('>')) return segment
 
-        return segment.replace(
+        // Pecahan campuran: 1 1/2, 2 3/4, -3 1/5.
+        // Konversi sebagai satu rumus agar bilangan bulat dan pecahannya menyatu.
+        const withMixedFractions = segment.replace(
+          /(^|[^\w./])(-?\d+)\s+(\d+)\s*\/\s*(\d+)(?![\w./])/g,
+          (_match, prefix: string, whole: string, numerator: string, denominator: string) =>
+            prefix + renderKatex(whole + '\\frac{' + numerator + '}{' + denominator + '}', false)
+        )
+
+        // Pecahan biasa: 1/2, 3/4, dan seterusnya.
+        return withMixedFractions.replace(
           /(^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./])/g,
           (_match, prefix: string, numerator: string, denominator: string) =>
             prefix + renderKatex('\\frac{' + numerator + '}{' + denominator + '}', false)
