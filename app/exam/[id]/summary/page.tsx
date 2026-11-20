@@ -796,9 +796,9 @@ function ExamSummaryContent() {
                             <div className="flex items-center space-x-3">
                               <span
                                 className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono font-bold text-xs shrink-0 ${
-                                  isCorrectOpt
+                                  exam?.show_explanations !== false && isCorrectOpt
                                     ? 'bg-emerald-600 text-white'
-                                    : isSelected
+                                    : exam?.show_explanations !== false && isSelected
                                     ? 'bg-rose-600 text-white'
                                     : 'bg-slate-200 text-slate-700'
                                 }`}
@@ -871,7 +871,7 @@ function ExamSummaryContent() {
 
                             <div className="flex items-center space-x-2 text-[10px] font-bold">
                               {isSelected && <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-800">Jawabanmu</span>}
-                              {isCorrectOpt && (
+                              {exam?.show_explanations !== false && isCorrectOpt && (
                                 <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-300">
                                   Kunci Jawaban ✔
                                 </span>
@@ -922,7 +922,9 @@ function ExamSummaryContent() {
                                 <td className="p-3 text-center border-l border-slate-200 font-bold">
                                   <span
                                     className={`px-2 py-0.5 rounded ${
-                                      isRowCorrect
+                                      exam?.show_explanations === false
+                                        ? 'bg-slate-100 text-slate-800'
+                                        : isRowCorrect
                                         ? 'bg-emerald-100 text-emerald-900'
                                         : 'bg-rose-100 text-rose-900'
                                     }`}
