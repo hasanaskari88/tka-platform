@@ -26,6 +26,8 @@ function HomePageContent() {
   const [materialSearch, setMaterialSearch] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('Semua')
   const [materialSort, setMaterialSort] = useState('Terbaru')
+  const [materialPage, setMaterialPage] = useState(0)
+  const MATERIALS_PER_PAGE = 3
   const [showMaterialFilters, setShowMaterialFilters] = useState(false)
   const [showExamFilters, setShowExamFilters] = useState(false)
   
@@ -394,6 +396,12 @@ const filteredMaterials = useMemo(() => {
 
   return result
 }, [materials, selectedSubject, materialSearch, materialSort])
+
+const totalMaterialPages = Math.max(1, Math.ceil(filteredMaterials.length / MATERIALS_PER_PAGE))
+const visibleMaterials = filteredMaterials.slice(
+  materialPage * MATERIALS_PER_PAGE,
+  (materialPage + 1) * MATERIALS_PER_PAGE
+)
 
 // ========================================
 // PENGOLAHAN DATA UJIAN
@@ -1000,14 +1008,20 @@ const filteredExams = useMemo(() => {
                 <input
                   type="search"
                   value={materialSearch}
-                  onChange={(e) => setMaterialSearch(e.target.value)}
+                  onChange={(e) => {
+                    setMaterialSearch(e.target.value)
+                    setMaterialPage(0)
+                  }}
                   placeholder="Cari judul atau mata pelajaran..."
                   aria-label="Cari sumber belajar"
                   className="min-w-0 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                 />
                 <select
                   value={selectedSubject}
-                  onChange={(e) => setSelectedSubject(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedSubject(e.target.value)
+                    setMaterialPage(0)
+                  }}
                   aria-label="Filter mata pelajaran"
                   className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
                 >
@@ -1020,13 +1034,16 @@ const filteredExams = useMemo(() => {
 
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/10 pt-2">
                 <span className="text-[11px] font-semibold opacity-80">
-                  Menampilkan {Math.min(filteredMaterials.length, 3)} dari {filteredMaterials.length} hasil
+                  Menampilkan {filteredMaterials.length === 0 ? 0 : materialPage * MATERIALS_PER_PAGE + 1}–{Math.min((materialPage + 1) * MATERIALS_PER_PAGE, filteredMaterials.length)} dari {filteredMaterials.length} hasil
                 </span>
                 <label className="flex items-center gap-2 text-[11px] font-semibold">
                   <span>Urutkan</span>
                   <select
                     value={materialSort}
-                    onChange={(e) => setMaterialSort(e.target.value)}
+                    onChange={(e) => {
+                      setMaterialSort(e.target.value)
+                      setMaterialPage(0)
+                    }}
                     className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-800"
                   >
                     <option value="Terbaru">Terbaru</option>
@@ -1039,7 +1056,7 @@ const filteredExams = useMemo(() => {
 
               {filteredMaterials.length > 0 ? (
                 <div className="divide-y divide-current/10">
-                  {filteredMaterials.slice(0, 3).map((mat, index) => (
+                  {visibleMaterials.map((mat, index) => (
                     <article key={mat.id} className="flex items-center gap-3 py-3 first:pt-1 last:pb-1">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-xl">
                         {['📕', '📘', '📗'][index % 3]}
@@ -1065,7 +1082,30 @@ const filteredExams = useMemo(() => {
                 <p className="py-5 text-center text-xs font-semibold opacity-70">Sumber belajar tidak ditemukan. Coba kata kunci lain.</p>
               )}
 
-              <div className="flex justify-end border-t border-current/10 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-current/10 pt-3">
+                <div className="flex items-center gap-2" aria-label="Navigasi halaman sumber belajar">
+                  <button
+                    type="button"
+                    onClick={() => setMaterialPage((page) => Math.max(0, page - 1))}
+                    disabled={materialPage === 0}
+                    aria-label="Sumber belajar sebelumnya"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-current/20 text-lg font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    &lt;
+                  </button>
+                  <span className="min-w-[76px] text-center text-[11px] font-bold tabular-nums">
+                    {materialPage + 1} / {totalMaterialPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setMaterialPage((page) => Math.min(totalMaterialPages - 1, page + 1))}
+                    disabled={materialPage >= totalMaterialPages - 1}
+                    aria-label="Sumber belajar berikutnya"
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-current/20 text-lg font-black transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    &gt;
+                  </button>
+                </div>
                 <Link href="/materi" className={`rounded-xl px-4 py-2.5 text-xs font-black transition hover:-translate-y-0.5 ${themeDetails.btnBg}`}>
                   Lihat semua sumber belajar ({materials.length}) →
                 </Link>
