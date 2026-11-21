@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ComponentType } from 'react'
 import { ArrowDown, ArrowUp, CheckCircle2, Cloud, Copy, Database, Image as ImageIcon, Loader2, RefreshCw, Save, Sparkles, Trash2, XCircle } from 'lucide-react'
 
 type ProviderConfig = { provider_order: string[]; providers: Record<string, { enabled?: boolean }> }
@@ -174,7 +174,7 @@ export default function ServiceCenterPage() {
         const item = list.find((entry) => entry.id === id)
         if (!item) return null
         const available = settings?.availability[id]
-        const Icon = 'icon' in item ? item.icon : Sparkles
+        const Icon: ComponentType<{ size?: number }> = 'icon' in item ? item.icon : Sparkles
         return <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-slate-600"><Icon size={18} /></div>
           <div className="min-w-0 flex-1">
