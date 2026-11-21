@@ -1044,14 +1044,14 @@ export default function AsistenAIPage() {
 
     try {
       // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
-      const exactEqualGroupsBlob = await createEqualGroupsImage(item, analyzedSpec)
-      // Soal yang menyebut jumlah buah konkret harus memakai renderer jumlah buah,
-      // bukan renderer partisi tiga kotak yang hanya menggambar ikon buah.
-      const exactFruitBoxesBlob = exactEqualGroupsBlob ? null : await createThreeFruitBoxesImage(item.question)
-      const exactFruitPartitionBlob = exactEqualGroupsBlob || exactFruitBoxesBlob ? null : await createThreeFruitPartitionImage(item.question)
-      const exactComparisonBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
-      const exactFractionBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
-      const exactMathBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
+      // Soal jumlah beberapa jenis buah diprioritaskan agar tidak salah ditafsirkan
+      // sebagai pembagian kelompok yang tidak sesuai dengan maksud pertanyaan.
+      const exactFruitBoxesBlob = await createThreeFruitBoxesImage(item.question)
+      const exactEqualGroupsBlob = exactFruitBoxesBlob ? null : await createEqualGroupsImage(item, analyzedSpec)
+      const exactFruitPartitionBlob = exactFruitBoxesBlob || exactEqualGroupsBlob ? null : await createThreeFruitPartitionImage(item.question)
+      const exactComparisonBlob = exactFruitBoxesBlob || exactEqualGroupsBlob || exactFruitPartitionBlob ? null : await createExactNumberComparisonImage(item.question)
+      const exactFractionBlob = exactFruitBoxesBlob || exactEqualGroupsBlob || exactFruitPartitionBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
+      const exactMathBlob = exactFruitBoxesBlob || exactEqualGroupsBlob || exactFruitPartitionBlob || exactComparisonBlob || exactFractionBlob
       if (exactMathBlob) {
         setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
         const formData = new FormData()
