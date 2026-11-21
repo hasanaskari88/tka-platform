@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import { ArrowDown, ArrowUp, CheckCircle2, Cloud, Copy, Database, Image as ImageIcon, Loader2, RefreshCw, Save, Sparkles, Trash2, XCircle } from 'lucide-react'
 
 type ProviderConfig = { provider_order: string[]; providers: Record<string, { enabled?: boolean }> }
@@ -55,7 +54,6 @@ export default function ServiceCenterPage() {
   const [galleryPage, setGalleryPage] = useState(1)
   const [galleryTotalPages, setGalleryTotalPages] = useState(1)
   const [galleryTotal, setGalleryTotal] = useState(0)
-  const searchParams = useSearchParams()
   const [summary, setSummary] = useState({ count: 0, bytes: 0 })
   const [aiUsage, setAiUsage] = useState<AIUsage | null>(null)
   const [loading, setLoading] = useState(true)
@@ -72,7 +70,7 @@ export default function ServiceCenterPage() {
     setSettings(data)
   }, [])
 
-  const loadGallery = useCallback(async (requestedPage = galleryPage) => {
+  const loadGallery = useCallback(async (requestedPage: number) => {
     setGalleryLoading(true)
     try {
       const response = await fetch('/api/admin/media?page=' + requestedPage + '&pageSize=18', { cache: 'no-store' })
@@ -88,7 +86,7 @@ export default function ServiceCenterPage() {
     } finally {
       setGalleryLoading(false)
     }
-  }, [galleryPage])
+  }, [])
 
   useEffect(() => {
     loadSettings().catch((e) => setError(e instanceof Error ? e.message : 'Gagal memuat pengaturan.'))
@@ -96,7 +94,7 @@ export default function ServiceCenterPage() {
   }, [loadSettings])
 
   useEffect(() => {
-    if (tab === 'gallery') void loadGallery()
+    if (tab === 'gallery') void loadGallery(galleryPage)
     if (tab === 'usage') {
       fetch('/api/admin/ai-usage', { cache: 'no-store' })
         .then(async (response) => {
@@ -106,7 +104,7 @@ export default function ServiceCenterPage() {
         })
         .catch((e) => setError(e instanceof Error ? e.message : 'Gagal memuat statistik AI.'))
     }
-  }, [tab, loadGallery])
+  }, [tab, galleryPage, loadGallery])
 
   async function saveSettings() {
     if (!settings) return
@@ -134,7 +132,7 @@ export default function ServiceCenterPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Inventarisasi gagal.')
       setMessage('Inventarisasi selesai: ' + data.discovered + ' file ditemukan, ' + data.imported + ' file baru dicatat.' + (data.errors?.length ? ' Ada penyedia yang gagal dibaca: ' + data.errors.map((item: { provider: string }) => item.provider).join(', ') + '.' : ''))
-      await loadGallery()
+      await loadGallery(galleryPage)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Inventarisasi media gagal.')
     } finally {
@@ -158,14 +156,14 @@ export default function ServiceCenterPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Gambar gagal dihapus.')
       setMessage('Gambar berhasil dihapus.')
-      await loadGallery()
+      await loadGallery(galleryPage)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menghapus gambar.')
     }
   }
 
   useEffect(() => {
-    const status = searchParams.get('googleDrive')
+    const status = new URLSearchParams(window.location.search).get('googleDrive')
     if (!status) return
     const messages: Record<string, string> = {
       connected: 'Google Drive berhasil dihubungkan.',
@@ -177,7 +175,7 @@ export default function ServiceCenterPage() {
       error: 'Koneksi Google Drive gagal. Periksa konfigurasi OAuth Production di Vercel.',
     }
     if (messages[status]) setMessage(messages[status])
-  }, [searchParams])
+  }, [])
 
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="animate-spin" size={18} /> Memuat pusat pengaturan...</div>
 
@@ -268,14 +266,14 @@ export default function ServiceCenterPage() {
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">File tercatat</p><p className="mt-1 text-2xl font-black text-slate-900">{summary.count}</p></div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Total ukuran file</p><p className="mt-1 text-2xl font-black text-slate-900">{formatBytes(summary.bytes)}</p></div>
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="text-xs font-semibold text-slate-500">Penyegaran data</p><p className="mt-1 text-sm font-bold text-slate-800">Inventarisasi penyimpanan</p></div><div className="flex gap-2"><button onClick={() => void loadGallery()} className="rounded-xl border p-2 text-slate-600 hover:bg-slate-50" title="Muat ulang"><RefreshCw size={17} /></button><button onClick={() => void syncMedia()} disabled={syncing} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60">{syncing ? <Loader2 className="animate-spin" size={15} /> : <RefreshCw size={15} />} {syncing ? 'Memindai...' : 'Pindai file lama'}</button></div></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="text-xs font-semibold text-slate-500">Penyegaran data</p><p className="mt-1 text-sm font-bold text-slate-800">Inventarisasi penyimpanan</p></div><div className="flex gap-2"><button onClick={() => void loadGallery(galleryPage)} className="rounded-xl border p-2 text-slate-600 hover:bg-slate-50" title="Muat ulang"><RefreshCw size={17} /></button><button onClick={() => void syncMedia()} disabled={syncing} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60">{syncing ? <Loader2 className="animate-spin" size={15} /> : <RefreshCw size={15} />} {syncing ? 'Memindai...' : 'Pindai file lama'}</button></div></div>
       </div>
       <p className="text-xs leading-relaxed text-slate-500">Galeri menampilkan file yang tercatat di layanan media. Gunakan Pindai file lama untuk memasukkan file yang sudah ada di folder ImageKit TKA Platform, folder aplikasi Google Drive, dan bucket question-images. Penghapusan ditolak bila gambar masih ditemukan pada soal atau materi.</p>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
         <p className="text-xs text-slate-500">Menampilkan {assets.length ? ((galleryPage - 1) * 18 + 1) : 0}–{Math.min(galleryPage * 18, galleryTotal)} dari {galleryTotal} gambar · Halaman {galleryPage} dari {galleryTotalPages}</p>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => void loadGallery(Math.max(1, galleryPage - 1))} disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
-          <button type="button" onClick={() => void loadGallery(Math.min(galleryTotalPages, galleryPage + 1))} disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
+          <button type="button" onClick={() => setGalleryPage((current) => Math.max(1, current - 1)) disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
+          <button type="button" onClick={() => setGalleryPage((current) => Math.min(galleryTotalPages, current + 1)) disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
         </div>
       </div>
       {galleryLoading ? <div className="flex justify-center py-12 text-slate-500"><Loader2 className="animate-spin" /></div> : assets.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><ImageIcon className="mx-auto text-slate-300" size={36} /><p className="mt-3 font-bold text-slate-700">Belum ada media tercatat</p><p className="mt-1 text-sm text-slate-500">Gambar baru akan muncul di sini setelah melalui layanan unggah terpusat.</p></div> :
