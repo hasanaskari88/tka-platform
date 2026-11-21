@@ -24,7 +24,7 @@ async function listImageKit(): Promise<FoundFile[]> {
       if (!item.fileId || !item.url) continue
       found.push({
         original_name: String(item.name || 'gambar'),
-        mime_type: String(item.fileType || 'image/jpeg') === 'image' ? 'image/jpeg' : String(item.fileType || 'image/jpeg'),
+        mime_type: String(item.mime || 'image/jpeg'),
         file_size_bytes: Number(item.size || 1),
         provider: 'imagekit',
         storage_path: String(item.fileId),
