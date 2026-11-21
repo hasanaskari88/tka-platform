@@ -127,63 +127,89 @@ export async function GET(request: NextRequest) {
   }
 }
 
+async function deleteMediaById(supabase: ReturnType<typeof createServiceRoleClient>, id: string) {
+  const { data: asset, error: readError } = await supabase
+    .from('storage_upload_logs')
+    .select('*')
+    .eq('id', id)
+    .single()
+  if (readError || !asset) return { success: false, error: 'Media tidak ditemukan.' }
+  if (asset.status !== 'success') return { success: false, error: 'Media ini sudah tidak aktif.' }
+  if (!asset.public_url) return { success: false, error: 'URL media tidak tersedia.' }
+
+  const usage = await findUsage(supabase, asset.public_url)
+  if (usage.total > 0) return { success: false, error: 'Gambar masih digunakan.', usage }
+
+  if (asset.provider === 'supabase') {
+    if (!asset.storage_path) throw new Error('Path file Supabase tidak tersedia.')
+    const { error } = await supabase.storage.from('question-images').remove([asset.storage_path])
+    if (error) throw error
+  } else if (asset.provider === 'imagekit') {
+    if (!asset.storage_path || !process.env.IMAGEKIT_PRIVATE_KEY) throw new Error('ID file ImageKit atau private key tidak tersedia.')
+    const auth = Buffer.from(process.env.IMAGEKIT_PRIVATE_KEY + ':').toString('base64')
+    const response = await fetch('https://api.imagekit.io/v1/files/' + encodeURIComponent(asset.storage_path), {
+      method: 'DELETE',
+      headers: { Authorization: 'Basic ' + auth },
+    })
+    if (!response.ok) throw new Error('ImageKit menolak penghapusan file.')
+  } else if (asset.provider === 'google_drive') {
+    if (!asset.storage_path || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) throw new Error('Konfigurasi Google Drive tidak lengkap.')
+    const { data: connection, error: connectionError } = await supabase.from('google_drive_tokens')
+      .select('refresh_token_encrypted').eq('id', 'primary').maybeSingle()
+    if (connectionError || !connection) throw new Error('Google Drive belum terhubung.')
+    const oauth = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      (process.env.NEXT_PUBLIC_SITE_URL || 'https://grisan.vercel.app') + '/api/google-drive/callback'
+    )
+    oauth.setCredentials({ refresh_token: decryptToken(connection.refresh_token_encrypted) })
+    await google.drive({ version: 'v3', auth: oauth }).files.delete({ fileId: asset.storage_path })
+  } else {
+    throw new Error('Penyedia penyimpanan ini belum didukung untuk penghapusan.')
+  }
+
+  const { error: updateError } = await supabase.from('storage_upload_logs')
+    .update({ status: 'deleted', deleted_at: new Date().toISOString() }).eq('id', id)
+  if (updateError) throw updateError
+  return { success: true }
+}
+
 export async function DELETE(request: NextRequest) {
   const admin = await requireAdmin()
   if (!admin.authorized) return NextResponse.json({ error: admin.error }, { status: admin.status })
 
   try {
-    const { id } = await request.json()
-    if (typeof id !== 'string' || !id) return NextResponse.json({ error: 'ID media tidak valid.' }, { status: 400 })
+    const body = await request.json()
+    const ids: string[] = Array.isArray(body.ids)
+      ? [...new Set(body.ids.filter((id: unknown): id is string => typeof id === 'string' && id.length > 0))]
+      : typeof body.id === 'string' && body.id
+        ? [body.id]
+        : []
+    if (!ids.length) return NextResponse.json({ error: 'ID media tidak valid.' }, { status: 400 })
+    if (ids.length > 50) return NextResponse.json({ error: 'Maksimal 50 gambar dapat dihapus sekaligus.' }, { status: 400 })
 
     const supabase = createServiceRoleClient()
-    const { data: asset, error: readError } = await supabase
-      .from('storage_upload_logs')
-      .select('*')
-      .eq('id', id)
-      .single()
-    if (readError || !asset) return NextResponse.json({ error: 'Media tidak ditemukan.' }, { status: 404 })
-    if (asset.status !== 'success') return NextResponse.json({ error: 'Media ini sudah tidak aktif.' }, { status: 409 })
-    if (!asset.public_url) return NextResponse.json({ error: 'URL media tidak tersedia.' }, { status: 400 })
-
-    const usage = await findUsage(supabase, asset.public_url)
-    if (usage.total > 0) {
-      return NextResponse.json({ error: 'Gambar masih digunakan dan tidak boleh dihapus.', usage }, { status: 409 })
+    let deleted = 0
+    const skipped: Array<{ id: string; reason: string }> = []
+    for (const id of ids) {
+      try {
+        const result = await deleteMediaById(supabase, id)
+        if (result.success) deleted++
+        else skipped.push({ id, reason: result.error || 'Tidak dapat dihapus.' })
+      } catch (error) {
+        console.error('Media delete item failed:', id, error)
+        skipped.push({ id, reason: error instanceof Error ? error.message : 'Terjadi kesalahan.' })
+      }
     }
 
-    if (asset.provider === 'supabase') {
-      if (!asset.storage_path) throw new Error('Path file Supabase tidak tersedia.')
-      const { error } = await supabase.storage.from('question-images').remove([asset.storage_path])
-      if (error) throw error
-    } else if (asset.provider === 'imagekit') {
-      if (!asset.storage_path || !process.env.IMAGEKIT_PRIVATE_KEY) throw new Error('ID file ImageKit atau private key tidak tersedia.')
-      const auth = Buffer.from(process.env.IMAGEKIT_PRIVATE_KEY + ':').toString('base64')
-      const response = await fetch('https://api.imagekit.io/v1/files/' + encodeURIComponent(asset.storage_path), {
-        method: 'DELETE',
-        headers: { Authorization: 'Basic ' + auth },
-      })
-      if (!response.ok) throw new Error('ImageKit menolak penghapusan file.')
-    } else if (asset.provider === 'google_drive') {
-      if (!asset.storage_path || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) throw new Error('Konfigurasi Google Drive tidak lengkap.')
-      const { data: connection, error: connectionError } = await supabase.from('google_drive_tokens')
-        .select('refresh_token_encrypted').eq('id', 'primary').maybeSingle()
-      if (connectionError || !connection) throw new Error('Google Drive belum terhubung.')
-      const oauth = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        (process.env.NEXT_PUBLIC_SITE_URL || 'https://grisan.vercel.app') + '/api/google-drive/callback'
-      )
-      oauth.setCredentials({ refresh_token: decryptToken(connection.refresh_token_encrypted) })
-      await google.drive({ version: 'v3', auth: oauth }).files.delete({ fileId: asset.storage_path })
-    } else {
-      return NextResponse.json({ error: 'Penyedia penyimpanan ini belum didukung untuk penghapusan.' }, { status: 501 })
-    }
-
-    const { error: updateError } = await supabase.from('storage_upload_logs')
-      .update({ status: 'deleted', deleted_at: new Date().toISOString() }).eq('id', id)
-    if (updateError) throw updateError
-    return NextResponse.json({ success: true })
+    return NextResponse.json({
+      success: true,
+      deleted,
+      skipped,
+      message: deleted + ' gambar berhasil dihapus.' + (skipped.length ? ' ' + skipped.length + ' gambar dilewati karena masih digunakan atau gagal dihapus.' : ''),
+    })
   } catch (error) {
     console.error('Media gallery DELETE:', error)
-    return NextResponse.json({ error: 'Gagal menghapus media. File tidak ditandai terhapus.' }, { status: 500 })
+    return NextResponse.json({ error: 'Gagal menghapus media.' }, { status: 500 })
   }
 }
