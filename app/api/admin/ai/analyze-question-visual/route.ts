@@ -62,11 +62,8 @@ function validateSpec(value: unknown): VisualSpec | null {
 
   const totalParts = Number(item.totalParts)
   const selectedParts = Number(item.selectedParts)
-  const confidence = Number(item.confidence)
   const shape = item.shape
   const meaning = item.meaning
-  const allowedColors: HighlightColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray']
-  const highlightColor = allowedColors.includes(item.highlightColor as HighlightColor) ? item.highlightColor as HighlightColor : 'blue'
   if (
     item.visualType !== 'fraction_partition' ||
     !Number.isInteger(totalParts) || totalParts < 2 || totalParts > 20 ||
@@ -88,6 +85,9 @@ function validateSpec(value: unknown): VisualSpec | null {
     objectLabel: cleanText(item.objectLabel, 60),
     highlightColor,
     confidence,
+    totalObjects: 0,
+    groupCount: 0,
+    selectedGroups: 0,
     reason: cleanText(item.reason, 240),
   }
 }
