@@ -498,6 +498,100 @@ function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
   return groups
 }
 
+
+async function createThreeFruitPartitionImage(question: string): Promise<Blob | null> {
+  const text = question.toLocaleLowerCase('id')
+  const hasThreeFruitBoxes =
+    /tiga\s+kotak/.test(text) &&
+    /jeruk/.test(text) &&
+    /pisang/.test(text) &&
+    /apel/.test(text) &&
+    /bagian\s+yang\s+sama/.test(text) &&
+    /(kotak\s+pisang|bagian\s+kotak\s+pisang)/.test(text)
+  if (!hasThreeFruitBoxes) return null
+
+  const partsMatch = text.match(/dibagi\s+menjadi\s+(\d{1,2})\s+bagian/)
+  const partsPerBox = partsMatch ? Number(partsMatch[1]) : 5
+  if (!Number.isInteger(partsPerBox) || partsPerBox < 2 || partsPerBox > 12) return null
+
+  const canvas = document.createElement('canvas')
+  canvas.width = 1600
+  canvas.height = 900
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(0, 0, 1600, 900)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#172554'
+  ctx.font = 'bold 48px Arial, sans-serif'
+  ctx.fillText('TIGA KOTAK BUAH', 800, 70)
+  ctx.font = '26px Arial, sans-serif'
+  ctx.fillStyle = '#475569'
+  ctx.fillText('Setiap kotak dibagi menjadi ' + partsPerBox + ' bagian yang sama', 800, 120)
+
+  const rows = [
+    { label: 'KOTAK JERUK', emoji: '🍊', color: '#fff7ed', stroke: '#f97316' },
+    { label: 'KOTAK PISANG', emoji: '🍌', color: '#fefce8', stroke: '#ca8a04' },
+    { label: 'KOTAK APEL', emoji: '🍎', color: '#fef2f2', stroke: '#ef4444' },
+  ]
+  const x = 180
+  const width = 1240
+  const rowHeight = 175
+  const startY = 165
+  const labelWidth = 290
+  const cellWidth = (width - labelWidth) / partsPerBox
+
+  rows.forEach((row, rowIndex) => {
+    const y = startY + rowIndex * 190
+    ctx!.fillStyle = row.color
+    ctx!.strokeStyle = row.stroke
+    ctx!.lineWidth = rowIndex === 1 ? 8 : 4
+    ctx!.beginPath()
+    ctx!.roundRect(x, y, width, rowHeight, 20)
+    ctx!.fill()
+    ctx!.stroke()
+
+    ctx!.fillStyle = '#1e293b'
+    ctx!.font = 'bold 29px Arial, sans-serif'
+    ctx!.fillText(row.label, x + labelWidth / 2, y + rowHeight / 2)
+
+    for (let part = 0; part < partsPerBox; part++) {
+      const cellX = x + labelWidth + part * cellWidth
+      if (part > 0) {
+        ctx!.beginPath()
+        ctx!.moveTo(cellX, y + 12)
+        ctx!.lineTo(cellX, y + rowHeight - 12)
+        ctx!.strokeStyle = '#94a3b8'
+        ctx!.lineWidth = 3
+        ctx!.stroke()
+      }
+      ctx!.font = '64px "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
+      ctx!.fillText(row.emoji, cellX + cellWidth / 2, y + 78)
+      ctx!.font = '20px Arial, sans-serif'
+      ctx!.fillStyle = '#64748b'
+      ctx!.fillText('Bagian ' + (part + 1), cellX + cellWidth / 2, y + 139)
+      ctx!.fillStyle = '#1e293b'
+    }
+    if (rowIndex === 1) {
+      ctx!.fillStyle = '#92400e'
+      ctx!.font = 'bold 22px Arial, sans-serif'
+      ctx!.fillText('YANG DITANYAKAN', x + labelWidth / 2, y + rowHeight - 22)
+    }
+  })
+
+  const denominator = partsPerBox * rows.length
+  ctx.fillStyle = '#0f172a'
+  ctx.font = 'bold 36px Arial, sans-serif'
+  ctx.fillText('Bagian kotak pisang = ' + partsPerBox + ' dari ' + denominator + ' bagian', 800, 770)
+  ctx.fillStyle = '#c2410c'
+  ctx.font = 'bold 44px Arial, sans-serif'
+  ctx.fillText(partsPerBox + '/' + denominator + ' = 1/3', 800, 835)
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
 async function createThreeFruitBoxesImage(question: string): Promise<Blob | null> {
   const groups = extractThreeFruitBoxes(question)
   if (!groups) return null
@@ -723,10 +817,11 @@ export default function AsistenAIPage() {
 
     try {
       // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
-      const exactFruitBoxesBlob = await createThreeFruitBoxesImage(item.question)
-      const exactComparisonBlob = exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
-      const exactFractionBlob = exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
-      const exactMathBlob = exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
+      const exactFruitPartitionBlob = await createThreeFruitPartitionImage(item.question)
+      const exactFruitBoxesBlob = exactFruitPartitionBlob ? null : await createThreeFruitBoxesImage(item.question)
+      const exactComparisonBlob = exactFruitPartitionBlob || exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
+      const exactFractionBlob = exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
+      const exactMathBlob = exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
       if (exactMathBlob) {
         setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
         const formData = new FormData()
