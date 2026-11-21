@@ -5,7 +5,6 @@ import { requireAdmin } from '@/lib/supabase/admin'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { decryptToken } from '@/lib/google-drive/token-encryption'
 
-export const runtime = 'nodejs'
 const MAX_FILE_SIZE = 8 * 1024 * 1024
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
