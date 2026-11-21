@@ -127,7 +127,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function deleteMediaById(supabase: ReturnType<typeof createServiceRoleClient>, id: string) {
+async function deleteMediaById(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  id: string,
+  questionRows: Awaited<ReturnType<typeof getQuestionRows>>,
+  materialRows: Awaited<ReturnType<typeof getMaterialRows>>
+) {
   const { data: asset, error: readError } = await supabase
     .from('storage_upload_logs')
     .select('*')
@@ -137,7 +142,7 @@ async function deleteMediaById(supabase: ReturnType<typeof createServiceRoleClie
   if (asset.status !== 'success') return { success: false, error: 'Media ini sudah tidak aktif.' }
   if (!asset.public_url) return { success: false, error: 'URL media tidak tersedia.' }
 
-  const usage = await findUsage(supabase, asset.public_url)
+  const usage = countUsage(questionRows, materialRows, asset.public_url)
   if (usage.total > 0) return { success: false, error: 'Gambar masih digunakan.', usage }
 
   if (asset.provider === 'supabase') {
@@ -189,11 +194,17 @@ export async function DELETE(request: NextRequest) {
     if (ids.length > 50) return NextResponse.json({ error: 'Maksimal 50 gambar dapat dihapus sekaligus.' }, { status: 400 })
 
     const supabase = createServiceRoleClient()
+    // Ambil referensi penggunaan sekali untuk seluruh batch, bukan sekali per gambar.
+    // Jika pemindaian gagal, seluruh batch ditolak agar tidak ada gambar terpakai yang terhapus.
+    const [questionRows, materialRows] = await Promise.all([
+      getQuestionRows(supabase),
+      getMaterialRows(supabase),
+    ])
     let deleted = 0
     const skipped: Array<{ id: string; reason: string }> = []
     for (const id of ids) {
       try {
-        const result = await deleteMediaById(supabase, id)
+        const result = await deleteMediaById(supabase, id, questionRows, materialRows)
         if (result.success) deleted++
         else skipped.push({ id, reason: result.error || 'Tidak dapat dihapus.' })
       } catch (error) {
