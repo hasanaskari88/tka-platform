@@ -6,6 +6,7 @@ import MathRenderer from '@/components/MathRenderer'
 
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
 type GeneratedQuestion = {
+  question_type: QuestionType
   question: string
   explanation: string
   options?: { A: string; B: string; C: string; D: string }
@@ -298,10 +299,10 @@ export default function AsistenAIPage() {
   const [grade, setGrade] = useState('Kelas 6 SD')
   const [subject, setSubject] = useState('Bahasa Indonesia')
   const [topic, setTopic] = useState('Kalimat sederhana dan penggunaan tanda baca')
-  const [count, setCount] = useState(5)
+  const [selectedTypes, setSelectedTypes] = useState<QuestionType[]>(['multiple_choice'])
+  const [countsByType, setCountsByType] = useState<Record<QuestionType, number>>({ multiple_choice: 5, complex_multiple_choice: 3, true_false_matrix: 3, essay: 4 })
   const [indicator, setIndicator] = useState('')
   const [cognitiveLevel, setCognitiveLevel] = useState('AUTO')
-  const [questionType, setQuestionType] = useState<QuestionType>('multiple_choice')
   const [shortAnswerCount, setShortAnswerCount] = useState(10)
   const [shortAnswerMaxScore, setShortAnswerMaxScore] = useState(2)
   const [longEssayMaxScore, setLongEssayMaxScore] = useState(3)
@@ -419,51 +420,50 @@ export default function AsistenAIPage() {
 
   async function generateQuestions(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setLoading(true)
-    setError('')
-    setQuestions([])
-
+    const totalCount = selectedTypes.reduce((sum, type) => sum + countsByType[type], 0)
+    if (!selectedTypes.length) { setError('Pilih minimal satu bentuk soal.'); return }
+    if (totalCount > 15) { setError('Jumlah seluruh soal maksimal 15 agar proses tetap ringan.'); return }
+    if (selectedTypes.includes('essay') && countsByType.essay < 2) {
+      setError('Untuk tipe uraian, pilih minimal 2 soal agar kelompok isian singkat dan uraian panjang dapat dibuat.')
+      return
+    }
+    setLoading(true); setError(''); setQuestions([])
     try {
-      setLoadingMessage('AI sedang menyusun soal...')
-      const response = await fetch('/api/admin/ai/generate-questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ grade, subject, topic, count, indicator, cognitiveLevel, questionType, shortAnswerCount, shortAnswerMaxScore, longEssayMaxScore, includeImages, imageType }),
-      })
-      const payload = await response.json()
-      if (!response.ok) throw new Error(payload.error || 'Gagal memulai pembuatan soal.')
-      if (!Array.isArray(payload.questions)) throw new Error('AI tidak mengirimkan daftar soal.')
-
-      const generatedQuestions = payload.questions as GeneratedQuestion[]
-      setQuestions(generatedQuestions.map((item): GeneratedQuestion => ({
-        ...item,
-        image_status: includeImages && item.image_prompt?.trim() ? 'pending' : 'none',
-      })))
-      setModel([payload.provider, payload.model].filter(Boolean).join(' · ') || 'AI')
-      setLoadingMessage('Soal berhasil dibuat. Memeriksa kebutuhan gambar...')
-
+      const allQuestions: GeneratedQuestion[] = []
+      const usedModels: string[] = []
+      // Diproses berurutan agar tidak membebani kuota AI sekaligus.
+      for (let typeIndex = 0; typeIndex < selectedTypes.length; typeIndex++) {
+        const type = selectedTypes[typeIndex], typeCount = countsByType[type]
+        setLoadingMessage(`Membuat ${questionTypeLabels[type].toLowerCase()} (${typeIndex + 1}/${selectedTypes.length})...`)
+        const response = await fetch('/api/admin/ai/generate-questions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ grade, subject, topic, count: typeCount, indicator, cognitiveLevel, questionType: type,
+            shortAnswerCount: Math.min(shortAnswerCount, typeCount - 1), shortAnswerMaxScore, longEssayMaxScore, includeImages, imageType }),
+        })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(`${questionTypeLabels[type]}: ${payload.error || 'Gagal membuat soal.'}`)
+        if (!Array.isArray(payload.questions)) throw new Error(`AI tidak mengirimkan daftar ${questionTypeLabels[type].toLowerCase()}.`)
+        if (payload.provider || payload.model) usedModels.push([payload.provider, payload.model].filter(Boolean).join(' · '))
+        allQuestions.push(...(payload.questions as GeneratedQuestion[]).map((item) => ({
+          ...item, question_type: type,
+          image_status: includeImages && item.image_prompt?.trim() ? 'pending' as const : 'none' as const,
+        })))
+        setQuestions([...allQuestions])
+      }
+      setModel(Array.from(new Set(usedModels)).join(' / ') || 'AI')
+      setLoadingMessage('Semua tipe soal berhasil dibuat. Memeriksa kebutuhan gambar...')
       if (includeImages) {
-        const imageTargets = generatedQuestions
-          .map((item, index) => ({ index, prompt: item.image_prompt?.trim() || '' }))
-          .filter((item) => item.prompt.length > 0)
-
-        if (imageTargets.length === 0) {
-          setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
-        } else {
+        const imageTargets = allQuestions.map((item, index) => ({ index, prompt: item.image_prompt?.trim() || '' })).filter((item) => item.prompt)
+        if (!imageTargets.length) setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
+        else {
           setLoadingMessage('AI sedang memahami kebutuhan visual setiap soal...')
           let visualSpecs: Record<number, AnalyzedVisualSpec> = {}
           try {
             const analysisResponse = await fetch('/api/admin/ai/analyze-question-visual', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                subject,
-                topic,
-                questions: imageTargets.map(({ index }) => ({
-                  question: generatedQuestions[index].question,
-                  explanation: generatedQuestions[index].explanation,
-                })),
-              }),
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ subject, topic, questions: imageTargets.map(({ index }) => ({
+                question: allQuestions[index].question, explanation: allQuestions[index].explanation,
+              })) }),
             })
             const analysisPayload = await analysisResponse.json()
             if (analysisResponse.ok && Array.isArray(analysisPayload.results)) {
@@ -472,34 +472,24 @@ export default function AsistenAIPage() {
                 const target = imageTargets[entry.index as number]
                 if (target) visualSpecs[target.index] = entry.spec
               }
-            } else {
-              console.warn('AI visual analyzer unavailable; legacy exact renderer will be used.', analysisPayload.error)
             }
-          } catch (analysisError) {
-            console.warn('AI visual analyzer failed; legacy exact renderer will be used.', analysisError)
-          }
-
-          let nextTarget = 0
-          let finishedImages = 0
+          } catch (analysisError) { console.warn('AI visual analyzer failed; legacy exact renderer will be used.', analysisError) }
+          let nextTarget = 0, finishedImages = 0
           const worker = async () => {
             while (nextTarget < imageTargets.length) {
               const target = imageTargets[nextTarget++]
               setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
-              await generateImageForQuestion(target.index, generatedQuestions[target.index], visualSpecs[target.index] || null)
-              finishedImages += 1
+              await generateImageForQuestion(target.index, allQuestions[target.index], visualSpecs[target.index] || null)
+              finishedImages++
               setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
             }
           }
           await Promise.all(Array.from({ length: Math.min(2, imageTargets.length) }, () => worker()))
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan.')
-    } finally {
-      setLoading(false)
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Terjadi kesalahan.') }
+    finally { setLoading(false) }
   }
-
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -537,119 +527,46 @@ export default function AsistenAIPage() {
               Indikator soal <span className="font-normal text-slate-400">(opsional)</span>
               <textarea value={indicator} onChange={(e) => setIndicator(e.target.value)} maxLength={200} rows={2} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Contoh: Disajikan sebuah teks, siswa dapat menentukan gagasan pokok." />
             </label>
-            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-              Bentuk soal
-              <select value={questionType} onChange={(e) => { const nextType = e.target.value as QuestionType; setQuestionType(nextType); if (nextType === 'essay') { setCount(15); setShortAnswerCount(10) } }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                <option value="multiple_choice">Pilihan ganda (1 jawaban benar)</option>
-                <option value="complex_multiple_choice">Pilihan ganda kompleks (lebih dari 1 benar)</option>
-                <option value="true_false_matrix">Benar / Salah (beberapa pernyataan)</option>
-                <option value="essay">Uraian (dengan rubrik penilaian)</option>
-              </select>
-            </label>
-            {questionType === 'essay' && (
+            <div className="space-y-3 rounded-xl border border-indigo-200 bg-indigo-50/60 p-4 sm:col-span-2">
+              <div>
+                <p className="text-sm font-bold text-indigo-900">Pilih bentuk soal yang akan dibuat</p>
+                <p className="mt-1 text-xs font-normal text-indigo-800">Centang satu atau beberapa tipe. Jumlah seluruh soal maksimal 15 dalam satu proses.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ['multiple_choice', 'Pilihan ganda', 'Satu jawaban benar'],
+                  ['complex_multiple_choice', 'Pilihan ganda kompleks', 'Lebih dari satu jawaban benar'],
+                  ['true_false_matrix', 'Benar / Salah (Matriks)', '3–4 pernyataan per soal'],
+                  ['essay', 'Uraian', 'Dilengkapi contoh jawaban dan rubrik'],
+                ] as [QuestionType, string, string][]).map(([type, title, description]) => (
+                  <div key={type} className="rounded-xl border border-indigo-100 bg-white p-3">
+                    <label className="flex cursor-pointer items-start gap-2">
+                      <input type="checkbox" checked={selectedTypes.includes(type)} onChange={(e) => setSelectedTypes((current) => e.target.checked ? [...current, type] : current.filter((item) => item !== type))} className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-slate-800">{title}</span>
+                        <span className="block text-xs font-normal text-slate-500">{description}</span>
+                      </span>
+                    </label>
+                    {selectedTypes.includes(type) && (
+                      <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-600">
+                        Jumlah
+                        <input type="number" min={type === 'essay' ? 2 : 1} max={15} value={countsByType[type]} onChange={(e) => setCountsByType((current) => ({ ...current, [type]: Math.min(15, Math.max(type === 'essay' ? 2 : 1, Number(e.target.value) || 1)) }))} className="w-20 rounded-lg border border-slate-300 px-2 py-1.5 text-sm font-normal" />
+                        soal
+                      </label>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs font-semibold text-indigo-900">Total yang dipilih: {selectedTypes.reduce((sum, type) => sum + countsByType[type], 0)} / 15 soal</p>
+            </div>
+            {selectedTypes.includes('essay') && (
               <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:col-span-2">
                 <div>
                   <p className="text-sm font-bold text-violet-900">Pengaturan kelompok skor uraian</p>
                   <p className="mt-1 text-xs font-normal text-violet-800">Semua soal tetap disimpan sebagai tipe uraian/essay agar kompatibel dengan CBT.</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Jumlah soal isian singkat pertama
-                    <input type="number" min={1} max={Math.max(1, count - 1)} value={shortAnswerCount} onChange={(e) => setShortAnswerCount(Math.min(Math.max(1, Number(e.target.value)), Math.max(1, count - 1)))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
-                  </label>
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Skor maksimal isian singkat
-                    <input type="number" min={1} max={100} value={shortAnswerMaxScore} onChange={(e) => setShortAnswerMaxScore(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
-                  </label>
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Skor maksimal uraian panjang
-                    <input type="number" min={1} max={100} value={longEssayMaxScore} onChange={(e) => setLongEssayMaxScore(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
-                  </label>
-                </div>
-                <p className="text-xs text-violet-900">Contoh: jika jumlah soal 15 dan kelompok pertama 10, maka soal 1–10 mendapat maksimal {shortAnswerMaxScore} poin dan soal 11–15 maksimal {longEssayMaxScore} poin.</p>
-              </div>
-            )}
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={includeImages}
-                  onChange={(e) => setIncludeImages(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <span>
-                  <span className="block text-sm font-bold text-slate-800">Buat gambar penyerta otomatis</span>
-                  <span className="mt-1 block text-xs font-normal leading-relaxed text-slate-600">AI menentukan soal yang benar-benar membutuhkan gambar. Soal tanpa kebutuhan visual tidak akan dipaksakan memiliki gambar.</span>
-                </span>
-              </label>
-
-              {includeImages && (
-                <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Gaya gambar
-                    <select value={imageStyle} onChange={(e) => setImageStyle(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
-                      <option value="3d_cartoon">3D Modern / 3D Cartoon</option>
-                      <option value="2d_flat">Ilustrasi 2D sederhana</option>
-                      <option value="semi_realistic">Semi-realistis</option>
-                      <option value="photo_realistic">Realistis seperti foto</option>
-                      <option value="black_white">Hitam putih untuk LKPD</option>
-                    </select>
-                  </label>
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Jenis gambar
-                    <select value={imageType} onChange={(e) => setImageType(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
-                      <option value="auto">Otomatis sesuai soal</option>
-                      <option value="illustration">Ilustrasi penjelas</option>                      <option value="object">Objek nyata</option>
-                      <option value="nature">Alam / sains</option>
-                      <option value="diagram">Diagram konseptual sederhana</option>
-                    </select>
-                  </label>
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Bentuk gambar
-                    <select value={imageAspectRatio} onChange={(e) => setImageAspectRatio(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
-                      <option value="16:9">Horizontal (16:9)</option>
-                      <option value="4:3">Landscape (4:3)</option>
-                      <option value="1:1">Persegi (1:1)</option>
-                    </select>
-                  </label>
-                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-                    Instruksi khusus gambar <span className="font-normal text-slate-400">(opsional)</span>
-                    <input value={imageCustomInstruction} onChange={(e) => setImageCustomInstruction(e.target.value)} maxLength={500} placeholder="Contoh: gunakan latar putih dan warna lembut" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
-                  </label>
-                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Cloudflare Workers AI (FLUX.1 Schnell) dan disimpan ke penyimpanan media. Untuk diagram matematika yang memuat angka, ukuran, atau label presisi, guru tetap perlu memeriksa ketepatannya. Penggunaan gambar dapat menambah biaya API.</p>
-                </div>
-              )}
-            </div>
-            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-              Level kognitif
-              <select value={cognitiveLevel} onChange={(e) => setCognitiveLevel(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                <option value="AUTO">Otomatis sesuai materi</option>
-                <option value="LOTS">LOTS — mengingat dan memahami</option>
-                <option value="MOTS">MOTS — menerapkan</option>
-                <option value="HOTS">HOTS — menganalisis dan menalar</option>
-                <option value="C1">C1 — Mengingat</option>
-                <option value="C2">C2 — Memahami</option>
-                <option value="C3">C3 — Menerapkan</option>
-                <option value="C4">C4 — Menganalisis</option>
-                <option value="C5">C5 — Mengevaluasi</option>
-                <option value="C6">C6 — Mencipta</option>
-              </select>
-            </label>
-            <div className="space-y-1.5 text-sm font-semibold text-slate-700">
-              Model AI
-              <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal text-slate-700">
-                <span className="font-semibold">Groq (utama)</span>
-                <span className="ml-2 text-xs text-emerald-700">Gemini cadangan</span>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">Jika Groq tidak tersedia atau kuotanya habis, sistem otomatis mencoba Gemini.</p>
-              </div>
-            </div>
-            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
-              Jumlah soal
-              <select value={count} onChange={(e) => { const nextCount = Number(e.target.value); setCount(nextCount); setShortAnswerCount((current) => Math.min(current, Math.max(1, nextCount - 1))) }} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].map((n) => <option key={n} value={n}>{n} soal</option>)}
-              </select>
-            </label>
-            <div className="flex items-end">
+                  <div className="flex items-end">
               <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                 {loading ? 'AI sedang membuat soal...' : 'Buat soal dengan AI'}
@@ -666,7 +583,7 @@ export default function AsistenAIPage() {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-xl font-black text-slate-800">Hasil dari Asisten AI</h2>
-                <p className="text-sm text-slate-500">{questions.length} soal berhasil dibuat · {model} · {questionTypeLabels[questionType]}</p>
+                <p className="text-sm text-slate-500">{questions.length} soal berhasil dibuat · {model} · {Array.from(new Set(questions.map((item) => questionTypeLabels[item.question_type]))).join(', ')}</p>
               </div>
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700"><CheckCircle2 size={14} /> Berhasil</span>
             </div>
@@ -706,7 +623,7 @@ export default function AsistenAIPage() {
                   </div>
                 )}
 
-                {questionType === 'multiple_choice' && item.options && (
+                {item.question_type === 'multiple_choice' && item.options && (
                   <div className="ml-11 grid gap-2 sm:grid-cols-2">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => (
                       <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
@@ -717,7 +634,7 @@ export default function AsistenAIPage() {
                   </div>
                 )}
 
-                {questionType === 'complex_multiple_choice' && item.options && (
+                {item.question_type === 'complex_multiple_choice' && item.options && (
                   <div className="ml-11 space-y-2">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => {
                       const isCorrect = item.answers?.includes(key)
@@ -730,7 +647,7 @@ export default function AsistenAIPage() {
                   </div>
                 )}
 
-                {questionType === 'true_false_matrix' && (
+                {item.question_type === 'true_false_matrix' && (
                   <div className="ml-11 overflow-x-auto rounded-xl border border-slate-200">
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50 text-slate-600"><tr><th className="px-3 py-2 text-left">Pernyataan</th><th className="px-3 py-2 text-center">Kunci</th></tr></thead>
@@ -739,7 +656,7 @@ export default function AsistenAIPage() {
                   </div>
                 )}
 
-                {questionType === 'essay' && (
+                {item.question_type === 'essay' && (
                   <div className="ml-11 space-y-3">
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
                       <p className="font-bold">Contoh jawaban</p>
