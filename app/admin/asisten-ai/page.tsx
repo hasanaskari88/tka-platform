@@ -62,11 +62,13 @@ function extractNumberComparison(question: string): [number, number] | null {
 
 
 type ExactFractionVisual = {
-  shape: 'circle' | 'rectangle' | 'line' | 'apple'
+  shape: 'circle' | 'rectangle' | 'line' | 'apple' | 'objects'
   total: number
   colored: number
   color: string
   columns?: number
+  removed?: number
+  objectLabel?: string
 }
 
 type AnalyzedVisualSpec = {
@@ -141,8 +143,17 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
 }
 
 async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
+  const objectDescription = `${item.question} ${analyzedSpec?.objectLabel || ''}`.toLocaleLowerCase('id')
+  const isAppleObject = /apel|apple/.test(objectDescription)
   const visual: ExactFractionVisual | null = analyzedSpec
-    ? { shape: analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : /apel|apple/i.test(analyzedSpec.objectLabel || item.question) ? 'apple' : 'rectangle', total: analyzedSpec.totalParts, colored: analyzedSpec.visibleParts, color: ({ red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#2584e8', purple: '#a855f7', pink: '#ec4899', brown: '#92400e', gray: '#64748b' } as const)[analyzedSpec.highlightColor] }
+    ? {
+        shape: isAppleObject ? 'apple' : analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : analyzedSpec.shape === 'objects' ? 'objects' : 'rectangle',
+        total: analyzedSpec.totalParts,
+        colored: analyzedSpec.visibleParts,
+        removed: analyzedSpec.meaning === 'removed' ? analyzedSpec.selectedParts : 0,
+        objectLabel: analyzedSpec.objectLabel || '',
+        color: ({ red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#2584e8', purple: '#a855f7', pink: '#ec4899', brown: '#92400e', gray: '#64748b' } as const)[analyzedSpec.highlightColor],
+      }
     : extractExactFractionVisual(item)
   if (!visual) return null
 
@@ -174,23 +185,26 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         ctx.closePath()
         ctx.clip()
 
-        ctx.fillStyle = part < visual.colored ? '#f59e0b' : '#fff1d6'
+        const isRemovedSector = visual.removed ? part >= visual.colored : false
+        // Bagian yang dimakan digambar sebagai ruang kosong di atas piring,
+        // bukan sebagai irisan pizza pucat yang masih terlihat utuh.
+        ctx.fillStyle = isRemovedSector ? '#e5e7eb' : '#f59e0b'
         ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 
-        // Topping berada di atas permukaan pizza yang sama dan terpotong mengikuti batas tiap bagian.
+        // Topping hanya ada pada irisan yang masih tersisa.
         const toppings = [
           [-0.42, -0.43], [-0.08, -0.48], [0.28, -0.39],
           [-0.48, -0.08], [-0.16, -0.12], [0.18, -0.10], [0.46, -0.04],
           [-0.36, 0.27], [-0.02, 0.24], [0.34, 0.30],
           [-0.08, 0.48], [0.48, 0.42],
         ]
-        for (const [dx, dy] of toppings) {
+        for (const [dx, dy] of (isRemovedSector ? [] : toppings)) {
           const x = centerX + dx * radius
           const y = centerY + dy * radius
           if (Math.hypot(x - centerX, y - centerY) > radius - 25) continue
           ctx.beginPath()
           ctx.arc(x, y, 13, 0, Math.PI * 2)
-          ctx.fillStyle = part < visual.colored ? '#b91c1c' : '#d6b8a2'
+          ctx.fillStyle = '#b91c1c'
           ctx.fill()
           ctx.strokeStyle = '#7f1d1d'
           ctx.lineWidth = 3
@@ -200,20 +214,32 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
           ctx.fillStyle = '#fecaca'
           ctx.fill()
         }
+        if (isRemovedSector) {
+          ctx.strokeStyle = '#9ca3af'
+          ctx.lineWidth = 5
+          for (let hatch = -radius; hatch <= radius; hatch += 28) {
+            ctx.beginPath()
+            ctx.moveTo(centerX - radius, centerY + hatch)
+            ctx.lineTo(centerX + radius, centerY + hatch - radius)
+            ctx.stroke()
+          }
+        }
         ctx.restore()
       }
 
-      // Kulit pizza dan garis pembagi menyatu dalam satu lingkaran penuh.
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius - 5, 0, Math.PI * 2)
-      ctx.strokeStyle = '#b45309'
-      ctx.lineWidth = 28
-      ctx.stroke()
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius - 20, 0, Math.PI * 2)
-      ctx.strokeStyle = '#f59e0b'
-      ctx.lineWidth = 7
-      ctx.stroke()
+      // Kulit hanya mengelilingi bagian pizza yang masih ada.
+      for (let part = 0; part < visual.total; part++) {
+        const a0 = start + (part * Math.PI * 2) / visual.total
+        const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
+        const isRemovedSector = visual.removed ? part >= visual.colored : false
+        if (!isRemovedSector) {
+          ctx.beginPath()
+          ctx.arc(centerX, centerY, radius - 5, a0, a1)
+          ctx.strokeStyle = '#b45309'
+          ctx.lineWidth = 28
+          ctx.stroke()
+        }
+      }
       for (let part = 0; part < visual.total; part++) {
         const angle = start + (part * Math.PI * 2) / visual.total
         ctx.beginPath()
@@ -255,6 +281,61 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         ctx.lineTo(centerX + Math.cos(angle) * (radius - 52), centerY + Math.sin(angle) * (radius - 52))
         ctx.strokeStyle = '#334155'
         ctx.lineWidth = 7
+        ctx.stroke()
+      }
+    }
+  } else if (visual.shape === 'objects') {
+    // Kumpulan benda harus digambar sebagai beberapa benda terpisah,
+    // bukan satu diagram kotak dengan jumlah yang sama.
+    const count = visual.total
+    const cols = Math.min(5, Math.ceil(Math.sqrt(count)))
+    const rows = Math.ceil(count / cols)
+    const cellW = 980 / cols
+    const cellH = 560 / rows
+    const label = (visual.objectLabel || '').toLocaleLowerCase('id')
+    const drawApple = (x: number, y: number, size: number, filled: boolean) => {
+      ctx!.save()
+      ctx!.translate(x, y)
+      ctx!.scale(size / 100, size / 100)
+      ctx!.beginPath()
+      ctx!.moveTo(0, -24)
+      ctx!.bezierCurveTo(-42, -62, -92, -34, -82, 28)
+      ctx!.bezierCurveTo(-72, 92, -20, 100, -4, 88)
+      ctx!.bezierCurveTo(10, 100, 72, 92, 82, 28)
+      ctx!.bezierCurveTo(92, -34, 42, -62, 0, -24)
+      ctx!.closePath()
+      ctx!.fillStyle = filled ? '#ef4444' : '#fecaca'
+      ctx!.fill()
+      ctx!.strokeStyle = '#7f1d1d'
+      ctx!.lineWidth = 7
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.moveTo(0, -28)
+      ctx!.lineTo(7, -62)
+      ctx!.strokeStyle = '#854d0e'
+      ctx!.lineWidth = 9
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.ellipse(25, -51, 24, 10, -0.35, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'
+      ctx!.fill()
+      ctx!.restore()
+    }
+    for (let index = 0; index < count; index++) {
+      const row = Math.floor(index / cols)
+      const col = index % cols
+      const x = 310 + cellW * (col + 0.5)
+      const y = 170 + cellH * (row + 0.5)
+      const selected = index < visual.colored
+      if (/apel|apple/.test(label)) {
+        drawApple(x, y, Math.min(95, cellW * 0.55, cellH * 0.55), selected)
+      } else {
+        ctx.beginPath()
+        ctx.arc(x, y, Math.min(54, cellW * 0.28, cellH * 0.28), 0, Math.PI * 2)
+        ctx.fillStyle = selected ? visual.color : '#e2e8f0'
+        ctx.fill()
+        ctx.strokeStyle = '#334155'
+        ctx.lineWidth = 5
         ctx.stroke()
       }
     }
