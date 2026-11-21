@@ -491,7 +491,7 @@ function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
   const words = ['pertama', 'kedua', 'ketiga']
   const groups: FruitGroup[] = []
   for (const box of words) {
-    const match = source.match(new RegExp('kotak\\s+' + box + '[^.!?]{0,100}?' + number + '\\s+buah\\s+(jeruk|pisang|apel)'))
+    const match = source.match(new RegExp('kotak\s+' + box + '[^.!?]{0,100}?' + number + '\\s+buah\\s+(jeruk|pisang|apel)'))
     if (!match) return null
     const count = parseIndonesianNumber(match[1])
     const fruit = match[2] as FruitGroup['fruit']
@@ -746,7 +746,7 @@ async function createThreeFruitBoxesImage(question: string): Promise<Blob | null
 
   const total = groups.reduce((sum, group) => sum + group.count, 0)
   const source = question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ')
-  const targetMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?kotak\\s+(pertama|kedua|ketiga)|kotak\\s+(pertama|kedua|ketiga)[^.!?]{0,100}?(?:berapa|jumlah|banyak|bagian|pecahan)/)
+  const targetMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?kotak\s+(pertama|kedua|ketiga)|kotak\s+(pertama|kedua|ketiga)[^.!?]{0,100}?(?:berapa|jumlah|banyak|bagian|pecahan)/)
   const targetBox = targetMatch?.[1] || targetMatch?.[2]
   if (!targetBox) return null
   const targetIndex = ({ pertama: 0, kedua: 1, ketiga: 2 } as const)[targetBox as 'pertama' | 'kedua' | 'ketiga']
