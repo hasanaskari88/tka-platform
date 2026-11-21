@@ -104,12 +104,12 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function fractionValue(value: string): string | null {
-  let text = value.trim().replace(/\\\\frac\\s*\\{(\\d+)\\}\\s*\\{(\\d+)\\}/g, '$1/$2')
-    .replace(/\\\\d?frac/g, '').replace(/[$]/g, '').replace(/,/g, '.').trim()
-  text = text.replace(/\\s*(?:buah|apel|jeruk|pisang)\\s*$/i, '').trim()
-  const mixed = text.match(/^(-?\\d+)\\s+(\\d+)\\s*\\/\\s*(\\d+)$/)
-  const fraction = text.match(/^(-?\\d+)\\s*\\/\\s*(\\d+)$/)
-  const integer = text.match(/^(-?\\d+)$/)
+  let text = value.trim().replace(/\\frac\s*\{(\d+)\}\s*\{(\d+)\}/g, '$1/$2')
+    .replace(/\\d?frac/g, '').replace(/[$]/g, '').replace(/,/g, '.').trim()
+  text = text.replace(/\s*(?:buah|apel|jeruk|pisang)\s*$/i, '').trim()
+  const mixed = text.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/)
+  const fraction = text.match(/^(-?\d+)\s*\/\s*(\d+)$/)
+  const integer = text.match(/^(-?\d+)$/)
   let numerator: number
   let denominator: number
   if (mixed) {
