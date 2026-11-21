@@ -51,6 +51,8 @@ export default function ServiceCenterPage() {
   const [tab, setTab] = useState<'settings' | 'gallery' | 'usage'>('settings')
   const [settings, setSettings] = useState<SettingsPayload | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
+  const [bulkDeleting, setBulkDeleting] = useState(false)
   const [galleryPage, setGalleryPage] = useState(1)
   const [galleryTotalPages, setGalleryTotalPages] = useState(1)
   const [galleryTotal, setGalleryTotal] = useState(0)
@@ -77,6 +79,7 @@ export default function ServiceCenterPage() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Gagal memuat galeri.')
       setAssets(data.assets || [])
+      setSelectedAssetIds([])
       setGalleryPage(data.page || requestedPage)
       setGalleryTotalPages(data.totalPages || 1)
       setGalleryTotal(data.total || 0)
@@ -159,6 +162,40 @@ export default function ServiceCenterPage() {
       await loadGallery(galleryPage)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menghapus gambar.')
+    }
+  }
+
+  function toggleAssetSelection(id: string, checked: boolean) {
+    setSelectedAssetIds((current) => checked
+      ? (current.includes(id) ? current : [...current, id])
+      : current.filter((item) => item !== id))
+  }
+
+  function selectAllUnusedAssets() {
+    const eligibleIds = assets.filter((asset) => asset.usage?.total === 0).map((asset) => asset.id)
+    setSelectedAssetIds(eligibleIds)
+  }
+
+  async function deleteSelectedAssets() {
+    if (!selectedAssetIds.length || bulkDeleting) return
+    const selectedCount = selectedAssetIds.length
+    if (!window.confirm('Hapus ' + selectedCount + ' gambar terpilih secara permanen? Gambar yang ternyata masih digunakan akan dilewati.')) return
+    setBulkDeleting(true); setError(''); setMessage('')
+    try {
+      const response = await fetch('/api/admin/media', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedAssetIds }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Penghapusan gambar gagal.')
+      setMessage(data.message || (data.deleted + ' gambar berhasil dihapus.'))
+      setSelectedAssetIds([])
+      await loadGallery(galleryPage)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menghapus gambar terpilih.')
+    } finally {
+      setBulkDeleting(false)
     }
   }
 
@@ -269,17 +306,37 @@ export default function ServiceCenterPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="text-xs font-semibold text-slate-500">Penyegaran data</p><p className="mt-1 text-sm font-bold text-slate-800">Inventarisasi penyimpanan</p></div><div className="flex gap-2"><button onClick={() => void loadGallery(galleryPage)} className="rounded-xl border p-2 text-slate-600 hover:bg-slate-50" title="Muat ulang"><RefreshCw size={17} /></button><button onClick={() => void syncMedia()} disabled={syncing} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60">{syncing ? <Loader2 className="animate-spin" size={15} /> : <RefreshCw size={15} />} {syncing ? 'Memindai...' : 'Pindai file lama'}</button></div></div>
       </div>
       <p className="text-xs leading-relaxed text-slate-500">Galeri menampilkan file yang tercatat di layanan media. Gunakan Pindai file lama untuk memasukkan file yang sudah ada di folder ImageKit TKA Platform, folder aplikasi Google Drive, dan bucket question-images. Penghapusan ditolak bila gambar masih ditemukan pada soal atau materi.</p>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
-        <p className="text-xs text-slate-500">Menampilkan {assets.length ? ((galleryPage - 1) * 18 + 1) : 0}–{Math.min(galleryPage * 18, galleryTotal)} dari {galleryTotal} gambar · Halaman {galleryPage} dari {galleryTotalPages}</p>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setGalleryPage((current) => Math.max(1, current - 1))} disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
-          <button type="button" onClick={() => setGalleryPage((current) => Math.min(galleryTotalPages, current + 1))} disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-slate-500">Menampilkan {assets.length ? ((galleryPage - 1) * 18 + 1) : 0}–{Math.min(galleryPage * 18, galleryTotal)} dari {galleryTotal} gambar · Halaman {galleryPage} dari {galleryTotalPages}</p>
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => setGalleryPage((current) => Math.max(1, current - 1))} disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
+            <button type="button" onClick={() => setGalleryPage((current) => Math.min(galleryTotalPages, current + 1))} disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={selectAllUnusedAssets} disabled={galleryLoading || !assets.some((asset) => asset.usage?.total === 0)} className="text-xs font-bold text-indigo-700 hover:underline disabled:opacity-40">Pilih semua yang belum digunakan</button>
+            <button type="button" onClick={() => setSelectedAssetIds([])} disabled={!selectedAssetIds.length} className="text-xs font-semibold text-slate-500 hover:underline disabled:opacity-40">Batal pilih</button>
+            <span className="text-xs text-slate-500">{selectedAssetIds.length} gambar dipilih</span>
+          </div>
+          <button type="button" onClick={() => void deleteSelectedAssets()} disabled={!selectedAssetIds.length || bulkDeleting || galleryLoading} className="inline-flex items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-40">
+            {bulkDeleting ? <Loader2 className="animate-spin" size={14} /> : <Trash2 size={14} />}
+            {bulkDeleting ? 'Menghapus...' : 'Hapus yang dipilih'}
+          </button>
         </div>
       </div>
       {galleryLoading ? <div className="flex justify-center py-12 text-slate-500"><Loader2 className="animate-spin" /></div> : assets.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><ImageIcon className="mx-auto text-slate-300" size={36} /><p className="mt-3 font-bold text-slate-700">Belum ada media tercatat</p><p className="mt-1 text-sm text-slate-500">Gambar baru akan muncul di sini setelah melalui layanan unggah terpusat.</p></div> :
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {assets.map((asset) => <article key={asset.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="flex h-44 items-center justify-center bg-slate-100">{asset.public_url ? <img src={asset.public_url} alt={asset.original_name} className="h-full w-full object-contain" /> : <ImageIcon className="text-slate-300" size={36} />}</div>
+            <div className="relative flex h-44 items-center justify-center bg-slate-100">
+              {asset.public_url ? <img src={asset.public_url} alt={asset.original_name} className="h-full w-full object-contain" /> : <ImageIcon className="text-slate-300" size={36} />}
+              <label className="absolute left-2 top-2 flex cursor-pointer items-center gap-2 rounded-lg border border-white/70 bg-white/95 px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm">
+                <input type="checkbox" checked={selectedAssetIds.includes(asset.id)} disabled={(asset.usage?.total ?? 1) > 0 || bulkDeleting} onChange={(event) => toggleAssetSelection(asset.id, event.target.checked)} className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                Pilih
+              </label>
+              {asset.usage?.total ? <span className="absolute right-2 top-2 rounded-lg bg-amber-100 px-2 py-1 text-[10px] font-bold text-amber-800">Sedang digunakan</span> : null}
+            </div>
             <div className="space-y-2 p-3">
               <p className="truncate text-sm font-bold text-slate-800" title={asset.original_name}>{asset.original_name}</p>
               <p className="text-xs text-slate-500">{asset.provider} · {formatBytes(Number(asset.file_size_bytes))}</p>
