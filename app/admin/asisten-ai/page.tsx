@@ -282,7 +282,8 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
     for (let y = 0; y < bounds.bottom - bounds.top; y++) {
       let area = 0
       for (let x = 0; x < bounds.right - bounds.left; x++) {
-        if (pixels[(y * (bounds.right - bounds.left) + x) * 4 + 3] > 0) area++
+        const pixel = (y * (bounds.right - bounds.left) + x) * 4
+        if (pixels[pixel] < 254 || pixels[pixel + 1] < 254 || pixels[pixel + 2] < 254) area++
       }
       rowAreas.push(area)
       totalArea += area
@@ -364,7 +365,7 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         if (visual.total % candidate !== 0) continue
         const rowsCandidate = visual.total / candidate
         const difference = Math.abs(candidate - rowsCandidate)
-        if (difference < bestDifference) {
+        if (difference < bestDifference || (difference === bestDifference && candidate > columns)) {
           bestDifference = difference
           columns = candidate
         }
