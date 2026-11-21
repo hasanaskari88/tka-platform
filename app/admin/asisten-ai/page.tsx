@@ -360,7 +360,7 @@ export default function AsistenAIPage() {
           subject,
           topic,
           indicator,
-          questionType,
+          questionType: item.question_type,
           question: item.question,
           options: item.options,
           answer: item.answer,
