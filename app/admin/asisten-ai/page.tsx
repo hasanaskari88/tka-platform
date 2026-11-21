@@ -850,15 +850,7 @@ async function createThreeFruitBoxesImage(question: string): Promise<Blob | null
     const gridW = cardW - 50
     const gridH = 310
     const colW = gridW / 5
-    // Lima kolom menandai lima bagian yang sama pada setiap kotak.
-    ctx!.strokeStyle = '#cbd5e1'
-    ctx!.lineWidth = 3
-    for (let col = 1; col < 5; col++) {
-      ctx!.beginPath()
-      ctx!.moveTo(gridX + col * colW, gridY)
-      ctx!.lineTo(gridX + col * colW, gridY + gridH)
-      ctx!.stroke()
-    }
+    // Lima kolom hanya dipakai untuk merapikan posisi ikon, bukan menandai pecahan.
     const rows = Math.ceil(group.count / 5)
     for (let fruitIndex = 0; fruitIndex < group.count; fruitIndex++) {
       const col = fruitIndex % 5
@@ -976,8 +968,10 @@ export default function AsistenAIPage() {
     try {
       // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
       const exactEqualGroupsBlob = await createEqualGroupsImage(item, analyzedSpec)
-      const exactFruitPartitionBlob = exactEqualGroupsBlob ? null : await createThreeFruitPartitionImage(item.question)
-      const exactFruitBoxesBlob = exactEqualGroupsBlob || exactFruitPartitionBlob ? null : await createThreeFruitBoxesImage(item.question)
+      // Soal yang menyebut jumlah buah konkret harus memakai renderer jumlah buah,
+      // bukan renderer partisi tiga kotak yang hanya menggambar ikon buah.
+      const exactFruitBoxesBlob = exactEqualGroupsBlob ? null : await createThreeFruitBoxesImage(item.question)
+      const exactFruitPartitionBlob = exactEqualGroupsBlob || exactFruitBoxesBlob ? null : await createThreeFruitPartitionImage(item.question)
       const exactComparisonBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
       const exactFractionBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
       const exactMathBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
