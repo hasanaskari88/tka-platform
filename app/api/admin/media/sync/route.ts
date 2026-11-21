@@ -4,7 +4,6 @@ import { requireAdmin } from '@/lib/supabase/admin'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { decryptToken } from '@/lib/google-drive/token-encryption'
 
-export const runtime = 'nodejs'
 type FoundFile = { original_name: string; mime_type: string; file_size_bytes: number; provider: string; storage_path: string; public_url: string; created_at?: string }
 
 async function listImageKit(): Promise<FoundFile[]> {
