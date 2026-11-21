@@ -27,8 +27,19 @@ export async function GET() {
       .single()
     if (error) throw error
 
+    const { data: driveConnection, error: driveError } = await supabase
+      .from('google_drive_tokens')
+      .select('id, updated_at')
+      .eq('id', 'primary')
+      .maybeSingle()
+    if (driveError) throw driveError
+
     return NextResponse.json({
       ...data,
+      google_drive: {
+        connected: Boolean(driveConnection),
+        connected_at: driveConnection?.updated_at || null,
+      },
       availability: {
         imagekit: Boolean(process.env.IMAGEKIT_PRIVATE_KEY && process.env.IMAGEKIT_PUBLIC_KEY && process.env.IMAGEKIT_URL_ENDPOINT),
         google_drive: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
