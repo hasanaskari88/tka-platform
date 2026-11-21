@@ -1129,11 +1129,17 @@ export default function AsistenAIPage() {
           <form onSubmit={generateQuestions} className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Kelas
-              <input value={grade} onChange={(e) => setGrade(e.target.value)} maxLength={40} required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
+              <input list="asisten-ai-grade-options" value={grade} onChange={(e) => setGrade(e.target.value)} maxLength={40} required placeholder="Pilih atau ketik kelas..." className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
+              <datalist id="asisten-ai-grade-options">
+                {['Kelas 1 SD', 'Kelas 2 SD', 'Kelas 3 SD', 'Kelas 4 SD', 'Kelas 5 SD', 'Kelas 6 SD', 'Kelas 7 SMP', 'Kelas 8 SMP', 'Kelas 9 SMP', 'Kelas 10 SMA', 'Kelas 11 SMA', 'Kelas 12 SMA'].map((option) => <option key={option} value={option} />)}
+              </datalist>
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Mata pelajaran
-              <input value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={80} required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
+              <input list="asisten-ai-subject-options" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={80} required placeholder="Pilih atau ketik mata pelajaran..." className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
+              <datalist id="asisten-ai-subject-options">
+                {['Pendidikan Pancasila', 'Bahasa Indonesia', 'Matematika', 'IPAS', 'Bahasa Inggris', 'Bahasa Jawa', 'Pendidikan Agama dan Budi Pekerti', 'PJOK', 'Seni Musik', 'Seni Rupa', 'Seni Tari', 'Seni Teater', 'Informatika', 'Muatan Lokal'].map((option) => <option key={option} value={option} />)}
+              </datalist>
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
               Materi / topik
