@@ -1086,7 +1086,7 @@ export default function AsistenAIPage() {
               for (const entry of analysisPayload.results as Array<{ index?: number; spec?: AnalyzedVisualSpec | null }>) {
                 if (!Number.isInteger(entry.index) || !['fraction_partition', 'equal_groups'].includes(entry.spec?.visualType || '')) continue
                 const target = imageTargets[entry.index as number]
-                if (target) visualSpecs[target.index] = entry.spec
+                if (target && entry.spec) visualSpecs[target.index] = entry.spec
               }
             }
           } catch (analysisError) { console.warn('AI visual analyzer failed; legacy exact renderer will be used.', analysisError) }
