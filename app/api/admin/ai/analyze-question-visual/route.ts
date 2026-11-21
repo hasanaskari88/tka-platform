@@ -4,7 +4,7 @@ import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 
 export const maxDuration = 60
 
-type VisualType = 'fraction_partition' | 'none'
+type VisualType = 'fraction_partition' | 'equal_groups' | 'none'
 type Shape = 'circle' | 'rectangle' | 'line' | 'objects'
 type Meaning = 'selected' | 'removed' | 'remaining'
 type HighlightColor = 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'brown' | 'gray'
@@ -18,6 +18,9 @@ type VisualSpec = {
   objectLabel: string
   highlightColor: HighlightColor
   confidence: number
+  totalObjects: number
+  groupCount: number
+  selectedGroups: number
   reason: string
 }
 
@@ -31,7 +34,29 @@ function validateSpec(value: unknown): VisualSpec | null {
   if (item.visualType === 'none') {
     return {
       visualType: 'none', shape: 'rectangle', totalParts: 0, selectedParts: 0,
-      meaning: 'selected', objectLabel: '', highlightColor: 'blue', confidence: 0, reason: cleanText(item.reason, 240),
+      meaning: 'selected', objectLabel: '', highlightColor: 'blue', confidence: 0,
+      totalObjects: 0, groupCount: 0, selectedGroups: 0, reason: cleanText(item.reason, 240),
+    }
+  }
+
+  const confidence = Number(item.confidence)
+  const allowedColors: HighlightColor[] = ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray']
+  const highlightColor = allowedColors.includes(item.highlightColor as HighlightColor) ? item.highlightColor as HighlightColor : 'blue'
+
+  if (item.visualType === 'equal_groups') {
+    const totalObjects = Number(item.totalObjects)
+    const groupCount = Number(item.groupCount)
+    const selectedGroups = Number(item.selectedGroups)
+    if (!Number.isInteger(totalObjects) || totalObjects < 1 || totalObjects > 40 ||
+        !Number.isInteger(groupCount) || groupCount < 2 || groupCount > 12 ||
+        !Number.isInteger(selectedGroups) || selectedGroups < 1 || selectedGroups > groupCount ||
+        totalObjects % groupCount !== 0 ||
+        !Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null
+    return {
+      visualType: 'equal_groups', shape: 'objects', totalParts: groupCount,
+      selectedParts: selectedGroups, meaning: 'selected',
+      objectLabel: cleanText(item.objectLabel, 60), highlightColor, confidence,
+      totalObjects, groupCount, selectedGroups, reason: cleanText(item.reason, 240),
     }
   }
 
@@ -112,6 +137,8 @@ Jika cocok, ekstrak:
 - confidence: keyakinan 0 sampai 1
 Jangan mengarang angka. Bedakan jumlah keseluruhan dari jumlah yang ditanyakan. Jika ada lebih dari satu tafsir, informasi bertentangan, atau fakta jumlah tidak lengkap, pilih visualType "none". Jangan membuat diagram untuk sekadar dekorasi.
 
+Jika soal meminta pecahan dari sekumpulan benda konkret yang dapat dibagi rata (misalnya 3/5 dari 10 apel), pilih visualType "equal_groups". Isi totalObjects (jumlah benda), groupCount (penyebut/jumlah kelompok), selectedGroups (pembilang/jumlah kelompok yang diambil), dan objectLabel. Pastikan totalObjects habis dibagi groupCount. Contoh 10 apel dan 3/5: totalObjects=10, groupCount=5, selectedGroups=3, sehingga setiap kelompok berisi 2 apel. Jangan menggambar lima bidang abstrak di atas satu buah apel. Jika fakta jumlah atau pembagian tidak jelas, pilih none.
+
 KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan index yang sama.`
 
     const { data, provider } = await generateJsonWithFallback({
@@ -127,7 +154,7 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
               type: 'object',
               properties: {
                 index: { type: 'integer' },
-                visualType: { type: 'string', enum: ['fraction_partition', 'none'] },
+                visualType: { type: 'string', enum: ['fraction_partition', 'equal_groups', 'none'] },
                 shape: { type: 'string', enum: ['circle', 'rectangle', 'line', 'objects'] },
                 totalParts: { type: 'integer' },
                 selectedParts: { type: 'integer' },
@@ -135,9 +162,12 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
                 objectLabel: { type: 'string' },
                 highlightColor: { type: 'string', enum: ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray'] },
                 confidence: { type: 'number' },
+                totalObjects: { type: 'integer' },
+                groupCount: { type: 'integer' },
+                selectedGroups: { type: 'integer' },
                 reason: { type: 'string' },
               },
-              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'highlightColor', 'confidence', 'reason'],
+              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'highlightColor', 'confidence', 'totalObjects', 'groupCount', 'selectedGroups', 'reason'],
               additionalProperties: false,
             },
           },
@@ -154,7 +184,7 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
               type: 'OBJECT',
               properties: {
                 index: { type: 'INTEGER' },
-                visualType: { type: 'STRING', enum: ['fraction_partition', 'none'] },
+                visualType: { type: 'STRING', enum: ['fraction_partition', 'equal_groups', 'none'] },
                 shape: { type: 'STRING', enum: ['circle', 'rectangle', 'line', 'objects'] },
                 totalParts: { type: 'INTEGER' },
                 selectedParts: { type: 'INTEGER' },
@@ -162,9 +192,12 @@ KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan in
                 objectLabel: { type: 'STRING' },
                 highlightColor: { type: 'STRING', enum: ['red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'gray'] },
                 confidence: { type: 'NUMBER' },
+                totalObjects: { type: 'INTEGER' },
+                groupCount: { type: 'INTEGER' },
+                selectedGroups: { type: 'INTEGER' },
                 reason: { type: 'STRING' },
               },
-              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'highlightColor', 'confidence', 'reason'],
+              required: ['index', 'visualType', 'shape', 'totalParts', 'selectedParts', 'meaning', 'objectLabel', 'highlightColor', 'confidence', 'totalObjects', 'groupCount', 'selectedGroups', 'reason'],
             },
           },
         },
