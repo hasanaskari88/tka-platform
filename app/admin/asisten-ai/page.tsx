@@ -566,10 +566,97 @@ export default function AsistenAIPage() {
                   <p className="mt-1 text-xs font-normal text-violet-800">Semua soal tetap disimpan sebagai tipe uraian/essay agar kompatibel dengan CBT.</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="flex items-end">
-              <button type="submit" disabled={loading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Jumlah soal isian singkat pertama
+                    <input type="number" min={1} max={Math.max(1, countsByType.essay - 1)} value={Math.min(shortAnswerCount, Math.max(1, countsByType.essay - 1))} onChange={(e) => setShortAnswerCount(Math.min(Math.max(1, Number(e.target.value)), Math.max(1, countsByType.essay - 1)))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Skor maksimal isian singkat
+                    <input type="number" min={1} max={100} value={shortAnswerMaxScore} onChange={(e) => setShortAnswerMaxScore(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Skor maksimal uraian panjang
+                    <input type="number" min={1} max={100} value={longEssayMaxScore} onChange={(e) => setLongEssayMaxScore(Number(e.target.value))} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                </div>
+                <p className="text-xs text-violet-900">Kelompok pertama mendapat maksimal {shortAnswerMaxScore} poin per soal dan kelompok berikutnya maksimal {longEssayMaxScore} poin.</p>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 sm:col-span-2">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input type="checkbox" checked={includeImages} onChange={(e) => setIncludeImages(e.target.checked)} className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                <span>
+                  <span className="block text-sm font-bold text-slate-800">Buat gambar penyerta otomatis</span>
+                  <span className="mt-1 block text-xs font-normal leading-relaxed text-slate-600">AI menentukan soal yang benar-benar membutuhkan gambar. Soal tanpa kebutuhan visual tidak akan dipaksakan memiliki gambar.</span>
+                </span>
+              </label>
+              {includeImages && (
+                <div className="mt-4 grid gap-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Gaya gambar
+                    <select value={imageStyle} onChange={(e) => setImageStyle(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                      <option value="3d_cartoon">3D Modern / 3D Cartoon</option>
+                      <option value="2d_flat">Ilustrasi 2D sederhana</option>
+                      <option value="semi_realistic">Semi-realistis</option>
+                      <option value="photo_realistic">Realistis seperti foto</option>
+                      <option value="black_white">Hitam putih untuk LKPD</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Jenis gambar
+                    <select value={imageType} onChange={(e) => setImageType(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                      <option value="auto">Otomatis sesuai soal</option>
+                      <option value="illustration">Ilustrasi penjelas</option>
+                      <option value="object">Objek nyata</option>
+                      <option value="nature">Alam / sains</option>
+                      <option value="diagram">Diagram konseptual sederhana</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Bentuk gambar
+                    <select value={imageAspectRatio} onChange={(e) => setImageAspectRatio(e.target.value)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal">
+                      <option value="16:9">Horizontal (16:9)</option>
+                      <option value="4:3">Landscape (4:3)</option>
+                      <option value="1:1">Persegi (1:1)</option>
+                    </select>
+                  </label>
+                  <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+                    Instruksi khusus gambar <span className="font-normal text-slate-400">(opsional)</span>
+                    <input value={imageCustomInstruction} onChange={(e) => setImageCustomInstruction(e.target.value)} maxLength={500} placeholder="Contoh: gunakan latar putih dan warna lembut" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
+                  </label>
+                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Cloudflare Workers AI (FLUX.1 Schnell) dan disimpan ke penyimpanan media. Diagram matematika dengan angka atau label presisi tetap perlu diperiksa guru. Penggunaan gambar dapat menambah biaya API.</p>
+                </div>
+              )}
+            </div>
+
+            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+              Level kognitif
+              <select value={cognitiveLevel} onChange={(e) => setCognitiveLevel(e.target.value)} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                <option value="AUTO">Otomatis sesuai materi</option>
+                <option value="LOTS">LOTS — mengingat dan memahami</option>
+                <option value="MOTS">MOTS — menerapkan</option>
+                <option value="HOTS">HOTS — menganalisis dan menalar</option>
+                <option value="C1">C1 — Mengingat</option>
+                <option value="C2">C2 — Memahami</option>
+                <option value="C3">C3 — Menerapkan</option>
+                <option value="C4">C4 — Menganalisis</option>
+                <option value="C5">C5 — Mengevaluasi</option>
+                <option value="C6">C6 — Mencipta</option>
+              </select>
+            </label>
+            <div className="space-y-1.5 text-sm font-semibold text-slate-700">
+              Model AI
+              <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal text-slate-700">
+                <span className="font-semibold">Groq (utama)</span>
+                <span className="ml-2 text-xs text-emerald-700">Gemini cadangan</span>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">Jika Groq tidak tersedia atau kuotanya habis, sistem otomatis mencoba Gemini.</p>
+              </div>
+            </div>
+            <div className="flex items-end sm:col-span-2">
+              <button type="submit" disabled={loading || selectedTypes.length === 0 || selectedTypes.reduce((sum, type) => sum + countsByType[type], 0) > 15} className="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
                 {loading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                {loading ? 'AI sedang membuat soal...' : 'Buat soal dengan AI'}
+                {loading ? 'AI sedang membuat soal...' : 'Buat semua soal dengan AI'}
               </button>
             </div>
           </form>
