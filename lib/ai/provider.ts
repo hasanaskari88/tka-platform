@@ -87,7 +87,7 @@ async function generateWithGroq(input: GenerateJsonInput): Promise<ProviderResul
 
   for (let attempt = 1; attempt <= 2; attempt++) {
     const correction = attempt === 2
-      ? '\n\nPERBAIKAN WAJIB: Percobaan sebelumnya tidak memenuhi JSON Schema. Kembalikan SATU objek JSON dengan properti tingkat atas "questions" berupa array. Setiap elemen array HARUS berupa objek soal lengkap sesuai skema, bukan string, bukan array, dan bukan teks biasa. Pastikan semua properti wajib tersedia dan tipe datanya tepat. Jangan sertakan markdown atau teks di luar JSON.'
+      ? '\n\nPERBAIKAN WAJIB: Respons sebelumnya ditolak karena tidak memenuhi JSON Schema untuk tugas "' + input.task + '". Periksa kembali seluruh instruksi tugas dan skema JSON yang diberikan pada permintaan ini. Kembalikan satu objek JSON yang valid dengan struktur dan tipe data yang tepat sesuai skema tersebut. Pastikan semua properti wajib tersedia, tidak menambahkan properti yang tidak diizinkan, dan jangan sertakan markdown atau teks di luar JSON.'
       : ''
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
