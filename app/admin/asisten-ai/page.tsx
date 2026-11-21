@@ -748,8 +748,13 @@ async function createThreeFruitBoxesImage(question: string): Promise<Blob | null
   const source = question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ')
   const targetMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?kotak\s+(pertama|kedua|ketiga)|kotak\s+(pertama|kedua|ketiga)[^.!?]{0,100}?(?:berapa|jumlah|banyak|bagian|pecahan)/)
   const targetBox = targetMatch?.[1] || targetMatch?.[2]
-  if (!targetBox) return null
-  const targetIndex = ({ pertama: 0, kedua: 1, ketiga: 2 } as const)[targetBox as 'pertama' | 'kedua' | 'ketiga']
+  const targetFruitMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?\b(jeruk|pisang|apel)\b/)
+  const targetIndex = targetBox
+    ? ({ pertama: 0, kedua: 1, ketiga: 2 } as const)[targetBox as 'pertama' | 'kedua' | 'ketiga']
+    : targetFruitMatch
+      ? groups.findIndex((group) => group.fruit === targetFruitMatch[1])
+      : -1
+  if (targetIndex < 0) return null
   const target = groups[targetIndex]?.count
   if (!target || total <= 0) return null
   const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b)
