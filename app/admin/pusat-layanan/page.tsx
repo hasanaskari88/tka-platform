@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowDown, ArrowUp, CheckCircle2, Cloud, Database, Image as ImageIcon, Loader2, RefreshCw, Save, Sparkles, Trash2, XCircle } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckCircle2, Cloud, Copy, Database, Image as ImageIcon, Loader2, RefreshCw, Save, Sparkles, Trash2, XCircle } from 'lucide-react'
 
 type ProviderConfig = { provider_order: string[]; providers: Record<string, { enabled?: boolean }> }
 type Asset = {
@@ -240,7 +240,7 @@ export default function ServiceCenterPage() {
               <p className="text-xs text-slate-500">{asset.provider} · {formatBytes(Number(asset.file_size_bytes))}</p>
               {asset.usage && <p className={`text-xs font-semibold ${asset.usage.total ? 'text-amber-700' : 'text-emerald-700'}`}>{asset.usage.questionCount} soal · {asset.usage.materialCount} materi {asset.usage.total ? '— sedang digunakan' : '— belum terpakai'}</p>}
               <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
-                {asset.public_url ? <a href={asset.public_url} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 hover:underline">Buka gambar</a> : <span className="text-xs text-slate-400">URL tidak tersedia</span>}
+                {asset.public_url ? <div className="flex items-center gap-3"><a href={asset.public_url} target="_blank" rel="noreferrer" className="text-xs font-bold text-indigo-700 hover:underline">Buka gambar</a><button type="button" onClick={() => { void navigator.clipboard.writeText(asset.public_url!).then(() => setMessage('URL gambar berhasil disalin.')).catch(() => setError('Gagal menyalin URL gambar.')) }} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-indigo-700"><Copy size={12} /> Salin URL</button></div> : <span className="text-xs text-slate-400">URL tidak tersedia</span>}
                 <button onClick={() => void deleteAsset(asset)} disabled={(asset.usage?.total || 0) > 0} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40"><Trash2 size={13} /> Hapus</button>
               </div>
             </div>
