@@ -103,6 +103,43 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
+function fractionValue(value: string): string | null {
+  let text = value.trim().replace(/\\\\frac\\s*\\{(\\d+)\\}\\s*\\{(\\d+)\\}/g, '$1/$2')
+    .replace(/\\\\d?frac/g, '').replace(/[$]/g, '').replace(/,/g, '.').trim()
+  text = text.replace(/\\s*(?:buah|apel|jeruk|pisang)\\s*$/i, '').trim()
+  const mixed = text.match(/^(-?\\d+)\\s+(\\d+)\\s*\\/\\s*(\\d+)$/)
+  const fraction = text.match(/^(-?\\d+)\\s*\\/\\s*(\\d+)$/)
+  const integer = text.match(/^(-?\\d+)$/)
+  let numerator: number
+  let denominator: number
+  if (mixed) {
+    const whole = Number(mixed[1])
+    const top = Number(mixed[2])
+    denominator = Number(mixed[3])
+    if (!denominator || top >= denominator) return null
+    numerator = Math.sign(whole || 1) * (Math.abs(whole) * denominator + top)
+  } else if (fraction) {
+    numerator = Number(fraction[1])
+    denominator = Number(fraction[2])
+  } else if (integer) {
+    numerator = Number(integer[1])
+    denominator = 1
+  } else {
+    return null
+  }
+  if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || denominator <= 0) return null
+  const gcd = (a: number, b: number): number => b === 0 ? Math.abs(a) : gcd(b, a % b)
+  const divisor = gcd(numerator, denominator) || 1
+  return (numerator / divisor) + '/' + (denominator / divisor)
+}
+
+function hasEquivalentNumericOptions(options: Record<string, unknown>): boolean {
+  const values = Object.values(options).filter((value): value is string => typeof value === 'string')
+  const fractions = values.map(fractionValue)
+  const numeric = fractions.filter((value): value is string => value !== null)
+  return new Set(numeric).size !== numeric.length
+}
+
 function validateGeneratedQuestions(
   questions: unknown[],
   questionType: QuestionType,
@@ -130,6 +167,9 @@ function validateGeneratedQuestions(
       const keys = ['A', 'B', 'C', 'D']
       if (keys.some((key) => !isNonEmptyString(options[key]))) {
         return `Pilihan A-D soal nomor ${number} harus terisi semua.`
+      }
+      if (hasEquivalentNumericOptions(options)) {
+        return `Pilihan jawaban soal nomor ${number} memiliki pecahan atau nilai matematika yang setara. Setiap pilihan harus berbeda nilainya.`
       }
 
       if (questionType === 'multiple_choice') {
@@ -224,7 +264,8 @@ export async function POST(request: Request) {
     const prompt = 'Buat tepat ' + count + ' soal untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.' + indicatorInstruction +
       '\n\nLevel kognitif: ' + cognitiveInstruction +
       '\n\nKetentuan bentuk soal: ' + typeInstruction +
-      '\n\nKetentuan umum:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Pastikan soal sesuai materi dan indikator, tidak ambigu, serta memiliki jawaban yang dapat dipertanggungjawabkan.\n- Berikan pembahasan singkat dan jelas pada properti explanation.\n- Untuk LOTS, utamakan mengingat/memahami; MOTS menerapkan; HOTS menalar/menganalisis.\n- Jika soal memuat hitungan matematika, hitung ulang secara mandiri sebelum menentukan pilihan dan kunci jawaban. Pastikan hasil hitung, pilihan jawaban, kunci, dan pembahasan saling konsisten. Jangan menulis pembahasan yang mengakui pilihan jawaban salah atau meminta guru memperbaiki soal; perbaiki soal dan pilihan sebelum mengembalikan JSON.\n- Untuk soal pecahan, pastikan pembilang adalah jumlah bagian yang ditanyakan dan penyebut adalah jumlah seluruh bagian. Sederhanakan pecahan hanya jika nilainya tetap sama. Pastikan salah satu pilihan jawaban tepat sama dengan hasilnya dan kunci menunjuk pilihan tersebut.\n- Jangan menambahkan teks di luar JSON' +
+      '\n\nKetentuan umum:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Pastikan soal sesuai materi dan indikator, tidak ambigu, serta memiliki jawaban yang dapat dipertanggungjawabkan.\n- Berikan pembahasan singkat dan jelas pada properti explanation.\n- Untuk LOTS, utamakan mengingat/memahami; MOTS menerapkan; HOTS menalar/menganalisis.\n- Jika soal memuat hitungan matematika, hitung ulang secara mandiri sebelum menentukan pilihan dan kunci jawaban. Pastikan hasil hitung, pilihan jawaban, kunci, dan pembahasan saling konsisten. Jangan menulis pembahasan yang mengakui pilihan jawaban salah atau meminta guru memperbaiki soal; perbaiki soal dan pilihan sebelum mengembalikan JSON.\n- Untuk soal pecahan, pastikan pembilang adalah jumlah bagian yang ditanyakan dan penyebut adalah jumlah seluruh bagian. Sederhanakan pecahan hanya jika nilainya tetap sama. Pastikan salah satu pilihan jawaban tepat sama dengan hasilnya dan kunci menunjuk pilihan tersebut.
+- DILARANG membuat dua pilihan jawaban yang nilainya setara meskipun bentuk tulisannya berbeda. Contoh 6/5 dan 1 1/5 adalah nilai yang sama, sehingga hanya boleh muncul satu kali dalam pilihan A-D. Periksa kesetaraan pecahan, pecahan campuran, dan pecahan yang sudah disederhanakan sebelum mengembalikan JSON.\n- Jangan menambahkan teks di luar JSON' +
       (includeImages
         ? '\n\nKetentuan gambar penyerta:\n- Tambahkan properti image_prompt pada setiap soal.\n- Jika ilustrasi benar-benar membantu siswa memahami soal, isi image_prompt dengan deskripsi visual yang spesifik, akurat, dan siap digunakan generator gambar.\n- Jika soal tidak membutuhkan gambar, isi image_prompt dengan string kosong. Jangan memaksakan gambar pada semua soal.\n- Jenis visual yang diutamakan: ' + imageType + '.\n- Jangan meminta gambar memuat tulisan, label, angka, atau watermark. Untuk diagram matematika yang membutuhkan ukuran/angka presisi, tuliskan bentuk visual sederhana dan ingatkan bahwa guru harus memeriksa ketepatannya.'
         : '')
