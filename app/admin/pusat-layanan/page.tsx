@@ -272,8 +272,8 @@ export default function ServiceCenterPage() {
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
         <p className="text-xs text-slate-500">Menampilkan {assets.length ? ((galleryPage - 1) * 18 + 1) : 0}–{Math.min(galleryPage * 18, galleryTotal)} dari {galleryTotal} gambar · Halaman {galleryPage} dari {galleryTotalPages}</p>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setGalleryPage((current) => Math.max(1, current - 1)) disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
-          <button type="button" onClick={() => setGalleryPage((current) => Math.min(galleryTotalPages, current + 1)) disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
+          <button type="button" onClick={() => setGalleryPage((current) => Math.max(1, current - 1))} disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
+          <button type="button" onClick={() => setGalleryPage((current) => Math.min(galleryTotalPages, current + 1))} disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
         </div>
       </div>
       {galleryLoading ? <div className="flex justify-center py-12 text-slate-500"><Loader2 className="animate-spin" /></div> : assets.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><ImageIcon className="mx-auto text-slate-300" size={36} /><p className="mt-3 font-bold text-slate-700">Belum ada media tercatat</p><p className="mt-1 text-sm text-slate-500">Gambar baru akan muncul di sini setelah melalui layanan unggah terpusat.</p></div> :
