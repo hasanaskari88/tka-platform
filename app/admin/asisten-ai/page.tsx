@@ -39,9 +39,20 @@ function formatMathOption(value: string, context: string): string {
   return formatted.replace(/(\d{1,3})\s*\/\s*(\d{1,3})/g, (_match, numerator, bottom) => '$\\frac{' + numerator + '}{' + bottom + '}$')
 }
 function extractNumberComparison(question: string): [number, number] | null {
-  const normalized = question.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ')
-  const match = normalized.match(/(?:angka|bilangan)?[^0-9]{0,80}(\d{1,3})\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\s*(\d{1,3})/i)
+  const normalized = question
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  // Jangan membuat visual perbandingan hanya karena dua angka terhubung kata "dan".
+  // Harus ada instruksi yang jelas untuk membandingkan atau mengurutkan bilangan.
+  const hasComparisonIntent = /\b(bandingkan|perbandingan|lebih besar|lebih kecil|paling besar|paling kecil|urutkan|manakah yang lebih|mana yang lebih)\b/i.test(normalized)
+  if (!hasComparisonIntent) return null
+
+  const match = normalized.match(/(\d{1,3})\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\s*(\d{1,3})/i)
   if (!match) return null
+
   const first = Number(match[1])
   const second = Number(match[2])
   if (!Number.isSafeInteger(first) || !Number.isSafeInteger(second) || first < 0 || second < 0) return null
@@ -428,7 +439,7 @@ export default function AsistenAIPage() {
         ...item,
         image_status: includeImages && item.image_prompt?.trim() ? 'pending' : 'none',
       })))
-      setModel(payload.provider || payload.model || 'AI')
+      setModel([payload.provider, payload.model].filter(Boolean).join(' · ') || 'AI')
       setLoadingMessage('Soal berhasil dibuat. Memeriksa kebutuhan gambar...')
 
       if (includeImages) {
