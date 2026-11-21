@@ -396,7 +396,7 @@ function replaceRtfMathImagePlaceholders(
 async function uploadPastedImage(file: File): Promise<string> {
   const formData = new FormData()
   formData.append('file', file, file.name || 'gambar-word.png')
-  const response = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+  const response = await fetch('/api/media/upload', { method: 'POST', body: formData })
   const result = await response.json()
   if (!response.ok || !result.success || !result.file?.imageUrl) {
     throw new Error(result.error || 'Gagal menyimpan gambar hasil paste ke Google Drive.')

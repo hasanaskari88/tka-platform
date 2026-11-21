@@ -319,7 +319,7 @@ export default function AsistenAIPage() {
         setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
         const formData = new FormData()
         formData.append('file', new File([exactMathBlob], 'visual-matematika-soal-' + (index + 1) + '.png', { type: 'image/png' }))
-        const uploadResponse = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+        const uploadResponse = await fetch('/api/media/upload', { method: 'POST', body: formData })
         const uploadPayload = await uploadResponse.json()
         if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
           throw new Error(uploadPayload.error || 'Visual matematika dibuat, tetapi gagal disimpan ke Google Drive.')
@@ -389,7 +389,7 @@ export default function AsistenAIPage() {
       const formData = new FormData()
       formData.append('file', new File([imageBlob], `ai-soal-${index + 1}.${extension}`, { type: imagePayload.mimeType }))
 
-      const uploadResponse = await fetch('/api/google-drive/upload', { method: 'POST', body: formData })
+      const uploadResponse = await fetch('/api/media/upload', { method: 'POST', body: formData })
       const uploadPayload = await uploadResponse.json()
       if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
         throw new Error(uploadPayload.error || 'Gambar dibuat, tetapi gagal disimpan ke Google Drive.')
@@ -605,7 +605,7 @@ export default function AsistenAIPage() {
                     Instruksi khusus gambar <span className="font-normal text-slate-400">(opsional)</span>
                     <input value={imageCustomInstruction} onChange={(e) => setImageCustomInstruction(e.target.value)} maxLength={500} placeholder="Contoh: gunakan latar putih dan warna lembut" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 font-normal" />
                   </label>
-                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Cloudflare Workers AI (FLUX.1 Schnell) dan disimpan ke Google Drive. Untuk diagram matematika yang memuat angka, ukuran, atau label presisi, guru tetap perlu memeriksa ketepatannya. Penggunaan gambar dapat menambah biaya API.</p>
+                  <p className="text-xs font-normal leading-relaxed text-slate-500 sm:col-span-2">Gambar dibuat menggunakan Cloudflare Workers AI (FLUX.1 Schnell) dan disimpan ke penyimpanan media. Untuk diagram matematika yang memuat angka, ukuran, atau label presisi, guru tetap perlu memeriksa ketepatannya. Penggunaan gambar dapat menambah biaya API.</p>
                 </div>
               )}
             </div>
@@ -673,7 +673,7 @@ export default function AsistenAIPage() {
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                         <img src={item.image_url} alt={`Gambar penyerta soal nomor ${index + 1}`} className="max-h-80 w-full object-contain" />
                         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
-                          <span className="text-xs font-semibold text-emerald-700">Gambar tersimpan di Google Drive</span>
+                          <span className="text-xs font-semibold text-emerald-700">Gambar tersimpan di penyimpanan media</span>
                           <button type="button" onClick={() => generateImageForQuestion(index, item)} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
                             Buat ulang gambar
                           </button>
