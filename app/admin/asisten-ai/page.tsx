@@ -515,7 +515,11 @@ async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVi
   const wholePerGroup = Math.floor(totalObjects / groupCount)
   const remainderPerGroup = totalObjects % groupCount
   const displaySlotsPerGroup = wholePerGroup + (remainderPerGroup > 0 ? 1 : 0)
-  const objectName = (spec.objectLabel || 'benda').toLocaleLowerCase('id')
+  const objectName = (spec.objectLabel || '').toLocaleLowerCase('id')
+  // Jangan mengganti benda yang tidak dikenali menjadi lingkaran generik.
+  // Lingkaran hanya cocok untuk benda yang memang berbentuk bulat.
+  const supportedObject = /apel|apple|jeruk|orange|pisang|banana|bola|kelereng|permen|koin/.test(objectName)
+  if (!supportedObject) return null
   const canvas = document.createElement('canvas')
   canvas.width = 1600
   canvas.height = 900
