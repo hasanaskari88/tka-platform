@@ -15,6 +15,7 @@ type Asset = {
   created_at: string
   usage: { questionCount: number; materialCount: number; total: number } | null
 }
+type AIUsage = { summary: { calls: number; failures: number; tokens: number; providers: Record<string, { calls: number; failures: number; tokens: number }> }; logs: Array<{ request_id: string; task: string; provider: string; model: string | null; status: string; total_tokens: number | null; latency_ms: number | null; error_message: string | null; created_at: string }> }
 type SettingsPayload = {
   storage_config: ProviderConfig
   ai_config: ProviderConfig
@@ -50,6 +51,7 @@ export default function ServiceCenterPage() {
   const [settings, setSettings] = useState<SettingsPayload | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
   const [summary, setSummary] = useState({ count: 0, bytes: 0 })
+  const [aiUsage, setAiUsage] = useState<AIUsage | null>(null)
   const [loading, setLoading] = useState(true)
   const [galleryLoading, setGalleryLoading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -85,6 +87,15 @@ export default function ServiceCenterPage() {
 
   useEffect(() => {
     if (tab === 'gallery') void loadGallery()
+    if (tab === 'usage') {
+      fetch('/api/admin/ai-usage', { cache: 'no-store' })
+        .then(async (response) => {
+          const data = await response.json()
+          if (!response.ok) throw new Error(data.error || 'Gagal memuat statistik AI.')
+          setAiUsage(data)
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : 'Gagal memuat statistik AI.'))
+    }
   }, [tab, loadGallery])
 
   async function saveSettings() {
@@ -221,10 +232,23 @@ export default function ServiceCenterPage() {
         </div>}
     </section>}
 
-    {tab === 'usage' && <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h2 className="font-black text-slate-900">Ringkasan penggunaan AI</h2>
-      <p className="mt-2 text-sm leading-relaxed text-slate-600">Pencatatan penggunaan sudah disiapkan di database. Panel rincian pemakaian per model, token, waktu respons, dan kegagalan akan terisi setelah seluruh pemanggilan AI dialihkan ke pencatat terpusat.</p>
-      <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Belum ada data statistik yang ditampilkan agar angka pemakaian tidak menyesatkan.</div>
+    {tab === 'usage' && <section className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Permintaan berhasil · 30 hari</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.calls ?? '—'}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Percobaan gagal</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.failures ?? '—'}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Total token tercatat</p><p className="mt-1 text-2xl font-black text-slate-900">{(aiUsage?.summary.tokens ?? 0).toLocaleString('id-ID')}</p></div>
+      </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <h2 className="font-black text-slate-900">Penggunaan per penyedia</h2>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {Object.entries(aiUsage?.summary.providers || {}).map(([provider, value]) => <div key={provider} className="rounded-xl bg-slate-50 p-3"><p className="font-bold text-slate-800">{provider}</p><p className="mt-1 text-xs text-slate-600">{value.calls} berhasil · {value.failures} gagal</p><p className="text-xs text-slate-500">{value.tokens.toLocaleString('id-ID')} token</p></div>)}
+          {!aiUsage?.logs.length && <p className="text-sm text-slate-500">Belum ada catatan penggunaan pada 30 hari terakhir.</p>}
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 p-4"><h2 className="font-black text-slate-900">Aktivitas terbaru</h2><p className="text-xs text-slate-500">Maksimal 1.000 percobaan dalam 30 hari terakhir</p></div>
+        <div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-xs"><thead className="bg-slate-50 text-slate-500"><tr><th className="p-3">Waktu</th><th className="p-3">Tugas</th><th className="p-3">Penyedia / model</th><th className="p-3">Status</th><th className="p-3 text-right">Token</th><th className="p-3 text-right">Durasi</th></tr></thead><tbody>{aiUsage?.logs.map((log, index) => <tr key={log.request_id + index} className="border-t border-slate-100"><td className="whitespace-nowrap p-3">{new Date(log.created_at).toLocaleString('id-ID')}</td><td className="p-3">{log.task}</td><td className="p-3">{log.provider}<span className="block text-slate-400">{log.model || '—'}</span></td><td className="p-3"><span className={log.status === 'success' ? 'font-bold text-emerald-700' : log.status === 'failed' ? 'font-bold text-rose-700' : 'text-slate-500'}>{log.status}</span></td><td className="p-3 text-right">{log.total_tokens?.toLocaleString('id-ID') || '—'}</td><td className="p-3 text-right">{log.latency_ms ? log.latency_ms + ' ms' : '—'}</td></tr>)}</tbody></table></div>
+      </div>
     </section>}
   </div>
 }
