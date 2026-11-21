@@ -47,14 +47,15 @@ function validateSpec(value: unknown): VisualSpec | null {
     const totalObjects = Number(item.totalObjects)
     const groupCount = Number(item.groupCount)
     const selectedGroups = Number(item.selectedGroups)
+    const objectLabel = cleanText(item.objectLabel, 60)
     if (!Number.isInteger(totalObjects) || totalObjects < 1 || totalObjects > 40 ||
         !Number.isInteger(groupCount) || groupCount < 2 || groupCount > 12 ||
         !Number.isInteger(selectedGroups) || selectedGroups < 1 || selectedGroups > groupCount ||
-        !Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null
+        !objectLabel || !Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null
     return {
       visualType: 'equal_groups', shape: 'objects', totalParts: groupCount,
       selectedParts: selectedGroups, meaning: 'selected',
-      objectLabel: cleanText(item.objectLabel, 60), highlightColor, confidence,
+      objectLabel, highlightColor, confidence,
       totalObjects, groupCount, selectedGroups, reason: cleanText(item.reason, 240),
     }
   }
