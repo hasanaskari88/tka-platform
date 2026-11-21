@@ -491,7 +491,7 @@ function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
   const words = ['pertama', 'kedua', 'ketiga']
   const groups: FruitGroup[] = []
   for (const box of words) {
-    const match = source.match(new RegExp('kotak\\s+' + box + '[^.!?]{0,100}?' + number + '\\\\s+buah\\s+(jeruk|pisang|apel)'))
+    const match = source.match(new RegExp('kotak\\s+' + box + '[^.!?]{0,100}?' + number + '\\s+buah\\s+(jeruk|pisang|apel)'))
     if (!match) {
       groups.length = 0
       break
@@ -507,7 +507,7 @@ function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
   if (groups.length !== 3) {
     groups.length = 0
     for (const fruit of ['jeruk', 'pisang', 'apel'] as const) {
-      const match = source.match(new RegExp(number + '\\\\s*(?:buah\\\\s*)?' + fruit + '\\\\b'))
+      const match = source.match(new RegExp(number + '\\s*(?:buah\\s*)?' + fruit + '\\b'))
       if (!match) return null
       const count = parseIndonesianNumber(match[1])
       if (!count || count < 1 || count > 40) return null
