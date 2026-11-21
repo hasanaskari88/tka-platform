@@ -99,6 +99,82 @@ function toGroqSchema(value: any): any {
   return result
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+function validateGeneratedQuestions(
+  questions: unknown[],
+  questionType: QuestionType,
+  includeImages: boolean,
+): string | null {
+  for (let index = 0; index < questions.length; index++) {
+    const question = questions[index]
+    const number = index + 1
+    if (!question || typeof question !== 'object' || Array.isArray(question)) {
+      return `Soal nomor ${number} bukan objek yang valid.`
+    }
+
+    const item = question as Record<string, unknown>
+    if (!isNonEmptyString(item.question)) return `Teks soal nomor ${number} masih kosong.`
+    if (!isNonEmptyString(item.explanation)) return `Pembahasan soal nomor ${number} masih kosong.`
+    if (includeImages && typeof item.image_prompt !== 'string') {
+      return `Deskripsi gambar soal nomor ${number} tidak valid.`
+    }
+
+    if (questionType === 'multiple_choice' || questionType === 'complex_multiple_choice') {
+      if (!item.options || typeof item.options !== 'object' || Array.isArray(item.options)) {
+        return `Pilihan jawaban soal nomor ${number} tidak valid.`
+      }
+      const options = item.options as Record<string, unknown>
+      const keys = ['A', 'B', 'C', 'D']
+      if (keys.some((key) => !isNonEmptyString(options[key]))) {
+        return `Pilihan A-D soal nomor ${number} harus terisi semua.`
+      }
+
+      if (questionType === 'multiple_choice') {
+        if (typeof item.answer !== 'string' || !keys.includes(item.answer)) {
+          return `Kunci jawaban soal nomor ${number} tidak valid.`
+        }
+      } else {
+        if (!Array.isArray(item.answers)) return `Kunci jawaban kompleks soal nomor ${number} tidak valid.`
+        const answers = item.answers
+        if (answers.length < 2 || answers.some((answer) => typeof answer !== 'string' || !keys.includes(answer))) {
+          return `Soal pilihan ganda kompleks nomor ${number} harus memiliki minimal dua kunci A-D yang valid.`
+        }
+        if (new Set(answers).size !== answers.length) {
+          return `Kunci jawaban soal nomor ${number} mengandung pilihan yang duplikat.`
+        }
+      }
+    } else if (questionType === 'true_false_matrix') {
+      if (!Array.isArray(item.statements) || item.statements.length < 3 || item.statements.length > 4) {
+        return `Soal benar-salah nomor ${number} harus memiliki 3 atau 4 pernyataan.`
+      }
+      const ids = new Set<string>()
+      for (const statement of item.statements) {
+        if (!statement || typeof statement !== 'object' || Array.isArray(statement)) {
+          return `Pernyataan pada soal nomor ${number} tidak valid.`
+        }
+        const row = statement as Record<string, unknown>
+        if (typeof row.id !== 'string' || !['1', '2', '3', '4'].includes(row.id) || ids.has(row.id)) {
+          return `Nomor pernyataan pada soal ${number} tidak valid atau duplikat.`
+        }
+        if (!isNonEmptyString(row.text) || !['Benar', 'Salah'].includes(String(row.answer))) {
+          return `Teks atau kunci pernyataan pada soal nomor ${number} tidak valid.`
+        }
+        ids.add(row.id)
+      }
+    } else {
+      if (!isNonEmptyString(item.model_answer)) return `Contoh jawaban soal uraian nomor ${number} masih kosong.`
+      if (!isNonEmptyString(item.rubric)) return `Rubrik penilaian soal uraian nomor ${number} masih kosong.`
+      if (typeof item.max_score !== 'number' || !Number.isFinite(item.max_score) || item.max_score <= 0) {
+        return `Skor maksimal soal uraian nomor ${number} tidak valid.`
+      }
+    }
+  }
+  return null
+}
+
 export async function POST(request: Request) {
   try {
     const origin = request.headers.get('origin')
@@ -153,7 +229,7 @@ export async function POST(request: Request) {
         ? '\n\nKetentuan gambar penyerta:\n- Tambahkan properti image_prompt pada setiap soal.\n- Jika ilustrasi benar-benar membantu siswa memahami soal, isi image_prompt dengan deskripsi visual yang spesifik, akurat, dan siap digunakan generator gambar.\n- Jika soal tidak membutuhkan gambar, isi image_prompt dengan string kosong. Jangan memaksakan gambar pada semua soal.\n- Jenis visual yang diutamakan: ' + imageType + '.\n- Jangan meminta gambar memuat tulisan, label, angka, atau watermark. Untuk diagram matematika yang membutuhkan ukuran/angka presisi, tuliskan bentuk visual sederhana dan ingatkan bahwa guru harus memeriksa ketepatannya.'
         : '')
 
-    const { data, provider } = await generateJsonWithFallback({
+    const { data, provider, model: generatedModel } = await generateJsonWithFallback({
       task: 'pembuatan soal otomatis',
       prompt,
       groqSchema: toGroqSchema(getQuestionSchema(questionType, includeImages)),
@@ -167,6 +243,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Hasil AI belum sesuai jumlah soal yang diminta. Silakan coba lagi.' }, { status: 502 })
     }
 
+    const validationError = validateGeneratedQuestions(result.questions, questionType, includeImages)
+    if (validationError) {
+      console.warn('AI generated question validation failed:', validationError)
+      return NextResponse.json({
+        error: 'Hasil AI belum memenuhi pemeriksaan kualitas: ' + validationError + ' Silakan coba buat ulang.',
+      }, { status: 502 })
+    }
+
     const generatedQuestions = questionType === 'essay'
       ? result.questions.map((question: Record<string, unknown>, index: number) => ({
           ...question,
@@ -178,7 +262,7 @@ export async function POST(request: Request) {
       success: true,
       status: 'completed',
       provider,
-      model: provider,
+      model: generatedModel,
       questions: generatedQuestions,
     })
   } catch (error) {
