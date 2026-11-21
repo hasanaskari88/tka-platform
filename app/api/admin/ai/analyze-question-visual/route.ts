@@ -50,7 +50,6 @@ function validateSpec(value: unknown): VisualSpec | null {
     if (!Number.isInteger(totalObjects) || totalObjects < 1 || totalObjects > 40 ||
         !Number.isInteger(groupCount) || groupCount < 2 || groupCount > 12 ||
         !Number.isInteger(selectedGroups) || selectedGroups < 1 || selectedGroups > groupCount ||
-        totalObjects % groupCount !== 0 ||
         !Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null
     return {
       visualType: 'equal_groups', shape: 'objects', totalParts: groupCount,
@@ -137,7 +136,7 @@ Jika cocok, ekstrak:
 - confidence: keyakinan 0 sampai 1
 Jangan mengarang angka. Bedakan jumlah keseluruhan dari jumlah yang ditanyakan. Jika ada lebih dari satu tafsir, informasi bertentangan, atau fakta jumlah tidak lengkap, pilih visualType "none". Jangan membuat diagram untuk sekadar dekorasi.
 
-Jika soal meminta pecahan dari sekumpulan benda konkret yang dapat dibagi rata (misalnya 3/5 dari 10 apel), pilih visualType "equal_groups". Isi totalObjects (jumlah benda), groupCount (penyebut/jumlah kelompok), selectedGroups (pembilang/jumlah kelompok yang diambil), dan objectLabel. Pastikan totalObjects habis dibagi groupCount. Contoh 10 apel dan 3/5: totalObjects=10, groupCount=5, selectedGroups=3, sehingga setiap kelompok berisi 2 apel. Jangan menggambar lima bidang abstrak di atas satu buah apel. Jika fakta jumlah atau pembagian tidak jelas, pilih none.
+Jika soal meminta membagi sekumpulan benda konkret menjadi beberapa kelompok sama banyak atau mencari pecahan dari kumpulan benda, pilih visualType "equal_groups". Isi totalObjects (jumlah benda utuh), groupCount (jumlah kelompok atau penyebut), selectedGroups (jumlah kelompok yang ditanyakan/dipilih; jika bertanya "satu bagian", isi 1), dan objectLabel. PEMBAGIAN TIDAK HARUS MENGHASILKAN BILANGAN BULAT. Jika totalObjects tidak habis dibagi groupCount, representasikan sisa sebagai bagian pecahan benda yang sama besar pada setiap kelompok. Contoh 6 jeruk dibagi 5 bagian: totalObjects=6, groupCount=5, selectedGroups=1, objectLabel="jeruk"; setiap kelompok mendapat 1 jeruk utuh dan 1/5 jeruk, sehingga satu bagian bernilai 6/5 jeruk. Contoh 10 apel untuk 3/5 bagian: totalObjects=10, groupCount=5, selectedGroups=3; setiap kelompok mendapat 2 apel dan tiga kelompok bernilai 6 apel. Jangan menggambar bidang abstrak di atas satu buah jika soal menyebut kumpulan benda. Jika fakta jumlah atau pembagian tidak jelas, pilih none.
 
 KELUARAN: JSON saja. Kembalikan satu elemen untuk setiap soal dan pertahankan index yang sama.`
 
