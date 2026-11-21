@@ -658,9 +658,10 @@ async function createThreeFruitPartitionImage(question: string): Promise<Blob | 
     /(kotak\s+pisang|bagian\s+kotak\s+pisang)/.test(text)
   if (!hasThreeFruitBoxes) return null
 
-  const partsMatch = text.match(/dibagi\s+menjadi\s+(\d{1,2})\s+bagian/)
-  const partsPerBox = partsMatch ? Number(partsMatch[1]) : 5
-  if (!Number.isInteger(partsPerBox) || partsPerBox < 2 || partsPerBox > 12) return null
+  const partsMatch = text.match(/dibagi\s+menjadi\s+(\d{1,2}|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua)\s+bagian/)
+  const partsPerBox = partsMatch ? parseIndonesianNumber(partsMatch[1]) : null
+  // Jangan menebak jumlah bagian jika soal tidak menyebutkannya.
+  if (!partsPerBox || !Number.isInteger(partsPerBox) || partsPerBox < 2 || partsPerBox > 12) return null
 
   const canvas = document.createElement('canvas')
   canvas.width = 1600
@@ -680,9 +681,9 @@ async function createThreeFruitPartitionImage(question: string): Promise<Blob | 
   ctx.fillText('Setiap kotak dibagi menjadi ' + partsPerBox + ' bagian yang sama', 800, 120)
 
   const rows = [
-    { label: 'KOTAK JERUK', emoji: '🍊', color: '#fff7ed', stroke: '#f97316' },
-    { label: 'KOTAK PISANG', emoji: '🍌', color: '#fefce8', stroke: '#ca8a04' },
-    { label: 'KOTAK APEL', emoji: '🍎', color: '#fef2f2', stroke: '#ef4444' },
+    { label: 'KOTAK JERUK', fruit: 'jeruk' as const, color: '#fff7ed', stroke: '#f97316' },
+    { label: 'KOTAK PISANG', fruit: 'pisang' as const, color: '#fefce8', stroke: '#ca8a04' },
+    { label: 'KOTAK APEL', fruit: 'apel' as const, color: '#fef2f2', stroke: '#ef4444' },
   ]
   const x = 180
   const width = 1240
@@ -690,6 +691,58 @@ async function createThreeFruitPartitionImage(question: string): Promise<Blob | 
   const startY = 165
   const labelWidth = 290
   const cellWidth = (width - labelWidth) / partsPerBox
+
+  const drawFruit = (fruit: 'jeruk' | 'pisang' | 'apel', cx: number, cy: number, size: number) => {
+    ctx!.save()
+    ctx!.translate(cx, cy)
+    if (fruit === 'jeruk') {
+      ctx!.beginPath()
+      ctx!.arc(0, 0, size * 0.34, 0, Math.PI * 2)
+      ctx!.fillStyle = '#f97316'
+      ctx!.fill()
+      ctx!.strokeStyle = '#c2410c'
+      ctx!.lineWidth = 4
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.ellipse(size * 0.12, -size * 0.34, size * 0.16, size * 0.07, -0.5, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'
+      ctx!.fill()
+    } else if (fruit === 'pisang') {
+      ctx!.beginPath()
+      ctx!.moveTo(-size * 0.42, -size * 0.12)
+      ctx!.bezierCurveTo(-size * 0.12, -size * 0.4, size * 0.25, -size * 0.35, size * 0.43, -size * 0.08)
+      ctx!.bezierCurveTo(size * 0.18, size * 0.04, -size * 0.08, size * 0.22, -size * 0.4, size * 0.16)
+      ctx!.closePath()
+      ctx!.fillStyle = '#facc15'
+      ctx!.fill()
+      ctx!.strokeStyle = '#a16207'
+      ctx!.lineWidth = 4
+      ctx!.stroke()
+    } else {
+      ctx!.beginPath()
+      ctx!.moveTo(0, -size * 0.12)
+      ctx!.bezierCurveTo(-size * 0.48, -size * 0.55, -size * 0.78, -size * 0.05, -size * 0.48, size * 0.42)
+      ctx!.bezierCurveTo(-size * 0.2, size * 0.78, -size * 0.04, size * 0.6, 0, size * 0.58)
+      ctx!.bezierCurveTo(size * 0.04, size * 0.6, size * 0.2, size * 0.78, size * 0.48, size * 0.42)
+      ctx!.bezierCurveTo(size * 0.78, -size * 0.05, size * 0.48, -size * 0.55, 0, -size * 0.12)
+      ctx!.fillStyle = '#ef4444'
+      ctx!.fill()
+      ctx!.strokeStyle = '#991b1b'
+      ctx!.lineWidth = 4
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.moveTo(0, -size * 0.12)
+      ctx!.lineTo(size * 0.04, -size * 0.42)
+      ctx!.strokeStyle = '#854d0e'
+      ctx!.lineWidth = 5
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.ellipse(size * 0.17, -size * 0.35, size * 0.17, size * 0.07, -0.4, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'
+      ctx!.fill()
+    }
+    ctx!.restore()
+  }
 
   rows.forEach((row, rowIndex) => {
     const y = startY + rowIndex * 190
@@ -715,8 +768,7 @@ async function createThreeFruitPartitionImage(question: string): Promise<Blob | 
         ctx!.lineWidth = 3
         ctx!.stroke()
       }
-      ctx!.font = '64px "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
-      ctx!.fillText(row.emoji, cellX + cellWidth / 2, y + 78)
+      drawFruit(row.fruit, cellX + cellWidth / 2, y + 76, Math.min(78, cellWidth * 0.72))
       ctx!.font = '20px Arial, sans-serif'
       ctx!.fillStyle = '#64748b'
       ctx!.fillText('Bagian ' + (part + 1), cellX + cellWidth / 2, y + 139)
