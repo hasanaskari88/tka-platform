@@ -479,6 +479,160 @@ function isMathematicsVisual(item: GeneratedQuestion, subject: string, topic: st
   return /matematika|pecahan|bilangan|penjumlahan|pengurangan|perkalian|pembagian|bangun datar|bangun ruang|keliling|luas|volume|sudut|pola bilangan|diagram|grafik|perbandingan angka|jam analog|nilai tempat|desimal|persen/.test(text)
 }
 
+
+type FruitGroup = { box: string; count: number; fruit: 'jeruk' | 'pisang' | 'apel' }
+
+function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
+  const source = question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+  const number = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu)'
+  const words = ['pertama', 'kedua', 'ketiga']
+  const groups: FruitGroup[] = []
+  for (const box of words) {
+    const match = source.match(new RegExp('kotak\\s+' + box + '[^.!?]{0,100}?' + number + '\\s+buah\\s+(jeruk|pisang|apel)'))
+    if (!match) return null
+    const count = parseIndonesianNumber(match[1])
+    const fruit = match[2] as FruitGroup['fruit']
+    if (!count || count < 1 || count > 15) return null
+    groups.push({ box, count, fruit })
+  }
+  return groups
+}
+
+async function createThreeFruitBoxesImage(question: string): Promise<Blob | null> {
+  const groups = extractThreeFruitBoxes(question)
+  if (!groups) return null
+
+  const total = groups.reduce((sum, group) => sum + group.count, 0)
+  const target = groups[2].count
+  const canvas = document.createElement('canvas')
+  canvas.width = 1600
+  canvas.height = 900
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(0, 0, 1600, 900)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#172554'
+  ctx.font = 'bold 48px Arial, sans-serif'
+  ctx.fillText('JUMLAH BUAH DALAM TIGA KOTAK', 800, 76)
+
+  const cardX = [55, 555, 1055]
+  const cardW = 490
+  const cardY = 155
+  const cardH = 510
+  const fruitColors = { jeruk: '#f97316', pisang: '#facc15', apel: '#ef4444' }
+
+  const drawFruit = (fruit: FruitGroup['fruit'], x: number, y: number, size: number) => {
+    ctx!.save()
+    ctx!.translate(x, y)
+    if (fruit === 'jeruk') {
+      ctx!.beginPath()
+      ctx!.arc(0, 0, size * 0.34, 0, Math.PI * 2)
+      ctx!.fillStyle = fruitColors.jeruk
+      ctx!.fill()
+      ctx!.strokeStyle = '#c2410c'
+      ctx!.lineWidth = 4
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.ellipse(size * 0.12, -size * 0.34, size * 0.16, size * 0.07, -0.5, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'
+      ctx!.fill()
+    } else if (fruit === 'apel') {
+      ctx!.beginPath()
+      ctx!.moveTo(0, -size * 0.12)
+      ctx!.bezierCurveTo(-size * 0.48, -size * 0.55, -size * 0.78, -size * 0.05, -size * 0.48, size * 0.42)
+      ctx!.bezierCurveTo(-size * 0.2, size * 0.78, -size * 0.04, size * 0.6, 0, size * 0.58)
+      ctx!.bezierCurveTo(size * 0.04, size * 0.6, size * 0.2, size * 0.78, size * 0.48, size * 0.42)
+      ctx!.bezierCurveTo(size * 0.78, -size * 0.05, size * 0.48, -size * 0.55, 0, -size * 0.12)
+      ctx!.fillStyle = fruitColors.apel
+      ctx!.fill()
+      ctx!.strokeStyle = '#991b1b'
+      ctx!.lineWidth = 3
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.moveTo(0, -size * 0.12)
+      ctx!.lineTo(size * 0.04, -size * 0.42)
+      ctx!.strokeStyle = '#854d0e'
+      ctx!.lineWidth = 5
+      ctx!.stroke()
+      ctx!.beginPath()
+      ctx!.ellipse(size * 0.17, -size * 0.35, size * 0.17, size * 0.07, -0.4, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'
+      ctx!.fill()
+    } else {
+      ctx!.beginPath()
+      ctx!.moveTo(-size * 0.42, -size * 0.12)
+      ctx!.bezierCurveTo(-size * 0.12, -size * 0.35, size * 0.28, -size * 0.33, size * 0.43, -size * 0.08)
+      ctx!.bezierCurveTo(size * 0.18, size * 0.02, -size * 0.08, size * 0.22, -size * 0.4, size * 0.16)
+      ctx!.bezierCurveTo(-size * 0.52, size * 0.1, -size * 0.52, -size * 0.02, -size * 0.42, -size * 0.12)
+      ctx!.fillStyle = fruitColors.pisang
+      ctx!.fill()
+      ctx!.strokeStyle = '#a16207'
+      ctx!.lineWidth = 4
+      ctx!.stroke()
+    }
+    ctx!.restore()
+  }
+
+  groups.forEach((group, index) => {
+    const x = cardX[index]
+    const isTarget = index === 2
+    ctx!.fillStyle = isTarget ? '#fff7ed' : '#ffffff'
+    ctx!.strokeStyle = isTarget ? '#ea580c' : '#94a3b8'
+    ctx!.lineWidth = isTarget ? 9 : 5
+    ctx!.beginPath()
+    ctx!.roundRect(x, cardY, cardW, cardH, 28)
+    ctx!.fill()
+    ctx!.stroke()
+
+    ctx!.fillStyle = '#1e293b'
+    ctx!.font = 'bold 34px Arial, sans-serif'
+    ctx!.fillText('KOTAK ' + group.box.toLocaleUpperCase('id'), x + cardW / 2, cardY + 48)
+    ctx!.font = 'bold 29px Arial, sans-serif'
+    ctx!.fillText(group.count + ' buah ' + group.fruit, x + cardW / 2, cardY + 96)
+
+    const gridX = x + 25
+    const gridY = cardY + 135
+    const gridW = cardW - 50
+    const gridH = 310
+    const colW = gridW / 5
+    // Lima kolom menandai lima bagian yang sama pada setiap kotak.
+    ctx!.strokeStyle = '#cbd5e1'
+    ctx!.lineWidth = 3
+    for (let col = 1; col < 5; col++) {
+      ctx!.beginPath()
+      ctx!.moveTo(gridX + col * colW, gridY)
+      ctx!.lineTo(gridX + col * colW, gridY + gridH)
+      ctx!.stroke()
+    }
+    const rows = Math.ceil(group.count / 5)
+    for (let fruitIndex = 0; fruitIndex < group.count; fruitIndex++) {
+      const col = fruitIndex % 5
+      const row = Math.floor(fruitIndex / 5)
+      const px = gridX + colW * (col + 0.5)
+      const py = gridY + gridH * (row + 0.5)
+      drawFruit(group.fruit, px, py, Math.min(72, 235 / rows))
+    }
+    ctx!.fillStyle = isTarget ? '#c2410c' : '#475569'
+    ctx!.font = 'bold 30px Arial, sans-serif'
+    ctx!.fillText(isTarget ? 'YANG DITANYAKAN' : ' ', x + cardW / 2, cardY + 480)
+  })
+
+  ctx.fillStyle = '#0f172a'
+  ctx.font = 'bold 36px Arial, sans-serif'
+  ctx.fillText('Total buah = 6 + 8 + 10 = 24 buah', 800, 730)
+  ctx.fillStyle = '#c2410c'
+  ctx.font = 'bold 42px Arial, sans-serif'
+  ctx.fillText('Bagian di kotak ketiga = 10/24 = 5/12', 800, 800)
+  ctx.fillStyle = '#475569'
+  ctx.font = '24px Arial, sans-serif'
+  ctx.fillText('Setiap kotak ditunjukkan dalam 5 bagian yang sama', 800, 855)
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
 async function createExactNumberComparisonImage(question: string): Promise<Blob | null> {
   const numbers = extractNumberComparison(question)
   if (!numbers) return null
@@ -569,9 +723,10 @@ export default function AsistenAIPage() {
 
     try {
       // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
-      const exactComparisonBlob = await createExactNumberComparisonImage(item.question)
-      const exactFractionBlob = exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
-      const exactMathBlob = exactComparisonBlob || exactFractionBlob
+      const exactFruitBoxesBlob = await createThreeFruitBoxesImage(item.question)
+      const exactComparisonBlob = exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
+      const exactFractionBlob = exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
+      const exactMathBlob = exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
       if (exactMathBlob) {
         setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
         const formData = new FormData()
