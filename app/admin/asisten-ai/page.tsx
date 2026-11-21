@@ -257,7 +257,7 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         ctx.stroke()
       }
     }
-else if (visual.shape === 'line') {
+  } else if (visual.shape === 'line') {
     const left = 170
     const right = 1430
     const y = 450
