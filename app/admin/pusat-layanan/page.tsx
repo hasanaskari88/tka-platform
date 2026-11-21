@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { ArrowDown, ArrowUp, CheckCircle2, Cloud, Copy, Database, Image as ImageIcon, Loader2, RefreshCw, Save, Sparkles, Trash2, XCircle } from 'lucide-react'
 
 type ProviderConfig = { provider_order: string[]; providers: Record<string, { enabled?: boolean }> }
@@ -20,6 +21,7 @@ type SettingsPayload = {
   storage_config: ProviderConfig
   ai_config: ProviderConfig
   availability: Record<string, boolean>
+  google_drive: { connected: boolean; connected_at: string | null }
 }
 const STORAGE = [
   { id: 'imagekit', name: 'ImageKit', note: 'CDN gambar utama', icon: ImageIcon },
@@ -50,6 +52,10 @@ export default function ServiceCenterPage() {
   const [tab, setTab] = useState<'settings' | 'gallery' | 'usage'>('settings')
   const [settings, setSettings] = useState<SettingsPayload | null>(null)
   const [assets, setAssets] = useState<Asset[]>([])
+  const [galleryPage, setGalleryPage] = useState(1)
+  const [galleryTotalPages, setGalleryTotalPages] = useState(1)
+  const [galleryTotal, setGalleryTotal] = useState(0)
+  const searchParams = useSearchParams()
   const [summary, setSummary] = useState({ count: 0, bytes: 0 })
   const [aiUsage, setAiUsage] = useState<AIUsage | null>(null)
   const [loading, setLoading] = useState(true)
@@ -66,20 +72,23 @@ export default function ServiceCenterPage() {
     setSettings(data)
   }, [])
 
-  const loadGallery = useCallback(async () => {
+  const loadGallery = useCallback(async (requestedPage = galleryPage) => {
     setGalleryLoading(true)
     try {
-      const response = await fetch('/api/admin/media', { cache: 'no-store' })
+      const response = await fetch('/api/admin/media?page=' + requestedPage + '&pageSize=18', { cache: 'no-store' })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error || 'Gagal memuat galeri.')
       setAssets(data.assets || [])
+      setGalleryPage(data.page || requestedPage)
+      setGalleryTotalPages(data.totalPages || 1)
+      setGalleryTotal(data.total || 0)
       setSummary(data.summary || { count: 0, bytes: 0 })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat galeri.')
     } finally {
       setGalleryLoading(false)
     }
-  }, [])
+  }, [galleryPage])
 
   useEffect(() => {
     loadSettings().catch((e) => setError(e instanceof Error ? e.message : 'Gagal memuat pengaturan.'))
@@ -155,6 +164,21 @@ export default function ServiceCenterPage() {
     }
   }
 
+  useEffect(() => {
+    const status = searchParams.get('googleDrive')
+    if (!status) return
+    const messages: Record<string, string> = {
+      connected: 'Google Drive berhasil dihubungkan.',
+      invalid_state: 'Proses koneksi Google Drive tidak valid atau kedaluwarsa. Silakan hubungkan ulang.',
+      cancelled: 'Proses koneksi Google Drive dibatalkan.',
+      unauthorized: 'Sesi login berakhir. Silakan login kembali.',
+      forbidden: 'Akun ini tidak memiliki akses admin.',
+      missing_code: 'Google tidak mengirim kode otorisasi. Silakan coba lagi.',
+      error: 'Koneksi Google Drive gagal. Periksa konfigurasi OAuth Production di Vercel.',
+    }
+    if (messages[status]) setMessage(messages[status])
+  }, [searchParams])
+
   if (loading) return <div className="flex min-h-[60vh] items-center justify-center gap-2 text-sm text-slate-500"><Loader2 className="animate-spin" size={18} /> Memuat pusat pengaturan...</div>
 
   const reorder = (kind: 'storage_config' | 'ai_config', id: string, direction: -1 | 1) => {
@@ -217,6 +241,22 @@ export default function ServiceCenterPage() {
         {renderProviders('storage_config', STORAGE)}
       </section>
       <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="mb-1 text-base font-black text-slate-900">Koneksi Google Drive</h2>
+            <p className="text-sm text-slate-500">Hubungkan akun Google untuk penyimpanan cadangan dan inventarisasi media. Izin OAuth dikelola melalui akun Google.</p>
+            <p className={`mt-2 text-xs font-bold ${settings.google_drive?.connected ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {settings.google_drive?.connected ? 'Terhubung' : 'Belum terhubung'}
+              {settings.google_drive?.connected_at ? ' · ' + new Date(settings.google_drive.connected_at).toLocaleString('id-ID') : ''}
+            </p>
+          </div>
+          <a href="/api/google-drive/connect" className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-700">
+            <Cloud size={16} /> {settings.google_drive?.connected ? 'Hubungkan ulang' : 'Hubungkan Google Drive'}
+          </a>
+        </div>
+        <p className="mt-3 text-xs text-slate-500">Token akses disimpan terenkripsi di server dan tidak ditampilkan di halaman ini.</p>
+      </section>
+      <section className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
         <h2 className="mb-1 text-base font-black text-slate-900">Penyedia AI teks</h2>
         <p className="mb-4 text-sm text-slate-500">Jika satu penyedia gagal atau kuotanya habis, sistem dapat mencoba penyedia berikutnya yang aktif.</p>
         {renderProviders('ai_config', AI)}
@@ -231,6 +271,13 @@ export default function ServiceCenterPage() {
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="text-xs font-semibold text-slate-500">Penyegaran data</p><p className="mt-1 text-sm font-bold text-slate-800">Inventarisasi penyimpanan</p></div><div className="flex gap-2"><button onClick={() => void loadGallery()} className="rounded-xl border p-2 text-slate-600 hover:bg-slate-50" title="Muat ulang"><RefreshCw size={17} /></button><button onClick={() => void syncMedia()} disabled={syncing} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-bold text-white hover:bg-indigo-700 disabled:opacity-60">{syncing ? <Loader2 className="animate-spin" size={15} /> : <RefreshCw size={15} />} {syncing ? 'Memindai...' : 'Pindai file lama'}</button></div></div>
       </div>
       <p className="text-xs leading-relaxed text-slate-500">Galeri menampilkan file yang tercatat di layanan media. Gunakan Pindai file lama untuk memasukkan file yang sudah ada di folder ImageKit TKA Platform, folder aplikasi Google Drive, dan bucket question-images. Penghapusan ditolak bila gambar masih ditemukan pada soal atau materi.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+        <p className="text-xs text-slate-500">Menampilkan {assets.length ? ((galleryPage - 1) * 18 + 1) : 0}–{Math.min(galleryPage * 18, galleryTotal)} dari {galleryTotal} gambar · Halaman {galleryPage} dari {galleryTotalPages}</p>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => void loadGallery(Math.max(1, galleryPage - 1))} disabled={galleryPage <= 1 || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button>
+          <button type="button" onClick={() => void loadGallery(Math.min(galleryTotalPages, galleryPage + 1))} disabled={galleryPage >= galleryTotalPages || galleryLoading} className="rounded-lg border px-3 py-2 text-xs font-bold text-slate-700 disabled:opacity-40">Berikutnya</button>
+        </div>
+      </div>
       {galleryLoading ? <div className="flex justify-center py-12 text-slate-500"><Loader2 className="animate-spin" /></div> : assets.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><ImageIcon className="mx-auto text-slate-300" size={36} /><p className="mt-3 font-bold text-slate-700">Belum ada media tercatat</p><p className="mt-1 text-sm text-slate-500">Gambar baru akan muncul di sini setelah melalui layanan unggah terpusat.</p></div> :
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {assets.map((asset) => <article key={asset.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
