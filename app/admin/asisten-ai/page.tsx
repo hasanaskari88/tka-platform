@@ -72,7 +72,7 @@ type ExactFractionVisual = {
 }
 
 type AnalyzedVisualSpec = {
-  visualType: 'fraction_partition'
+  visualType: 'fraction_partition' | 'equal_groups'
   shape: 'circle' | 'rectangle' | 'line' | 'objects'
   totalParts: number
   selectedParts: number
@@ -80,6 +80,9 @@ type AnalyzedVisualSpec = {
   visibleParts: number
   objectLabel?: string
   confidence: number
+  totalObjects?: number
+  groupCount?: number
+  selectedGroups?: number
   highlightColor: 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'brown' | 'gray'
 }
 
@@ -499,6 +502,123 @@ function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
 }
 
 
+
+async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
+  if (!spec || spec.visualType !== 'equal_groups') return null
+  const totalObjects = spec.totalObjects
+  const groupCount = spec.groupCount
+  const selectedGroups = spec.selectedGroups
+  if (!Number.isInteger(totalObjects) || !Number.isInteger(groupCount) ||
+      !Number.isInteger(selectedGroups) || !totalObjects || !groupCount ||
+      !selectedGroups || totalObjects % groupCount !== 0 ||
+      totalObjects > 40 || groupCount > 12 || selectedGroups > groupCount) return null
+
+  const perGroup = totalObjects / groupCount
+  const objectName = (spec.objectLabel || 'benda').toLocaleLowerCase('id')
+  const canvas = document.createElement('canvas')
+  canvas.width = 1600
+  canvas.height = 900
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  ctx.fillStyle = '#f8fafc'
+  ctx.fillRect(0, 0, 1600, 900)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillStyle = '#172554'
+  ctx.font = 'bold 46px Arial, sans-serif'
+  ctx.fillText('MEMBAGI ' + totalObjects + ' ' + objectName.toLocaleUpperCase('id') + ' MENJADI ' + groupCount + ' KELOMPOK', 800, 78)
+  ctx.font = '27px Arial, sans-serif'
+  ctx.fillStyle = '#475569'
+  ctx.fillText('Setiap kelompok berisi ' + perGroup + ' ' + objectName, 800, 132)
+
+  const columns = groupCount <= 5 ? groupCount : Math.ceil(Math.sqrt(groupCount))
+  const rows = Math.ceil(groupCount / columns)
+  const gapX = 24
+  const gapY = 24
+  const cardW = Math.min(250, (1400 - (columns - 1) * gapX) / columns)
+  const cardH = Math.min(220, (540 - (rows - 1) * gapY) / rows)
+  const totalW = columns * cardW + (columns - 1) * gapX
+  const totalH = rows * cardH + (rows - 1) * gapY
+  const startX = (1600 - totalW) / 2
+  const startY = 185 + Math.max(0, (540 - totalH) / 2)
+
+  const drawObject = (cx: number, cy: number, size: number, color: string) => {
+    ctx!.save()
+    ctx!.translate(cx, cy)
+    ctx!.fillStyle = color
+    ctx!.strokeStyle = '#334155'
+    ctx!.lineWidth = 3
+    if (/apel|apple/.test(objectName)) {
+      ctx!.beginPath()
+      ctx!.moveTo(0, -size * 0.1)
+      ctx!.bezierCurveTo(-size * 0.45, -size * 0.55, -size * 0.8, -size * 0.05, -size * 0.48, size * 0.42)
+      ctx!.bezierCurveTo(-size * 0.2, size * 0.75, -size * 0.04, size * 0.62, 0, size * 0.58)
+      ctx!.bezierCurveTo(size * 0.04, size * 0.62, size * 0.2, size * 0.75, size * 0.48, size * 0.42)
+      ctx!.bezierCurveTo(size * 0.8, -size * 0.05, size * 0.45, -size * 0.55, 0, -size * 0.1)
+      ctx!.fill(); ctx!.stroke()
+      ctx!.beginPath(); ctx!.moveTo(0, -size * 0.1); ctx!.lineTo(size * 0.04, -size * 0.42)
+      ctx!.strokeStyle = '#854d0e'; ctx!.lineWidth = 5; ctx!.stroke()
+      ctx!.beginPath(); ctx!.ellipse(size * 0.18, -size * 0.34, size * 0.17, size * 0.07, -0.4, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'; ctx!.fill()
+    } else if (/jeruk|orange/.test(objectName)) {
+      ctx!.beginPath(); ctx!.arc(0, 0, size * 0.42, 0, Math.PI * 2); ctx!.fill(); ctx!.stroke()
+      ctx!.beginPath(); ctx!.ellipse(size * 0.15, -size * 0.43, size * 0.16, size * 0.07, -0.5, 0, Math.PI * 2)
+      ctx!.fillStyle = '#16a34a'; ctx!.fill()
+    } else if (/pisang|banana/.test(objectName)) {
+      ctx!.beginPath()
+      ctx!.moveTo(-size * 0.42, -size * 0.12)
+      ctx!.bezierCurveTo(-size * 0.12, -size * 0.4, size * 0.25, -size * 0.35, size * 0.43, -size * 0.08)
+      ctx!.bezierCurveTo(size * 0.18, size * 0.04, -size * 0.08, size * 0.22, -size * 0.4, size * 0.16)
+      ctx!.closePath(); ctx!.fill(); ctx!.stroke()
+    } else {
+      ctx!.beginPath(); ctx!.arc(0, 0, size * 0.4, 0, Math.PI * 2); ctx!.fill(); ctx!.stroke()
+    }
+    ctx!.restore()
+  }
+
+  for (let group = 0; group < groupCount; group++) {
+    const col = group % columns
+    const row = Math.floor(group / columns)
+    const x = startX + col * (cardW + gapX)
+    const y = startY + row * (cardH + gapY)
+    const selected = group < selectedGroups
+    ctx.fillStyle = selected ? '#ecfdf5' : '#ffffff'
+    ctx.strokeStyle = selected ? '#059669' : '#94a3b8'
+    ctx.lineWidth = selected ? 7 : 4
+    ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, 22); ctx.fill(); ctx.stroke()
+
+    const objectSize = Math.min(62, 120 / Math.max(1, Math.ceil(Math.sqrt(perGroup))))
+    const objectColumns = Math.ceil(Math.sqrt(perGroup))
+    const objectRows = Math.ceil(perGroup / objectColumns)
+    const spacingX = Math.min(78, (cardW - 35) / objectColumns)
+    const spacingY = Math.min(72, 105 / objectRows)
+    for (let i = 0; i < perGroup; i++) {
+      const ox = x + cardW / 2 + (i % objectColumns - (objectColumns - 1) / 2) * spacingX
+      const oy = y + 70 + (Math.floor(i / objectColumns) - (objectRows - 1) / 2) * spacingY
+      drawObject(ox, oy, objectSize, /apel|apple/.test(objectName) ? '#ef4444' : /jeruk|orange/.test(objectName) ? '#f97316' : /pisang|banana/.test(objectName) ? '#facc15' : '#60a5fa')
+    }
+    ctx.fillStyle = '#1e293b'
+    ctx.font = 'bold 23px Arial, sans-serif'
+    ctx.fillText('Kelompok ' + (group + 1), x + cardW / 2, y + cardH - 34)
+    if (selected) {
+      ctx.fillStyle = '#047857'
+      ctx.font = 'bold 17px Arial, sans-serif'
+      ctx.fillText('DIAMBIL', x + cardW / 2, y + cardH - 10)
+    }
+  }
+
+  const selectedObjects = selectedGroups * perGroup
+  ctx.fillStyle = '#0f172a'
+  ctx.font = 'bold 34px Arial, sans-serif'
+  ctx.fillText(selectedGroups + ' dari ' + groupCount + ' kelompok = ' + selectedObjects + ' ' + objectName, 800, 790)
+  ctx.fillStyle = '#047857'
+  ctx.font = 'bold 46px Arial, sans-serif'
+  ctx.fillText(selectedGroups + '/' + groupCount + ' × ' + totalObjects + ' = ' + selectedObjects, 800, 850)
+
+  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+}
+
 async function createThreeFruitPartitionImage(question: string): Promise<Blob | null> {
   const text = question.toLocaleLowerCase('id')
   const hasThreeFruitBoxes =
@@ -817,11 +937,12 @@ export default function AsistenAIPage() {
 
     try {
       // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
-      const exactFruitPartitionBlob = await createThreeFruitPartitionImage(item.question)
-      const exactFruitBoxesBlob = exactFruitPartitionBlob ? null : await createThreeFruitBoxesImage(item.question)
-      const exactComparisonBlob = exactFruitPartitionBlob || exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
-      const exactFractionBlob = exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
-      const exactMathBlob = exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
+      const exactEqualGroupsBlob = await createEqualGroupsImage(item, analyzedSpec)
+      const exactFruitPartitionBlob = exactEqualGroupsBlob ? null : await createThreeFruitPartitionImage(item.question)
+      const exactFruitBoxesBlob = exactEqualGroupsBlob || exactFruitPartitionBlob ? null : await createThreeFruitBoxesImage(item.question)
+      const exactComparisonBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob ? null : await createExactNumberComparisonImage(item.question)
+      const exactFractionBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
+      const exactMathBlob = exactEqualGroupsBlob || exactFruitPartitionBlob || exactFruitBoxesBlob || exactComparisonBlob || exactFractionBlob
       if (exactMathBlob) {
         setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
         const formData = new FormData()
@@ -963,7 +1084,7 @@ export default function AsistenAIPage() {
             const analysisPayload = await analysisResponse.json()
             if (analysisResponse.ok && Array.isArray(analysisPayload.results)) {
               for (const entry of analysisPayload.results as Array<{ index?: number; spec?: AnalyzedVisualSpec | null }>) {
-                if (!Number.isInteger(entry.index) || entry.spec?.visualType !== 'fraction_partition') continue
+                if (!Number.isInteger(entry.index) || !['fraction_partition', 'equal_groups'].includes(entry.spec?.visualType || '')) continue
                 const target = imageTargets[entry.index as number]
                 if (target) visualSpecs[target.index] = entry.spec
               }
