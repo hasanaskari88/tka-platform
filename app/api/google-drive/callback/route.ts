@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const savedState = request.cookies.get('google_drive_oauth_state')?.value
 
     if (!returnedState || !savedState || returnedState !== savedState) {
-      return finish(request, '/admin/pengaturan-google-drive?googleDrive=invalid_state')
+      return finish(request, '/admin/pusat-layanan?googleDrive=invalid_state')
     }
 
     const admin = await requireAdmin()
@@ -41,20 +41,20 @@ export async function GET(request: NextRequest) {
         request,
         admin.status === 401
           ? '/login?googleDrive=unauthorized'
-          : '/admin/pengaturan-google-drive?googleDrive=forbidden'
+          : '/admin/pusat-layanan?googleDrive=forbidden'
       )
     }
 
     const googleError = request.nextUrl.searchParams.get('error')
 
     if (googleError) {
-      return finish(request, '/admin/pengaturan-google-drive?googleDrive=cancelled')
+      return finish(request, '/admin/pusat-layanan?googleDrive=cancelled')
     }
 
     const code = request.nextUrl.searchParams.get('code')
 
     if (!code) {
-      return finish(request, '/admin/pengaturan-google-drive?googleDrive=missing_code')
+      return finish(request, '/admin/pusat-layanan?googleDrive=missing_code')
     }
 
     const clientId = process.env.GOOGLE_CLIENT_ID
@@ -114,9 +114,9 @@ export async function GET(request: NextRequest) {
       throw new Error('Gagal menyimpan koneksi Google Drive.')
     }
 
-    return finish(request, '/admin/pengaturan-google-drive?googleDrive=connected')
+    return finish(request, '/admin/pusat-layanan?googleDrive=connected')
   } catch (error) {
     console.error('Google Drive callback error:', error)
-    return finish(request, '/admin/pengaturan-google-drive?googleDrive=error')
+    return finish(request, '/admin/pusat-layanan?googleDrive=error')
   }
 }
