@@ -605,17 +605,19 @@ async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVi
       const ox = x + cardW / 2 + (i % objectColumns - (objectColumns - 1) / 2) * spacingX
       const oy = y + 70 + (Math.floor(i / objectColumns) - (objectRows - 1) / 2) * spacingY
       const fraction = remainderPerGroup / groupCount
+      // Tampilkan bagian pecahan dari siluet benda yang sama, bukan juring lingkaran generik.
+      // Area klip dibuat lebih besar dari siluet agar tepi buah tetap mengikuti bentuk aslinya.
       ctx!.save()
       ctx!.beginPath()
       ctx!.moveTo(ox, oy)
-      ctx!.arc(ox, oy, objectSize * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fraction)
+      ctx!.arc(ox, oy, objectSize * 0.9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fraction)
       ctx!.closePath()
-      ctx!.fillStyle = objectColor
-      ctx!.strokeStyle = '#334155'
-      ctx!.lineWidth = 3
-      ctx!.fill()
-      ctx!.stroke()
+      ctx!.clip()
+      drawObject(ox, oy, objectSize, objectColor)
       ctx!.restore()
+      ctx!.fillStyle = '#334155'
+      ctx!.font = 'bold 15px Arial, sans-serif'
+      ctx!.fillText(Math.round(fraction * 100) + '%', ox, oy + objectSize * 0.72)
     }
     ctx.fillStyle = '#1e293b'
     ctx.font = 'bold 23px Arial, sans-serif'
@@ -743,7 +745,17 @@ async function createThreeFruitBoxesImage(question: string): Promise<Blob | null
   if (!groups) return null
 
   const total = groups.reduce((sum, group) => sum + group.count, 0)
-  const target = groups[2].count
+  const source = question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ')
+  const targetMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?kotak\\s+(pertama|kedua|ketiga)|kotak\\s+(pertama|kedua|ketiga)[^.!?]{0,100}?(?:berapa|jumlah|banyak|bagian|pecahan)/)
+  const targetBox = targetMatch?.[1] || targetMatch?.[2]
+  if (!targetBox) return null
+  const targetIndex = ({ pertama: 0, kedua: 1, ketiga: 2 } as const)[targetBox as 'pertama' | 'kedua' | 'ketiga']
+  const target = groups[targetIndex]?.count
+  if (!target || total <= 0) return null
+  const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b)
+  const divisor = gcd(target, total)
+  const reducedTarget = target / divisor
+  const reducedTotal = total / divisor
   const canvas = document.createElement('canvas')
   canvas.width = 1600
   canvas.height = 900
@@ -818,7 +830,7 @@ async function createThreeFruitBoxesImage(question: string): Promise<Blob | null
 
   groups.forEach((group, index) => {
     const x = cardX[index]
-    const isTarget = index === 2
+    const isTarget = index === targetIndex
     ctx!.fillStyle = isTarget ? '#fff7ed' : '#ffffff'
     ctx!.strokeStyle = isTarget ? '#ea580c' : '#94a3b8'
     ctx!.lineWidth = isTarget ? 9 : 5
@@ -862,13 +874,13 @@ async function createThreeFruitBoxesImage(question: string): Promise<Blob | null
 
   ctx.fillStyle = '#0f172a'
   ctx.font = 'bold 36px Arial, sans-serif'
-  ctx.fillText('Total buah = 6 + 8 + 10 = 24 buah', 800, 730)
+  ctx.fillText('Total buah = ' + groups.map((group) => group.count).join(' + ') + ' = ' + total + ' buah', 800, 730)
   ctx.fillStyle = '#c2410c'
   ctx.font = 'bold 42px Arial, sans-serif'
-  ctx.fillText('Bagian di kotak ketiga = 10/24 = 5/12', 800, 800)
+  ctx.fillText('Bagian di kotak ' + groups[targetIndex].box + ' = ' + target + '/' + total + ' = ' + reducedTarget + '/' + reducedTotal, 800, 800)
   ctx.fillStyle = '#475569'
   ctx.font = '24px Arial, sans-serif'
-  ctx.fillText('Setiap kotak ditunjukkan dalam 5 bagian yang sama', 800, 855)
+  ctx.fillText('Jumlah buah pada setiap kotak dibandingkan dengan seluruh buah', 800, 855)
 
   return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
