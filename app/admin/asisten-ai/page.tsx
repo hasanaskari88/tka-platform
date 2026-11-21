@@ -158,20 +158,90 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
     const centerY = 440
     const radius = 285
     const start = -Math.PI / 2
-    for (let part = 0; part < visual.total; part++) {
-      const a0 = start + (part * Math.PI * 2) / visual.total
-      const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
+    const questionText = item.question.toLocaleLowerCase('id')
+    const isPizza = /pizza|piza/.test(questionText) || /pizza|piza/.test(analyzedSpec?.objectLabel || '')
+
+    if (isPizza) {
+      // Satu pizza utuh dibagi tepat sesuai penyebut; tidak menggambar potongan pizza terpisah.
+      for (let part = 0; part < visual.total; part++) {
+        const a0 = start + (part * Math.PI * 2) / visual.total
+        const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
+        ctx.save()
+        ctx.beginPath()
+        ctx.moveTo(centerX, centerY)
+        ctx.arc(centerX, centerY, radius - 13, a0, a1)
+        ctx.closePath()
+        ctx.clip()
+
+        ctx.fillStyle = part < visual.colored ? '#fbbf24' : '#fde68a'
+        ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
+
+        // Topping berada di atas permukaan pizza yang sama dan terpotong mengikuti batas tiap bagian.
+        const toppings = [
+          [-0.42, -0.43], [-0.08, -0.48], [0.28, -0.39],
+          [-0.48, -0.08], [-0.16, -0.12], [0.18, -0.10], [0.46, -0.04],
+          [-0.36, 0.27], [-0.02, 0.24], [0.34, 0.30],
+          [-0.08, 0.48], [0.48, 0.42],
+        ]
+        for (const [dx, dy] of toppings) {
+          const x = centerX + dx * radius
+          const y = centerY + dy * radius
+          if (Math.hypot(x - centerX, y - centerY) > radius - 25) continue
+          ctx.beginPath()
+          ctx.arc(x, y, 13, 0, Math.PI * 2)
+          ctx.fillStyle = '#b91c1c'
+          ctx.fill()
+          ctx.strokeStyle = '#7f1d1d'
+          ctx.lineWidth = 3
+          ctx.stroke()
+          ctx.beginPath()
+          ctx.arc(x - 3, y - 3, 3, 0, Math.PI * 2)
+          ctx.fillStyle = '#fecaca'
+          ctx.fill()
+        }
+        ctx.restore()
+      }
+
+      // Kulit pizza dan garis pembagi menyatu dalam satu lingkaran penuh.
       ctx.beginPath()
-      ctx.moveTo(centerX, centerY)
-      ctx.arc(centerX, centerY, radius, a0, a1)
-      ctx.closePath()
-      ctx.fillStyle = part < visual.colored ? visual.color : '#f1f5f9'
-      ctx.fill()
-      ctx.strokeStyle = '#334155'
-      ctx.lineWidth = 6
+      ctx.arc(centerX, centerY, radius - 5, 0, Math.PI * 2)
+      ctx.strokeStyle = '#b45309'
+      ctx.lineWidth = 28
       ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, radius - 20, 0, Math.PI * 2)
+      ctx.strokeStyle = '#f59e0b'
+      ctx.lineWidth = 7
+      ctx.stroke()
+      for (let part = 0; part < visual.total; part++) {
+        const angle = start + (part * Math.PI * 2) / visual.total
+        ctx.beginPath()
+        ctx.moveTo(centerX, centerY)
+        ctx.lineTo(centerX + Math.cos(angle) * (radius - 8), centerY + Math.sin(angle) * (radius - 8))
+        ctx.strokeStyle = '#78350f'
+        ctx.lineWidth = 5
+        ctx.stroke()
+      }
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, 8, 0, Math.PI * 2)
+      ctx.fillStyle = '#92400e'
+      ctx.fill()
+    } else {
+      for (let part = 0; part < visual.total; part++) {
+        const a0 = start + (part * Math.PI * 2) / visual.total
+        const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
+        ctx.beginPath()
+        ctx.moveTo(centerX, centerY)
+        ctx.arc(centerX, centerY, radius, a0, a1)
+        ctx.closePath()
+        ctx.fillStyle = part < visual.colored ? visual.color : '#f1f5f9'
+        ctx.fill()
+        ctx.strokeStyle = '#334155'
+        ctx.lineWidth = 6
+        ctx.stroke()
+      }
     }
-    if (/jam dinding|jam analog/.test(item.question.toLocaleLowerCase('id'))) {
+    if (/jam dinding|jam analog/.test(questionText)) {
       ctx.beginPath()
       ctx.arc(centerX, centerY, radius + 24, 0, Math.PI * 2)
       ctx.strokeStyle = '#334155'
@@ -187,7 +257,7 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         ctx.stroke()
       }
     }
-  } else if (visual.shape === 'line') {
+else if (visual.shape === 'line') {
     const left = 170
     const right = 1430
     const y = 450
