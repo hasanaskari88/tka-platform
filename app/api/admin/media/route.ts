@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/supabase/admin'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { google } from 'googleapis'
+import { decryptToken } from '@/lib/google-drive/token-encryption'
 
 type MediaRow = {
   id: string
@@ -63,11 +65,24 @@ export async function GET() {
       .limit(500)
     if (error) throw error
 
-    const assets = await Promise.all((data as MediaRow[] || []).map(async (asset) => {
+    const questionRows = await getQuestionRows(supabase)
+    const { data: materials, error: materialError } = await supabase
+      .from('study_materials').select('file_url,description')
+    if (materialError) throw materialError
+
+    const assets = (data as MediaRow[] || []).map((asset) => {
       if (!asset.public_url || asset.status !== 'success') return { ...asset, usage: null }
-      const usage = await findUsage(supabase, asset.public_url)
-      return { ...asset, usage }
-    }))
+      const questionCount = questionRows.filter((row) =>
+        row.image_url === asset.public_url ||
+        (row.question_text || '').includes(asset.public_url!) ||
+        (row.explanation || '').includes(asset.public_url!) ||
+        JSON.stringify(row.options ?? {}).includes(asset.public_url!)
+      ).length
+      const materialCount = (materials || []).filter((row) =>
+        row.file_url === asset.public_url || (row.description || '').includes(asset.public_url!)
+      ).length
+      return { ...asset, usage: { questionCount, materialCount, total: questionCount + materialCount } }
+    })
 
     return NextResponse.json({
       assets,
@@ -122,8 +137,25 @@ export async function DELETE(request: NextRequest) {
         headers: { Authorization: 'Basic ' + auth },
       })
       if (!response.ok) throw new Error('ImageKit menolak penghapusan file.')
+    } else if (asset.provider === 'google_drive') {
+      if (!asset.storage_path || !process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        throw new Error('Konfigurasi Google Drive tidak lengkap.')
+      }
+      const { data: connection, error: connectionError } = await supabase
+        .from('google_drive_tokens')
+        .select('refresh_token_encrypted')
+        .eq('id', 'primary')
+        .maybeSingle()
+      if (connectionError || !connection) throw new Error('Google Drive belum terhubung.')
+      const oauth = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        (process.env.NEXT_PUBLIC_SITE_URL || 'https://grisan.vercel.app') + '/api/google-drive/callback'
+      )
+      oauth.setCredentials({ refresh_token: decryptToken(connection.refresh_token_encrypted) })
+      await google.drive({ version: 'v3', auth: oauth }).files.delete({ fileId: asset.storage_path })
     } else {
-      return NextResponse.json({ error: 'Penghapusan untuk penyedia ini belum diaktifkan.' }, { status: 501 })
+      return NextResponse.json({ error: 'Penyedia penyimpanan ini belum didukung untuk penghapusan.' }, { status: 501 })
     }
 
     const { error: updateError } = await supabase
