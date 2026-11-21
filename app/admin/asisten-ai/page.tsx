@@ -147,7 +147,7 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
   const isAppleObject = /apel|apple/.test(objectDescription)
   const visual: ExactFractionVisual | null = analyzedSpec
     ? {
-        shape: isAppleObject ? 'apple' : analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : analyzedSpec.shape === 'objects' ? 'objects' : 'rectangle',
+        shape: analyzedSpec.shape === 'objects' ? 'objects' : isAppleObject ? 'apple' : analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : 'rectangle',
         total: analyzedSpec.totalParts,
         colored: analyzedSpec.visibleParts,
         removed: analyzedSpec.meaning === 'removed' ? analyzedSpec.selectedParts : 0,
