@@ -62,7 +62,7 @@ function extractNumberComparison(question: string): [number, number] | null {
 
 
 type ExactFractionVisual = {
-  shape: 'circle' | 'rectangle' | 'line'
+  shape: 'circle' | 'rectangle' | 'line' | 'apple'
   total: number
   colored: number
   color: string
@@ -134,14 +134,15 @@ function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisua
 
   const shape: ExactFractionVisual['shape'] =
     /garis lurus|garis bilangan/.test(source) ? 'line' :
-    /pizza|pai|lingkaran|roti bundar|jam dinding|jam analog/.test(source) ? 'circle' : 'rectangle'
+    /apel|apple/.test(source) ? 'apple' :
+    /pizza|piza|pai|lingkaran|roti bundar|jam dinding|jam analog/.test(source) ? 'circle' : 'rectangle'
   const columns = /kolom/.test(source) ? total : /kuadran/.test(source) ? 2 : undefined
   return { shape, total, colored, color: '#2584e8', columns }
 }
 
 async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
   const visual: ExactFractionVisual | null = analyzedSpec
-    ? { shape: analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : 'rectangle', total: analyzedSpec.totalParts, colored: analyzedSpec.visibleParts, color: ({ red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#2584e8', purple: '#a855f7', pink: '#ec4899', brown: '#92400e', gray: '#64748b' } as const)[analyzedSpec.highlightColor] }
+    ? { shape: analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : /apel|apple/i.test(analyzedSpec.objectLabel || item.question) ? 'apple' : 'rectangle', total: analyzedSpec.totalParts, colored: analyzedSpec.visibleParts, color: ({ red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#2584e8', purple: '#a855f7', pink: '#ec4899', brown: '#92400e', gray: '#64748b' } as const)[analyzedSpec.highlightColor] }
     : extractExactFractionVisual(item)
   if (!visual) return null
 
@@ -173,7 +174,7 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         ctx.closePath()
         ctx.clip()
 
-        ctx.fillStyle = part < visual.colored ? '#fbbf24' : '#fde68a'
+        ctx.fillStyle = part < visual.colored ? '#f59e0b' : '#fff1d6'
         ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
 
         // Topping berada di atas permukaan pizza yang sama dan terpotong mengikuti batas tiap bagian.
@@ -189,7 +190,7 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
           if (Math.hypot(x - centerX, y - centerY) > radius - 25) continue
           ctx.beginPath()
           ctx.arc(x, y, 13, 0, Math.PI * 2)
-          ctx.fillStyle = '#b91c1c'
+          ctx.fillStyle = part < visual.colored ? '#b91c1c' : '#d6b8a2'
           ctx.fill()
           ctx.strokeStyle = '#7f1d1d'
           ctx.lineWidth = 3
@@ -257,6 +258,84 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
         ctx.stroke()
       }
     }
+  } else if (visual.shape === 'apple') {
+    // Siluet apel dibagi menjadi pita horizontal dengan luas piksel yang setara.
+    // Dengan demikian objek tetap tampak seperti apel, bukan kotak.
+    const applePath = () => {
+      ctx!.beginPath()
+      ctx!.moveTo(800, 280)
+      ctx!.bezierCurveTo(690, 190, 520, 245, 510, 410)
+      ctx!.bezierCurveTo(495, 575, 625, 735, 760, 750)
+      ctx!.bezierCurveTo(785, 755, 790, 735, 800, 735)
+      ctx!.bezierCurveTo(810, 735, 815, 755, 840, 750)
+      ctx!.bezierCurveTo(975, 735, 1105, 575, 1090, 410)
+      ctx!.bezierCurveTo(1080, 245, 910, 190, 800, 280)
+      ctx!.closePath()
+    }
+    applePath()
+    ctx.fillStyle = '#f8fafc'
+    ctx.fill()
+    const bounds = { left: 500, right: 1100, top: 220, bottom: 760 }
+    const pixels = ctx.getImageData(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top).data
+    const rowAreas: number[] = []
+    let totalArea = 0
+    for (let y = 0; y < bounds.bottom - bounds.top; y++) {
+      let area = 0
+      for (let x = 0; x < bounds.right - bounds.left; x++) {
+        if (pixels[(y * (bounds.right - bounds.left) + x) * 4 + 3] > 0) area++
+      }
+      rowAreas.push(area)
+      totalArea += area
+    }
+    const boundaries = [bounds.top]
+    for (let part = 1; part < visual.total; part++) {
+      const targetArea = (totalArea * part) / visual.total
+      let accumulated = 0
+      let boundary = 0
+      for (; boundary < rowAreas.length; boundary++) {
+        accumulated += rowAreas[boundary]
+        if (accumulated >= targetArea) break
+      }
+      boundaries.push(bounds.top + boundary + 1)
+    }
+    boundaries.push(bounds.bottom)
+    applePath()
+    ctx.save()
+    ctx.clip()
+    for (let part = 0; part < visual.total; part++) {
+      const y0 = boundaries[part]
+      const y1 = boundaries[part + 1]
+      ctx.fillStyle = part < visual.colored ? '#ef4444' : '#fecaca'
+      ctx.fillRect(bounds.left, y0, bounds.right - bounds.left, y1 - y0)
+    }
+    for (let part = 1; part < visual.total; part++) {
+      ctx.beginPath()
+      ctx.moveTo(bounds.left, boundaries[part])
+      ctx.lineTo(bounds.right, boundaries[part])
+      ctx.strokeStyle = '#7f1d1d'
+      ctx.lineWidth = 5
+      ctx.stroke()
+    }
+    ctx.restore()
+    applePath()
+    ctx.strokeStyle = '#7f1d1d'
+    ctx.lineWidth = 12
+    ctx.stroke()
+    // Tangkai dan daun diletakkan di luar area pembagian apel.
+    ctx.beginPath()
+    ctx.moveTo(800, 285)
+    ctx.quadraticCurveTo(785, 225, 815, 190)
+    ctx.strokeStyle = '#854d0e'
+    ctx.lineWidth = 22
+    ctx.lineCap = 'round'
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.ellipse(865, 220, 58, 24, -0.35, 0, Math.PI * 2)
+    ctx.fillStyle = '#16a34a'
+    ctx.fill()
+    ctx.strokeStyle = '#166534'
+    ctx.lineWidth = 5
+    ctx.stroke()
   } else if (visual.shape === 'line') {
     const left = 170
     const right = 1430
@@ -276,7 +355,21 @@ async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: 
     ctx.lineTo(right, y - 75)
     ctx.stroke()
   } else {
-    let columns = visual.columns ?? Math.ceil(Math.sqrt(visual.total))
+    // Susun hanya dalam kisi persegi panjang penuh agar tidak muncul baris sisa
+    // seperti 6 kotak ditambah 2 kotak pada pecahan 8 bagian.
+    let columns = visual.columns ?? visual.total
+    if (!visual.columns) {
+      let bestDifference = Infinity
+      for (let candidate = 1; candidate <= visual.total; candidate++) {
+        if (visual.total % candidate !== 0) continue
+        const rowsCandidate = visual.total / candidate
+        const difference = Math.abs(candidate - rowsCandidate)
+        if (difference < bestDifference) {
+          bestDifference = difference
+          columns = candidate
+        }
+      }
+    }
     columns = Math.min(columns, visual.total)
     const rows = Math.ceil(visual.total / columns)
     const gap = 12
