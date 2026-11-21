@@ -510,10 +510,11 @@ async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVi
   const selectedGroups = spec.selectedGroups
   if (!Number.isInteger(totalObjects) || !Number.isInteger(groupCount) ||
       !Number.isInteger(selectedGroups) || !totalObjects || !groupCount ||
-      !selectedGroups || totalObjects % groupCount !== 0 ||
-      totalObjects > 40 || groupCount > 12 || selectedGroups > groupCount) return null
+      !selectedGroups || totalObjects > 40 || groupCount > 12 || selectedGroups > groupCount) return null
 
-  const perGroup = totalObjects / groupCount
+  const wholePerGroup = Math.floor(totalObjects / groupCount)
+  const remainderPerGroup = totalObjects % groupCount
+  const displaySlotsPerGroup = wholePerGroup + (remainderPerGroup > 0 ? 1 : 0)
   const objectName = (spec.objectLabel || 'benda').toLocaleLowerCase('id')
   const canvas = document.createElement('canvas')
   canvas.width = 1600
@@ -530,7 +531,7 @@ async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVi
   ctx.fillText('MEMBAGI ' + totalObjects + ' ' + objectName.toLocaleUpperCase('id') + ' MENJADI ' + groupCount + ' KELOMPOK', 800, 78)
   ctx.font = '27px Arial, sans-serif'
   ctx.fillStyle = '#475569'
-  ctx.fillText('Setiap kelompok berisi ' + perGroup + ' ' + objectName, 800, 132)
+  ctx.fillText('Setiap kelompok berisi ' + (wholePerGroup ? wholePerGroup + ' ' : '') + (remainderPerGroup ? (wholePerGroup ? 'dan ' : '') + remainderPerGroup + '/' + groupCount + ' ' : '') + objectName, 800, 132)
 
   const columns = groupCount <= 5 ? groupCount : Math.ceil(Math.sqrt(groupCount))
   const rows = Math.ceil(groupCount / columns)
@@ -588,15 +589,33 @@ async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVi
     ctx.lineWidth = selected ? 7 : 4
     ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, 22); ctx.fill(); ctx.stroke()
 
-    const objectSize = Math.min(62, 120 / Math.max(1, Math.ceil(Math.sqrt(perGroup))))
-    const objectColumns = Math.ceil(Math.sqrt(perGroup))
-    const objectRows = Math.ceil(perGroup / objectColumns)
+    const objectSize = Math.min(62, 120 / Math.max(1, Math.ceil(Math.sqrt(displaySlotsPerGroup))))
+    const objectColumns = Math.ceil(Math.sqrt(displaySlotsPerGroup))
+    const objectRows = Math.ceil(displaySlotsPerGroup / objectColumns)
     const spacingX = Math.min(78, (cardW - 35) / objectColumns)
     const spacingY = Math.min(72, 105 / objectRows)
-    for (let i = 0; i < perGroup; i++) {
+    const objectColor = /apel|apple/.test(objectName) ? '#ef4444' : /jeruk|orange/.test(objectName) ? '#f97316' : /pisang|banana/.test(objectName) ? '#facc15' : '#60a5fa'
+    for (let i = 0; i < wholePerGroup; i++) {
       const ox = x + cardW / 2 + (i % objectColumns - (objectColumns - 1) / 2) * spacingX
       const oy = y + 70 + (Math.floor(i / objectColumns) - (objectRows - 1) / 2) * spacingY
-      drawObject(ox, oy, objectSize, /apel|apple/.test(objectName) ? '#ef4444' : /jeruk|orange/.test(objectName) ? '#f97316' : /pisang|banana/.test(objectName) ? '#facc15' : '#60a5fa')
+      drawObject(ox, oy, objectSize, objectColor)
+    }
+    if (remainderPerGroup > 0) {
+      const i = wholePerGroup
+      const ox = x + cardW / 2 + (i % objectColumns - (objectColumns - 1) / 2) * spacingX
+      const oy = y + 70 + (Math.floor(i / objectColumns) - (objectRows - 1) / 2) * spacingY
+      const fraction = remainderPerGroup / groupCount
+      ctx!.save()
+      ctx!.beginPath()
+      ctx!.moveTo(ox, oy)
+      ctx!.arc(ox, oy, objectSize * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fraction)
+      ctx!.closePath()
+      ctx!.fillStyle = objectColor
+      ctx!.strokeStyle = '#334155'
+      ctx!.lineWidth = 3
+      ctx!.fill()
+      ctx!.stroke()
+      ctx!.restore()
     }
     ctx.fillStyle = '#1e293b'
     ctx.font = 'bold 23px Arial, sans-serif'
@@ -608,13 +627,20 @@ async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVi
     }
   }
 
-  const selectedObjects = selectedGroups * perGroup
+  const selectedNumerator = selectedGroups * totalObjects
+  const gcd = (left: number, right: number): number => right === 0 ? left : gcd(right, left % right)
+  const divisor = gcd(selectedNumerator, groupCount)
+  const reducedNumerator = selectedNumerator / divisor
+  const reducedDenominator = groupCount / divisor
+  const selectedValue = reducedDenominator === 1
+    ? String(reducedNumerator)
+    : reducedNumerator + '/' + reducedDenominator
   ctx.fillStyle = '#0f172a'
   ctx.font = 'bold 34px Arial, sans-serif'
-  ctx.fillText(selectedGroups + ' dari ' + groupCount + ' kelompok = ' + selectedObjects + ' ' + objectName, 800, 790)
+  ctx.fillText(selectedGroups + ' dari ' + groupCount + ' kelompok = ' + selectedValue + ' ' + objectName, 800, 790)
   ctx.fillStyle = '#047857'
   ctx.font = 'bold 46px Arial, sans-serif'
-  ctx.fillText(selectedGroups + '/' + groupCount + ' × ' + totalObjects + ' = ' + selectedObjects, 800, 850)
+  ctx.fillText(selectedGroups + '/' + groupCount + ' × ' + totalObjects + ' = ' + selectedValue, 800, 850)
 
   return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
 }
