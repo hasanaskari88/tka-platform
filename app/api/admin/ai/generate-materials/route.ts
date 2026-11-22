@@ -111,8 +111,8 @@ function validateMaterial(value: unknown, requiredHeadings: string[] = []): valu
         ? String((section as Record<string, unknown>).heading || '').trim().toLocaleLowerCase('id')
         : ''
     )
-    const positions = requiredHeadings.map((heading) => headings.indexOf(heading.toLocaleLowerCase('id')))
-    if (positions.some((position, index) => position < 0 || (index > 0 && position <= positions[index - 1]))) return false
+    const expected = requiredHeadings.map((heading) => heading.toLocaleLowerCase('id'))
+    if (headings.length !== expected.length || headings.some((heading, index) => heading !== expected[index])) return false
   }
   for (const section of item.sections) {
     if (!section || typeof section !== 'object' || Array.isArray(section)) return false
@@ -234,21 +234,35 @@ export async function POST(request: Request) {
         ? ['Pitakon Panggugah', 'Materi', 'Njembarake Kawruh', 'Pitutur Luhur', 'Dudutan', 'Assesmen Sumatif', 'Refleksi']
         : []
 
+      const subjectGuidance: Record<string, string> = {
+        'Pendidikan Agama Islam dan Budi Pekerti': 'Gunakan sudut pandang pembelajaran Islam sesuai CP dan rujukan mapel. Jangan mencampur ajaran agama lain, jangan mengarang kutipan ayat/hadis atau nomor surah. Jika mengutip teks suci, pastikan redaksi dan sumbernya benar; jika tidak yakin, jelaskan makna tanpa membuat kutipan.',
+        'Pendidikan Agama Kristen dan Budi Pekerti': 'Gunakan sudut pandang Pendidikan Agama Kristen sesuai CP dan rujukan mapel. Jangan mencampur doktrin agama lain atau mengarang kutipan Alkitab, pasal, dan ayat. Sesuaikan contoh dengan usia murid dan hindari mengklaim panduan guru sebagai buku siswa.',
+        'Pendidikan Agama Katolik dan Budi Pekerti': 'Gunakan sudut pandang Pendidikan Agama Katolik sesuai CP dan rujukan mapel. Jangan mencampur doktrin agama lain atau mengarang kutipan Kitab Suci, nomor bab, dan ayat. Gunakan istilah Katolik secara tepat dan hindari mengklaim panduan guru sebagai buku siswa.',
+        'Seni Rupa': 'Utamakan kegiatan mengamati, mencoba alat/bahan, merancang, membuat, dan merefleksikan karya. Pilih bahan yang aman, murah, dan mudah ditemukan; jangan mensyaratkan alat khusus.',
+        'Seni Musik': 'Utamakan kegiatan mendengar, mengeksplorasi bunyi, menjaga irama, mencoba alat musik yang tersedia, mencipta, dan merefleksikan. Sediakan alternatif tanpa alat musik khusus.',
+        'Seni Tari': 'Utamakan kegiatan mengamati, mengeksplorasi gerak, merangkai gerak, kerja kelompok, dan refleksi. Berikan pilihan gerak yang aman dan dapat disesuaikan kemampuan fisik murid.',
+        'Seni Teater': 'Utamakan permainan peran, improvisasi, ekspresi, kerja kelompok, dan refleksi. Gunakan cerita yang sesuai usia, aman, inklusif, dan tidak mempermalukan murid.',
+        'PJOK': 'Utamakan keselamatan, pemanasan, penyesuaian kemampuan, ruang dan alat yang tersedia. Jangan memberi instruksi aktivitas berisiko tanpa pengawasan; untuk cedera serius arahkan meminta bantuan orang dewasa/tenaga kesehatan.',
+        'Bahasa Jawa': 'Gunakan ragam bahasa Jawa sesuai konteks dan tingkat kelas. Bedakan ngoko dan krama secara tepat; jangan membuat kosakata atau unggah-ungguh yang tidak pasti. Ikuti struktur tujuh bagian wajib.',
+      }
+
       const prompt = [
         'Anda adalah ahli pengembangan bahan ajar SD di Indonesia. Buat satu materi ajar yang akurat, runtut, ramah murid, dan dapat diedit guru.',
         'Jangan mencampur jalur TKA dengan materi pembelajaran umum kelas 6.',
         'Gunakan Bahasa Indonesia yang jelas. Istilah Bahasa Jawa atau Bahasa Inggris boleh digunakan sesuai mata pelajaran.',
         'Keluaran wajib mengikuti JSON Schema. Jangan menulis HTML atau Markdown.',
         requiredHeadings.length ? 'Buat tepat tujuh bagian sesuai daftar struktur wajib di bawah. Setiap bagian memiliki penjelasan substantif, contoh jika sesuai, dan aktivitas belajar jika sesuai.' : 'Buat 3 sampai 6 bagian materi. Setiap bagian memiliki penjelasan substantif, contoh jika sesuai, dan aktivitas belajar jika sesuai.',
-        'Sertakan sedikitnya 3 latihan dengan jawaban dan pembahasan yang benar. Periksa kembali seluruh hitungan, fakta, ejaan, dan konsistensi.',
-        'Jangan mengarang kutipan atau menyatakan materi ini sebagai teks resmi pemerintah. Untuk TKA, fokus pada kompetensi yang diukur, bukan mengklaim sebagai soal resmi.',
+        'Sertakan 3 sampai 5 latihan yang bervariasi dan sesuai tujuan pembelajaran. Setiap latihan wajib memiliki jawaban dan pembahasan langkah demi langkah atau alasan yang dapat diperiksa.',
+        'Sebelum mengeluarkan JSON, periksa ulang kebenaran jawaban, seluruh langkah hitung, satuan, ejaan, istilah, dan kesesuaian latihan dengan materi. Jangan membuat soal yang jawabannya tidak didukung materi atau memiliki lebih dari satu jawaban benar tanpa penjelasan.',
+        'Jangan mengarang kutipan, fakta, nomor bab, atau menyatakan materi ini sebagai teks resmi pemerintah. Jika sumber tidak cukup untuk memastikan detail, gunakan penjelasan umum yang akurat dan beri catatan verifikasi untuk guru. Untuk TKA, fokus pada kompetensi yang diukur, bukan mengklaim sebagai soal resmi.',
         'Sesuaikan kedalaman dengan kelas 6 SD/Fase C bila jalur GRADE_6. Untuk jalur TKA SD, gunakan konteks dan tingkat kesulitan yang sesuai asesmen SD.',
         'Konteks kurikulum: ' + track,
         'Kelas: ' + (grade || 'Sesuai cakupan TKA SD'),
         'Mata pelajaran: ' + subject,
         sourceNote ? 'RUJUKAN KHUSUS MAPEL (ringkasan kurasi; bukan kutipan resmi): ' + sourceNote : '',
         subjectMetadata ? 'Dasar kurikulum: ' + subjectMetadata.basis + '; fase: ' + subjectMetadata.phase + '; kebijakan urutan: ' + subjectMetadata.sequencePolicy : '',
-        'Gunakan referensi mapel di atas untuk menjaga istilah, ruang lingkup, dan pendekatan materi. Jangan mengarang nomor bab, judul bab, ISBN, kutipan, atau isi buku yang tidak tercantum dalam rujukan.',
+        subjectGuidance[subject] || '',
+        'Gunakan referensi mapel di atas untuk menjaga istilah, ruang lingkup, dan pendekatan materi. Bedakan dengan tegas buku siswa, panduan guru, dan dokumen CP. Jangan mengarang nomor bab, judul bab, ISBN, kutipan, atau isi buku yang tidak tercantum dalam rujukan.',
         requiredHeadings.length ? 'STRUKTUR WAJIB: buat tepat tujuh bagian materi dengan judul persis dan urut: ' + requiredHeadings.join(' → ') + '. Jangan mengganti, menggabungkan, atau menghilangkan bagian tersebut. Isi Assesmen Sumatif dengan soal/asesmen dan Refleksi dengan pertanyaan refleksi murid.' : '',
         'Topik: ' + topic.title,
         'Deskripsi topik: ' + topic.description,
