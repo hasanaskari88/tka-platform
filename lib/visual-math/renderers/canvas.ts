@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import { formatFraction, formatMixedNumber, rational } from '../math/rational'
 import { calculateVisualIntent } from '../math/calculator'
+import { getExactPictographUnit } from './pictograph-scale'
 
 type FruitKind = 'apel' | 'jeruk' | 'pisang'
 type ObjectKind = FruitKind | 'round' | 'candy' | 'generic'
@@ -808,8 +809,8 @@ async function createChartTableImage(intent: ChartTableIntent): Promise<Blob | n
     context.lineWidth = 4
     context.beginPath(); context.moveTo(200, 680); context.lineTo(1400, 680); context.stroke()
   } else {
-    const maxValue = Math.max(1, ...intent.categories.map((item) => item.value))
-    const unit = Math.max(1, Math.ceil(maxValue / 12))
+    const unit = getExactPictographUnit(intent.categories.map((item) => item.value))
+    if (unit === null) return null
     const top = 190
     intent.categories.forEach((item, index) => {
       const y = top + index * 65
