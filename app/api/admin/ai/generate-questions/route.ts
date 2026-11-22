@@ -1,6 +1,7 @@
 import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
+import { validateNumericOptionSet, validateKnownNumericAnswer } from '@/lib/visual-math/validation'
 
 export const maxDuration = 60
 
@@ -12,7 +13,7 @@ function getQuestionSchema(questionType: QuestionType, includeImagePrompt = fals
     explanation: { type: 'STRING' },
   }
 
-  let itemProperties: Record<string, any>
+  let itemProperties: Record<string, unknown>
   let required: string[]
 
   if (questionType === 'multiple_choice') {
@@ -77,11 +78,11 @@ function getQuestionSchema(questionType: QuestionType, includeImagePrompt = fals
   }
 }
 
-function toGroqSchema(value: any): any {
+function toGroqSchema(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(toGroqSchema)
   if (!value || typeof value !== 'object') return value
 
-  const result: Record<string, any> = {}
+  const result: Record<string, unknown> = {}
   for (const [key, item] of Object.entries(value)) {
     if (key === 'type' && typeof item === 'string') {
       result.type = item.toLowerCase()
@@ -103,42 +104,6 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function fractionValue(value: string): string | null {
-  let text = value.trim().replace(/\\d?frac\s*\{(\d+)\}\s*\{(\d+)\}/g, '$1/$2')
-    .replace(/\\d?frac/g, '').replace(/[$]/g, '').replace(/,/g, '.').trim()
-  text = text.replace(/\s*(?:buah|apel|jeruk|pisang)\s*$/i, '').trim()
-  const mixed = text.match(/^(-?\d+)\s+(\d+)\s*\/\s*(\d+)$/)
-  const fraction = text.match(/^(-?\d+)\s*\/\s*(\d+)$/)
-  const integer = text.match(/^(-?\d+)$/)
-  let numerator: number
-  let denominator: number
-  if (mixed) {
-    const whole = Number(mixed[1])
-    const top = Number(mixed[2])
-    denominator = Number(mixed[3])
-    if (!denominator || top >= denominator) return null
-    numerator = Math.sign(whole || 1) * (Math.abs(whole) * denominator + top)
-  } else if (fraction) {
-    numerator = Number(fraction[1])
-    denominator = Number(fraction[2])
-  } else if (integer) {
-    numerator = Number(integer[1])
-    denominator = 1
-  } else {
-    return null
-  }
-  if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || denominator <= 0) return null
-  const gcd = (a: number, b: number): number => b === 0 ? Math.abs(a) : gcd(b, a % b)
-  const divisor = gcd(numerator, denominator) || 1
-  return (numerator / divisor) + '/' + (denominator / divisor)
-}
-
-function hasEquivalentNumericOptions(options: Record<string, unknown>): boolean {
-  const values = Object.values(options).filter((value): value is string => typeof value === 'string')
-  const fractions = values.map(fractionValue)
-  const numeric = fractions.filter((value): value is string => value !== null)
-  return new Set(numeric).size !== numeric.length
-}
 
 function validateGeneratedQuestions(
   questions: unknown[],
@@ -168,13 +133,25 @@ function validateGeneratedQuestions(
       if (keys.some((key) => !isNonEmptyString(options[key]))) {
         return `Pilihan A-D soal nomor ${number} harus terisi semua.`
       }
-      if (hasEquivalentNumericOptions(options)) {
+      const numericOptionSet = validateNumericOptionSet(
+        Object.entries(options)
+          .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+          .map(([id, rawValue]) => ({ id, label: id, rawValue })),
+      )
+      if (!numericOptionSet.valid) {
         return `Pilihan jawaban soal nomor ${number} memiliki pecahan atau nilai matematika yang setara. Setiap pilihan harus berbeda nilainya.`
       }
 
       if (questionType === 'multiple_choice') {
         if (typeof item.answer !== 'string' || !keys.includes(item.answer)) {
           return `Kunci jawaban soal nomor ${number} tidak valid.`
+        }
+        const selectedOption = options[item.answer]
+        if (typeof selectedOption === 'string') {
+          const answerValidation = validateKnownNumericAnswer(item.question, selectedOption)
+          if (answerValidation.status === 'invalid') {
+            return `Validasi matematika soal nomor ${number} gagal: ${answerValidation.message}`
+          }
         }
       } else {
         if (!Array.isArray(item.answers)) return `Kunci jawaban kompleks soal nomor ${number} tidak valid.`
@@ -272,7 +249,7 @@ export async function POST(request: Request) {
     const { data, provider, model: generatedModel } = await generateJsonWithFallback({
       task: 'pembuatan soal otomatis',
       prompt,
-      groqSchema: toGroqSchema(getQuestionSchema(questionType, includeImages)),
+      groqSchema: toGroqSchema(getQuestionSchema(questionType, includeImages)) as Record<string, unknown>,
       geminiSchema: getQuestionSchema(questionType, includeImages),
       timeoutMs: 50000,
       maxOutputTokens: 8000,

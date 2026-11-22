@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 import MathRenderer from '@/components/MathRenderer'
+import { createVisualMathImage } from '@/lib/visual-math/renderers/canvas'
+import type { VisualMathResult, VisualReasonCode } from '@/lib/visual-math/types'
 
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
 type GeneratedQuestion = {
@@ -20,6 +22,7 @@ type GeneratedQuestion = {
   image_url?: string
   image_status?: 'none' | 'pending' | 'generating' | 'ready' | 'failed'
   image_error?: string
+  visual_math?: VisualMathResult
 }
 
 const questionTypeLabels: Record<QuestionType, string> = {
@@ -29,990 +32,17 @@ const questionTypeLabels: Record<QuestionType, string> = {
   essay: 'Uraian',
 }
 
-function formatMathOption(value: string, context: string): string {
-  // Ubah pecahan biasa menjadi format KaTeX bertingkat.
-  let formatted = value.trim()
-  const denominatorMatch = context.match(/(?:(?:dibagi|terbagi)\s+menjadi|terdiri\s+dari|penyebut(?:nya)?\s*(?:adalah)?|per\s*)\s*(\d{1,2})/i)
-  const denominator = denominatorMatch?.[1]
-  if (denominator && new RegExp('^([1-9])\\s*' + denominator + '$').test(formatted)) {
-    formatted = formatted.replace(new RegExp('^([1-9])\\s*(' + denominator + ')$'), '$1/$2')
-  }
-  return formatted.replace(/(\d{1,3})\s*\/\s*(\d{1,3})/g, (_match, numerator, bottom) => '$\\frac{' + numerator + '}{' + bottom + '}$')
-}
-function extractNumberComparison(question: string): [number, number] | null {
-  const normalized = question
-    .replace(/<[^>]*>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  // Jangan membuat visual perbandingan hanya karena dua angka terhubung kata "dan".
-  // Harus ada instruksi yang jelas untuk membandingkan atau mengurutkan bilangan.
-  const hasComparisonIntent = /\b(bandingkan|perbandingan|lebih besar|lebih kecil|paling besar|paling kecil|urutkan|manakah yang lebih|mana yang lebih)\b/i.test(normalized)
-  if (!hasComparisonIntent) return null
-
-  const match = normalized.match(/(\d{1,3})\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\s*(\d{1,3})/i)
-  if (!match) return null
-
-  const first = Number(match[1])
-  const second = Number(match[2])
-  if (!Number.isSafeInteger(first) || !Number.isSafeInteger(second) || first < 0 || second < 0) return null
-  return [first, second]
-}
-
-
-type ExactFractionVisual = {
-  shape: 'circle' | 'rectangle' | 'line' | 'apple' | 'objects'
-  total: number
-  colored: number
-  color: string
-  columns?: number
-  removed?: number
-  objectLabel?: string
-}
-
-type AnalyzedVisualSpec = {
-  visualType: 'fraction_partition' | 'equal_groups'
-  shape: 'circle' | 'rectangle' | 'line' | 'objects'
-  totalParts: number
-  selectedParts: number
-  meaning: 'selected' | 'removed' | 'remaining'
-  visibleParts: number
-  objectLabel?: string
-  confidence: number
-  totalObjects?: number
-  groupCount?: number
-  selectedGroups?: number
-  highlightColor: 'red' | 'orange' | 'yellow' | 'green' | 'blue' | 'purple' | 'pink' | 'brown' | 'gray'
-}
-
-function parseIndonesianNumber(value: string): number | null {
-  const normalized = value.toLocaleLowerCase('id').trim()
-  if (/^\d+$/.test(normalized)) return Number(normalized)
-  const words: Record<string, number> = {
-    satu: 1, sebuah: 1, dua: 2, tiga: 3, empat: 4, lima: 5,
-    enam: 6, tujuh: 7, delapan: 8, sembilan: 9, sepuluh: 10,
-    sebelas: 11, 'dua belas': 12, 'tiga belas': 13, 'empat belas': 14,
-    'lima belas': 15, 'enam belas': 16, 'tujuh belas': 17, 'delapan belas': 18,
-    'sembilan belas': 19, 'dua puluh': 20,
-  }
-  return words[normalized] ?? null
-}
-
-function extractExactFractionVisual(item: GeneratedQuestion): ExactFractionVisual | null {
-  // Fakta jumlah selalu diambil dari teks soal, bukan dari pembahasan atau tebakan AI.
-  const source = item.question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ')
-  const numberPattern = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu|sebuah)'
-
-  const totalMatch =
-    source.match(new RegExp('(?:dibagi|terbagi|dipotong) menjadi\\s*' + numberPattern + '\\s*(?:bagian|potong|irisan|sektor|kotak|kolom|kuadran|jam)')) ||
-    source.match(new RegExp('(?:terdiri dari|tersusun (?:atas|dari)|berisi)\\s*' + numberPattern + '\\s*(?:kotak kecil|kotak|bagian|sektor|kelereng|permen|stiker|jam)')) ||
-    source.match(new RegExp(numberPattern + '\\s*(?:kotak kecil|kotak|bagian|sektor|kolom|kuadran|kelereng|permen|stiker|jam)\\s*(?:yang sama|sama besar|sama panjang)?')) ||
-    source.match(new RegExp('ada\\s*' + numberPattern + '\\s*(?:kelereng|permen|stiker)'))
-
-  if (!totalMatch) return null
-  const total = parseIndonesianNumber(totalMatch[1])
-  if (total === null || total < 2 || total > 20) return null
-
-  const eatenMatch =
-    source.match(new RegExp(numberPattern + '\\s*(?:potong|irisan|kotak)\\s*(?:sudah\\s*)?dimakan')) ||
-    source.match(new RegExp('dimakan\\s*' + numberPattern + '\\s*(?:potong|irisan|kotak)'))
-
-  const markedMatch =
-    source.match(new RegExp(numberPattern + '\\s*(?:bagian|sektor|kotak|kolom|kuadran|jam)\\s*(?:(?:yang\\s*)?(?:di\\s*antaranya\\s*)?)?(?:sudah\\s*)?(?:diwarnai|diberi warna|berwarna|terisi|diisi|ditandai)')) ||
-    source.match(new RegExp(numberPattern + '\\s*(?:di\\s*antaranya\\s*)?(?:berwarna|berbentuk|ditandai)'))
-
-  const asksRemaining = /sisa|tersisa|masih ada|belum dimakan/.test(source)
-  let colored: number
-  if (asksRemaining && eatenMatch) {
-    const eaten = parseIndonesianNumber(eatenMatch[1])
-    if (eaten === null || eaten <= 0 || eaten >= total) return null
-    colored = total - eaten
-  } else if (eatenMatch) {
-    colored = parseIndonesianNumber(eatenMatch[1]) ?? 0
-  } else if (markedMatch) {
-    colored = parseIndonesianNumber(markedMatch[1]) ?? 0
-  } else {
-    return null
-  }
-  if (colored < 1 || colored > total) return null
-
-  const shape: ExactFractionVisual['shape'] =
-    /garis lurus|garis bilangan/.test(source) ? 'line' :
-    /apel|apple/.test(source) ? 'apple' :
-    /pizza|piza|pai|lingkaran|roti bundar|jam dinding|jam analog/.test(source) ? 'circle' : 'rectangle'
-  const columns = /kolom/.test(source) ? total : /kuadran/.test(source) ? 2 : undefined
-  return { shape, total, colored, color: '#2584e8', columns }
-}
-
-async function createExactFractionImage(item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
-  const objectDescription = `${item.question} ${analyzedSpec?.objectLabel || ''}`.toLocaleLowerCase('id')
-  const isAppleObject = /apel|apple/.test(objectDescription)
-  const visual: ExactFractionVisual | null = analyzedSpec
-    ? {
-        shape: analyzedSpec.shape === 'objects' ? 'objects' : isAppleObject ? 'apple' : analyzedSpec.shape === 'circle' ? 'circle' : analyzedSpec.shape === 'line' ? 'line' : 'rectangle',
-        total: analyzedSpec.totalParts,
-        colored: analyzedSpec.visibleParts,
-        removed: analyzedSpec.meaning === 'removed' ? analyzedSpec.selectedParts : 0,
-        objectLabel: analyzedSpec.objectLabel || '',
-        color: ({ red: '#ef4444', orange: '#f97316', yellow: '#eab308', green: '#22c55e', blue: '#2584e8', purple: '#a855f7', pink: '#ec4899', brown: '#92400e', gray: '#64748b' } as const)[analyzedSpec.highlightColor],
-      }
-    : extractExactFractionVisual(item)
-  if (!visual) return null
-
-  const canvas = document.createElement('canvas')
-  canvas.width = 1600
-  canvas.height = 900
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-  ctx.fillStyle = '#ffffff'
-  ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-  if (visual.shape === 'circle') {
-    const centerX = 800
-    const centerY = 440
-    const radius = 285
-    const start = -Math.PI / 2
-    const questionText = item.question.toLocaleLowerCase('id')
-    const isPizza = /pizza|piza/.test(questionText) || /pizza|piza/.test(analyzedSpec?.objectLabel || '')
-
-    if (isPizza) {
-      // Satu pizza utuh dibagi tepat sesuai penyebut; tidak menggambar potongan pizza terpisah.
-      for (let part = 0; part < visual.total; part++) {
-        const a0 = start + (part * Math.PI * 2) / visual.total
-        const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
-        ctx.save()
-        ctx.beginPath()
-        ctx.moveTo(centerX, centerY)
-        ctx.arc(centerX, centerY, radius - 13, a0, a1)
-        ctx.closePath()
-        ctx.clip()
-
-        const isRemovedSector = visual.removed ? part >= visual.colored : false
-        // Bagian yang dimakan digambar sebagai ruang kosong di atas piring,
-        // bukan sebagai irisan pizza pucat yang masih terlihat utuh.
-        ctx.fillStyle = isRemovedSector ? '#e5e7eb' : '#f59e0b'
-        ctx.fillRect(centerX - radius, centerY - radius, radius * 2, radius * 2)
-
-        // Topping hanya ada pada irisan yang masih tersisa.
-        const toppings = [
-          [-0.42, -0.43], [-0.08, -0.48], [0.28, -0.39],
-          [-0.48, -0.08], [-0.16, -0.12], [0.18, -0.10], [0.46, -0.04],
-          [-0.36, 0.27], [-0.02, 0.24], [0.34, 0.30],
-          [-0.08, 0.48], [0.48, 0.42],
-        ]
-        for (const [dx, dy] of (isRemovedSector ? [] : toppings)) {
-          const x = centerX + dx * radius
-          const y = centerY + dy * radius
-          if (Math.hypot(x - centerX, y - centerY) > radius - 25) continue
-          ctx.beginPath()
-          ctx.arc(x, y, 13, 0, Math.PI * 2)
-          ctx.fillStyle = '#b91c1c'
-          ctx.fill()
-          ctx.strokeStyle = '#7f1d1d'
-          ctx.lineWidth = 3
-          ctx.stroke()
-          ctx.beginPath()
-          ctx.arc(x - 3, y - 3, 3, 0, Math.PI * 2)
-          ctx.fillStyle = '#fecaca'
-          ctx.fill()
-        }
-        if (isRemovedSector) {
-          ctx.strokeStyle = '#9ca3af'
-          ctx.lineWidth = 5
-          for (let hatch = -radius; hatch <= radius; hatch += 28) {
-            ctx.beginPath()
-            ctx.moveTo(centerX - radius, centerY + hatch)
-            ctx.lineTo(centerX + radius, centerY + hatch - radius)
-            ctx.stroke()
-          }
-        }
-        ctx.restore()
-      }
-
-      // Kulit hanya mengelilingi bagian pizza yang masih ada.
-      for (let part = 0; part < visual.total; part++) {
-        const a0 = start + (part * Math.PI * 2) / visual.total
-        const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
-        const isRemovedSector = visual.removed ? part >= visual.colored : false
-        if (!isRemovedSector) {
-          ctx.beginPath()
-          ctx.arc(centerX, centerY, radius - 5, a0, a1)
-          ctx.strokeStyle = '#b45309'
-          ctx.lineWidth = 28
-          ctx.stroke()
-        }
-      }
-      for (let part = 0; part < visual.total; part++) {
-        const angle = start + (part * Math.PI * 2) / visual.total
-        ctx.beginPath()
-        ctx.moveTo(centerX, centerY)
-        ctx.lineTo(centerX + Math.cos(angle) * (radius - 8), centerY + Math.sin(angle) * (radius - 8))
-        ctx.strokeStyle = '#78350f'
-        ctx.lineWidth = 5
-        ctx.stroke()
-      }
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, 8, 0, Math.PI * 2)
-      ctx.fillStyle = '#92400e'
-      ctx.fill()
-    } else {
-      for (let part = 0; part < visual.total; part++) {
-        const a0 = start + (part * Math.PI * 2) / visual.total
-        const a1 = start + ((part + 1) * Math.PI * 2) / visual.total
-        ctx.beginPath()
-        ctx.moveTo(centerX, centerY)
-        ctx.arc(centerX, centerY, radius, a0, a1)
-        ctx.closePath()
-        ctx.fillStyle = part < visual.colored ? visual.color : '#f1f5f9'
-        ctx.fill()
-        ctx.strokeStyle = '#334155'
-        ctx.lineWidth = 6
-        ctx.stroke()
-      }
-    }
-    if (/jam dinding|jam analog/.test(questionText)) {
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius + 24, 0, Math.PI * 2)
-      ctx.strokeStyle = '#334155'
-      ctx.lineWidth = 18
-      ctx.stroke()
-      for (let hour = 0; hour < 12; hour++) {
-        const angle = (hour * Math.PI * 2) / 12 - Math.PI / 2
-        ctx.beginPath()
-        ctx.moveTo(centerX + Math.cos(angle) * (radius - 28), centerY + Math.sin(angle) * (radius - 28))
-        ctx.lineTo(centerX + Math.cos(angle) * (radius - 52), centerY + Math.sin(angle) * (radius - 52))
-        ctx.strokeStyle = '#334155'
-        ctx.lineWidth = 7
-        ctx.stroke()
-      }
-    }
-  } else if (visual.shape === 'objects') {
-    // Kumpulan benda harus digambar sebagai beberapa benda terpisah,
-    // bukan satu diagram kotak dengan jumlah yang sama.
-    const count = visual.total
-    const cols = Math.min(5, Math.ceil(Math.sqrt(count)))
-    const rows = Math.ceil(count / cols)
-    const cellW = 980 / cols
-    const cellH = 560 / rows
-    const label = (visual.objectLabel || '').toLocaleLowerCase('id')
-    const drawApple = (x: number, y: number, size: number, filled: boolean) => {
-      ctx!.save()
-      ctx!.translate(x, y)
-      ctx!.scale(size / 100, size / 100)
-      ctx!.beginPath()
-      ctx!.moveTo(0, -24)
-      ctx!.bezierCurveTo(-42, -62, -92, -34, -82, 28)
-      ctx!.bezierCurveTo(-72, 92, -20, 100, -4, 88)
-      ctx!.bezierCurveTo(10, 100, 72, 92, 82, 28)
-      ctx!.bezierCurveTo(92, -34, 42, -62, 0, -24)
-      ctx!.closePath()
-      ctx!.fillStyle = filled ? '#ef4444' : '#fecaca'
-      ctx!.fill()
-      ctx!.strokeStyle = '#7f1d1d'
-      ctx!.lineWidth = 7
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.moveTo(0, -28)
-      ctx!.lineTo(7, -62)
-      ctx!.strokeStyle = '#854d0e'
-      ctx!.lineWidth = 9
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.ellipse(25, -51, 24, 10, -0.35, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'
-      ctx!.fill()
-      ctx!.restore()
-    }
-    for (let index = 0; index < count; index++) {
-      const row = Math.floor(index / cols)
-      const col = index % cols
-      const x = 310 + cellW * (col + 0.5)
-      const y = 170 + cellH * (row + 0.5)
-      const selected = index < visual.colored
-      if (/apel|apple/.test(label)) {
-        drawApple(x, y, Math.min(95, cellW * 0.55, cellH * 0.55), selected)
-      } else {
-        ctx.beginPath()
-        ctx.arc(x, y, Math.min(54, cellW * 0.28, cellH * 0.28), 0, Math.PI * 2)
-        ctx.fillStyle = selected ? visual.color : '#e2e8f0'
-        ctx.fill()
-        ctx.strokeStyle = '#334155'
-        ctx.lineWidth = 5
-        ctx.stroke()
-      }
-    }
-  } else if (visual.shape === 'apple') {
-    // Siluet apel dibagi menjadi pita horizontal dengan luas piksel yang setara.
-    // Dengan demikian objek tetap tampak seperti apel, bukan kotak.
-    const applePath = () => {
-      ctx!.beginPath()
-      ctx!.moveTo(800, 280)
-      ctx!.bezierCurveTo(690, 190, 520, 245, 510, 410)
-      ctx!.bezierCurveTo(495, 575, 625, 735, 760, 750)
-      ctx!.bezierCurveTo(785, 755, 790, 735, 800, 735)
-      ctx!.bezierCurveTo(810, 735, 815, 755, 840, 750)
-      ctx!.bezierCurveTo(975, 735, 1105, 575, 1090, 410)
-      ctx!.bezierCurveTo(1080, 245, 910, 190, 800, 280)
-      ctx!.closePath()
-    }
-    applePath()
-    ctx.fillStyle = '#f8fafc'
-    ctx.fill()
-    const bounds = { left: 500, right: 1100, top: 220, bottom: 760 }
-    const pixels = ctx.getImageData(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top).data
-    const rowAreas: number[] = []
-    let totalArea = 0
-    for (let y = 0; y < bounds.bottom - bounds.top; y++) {
-      let area = 0
-      for (let x = 0; x < bounds.right - bounds.left; x++) {
-        const pixel = (y * (bounds.right - bounds.left) + x) * 4
-        if (pixels[pixel] < 254 || pixels[pixel + 1] < 254 || pixels[pixel + 2] < 254) area++
-      }
-      rowAreas.push(area)
-      totalArea += area
-    }
-    const boundaries = [bounds.top]
-    for (let part = 1; part < visual.total; part++) {
-      const targetArea = (totalArea * part) / visual.total
-      let accumulated = 0
-      let boundary = 0
-      for (; boundary < rowAreas.length; boundary++) {
-        accumulated += rowAreas[boundary]
-        if (accumulated >= targetArea) break
-      }
-      boundaries.push(bounds.top + boundary + 1)
-    }
-    boundaries.push(bounds.bottom)
-    applePath()
-    ctx.save()
-    ctx.clip()
-    for (let part = 0; part < visual.total; part++) {
-      const y0 = boundaries[part]
-      const y1 = boundaries[part + 1]
-      ctx.fillStyle = part < visual.colored ? '#ef4444' : '#fecaca'
-      ctx.fillRect(bounds.left, y0, bounds.right - bounds.left, y1 - y0)
-    }
-    for (let part = 1; part < visual.total; part++) {
-      ctx.beginPath()
-      ctx.moveTo(bounds.left, boundaries[part])
-      ctx.lineTo(bounds.right, boundaries[part])
-      ctx.strokeStyle = '#7f1d1d'
-      ctx.lineWidth = 5
-      ctx.stroke()
-    }
-    ctx.restore()
-    applePath()
-    ctx.strokeStyle = '#7f1d1d'
-    ctx.lineWidth = 12
-    ctx.stroke()
-    // Tangkai dan daun diletakkan di luar area pembagian apel.
-    ctx.beginPath()
-    ctx.moveTo(800, 285)
-    ctx.quadraticCurveTo(785, 225, 815, 190)
-    ctx.strokeStyle = '#854d0e'
-    ctx.lineWidth = 22
-    ctx.lineCap = 'round'
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.ellipse(865, 220, 58, 24, -0.35, 0, Math.PI * 2)
-    ctx.fillStyle = '#16a34a'
-    ctx.fill()
-    ctx.strokeStyle = '#166534'
-    ctx.lineWidth = 5
-    ctx.stroke()
-  } else if (visual.shape === 'line') {
-    const left = 170
-    const right = 1430
-    const y = 450
-    const segmentWidth = (right - left) / visual.total
-    for (let part = 0; part < visual.total; part++) {
-      ctx.fillStyle = part < visual.colored ? visual.color : '#e2e8f0'
-      ctx.fillRect(left + part * segmentWidth + 3, y - 55, segmentWidth - 6, 110)
-      ctx.strokeStyle = '#334155'
-      ctx.lineWidth = 4
-      ctx.strokeRect(left + part * segmentWidth + 3, y - 55, segmentWidth - 6, 110)
-    }
-    ctx.strokeStyle = '#334155'
-    ctx.lineWidth = 5
-    ctx.beginPath()
-    ctx.moveTo(left, y - 75)
-    ctx.lineTo(right, y - 75)
-    ctx.stroke()
-  } else {
-    // Susun hanya dalam kisi persegi panjang penuh agar tidak muncul baris sisa
-    // seperti 6 kotak ditambah 2 kotak pada pecahan 8 bagian.
-    let columns = visual.columns ?? visual.total
-    if (!visual.columns) {
-      let bestDifference = Infinity
-      for (let candidate = 1; candidate <= visual.total; candidate++) {
-        if (visual.total % candidate !== 0) continue
-        const rowsCandidate = visual.total / candidate
-        const difference = Math.abs(candidate - rowsCandidate)
-        if (difference < bestDifference || (difference === bestDifference && candidate > columns)) {
-          bestDifference = difference
-          columns = candidate
-        }
-      }
-    }
-    columns = Math.min(columns, visual.total)
-    const rows = Math.ceil(visual.total / columns)
-    const gap = 12
-    const cellWidth = Math.min(210, 1180 / columns)
-    const cellHeight = Math.min(170, 520 / rows)
-    const width = columns * cellWidth + (columns - 1) * gap
-    const height = rows * cellHeight + (rows - 1) * gap
-    const left = (canvas.width - width) / 2
-    const top = (canvas.height - height) / 2
-    for (let part = 0; part < visual.total; part++) {
-      const col = part % columns
-      const row = Math.floor(part / columns)
-      ctx.fillStyle = part < visual.colored ? visual.color : '#f1f5f9'
-      ctx.fillRect(left + col * (cellWidth + gap), top + row * (cellHeight + gap), cellWidth, cellHeight)
-      ctx.strokeStyle = '#334155'
-      ctx.lineWidth = 5
-      ctx.strokeRect(left + col * (cellWidth + gap), top + row * (cellHeight + gap), cellWidth, cellHeight)
-    }
-  }
-  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+function formatMathOption(value: string): string {
+  // Formatter hanya mengubah penulisan pecahan eksplisit, bukan menebak
+  // makna angka dari konteks kalimat soal.
+  return value.trim().replace(/(\d{1,6})\s*\/\s*(\d{1,6})/g, (_match, numerator, denominator) =>
+    '$\\frac{' + numerator + '}{' + denominator + '}$',
+  )
 }
 
 function isMathematicsVisual(item: GeneratedQuestion, subject: string, topic: string): boolean {
   const text = (subject + ' ' + topic + ' ' + item.question + ' ' + item.explanation).toLocaleLowerCase('id')
-  return /matematika|pecahan|bilangan|penjumlahan|pengurangan|perkalian|pembagian|bangun datar|bangun ruang|keliling|luas|volume|sudut|pola bilangan|diagram|grafik|perbandingan angka|jam analog|nilai tempat|desimal|persen/.test(text)
-}
-
-
-type FruitGroup = { box: string; count: number; fruit: 'jeruk' | 'pisang' | 'apel' }
-
-function extractThreeFruitBoxes(question: string): FruitGroup[] | null {
-  const source = question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
-  const number = '(\\d{1,2}|dua puluh|sembilan belas|delapan belas|tujuh belas|enam belas|lima belas|empat belas|tiga belas|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua|satu)'
-  const words = ['pertama', 'kedua', 'ketiga']
-  const groups: FruitGroup[] = []
-  for (const box of words) {
-    const match = source.match(new RegExp('kotak\\s+' + box + '[^.!?]{0,100}?' + number + '\\s+buah\\s+(jeruk|pisang|apel)'))
-    if (!match) {
-      groups.length = 0
-      break
-    }
-    const count = parseIndonesianNumber(match[1])
-    const fruit = match[2] as FruitGroup['fruit']
-    if (!count || count < 1 || count > 40 || groups.some((group) => group.fruit === fruit)) return null
-    groups.push({ box, count, fruit })
-  }
-
-  // Bentuk soal yang menyebut total buah secara langsung:
-  // "Dari total 6 jeruk, 8 pisang, dan 10 apel, ..."
-  if (groups.length !== 3) {
-    groups.length = 0
-    for (const fruit of ['jeruk', 'pisang', 'apel'] as const) {
-      const match = source.match(new RegExp(number + '\\s*(?:buah\\s*)?' + fruit + '\\b'))
-      if (!match) return null
-      const count = parseIndonesianNumber(match[1])
-      if (!count || count < 1 || count > 40) return null
-      groups.push({ box: fruit, count, fruit })
-    }
-  }
-  return groups
-}
-
-
-
-async function createEqualGroupsImage(item: GeneratedQuestion, spec?: AnalyzedVisualSpec | null): Promise<Blob | null> {
-  if (!spec || spec.visualType !== 'equal_groups') return null
-  const totalObjects = spec.totalObjects
-  const groupCount = spec.groupCount
-  const selectedGroups = spec.selectedGroups
-  if (!Number.isInteger(totalObjects) || !Number.isInteger(groupCount) ||
-      !Number.isInteger(selectedGroups) || !totalObjects || !groupCount ||
-      !selectedGroups || totalObjects > 40 || groupCount > 12 || selectedGroups > groupCount) return null
-
-  const wholePerGroup = Math.floor(totalObjects / groupCount)
-  const remainderPerGroup = totalObjects % groupCount
-  const displaySlotsPerGroup = wholePerGroup + (remainderPerGroup > 0 ? 1 : 0)
-  const objectName = (spec.objectLabel || '').toLocaleLowerCase('id')
-  // Jangan mengganti benda yang tidak dikenali menjadi lingkaran generik.
-  // Lingkaran hanya cocok untuk benda yang memang berbentuk bulat.
-  const supportedObject = /apel|apple|jeruk|orange|pisang|banana|bola|kelereng|permen|koin/.test(objectName)
-  if (!supportedObject) return null
-  const canvas = document.createElement('canvas')
-  canvas.width = 1600
-  canvas.height = 900
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-
-  ctx.fillStyle = '#f8fafc'
-  ctx.fillRect(0, 0, 1600, 900)
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#172554'
-  ctx.font = 'bold 46px Arial, sans-serif'
-  ctx.fillText('MEMBAGI ' + totalObjects + ' ' + objectName.toLocaleUpperCase('id') + ' MENJADI ' + groupCount + ' KELOMPOK', 800, 78)
-  ctx.font = '27px Arial, sans-serif'
-  ctx.fillStyle = '#475569'
-  ctx.fillText('Setiap kelompok berisi ' + (wholePerGroup ? wholePerGroup + ' ' : '') + (remainderPerGroup ? (wholePerGroup ? 'dan ' : '') + remainderPerGroup + '/' + groupCount + ' ' : '') + objectName, 800, 132)
-
-  const columns = groupCount <= 5 ? groupCount : Math.ceil(Math.sqrt(groupCount))
-  const rows = Math.ceil(groupCount / columns)
-  const gapX = 24
-  const gapY = 24
-  const cardW = Math.min(250, (1400 - (columns - 1) * gapX) / columns)
-  const cardH = Math.min(220, (540 - (rows - 1) * gapY) / rows)
-  const totalW = columns * cardW + (columns - 1) * gapX
-  const totalH = rows * cardH + (rows - 1) * gapY
-  const startX = (1600 - totalW) / 2
-  const startY = 185 + Math.max(0, (540 - totalH) / 2)
-
-  const drawObject = (cx: number, cy: number, size: number, color: string) => {
-    ctx!.save()
-    ctx!.translate(cx, cy)
-    ctx!.fillStyle = color
-    ctx!.strokeStyle = '#334155'
-    ctx!.lineWidth = 3
-    if (/apel|apple/.test(objectName)) {
-      ctx!.beginPath()
-      ctx!.moveTo(0, -size * 0.1)
-      ctx!.bezierCurveTo(-size * 0.45, -size * 0.55, -size * 0.8, -size * 0.05, -size * 0.48, size * 0.42)
-      ctx!.bezierCurveTo(-size * 0.2, size * 0.75, -size * 0.04, size * 0.62, 0, size * 0.58)
-      ctx!.bezierCurveTo(size * 0.04, size * 0.62, size * 0.2, size * 0.75, size * 0.48, size * 0.42)
-      ctx!.bezierCurveTo(size * 0.8, -size * 0.05, size * 0.45, -size * 0.55, 0, -size * 0.1)
-      ctx!.fill(); ctx!.stroke()
-      ctx!.beginPath(); ctx!.moveTo(0, -size * 0.1); ctx!.lineTo(size * 0.04, -size * 0.42)
-      ctx!.strokeStyle = '#854d0e'; ctx!.lineWidth = 5; ctx!.stroke()
-      ctx!.beginPath(); ctx!.ellipse(size * 0.18, -size * 0.34, size * 0.17, size * 0.07, -0.4, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'; ctx!.fill()
-    } else if (/jeruk|orange/.test(objectName)) {
-      ctx!.beginPath(); ctx!.arc(0, 0, size * 0.42, 0, Math.PI * 2); ctx!.fill(); ctx!.stroke()
-      ctx!.beginPath(); ctx!.ellipse(size * 0.15, -size * 0.43, size * 0.16, size * 0.07, -0.5, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'; ctx!.fill()
-    } else if (/pisang|banana/.test(objectName)) {
-      ctx!.beginPath()
-      ctx!.moveTo(-size * 0.42, -size * 0.12)
-      ctx!.bezierCurveTo(-size * 0.12, -size * 0.4, size * 0.25, -size * 0.35, size * 0.43, -size * 0.08)
-      ctx!.bezierCurveTo(size * 0.18, size * 0.04, -size * 0.08, size * 0.22, -size * 0.4, size * 0.16)
-      ctx!.closePath(); ctx!.fill(); ctx!.stroke()
-    } else {
-      ctx!.beginPath(); ctx!.arc(0, 0, size * 0.4, 0, Math.PI * 2); ctx!.fill(); ctx!.stroke()
-    }
-    ctx!.restore()
-  }
-
-  for (let group = 0; group < groupCount; group++) {
-    const col = group % columns
-    const row = Math.floor(group / columns)
-    const x = startX + col * (cardW + gapX)
-    const y = startY + row * (cardH + gapY)
-    const selected = group < selectedGroups
-    ctx.fillStyle = selected ? '#ecfdf5' : '#ffffff'
-    ctx.strokeStyle = selected ? '#059669' : '#94a3b8'
-    ctx.lineWidth = selected ? 7 : 4
-    ctx.beginPath(); ctx.roundRect(x, y, cardW, cardH, 22); ctx.fill(); ctx.stroke()
-
-    const objectSize = Math.min(62, 120 / Math.max(1, Math.ceil(Math.sqrt(displaySlotsPerGroup))))
-    const objectColumns = Math.ceil(Math.sqrt(displaySlotsPerGroup))
-    const objectRows = Math.ceil(displaySlotsPerGroup / objectColumns)
-    const spacingX = Math.min(78, (cardW - 35) / objectColumns)
-    const spacingY = Math.min(72, 105 / objectRows)
-    const objectColor = /apel|apple/.test(objectName) ? '#ef4444' : /jeruk|orange/.test(objectName) ? '#f97316' : /pisang|banana/.test(objectName) ? '#facc15' : '#60a5fa'
-    for (let i = 0; i < wholePerGroup; i++) {
-      const ox = x + cardW / 2 + (i % objectColumns - (objectColumns - 1) / 2) * spacingX
-      const oy = y + 70 + (Math.floor(i / objectColumns) - (objectRows - 1) / 2) * spacingY
-      drawObject(ox, oy, objectSize, objectColor)
-    }
-    if (remainderPerGroup > 0) {
-      const i = wholePerGroup
-      const ox = x + cardW / 2 + (i % objectColumns - (objectColumns - 1) / 2) * spacingX
-      const oy = y + 70 + (Math.floor(i / objectColumns) - (objectRows - 1) / 2) * spacingY
-      const fraction = remainderPerGroup / groupCount
-      // Tampilkan bagian pecahan dari siluet benda yang sama, bukan juring lingkaran generik.
-      // Area klip dibuat lebih besar dari siluet agar tepi buah tetap mengikuti bentuk aslinya.
-      ctx!.save()
-      ctx!.beginPath()
-      ctx!.moveTo(ox, oy)
-      ctx!.arc(ox, oy, objectSize * 0.9, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * fraction)
-      ctx!.closePath()
-      ctx!.clip()
-      drawObject(ox, oy, objectSize, objectColor)
-      ctx!.restore()
-      ctx!.fillStyle = '#334155'
-      ctx!.font = 'bold 15px Arial, sans-serif'
-      ctx!.fillText(Math.round(fraction * 100) + '%', ox, oy + objectSize * 0.72)
-    }
-    ctx.fillStyle = '#1e293b'
-    ctx.font = 'bold 23px Arial, sans-serif'
-    ctx.fillText('Kelompok ' + (group + 1), x + cardW / 2, y + cardH - 34)
-    if (selected) {
-      ctx.fillStyle = '#047857'
-      ctx.font = 'bold 17px Arial, sans-serif'
-      ctx.fillText('DIAMBIL', x + cardW / 2, y + cardH - 10)
-    }
-  }
-
-  const selectedNumerator = selectedGroups * totalObjects
-  const gcd = (left: number, right: number): number => right === 0 ? left : gcd(right, left % right)
-  const divisor = gcd(selectedNumerator, groupCount)
-  const reducedNumerator = selectedNumerator / divisor
-  const reducedDenominator = groupCount / divisor
-  const selectedValue = reducedDenominator === 1
-    ? String(reducedNumerator)
-    : reducedNumerator + '/' + reducedDenominator
-  ctx.fillStyle = '#0f172a'
-  ctx.font = 'bold 34px Arial, sans-serif'
-  ctx.fillText(selectedGroups + ' dari ' + groupCount + ' kelompok = ' + selectedValue + ' ' + objectName, 800, 790)
-  ctx.fillStyle = '#047857'
-  ctx.font = 'bold 46px Arial, sans-serif'
-  ctx.fillText(selectedGroups + '/' + groupCount + ' × ' + totalObjects + ' = ' + selectedValue, 800, 850)
-
-  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
-}
-
-async function createThreeFruitPartitionImage(question: string): Promise<Blob | null> {
-  const text = question.toLocaleLowerCase('id')
-  const hasThreeFruitBoxes =
-    /tiga\s+kotak/.test(text) &&
-    /jeruk/.test(text) &&
-    /pisang/.test(text) &&
-    /apel/.test(text) &&
-    /bagian\s+yang\s+sama/.test(text) &&
-    /(kotak\s+pisang|bagian\s+kotak\s+pisang)/.test(text)
-  if (!hasThreeFruitBoxes) return null
-
-  const partsMatch = text.match(/dibagi\s+menjadi\s+(\d{1,2}|dua belas|sebelas|sepuluh|sembilan|delapan|tujuh|enam|lima|empat|tiga|dua)\s+bagian/)
-  const partsPerBox = partsMatch ? parseIndonesianNumber(partsMatch[1]) : null
-  // Jangan menebak jumlah bagian jika soal tidak menyebutkannya.
-  if (!partsPerBox || !Number.isInteger(partsPerBox) || partsPerBox < 2 || partsPerBox > 12) return null
-
-  const canvas = document.createElement('canvas')
-  canvas.width = 1600
-  canvas.height = 900
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-
-  ctx.fillStyle = '#f8fafc'
-  ctx.fillRect(0, 0, 1600, 900)
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#172554'
-  ctx.font = 'bold 48px Arial, sans-serif'
-  ctx.fillText('TIGA KOTAK BUAH', 800, 70)
-  ctx.font = '26px Arial, sans-serif'
-  ctx.fillStyle = '#475569'
-  ctx.fillText('Setiap kotak dibagi menjadi ' + partsPerBox + ' bagian yang sama', 800, 120)
-
-  const rows = [
-    { label: 'KOTAK JERUK', fruit: 'jeruk' as const, color: '#fff7ed', stroke: '#f97316' },
-    { label: 'KOTAK PISANG', fruit: 'pisang' as const, color: '#fefce8', stroke: '#ca8a04' },
-    { label: 'KOTAK APEL', fruit: 'apel' as const, color: '#fef2f2', stroke: '#ef4444' },
-  ]
-  const x = 180
-  const width = 1240
-  const rowHeight = 175
-  const startY = 165
-  const labelWidth = 290
-  const cellWidth = (width - labelWidth) / partsPerBox
-
-  const drawFruit = (fruit: 'jeruk' | 'pisang' | 'apel', cx: number, cy: number, size: number) => {
-    ctx!.save()
-    ctx!.translate(cx, cy)
-    if (fruit === 'jeruk') {
-      ctx!.beginPath()
-      ctx!.arc(0, 0, size * 0.34, 0, Math.PI * 2)
-      ctx!.fillStyle = '#f97316'
-      ctx!.fill()
-      ctx!.strokeStyle = '#c2410c'
-      ctx!.lineWidth = 4
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.ellipse(size * 0.12, -size * 0.34, size * 0.16, size * 0.07, -0.5, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'
-      ctx!.fill()
-    } else if (fruit === 'pisang') {
-      ctx!.beginPath()
-      ctx!.moveTo(-size * 0.42, -size * 0.12)
-      ctx!.bezierCurveTo(-size * 0.12, -size * 0.4, size * 0.25, -size * 0.35, size * 0.43, -size * 0.08)
-      ctx!.bezierCurveTo(size * 0.18, size * 0.04, -size * 0.08, size * 0.22, -size * 0.4, size * 0.16)
-      ctx!.closePath()
-      ctx!.fillStyle = '#facc15'
-      ctx!.fill()
-      ctx!.strokeStyle = '#a16207'
-      ctx!.lineWidth = 4
-      ctx!.stroke()
-    } else {
-      ctx!.beginPath()
-      ctx!.moveTo(0, -size * 0.12)
-      ctx!.bezierCurveTo(-size * 0.48, -size * 0.55, -size * 0.78, -size * 0.05, -size * 0.48, size * 0.42)
-      ctx!.bezierCurveTo(-size * 0.2, size * 0.78, -size * 0.04, size * 0.6, 0, size * 0.58)
-      ctx!.bezierCurveTo(size * 0.04, size * 0.6, size * 0.2, size * 0.78, size * 0.48, size * 0.42)
-      ctx!.bezierCurveTo(size * 0.78, -size * 0.05, size * 0.48, -size * 0.55, 0, -size * 0.12)
-      ctx!.fillStyle = '#ef4444'
-      ctx!.fill()
-      ctx!.strokeStyle = '#991b1b'
-      ctx!.lineWidth = 4
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.moveTo(0, -size * 0.12)
-      ctx!.lineTo(size * 0.04, -size * 0.42)
-      ctx!.strokeStyle = '#854d0e'
-      ctx!.lineWidth = 5
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.ellipse(size * 0.17, -size * 0.35, size * 0.17, size * 0.07, -0.4, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'
-      ctx!.fill()
-    }
-    ctx!.restore()
-  }
-
-  rows.forEach((row, rowIndex) => {
-    const y = startY + rowIndex * 190
-    ctx!.fillStyle = row.color
-    ctx!.strokeStyle = row.stroke
-    ctx!.lineWidth = rowIndex === 1 ? 8 : 4
-    ctx!.beginPath()
-    ctx!.roundRect(x, y, width, rowHeight, 20)
-    ctx!.fill()
-    ctx!.stroke()
-
-    ctx!.fillStyle = '#1e293b'
-    ctx!.font = 'bold 29px Arial, sans-serif'
-    ctx!.fillText(row.label, x + labelWidth / 2, y + rowHeight / 2)
-
-    for (let part = 0; part < partsPerBox; part++) {
-      const cellX = x + labelWidth + part * cellWidth
-      if (part > 0) {
-        ctx!.beginPath()
-        ctx!.moveTo(cellX, y + 12)
-        ctx!.lineTo(cellX, y + rowHeight - 12)
-        ctx!.strokeStyle = '#94a3b8'
-        ctx!.lineWidth = 3
-        ctx!.stroke()
-      }
-      drawFruit(row.fruit, cellX + cellWidth / 2, y + 76, Math.min(78, cellWidth * 0.72))
-      ctx!.font = '20px Arial, sans-serif'
-      ctx!.fillStyle = '#64748b'
-      ctx!.fillText('Bagian ' + (part + 1), cellX + cellWidth / 2, y + 139)
-      ctx!.fillStyle = '#1e293b'
-    }
-    if (rowIndex === 1) {
-      ctx!.fillStyle = '#92400e'
-      ctx!.font = 'bold 22px Arial, sans-serif'
-      ctx!.fillText('YANG DITANYAKAN', x + labelWidth / 2, y + rowHeight - 22)
-    }
-  })
-
-  const denominator = partsPerBox * rows.length
-  ctx.fillStyle = '#0f172a'
-  ctx.font = 'bold 36px Arial, sans-serif'
-  ctx.fillText('Bagian kotak pisang = ' + partsPerBox + ' dari ' + denominator + ' bagian', 800, 770)
-  ctx.fillStyle = '#c2410c'
-  ctx.font = 'bold 44px Arial, sans-serif'
-  ctx.fillText(partsPerBox + '/' + denominator + ' = 1/3', 800, 835)
-
-  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
-}
-
-async function createThreeFruitBoxesImage(question: string): Promise<Blob | null> {
-  const groups = extractThreeFruitBoxes(question)
-  if (!groups) return null
-
-  const total = groups.reduce((sum, group) => sum + group.count, 0)
-  const source = question.toLocaleLowerCase('id').replace(/<[^>]*>/g, ' ')
-  const targetMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?kotak\s+(pertama|kedua|ketiga)|kotak\s+(pertama|kedua|ketiga)[^.!?]{0,100}?(?:berapa|jumlah|banyak|bagian|pecahan)/)
-  const targetBox = targetMatch?.[1] || targetMatch?.[2]
-  const targetFruitMatch = source.match(/(?:berapa|jumlah|banyak|bagian|pecahan)[^.!?]{0,100}?\b(jeruk|pisang|apel)\b/)
-  const targetIndex = targetBox
-    ? ({ pertama: 0, kedua: 1, ketiga: 2 } as const)[targetBox as 'pertama' | 'kedua' | 'ketiga']
-    : targetFruitMatch
-      ? groups.findIndex((group) => group.fruit === targetFruitMatch[1])
-      : -1
-  if (targetIndex < 0) return null
-  const target = groups[targetIndex]?.count
-  if (!target || total <= 0) return null
-  const gcd = (a: number, b: number): number => b === 0 ? a : gcd(b, a % b)
-  const divisor = gcd(target, total)
-  const reducedTarget = target / divisor
-  const reducedTotal = total / divisor
-  const canvas = document.createElement('canvas')
-  canvas.width = 1600
-  canvas.height = 900
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-
-  ctx.fillStyle = '#f8fafc'
-  ctx.fillRect(0, 0, 1600, 900)
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = '#172554'
-  ctx.font = 'bold 48px Arial, sans-serif'
-  ctx.fillText('JUMLAH BUAH DALAM TIGA KOTAK', 800, 76)
-
-  const cardX = [55, 555, 1055]
-  const cardW = 490
-  const cardY = 155
-  const cardH = 510
-  const fruitColors = { jeruk: '#f97316', pisang: '#facc15', apel: '#ef4444' }
-
-  const drawFruit = (fruit: FruitGroup['fruit'], x: number, y: number, size: number) => {
-    ctx!.save()
-    ctx!.translate(x, y)
-    if (fruit === 'jeruk') {
-      ctx!.beginPath()
-      ctx!.arc(0, 0, size * 0.34, 0, Math.PI * 2)
-      ctx!.fillStyle = fruitColors.jeruk
-      ctx!.fill()
-      ctx!.strokeStyle = '#c2410c'
-      ctx!.lineWidth = 4
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.ellipse(size * 0.12, -size * 0.34, size * 0.16, size * 0.07, -0.5, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'
-      ctx!.fill()
-    } else if (fruit === 'apel') {
-      ctx!.beginPath()
-      ctx!.moveTo(0, -size * 0.12)
-      ctx!.bezierCurveTo(-size * 0.48, -size * 0.55, -size * 0.78, -size * 0.05, -size * 0.48, size * 0.42)
-      ctx!.bezierCurveTo(-size * 0.2, size * 0.78, -size * 0.04, size * 0.6, 0, size * 0.58)
-      ctx!.bezierCurveTo(size * 0.04, size * 0.6, size * 0.2, size * 0.78, size * 0.48, size * 0.42)
-      ctx!.bezierCurveTo(size * 0.78, -size * 0.05, size * 0.48, -size * 0.55, 0, -size * 0.12)
-      ctx!.fillStyle = fruitColors.apel
-      ctx!.fill()
-      ctx!.strokeStyle = '#991b1b'
-      ctx!.lineWidth = 3
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.moveTo(0, -size * 0.12)
-      ctx!.lineTo(size * 0.04, -size * 0.42)
-      ctx!.strokeStyle = '#854d0e'
-      ctx!.lineWidth = 5
-      ctx!.stroke()
-      ctx!.beginPath()
-      ctx!.ellipse(size * 0.17, -size * 0.35, size * 0.17, size * 0.07, -0.4, 0, Math.PI * 2)
-      ctx!.fillStyle = '#16a34a'
-      ctx!.fill()
-    } else {
-      ctx!.beginPath()
-      ctx!.moveTo(-size * 0.42, -size * 0.12)
-      ctx!.bezierCurveTo(-size * 0.12, -size * 0.35, size * 0.28, -size * 0.33, size * 0.43, -size * 0.08)
-      ctx!.bezierCurveTo(size * 0.18, size * 0.02, -size * 0.08, size * 0.22, -size * 0.4, size * 0.16)
-      ctx!.bezierCurveTo(-size * 0.52, size * 0.1, -size * 0.52, -size * 0.02, -size * 0.42, -size * 0.12)
-      ctx!.fillStyle = fruitColors.pisang
-      ctx!.fill()
-      ctx!.strokeStyle = '#a16207'
-      ctx!.lineWidth = 4
-      ctx!.stroke()
-    }
-    ctx!.restore()
-  }
-
-  groups.forEach((group, index) => {
-    const x = cardX[index]
-    const isTarget = index === targetIndex
-    ctx!.fillStyle = isTarget ? '#fff7ed' : '#ffffff'
-    ctx!.strokeStyle = isTarget ? '#ea580c' : '#94a3b8'
-    ctx!.lineWidth = isTarget ? 9 : 5
-    ctx!.beginPath()
-    ctx!.roundRect(x, cardY, cardW, cardH, 28)
-    ctx!.fill()
-    ctx!.stroke()
-
-    ctx!.fillStyle = '#1e293b'
-    ctx!.font = 'bold 34px Arial, sans-serif'
-    ctx!.fillText('KOTAK ' + group.box.toLocaleUpperCase('id'), x + cardW / 2, cardY + 48)
-    ctx!.font = 'bold 29px Arial, sans-serif'
-    ctx!.fillText(group.count + ' buah ' + group.fruit, x + cardW / 2, cardY + 96)
-
-    const gridX = x + 25
-    const gridY = cardY + 135
-    const gridW = cardW - 50
-    const gridH = 310
-    const colW = gridW / 5
-    // Lima kolom hanya dipakai untuk merapikan posisi ikon, bukan menandai pecahan.
-    const rows = Math.ceil(group.count / 5)
-    for (let fruitIndex = 0; fruitIndex < group.count; fruitIndex++) {
-      const col = fruitIndex % 5
-      const row = Math.floor(fruitIndex / 5)
-      const px = gridX + colW * (col + 0.5)
-      const py = gridY + gridH * (row + 0.5)
-      drawFruit(group.fruit, px, py, Math.min(72, 235 / rows))
-    }
-    ctx!.fillStyle = isTarget ? '#c2410c' : '#475569'
-    ctx!.font = 'bold 30px Arial, sans-serif'
-    ctx!.fillText(isTarget ? 'YANG DITANYAKAN' : ' ', x + cardW / 2, cardY + 480)
-  })
-
-  ctx.fillStyle = '#0f172a'
-  ctx.font = 'bold 36px Arial, sans-serif'
-  ctx.fillText('Total buah = ' + groups.map((group) => group.count).join(' + ') + ' = ' + total + ' buah', 800, 730)
-  ctx.fillStyle = '#c2410c'
-  ctx.font = 'bold 42px Arial, sans-serif'
-  ctx.fillText('Bagian di kotak ' + groups[targetIndex].box + ' = ' + target + '/' + total + ' = ' + reducedTarget + '/' + reducedTotal, 800, 800)
-  ctx.fillStyle = '#475569'
-  ctx.font = '24px Arial, sans-serif'
-  ctx.fillText('Jumlah buah pada setiap kotak dibandingkan dengan seluruh buah', 800, 855)
-
-  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
-}
-
-async function createExactNumberComparisonImage(question: string): Promise<Blob | null> {
-  const numbers = extractNumberComparison(question)
-  if (!numbers) return null
-
-  const [first, second] = numbers
-  const canvas = document.createElement('canvas')
-  canvas.width = 1600
-  canvas.height = 900
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return null
-
-  const gradient = ctx.createLinearGradient(0, 0, 1600, 900)
-  gradient.addColorStop(0, '#eff6ff')
-  gradient.addColorStop(1, '#f5f3ff')
-  ctx.fillStyle = gradient
-  ctx.fillRect(0, 0, 1600, 900)
-
-  ctx.fillStyle = '#172554'
-  ctx.font = 'bold 54px Arial, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('AYO BANDINGKAN ANGKA', 800, 135)
-
-  const drawCard = (x: number, value: number, fill: string, border: string) => {
-    const y = 270
-    const w = 440
-    const h = 430
-    ctx!.fillStyle = 'rgba(30, 41, 59, 0.10)'
-    ctx!.beginPath()
-    ctx!.roundRect(x + 8, y + 14, w, h, 38)
-    ctx!.fill()
-    ctx!.fillStyle = fill
-    ctx!.strokeStyle = border
-    ctx!.lineWidth = 10
-    ctx!.beginPath()
-    ctx!.roundRect(x, y, w, h, 38)
-    ctx!.fill()
-    ctx!.stroke()
-    ctx!.fillStyle = '#0f172a'
-    ctx!.font = 'bold 250px Arial, sans-serif'
-    ctx!.textAlign = 'center'
-    ctx!.textBaseline = 'middle'
-    ctx!.fillText(String(value), x + w / 2, y + h / 2 + 12)
-  }
-
-  drawCard(180, first, '#ffffff', '#60a5fa')
-  drawCard(980, second, '#ffffff', '#a78bfa')
-
-  ctx.fillStyle = '#334155'
-  ctx.font = 'bold 58px Arial, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText('ATAU', 800, 485)
-
-  ctx.fillStyle = '#475569'
-  ctx.font = '36px Arial, sans-serif'
-  ctx.fillText('Perhatikan kedua angka', 800, 790)
-
-  return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'))
+  return /matematika|pecahan|bilangan|penjumlahan|pengurangan|perkalian|pembagian|dibagi|dibagikan|dari total|bagian dari total|per bagian|setengah|sepertiga|seperempat|bangun datar|bangun ruang|keliling|luas|volume|sudut|pola bilangan|diagram|grafik|perbandingan angka|jam analog|nilai tempat|desimal|persen/.test(text)
 }
 
 export default function AsistenAIPage() {
@@ -1037,41 +67,64 @@ export default function AsistenAIPage() {
   const [model, setModel] = useState('')
   const [loadingMessage, setLoadingMessage] = useState('Menghubungi penyedia AI...')
 
-  async function generateImageForQuestion(index: number, item: GeneratedQuestion, analyzedSpec?: AnalyzedVisualSpec | null) {
+  async function generateImageForQuestion(
+    index: number,
+    item: GeneratedQuestion,
+    visualMath?: VisualMathResult | null,
+  ) {
     setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
       ? { ...question, image_status: 'generating', image_error: undefined }
       : question))
 
+    let visualFailureCode: VisualReasonCode = 'RENDER_FAILED'
     try {
-      // Visual angka dan pecahan dibuat dengan geometri terprogram agar nilainya tepat.
-      // Soal jumlah beberapa jenis buah diprioritaskan agar tidak salah ditafsirkan
-      // sebagai pembagian kelompok yang tidak sesuai dengan maksud pertanyaan.
-      const exactFruitBoxesBlob = await createThreeFruitBoxesImage(item.question)
-      const exactEqualGroupsBlob = exactFruitBoxesBlob ? null : await createEqualGroupsImage(item, analyzedSpec)
-      const exactFruitPartitionBlob = exactFruitBoxesBlob || exactEqualGroupsBlob ? null : await createThreeFruitPartitionImage(item.question)
-      const exactComparisonBlob = exactFruitBoxesBlob || exactEqualGroupsBlob || exactFruitPartitionBlob ? null : await createExactNumberComparisonImage(item.question)
-      const exactFractionBlob = exactFruitBoxesBlob || exactEqualGroupsBlob || exactFruitPartitionBlob || exactComparisonBlob ? null : await createExactFractionImage(item, analyzedSpec)
-      const exactMathBlob = exactFruitBoxesBlob || exactEqualGroupsBlob || exactFruitPartitionBlob || exactComparisonBlob || exactFractionBlob
-      if (exactMathBlob) {
-        setLoadingMessage('Membuat visual matematika dengan angka dan pembagian yang tepat...')
+      if (visualMath?.status === 'ready' && visualMath.intent) {
+        setLoadingMessage('Membuat diagram dari fakta dan perhitungan yang sudah divalidasi...')
+        const exactMathBlob = await createVisualMathImage(visualMath.intent)
+        if (!exactMathBlob) {
+          visualFailureCode = 'RENDERER_NOT_SUPPORTED'
+          throw new Error('Renderer belum mendukung bentuk objek pada soal ini. Tidak ada gambar tebakan yang dibuat.')
+        }
+
+        visualFailureCode = 'UPLOAD_FAILED'
         const formData = new FormData()
         formData.append('file', new File([exactMathBlob], 'visual-matematika-soal-' + (index + 1) + '.png', { type: 'image/png' }))
         const uploadResponse = await fetch('/api/media/upload', { method: 'POST', body: formData })
         const uploadPayload = await uploadResponse.json()
         if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
-          throw new Error(uploadPayload.error || 'Visual matematika dibuat, tetapi gagal disimpan ke Google Drive.')
+          throw new Error(uploadPayload.error || 'Visual matematika dibuat, tetapi gagal disimpan ke penyimpanan media.')
+        }
+
+        const completedVisualMath: VisualMathResult = {
+          ...visualMath,
+          trace: visualMath.trace
+            ? {
+                ...visualMath.trace,
+                stages: [
+                  ...visualMath.trace.stages,
+                  { stage: 'renderer', status: 'ok' },
+                  { stage: 'upload', status: 'ok' },
+                ],
+              }
+            : undefined,
         }
         setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-          ? { ...question, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+          ? { ...question, visual_math: completedVisualMath, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
           : question))
         return
       }
 
-      // Jangan meminta FLUX menggambar matematika yang belum memiliki renderer presisi.
-      // Lebih aman tidak menampilkan gambar daripada memberi diagram/pecahan yang salah.
-      if (isMathematicsVisual(item, subject, topic)) {
+      // Hasil analisis yang ambigu atau tidak valid tidak boleh dialihkan
+      // ke generator gambar bebas karena dapat menyamarkan kesalahan matematika.
+      if (
+        visualMath?.status === 'ambiguous' ||
+        visualMath?.status === 'invalid' ||
+        visualMath?.status === 'needs_teacher_review' ||
+        isMathematicsVisual(item, subject, topic)
+      ) {
+        const reason = visualMath?.explanation || 'Analisis matematika belum berhasil. Gambar dihentikan agar tidak menampilkan diagram yang keliru.'
         setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-          ? { ...question, image_status: 'failed', image_error: 'Visual matematika untuk tipe soal ini belum didukung. Gambar otomatis dihentikan agar tidak menghasilkan angka, pecahan, atau diagram yang keliru.' }
+          ? { ...question, visual_math: visualMath || undefined, image_status: 'failed', image_error: reason }
           : question))
         return
       }
@@ -1121,25 +174,46 @@ export default function AsistenAIPage() {
         throw new Error('Cloudflare tidak mengirimkan data gambar yang dapat disimpan.')
       }
 
-      const imageBlob = await (await fetch(`data:${imagePayload.mimeType};base64,${imagePayload.imageBase64}`)).blob()
+      const imageBlob = await (await fetch('data:' + imagePayload.mimeType + ';base64,' + imagePayload.imageBase64)).blob()
       const extension = imagePayload.mimeType === 'image/jpeg' ? 'jpg' : imagePayload.mimeType === 'image/webp' ? 'webp' : 'png'
       const formData = new FormData()
-      formData.append('file', new File([imageBlob], `ai-soal-${index + 1}.${extension}`, { type: imagePayload.mimeType }))
+      formData.append('file', new File([imageBlob], 'ai-soal-' + (index + 1) + '.' + extension, { type: imagePayload.mimeType }))
 
       const uploadResponse = await fetch('/api/media/upload', { method: 'POST', body: formData })
       const uploadPayload = await uploadResponse.json()
       if (!uploadResponse.ok || !uploadPayload.file?.imageUrl) {
-        throw new Error(uploadPayload.error || 'Gambar dibuat, tetapi gagal disimpan ke Google Drive.')
+        throw new Error(uploadPayload.error || 'Gambar dibuat, tetapi gagal disimpan ke penyimpanan media.')
       }
 
-      setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
-        ? { ...item, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
-        : item))
+      setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
+        ? { ...question, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+        : question))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal membuat gambar.'
-      setQuestions((current) => current.map((item, itemIndex): GeneratedQuestion => itemIndex === index
-        ? { ...item, image_status: 'failed', image_error: message }
-        : item))
+      const failedVisualMath = visualMath?.status === 'ready'
+        ? {
+            ...visualMath,
+            status: visualFailureCode === 'RENDERER_NOT_SUPPORTED' ? 'unsupported' as const : 'invalid' as const,
+            reasonCode: visualFailureCode,
+            explanation: message,
+            trace: visualMath.trace
+              ? {
+                  ...visualMath.trace,
+                  stages: [
+                    ...visualMath.trace.stages,
+                    {
+                      stage: visualFailureCode === 'UPLOAD_FAILED' ? 'upload' : 'renderer',
+                      status: 'failed' as const,
+                      reasonCode: visualFailureCode,
+                    },
+                  ],
+                }
+              : undefined,
+          }
+        : undefined
+      setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
+        ? { ...question, visual_math: failedVisualMath, image_status: 'failed', image_error: message }
+        : question))
     }
   }
 
@@ -1170,48 +244,84 @@ export default function AsistenAIPage() {
         if (!Array.isArray(payload.questions)) throw new Error(`AI tidak mengirimkan daftar ${questionTypeLabels[type].toLowerCase()}.`)
         if (payload.provider || payload.model) usedModels.push([payload.provider, payload.model].filter(Boolean).join(' · '))
         allQuestions.push(...(payload.questions as GeneratedQuestion[]).map((item) => ({
-          ...item, question_type: type,
-          image_status: includeImages && item.image_prompt?.trim() ? 'pending' as const : 'none' as const,
+          ...item,
+          question_type: type,
+          image_status: includeImages && (
+            Boolean(item.image_prompt?.trim()) || isMathematicsVisual(item, subject, topic)
+          ) ? 'pending' as const : 'none' as const,
         })))
         setQuestions([...allQuestions])
       }
       setModel(Array.from(new Set(usedModels)).join(' / ') || 'AI')
       setLoadingMessage('Semua tipe soal berhasil dibuat. Memeriksa kebutuhan gambar...')
       if (includeImages) {
-        const imageTargets = allQuestions.map((item, index) => ({ index, prompt: item.image_prompt?.trim() || '' })).filter((item) => item.prompt)
-        if (!imageTargets.length) setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
-        else {
-          setLoadingMessage('AI sedang memahami kebutuhan visual setiap soal...')
-          let visualSpecs: Record<number, AnalyzedVisualSpec> = {}
+        const imageTargets = allQuestions
+          .map((item, index) => ({
+            index,
+            prompt: item.image_prompt?.trim() || '',
+            isMath: isMathematicsVisual(item, subject, topic),
+          }))
+          .filter((item) => item.prompt || item.isMath)
+
+        if (!imageTargets.length) {
+          setLoadingMessage('Soal selesai. Tidak ada soal yang memerlukan gambar penyerta.')
+        } else {
+          setLoadingMessage('AI sedang mengenali jenis visual dan memeriksa fakta matematika...')
+          const visualResults: Record<number, VisualMathResult> = {}
           try {
-            const analysisResponse = await fetch('/api/admin/ai/analyze-question-visual', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ subject, topic, questions: imageTargets.map(({ index }) => ({
-                question: allQuestions[index].question, explanation: allQuestions[index].explanation,
-              })) }),
+            const analysisResponse = await fetch('/api/admin/ai/analyze-visual-intent', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                subject,
+                topic,
+                questions: imageTargets.map(({ index }) => ({
+                  question: allQuestions[index].question,
+                  explanation: allQuestions[index].explanation,
+                })),
+              }),
             })
             const analysisPayload = await analysisResponse.json()
             if (analysisResponse.ok && Array.isArray(analysisPayload.results)) {
-              for (const entry of analysisPayload.results as Array<{ index?: number; spec?: AnalyzedVisualSpec | null }>) {
-                if (!Number.isInteger(entry.index) || !['fraction_partition', 'equal_groups'].includes(entry.spec?.visualType || '')) continue
+              for (const entry of analysisPayload.results as Array<{ index?: number; result?: VisualMathResult }>) {
+                if (!Number.isInteger(entry.index) || !entry.result) continue
                 const target = imageTargets[entry.index as number]
-                if (target && entry.spec) visualSpecs[target.index] = entry.spec
+                if (target) {
+                  visualResults[target.index] = entry.result
+                  allQuestions[target.index].visual_math = entry.result
+                }
               }
+              setQuestions([...allQuestions])
+            } else {
+              console.warn('Visual intent analyzer returned an invalid response:', analysisPayload.error)
             }
-          } catch (analysisError) { console.warn('AI visual analyzer failed; legacy exact renderer will be used.', analysisError) }
-          let nextTarget = 0, finishedImages = 0
+          } catch (analysisError) {
+            console.warn('Visual intent analyzer failed:', analysisError)
+          }
+
+          let nextTarget = 0
+          let finishedImages = 0
           const worker = async () => {
             while (nextTarget < imageTargets.length) {
               const target = imageTargets[nextTarget++]
-              setLoadingMessage(`Membuat gambar penyerta ${finishedImages + 1} dari ${imageTargets.length}...`)
-              await generateImageForQuestion(target.index, allQuestions[target.index], visualSpecs[target.index] || null)
+              setLoadingMessage(
+                'Membuat gambar penyerta ' + (finishedImages + 1) + ' dari ' + imageTargets.length + '...',
+              )
+              await generateImageForQuestion(
+                target.index,
+                allQuestions[target.index],
+                visualResults[target.index] || null,
+              )
               finishedImages++
-              setLoadingMessage(`${finishedImages} dari ${imageTargets.length} gambar selesai diproses...`)
+              setLoadingMessage(
+                finishedImages + ' dari ' + imageTargets.length + ' gambar selesai diproses...',
+              )
             }
           }
           await Promise.all(Array.from({ length: Math.min(2, imageTargets.length) }, () => worker()))
         }
       }
+
     } catch (err) { setError(err instanceof Error ? err.message : 'Terjadi kesalahan.') }
     finally { setLoading(false) }
   }
@@ -1413,14 +523,14 @@ export default function AsistenAIPage() {
                   <h3 className="pt-1 font-bold leading-relaxed text-slate-800">{item.question}</h3>
                 </div>
 
-                {item.image_prompt && (
+                {(item.image_prompt || (item.image_status && item.image_status !== 'none')) && (
                   <div className="ml-11 mt-3 space-y-2">
                     {item.image_url ? (
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                         <img src={item.image_url} alt={`Gambar penyerta soal nomor ${index + 1}`} className="max-h-80 w-full object-contain" />
                         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
                           <span className="text-xs font-semibold text-emerald-700">Gambar tersimpan di penyimpanan media</span>
-                          <button type="button" onClick={() => generateImageForQuestion(index, item)} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
+                          <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
                             Buat ulang gambar
                           </button>
                         </div>
@@ -1430,12 +540,12 @@ export default function AsistenAIPage() {
                     ) : item.image_status === 'failed' ? (
                       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs text-rose-700">
                         <span>{item.image_error || 'Gambar gagal dibuat.'}</span>
-                        <button type="button" onClick={() => generateImageForQuestion(index, item)} className="font-bold underline">Coba lagi</button>
+                        <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} className="font-bold underline">Coba lagi</button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
                         <span>Soal ini membutuhkan gambar penyerta.</span>
-                        <button type="button" onClick={() => generateImageForQuestion(index, item)} className="font-bold text-indigo-700">Buat gambar</button>
+                        <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} className="font-bold text-indigo-700">Buat gambar</button>
                       </div>
                     )}
                   </div>
@@ -1445,7 +555,7 @@ export default function AsistenAIPage() {
                   <div className="ml-11 grid gap-2 sm:grid-cols-2">
                     {(['A', 'B', 'C', 'D'] as const).map((key) => (
                       <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${item.answer === key ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '', item.question + ' ' + item.explanation)} className="inline-block align-middle" />
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '')} className="inline-block align-middle" />
                         {item.answer === key && <CheckCircle2 size={15} className="ml-2 inline" />}
                       </div>
                     ))}
@@ -1457,7 +567,7 @@ export default function AsistenAIPage() {
                     {(['A', 'B', 'C', 'D'] as const).map((key) => {
                       const isCorrect = item.answers?.includes(key)
                       return <div key={key} className={`rounded-lg border px-3 py-2.5 text-sm ${isCorrect ? 'border-emerald-300 bg-emerald-50 font-semibold text-emerald-800' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
-                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '', item.question + ' ' + item.explanation)} className="inline-block align-middle" />
+                        <span className="mr-2 font-black">{key}.</span><MathRenderer content={formatMathOption(item.options?.[key] || '')} className="inline-block align-middle" />
                         {isCorrect && <span className="ml-2 text-xs font-bold">✓ Kunci benar</span>}
                       </div>
                     })}
