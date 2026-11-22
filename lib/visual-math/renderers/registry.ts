@@ -122,11 +122,15 @@ export async function renderVisualMathArtifact(
   intent: VisualIntent,
   context: RenderContext = DEFAULT_CONTEXT,
 ): Promise<RendererQualityResult> {
+  if (context.width !== 1600 || context.height !== 900) {
+    return { status: 'rejected', reasonCode: 'INVALID_DIMENSIONS', message: 'Renderer Canvas saat ini hanya mendukung ukuran 1600 × 900.' }
+  }
+
   const renderer = RENDERERS.find((candidate) => candidate.supports(intent))
   if (!renderer) {
     return {
       status: 'rejected',
-      reasonCode: 'MISSING_REPRESENTED_VALUES',
+      reasonCode: 'NO_RENDERER',
       message: 'Tidak ada renderer yang mendukung jenis visual ini.',
     }
   }
