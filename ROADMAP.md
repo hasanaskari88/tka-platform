@@ -769,3 +769,12 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Commit terkait: `4065a2f` (normalisasi awal editor), `ff125f3` dan `a2169da` (penyempurnaan agar konversi tidak bersarang), serta `9ae799c` (renderer halaman baca).
 - Batas QA: perubahan ini belum diuji visual di browser dan belum diklaim menyelesaikan seluruh variasi rumus. Pengujian gabungan nanti perlu mencakup pecahan numerik, pecahan campuran, LaTeX berdelimiter/tanpa delimiter, glyph Unicode, operasi pecahan, rumus lama, buka-simpan-buka ulang di editor, serta tampilan halaman baca.
 
+### Pencatatan penggunaan generator gambar AI — 23 November 2026
+
+- Audit kode menemukan endpoint `app/api/admin/ai/generate-question-image/route.ts` menggunakan Cloudflare Workers AI `@cf/black-forest-labs/flux-1-schnell`, tetapi belum mencatat percobaan gambar ke `ai_usage_logs`.
+- Ditambahkan helper `recordAIUsage` pada `lib/ai/provider.ts` untuk memakai format tabel log yang sudah digunakan provider AI teks; tidak ada migration atau perubahan schema.
+- Endpoint gambar sekarang mencatat status sukses/gagal, model, provider, request ID, durasi, dan kode kegagalan untuk respons Cloudflare gagal, timeout, atau hasil lebih dari 8 MB. Log gambar tetap dibedakan melalui task `question_image_generation`; kolom token dibiarkan kosong karena model gambar tidak memberikan usage token melalui endpoint ini.
+- Commit: `a1dbf9f` (helper log) dan `b5b4dc8` (integrasi endpoint).
+- Audit Visual Math: mesin diagram deterministik sudah memiliki tujuh renderer, pemeriksaan intent/layout, validasi artefak, serta regression script `scripts/test-visual-math.cjs`. Dokumen arsitektur menyatakan AI hanya mengusulkan intent; nilai hitung dan diagram final harus ditentukan program deterministik. Tidak ada perubahan pada mesin tersebut dalam tahap ini.
+- Batas QA: belum memanggil Cloudflare/FLUX, belum menguji unggah hasil gambar, dan belum menjalankan regression script Visual Math. Pengguna meminta pengujian dikumpulkan untuk satu sesi berikutnya. Pastikan sesi gabungan memeriksa hasil gambar, timeout/429, log `ai_usage_logs`, alur penyimpanan, serta regression Visual Math.
+
