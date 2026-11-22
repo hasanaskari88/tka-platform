@@ -44,6 +44,18 @@ const GOAL_RULES: Record<FactGraph['requestedGoal'], GoalRule> = {
   },
 }
 
+const REQUIRED_RELATION_ROLES: Partial<Record<SemanticRelationType, Array<[string, string]>>> = {
+  belongs_to_category: [['category_count', 'target_category'], ['category_value', 'category']],
+  divided_into: [['total_objects', 'group_count'], ['whole', 'total_parts']],
+  equal_share_of: [['total_objects', 'group_count']],
+  equal_parts: [['whole', 'total_parts']],
+  compared_with: [['first_value', 'second_value']],
+  within_range: [['point_value', 'minimum'], ['point_value', 'maximum']],
+  marks: [['point_value', 'minimum'], ['point_value', 'maximum']],
+  measured_by: [['shape', 'measurement']],
+  value_of: [['category_value', 'category']],
+}
+
 const VALID_SOURCES = new Set(['question', 'option', 'answer', 'explanation'])
 const VALID_RELATIONS = new Set<SemanticRelationType>([
   'part_of', 'total_of', 'divided_into', 'equal_share_of', 'selected_from',
@@ -141,6 +153,7 @@ export function validateFactGraph(input: unknown, sources: FactGraphSources): Se
 
   const relationTypes = new Set<SemanticRelationType>()
   const relationKeys = new Set<string>()
+  const factsById = new Map(graph.facts.map((fact) => [fact.id, fact]))
   for (const relation of graph.relations) {
     if (!isRecord(relation) || typeof relation.type !== 'string' ||
       !VALID_RELATIONS.has(relation.type as SemanticRelationType) ||
@@ -151,6 +164,14 @@ export function validateFactGraph(input: unknown, sources: FactGraphSources): Se
     }
     const key = [relation.type, relation.from, relation.to].join(':')
     if (relationKeys.has(key)) return reject('Hubungan fakta yang sama tercantum lebih dari sekali.', 'FACTS_CONFLICT')
+    const allowedRolePairs = REQUIRED_RELATION_ROLES[relation.type as SemanticRelationType]
+    if (allowedRolePairs) {
+      const fromRole = factsById.get(relation.from)?.role
+      const toRole = factsById.get(relation.to)?.role
+      if (!allowedRolePairs.some(([from, to]) => fromRole === from && toRole === to)) {
+        return reject('Hubungan ' + relation.type + ' menghubungkan peran fakta yang tidak sesuai.', 'FACTS_CONFLICT')
+      }
+    }
     relationKeys.add(key)
     relationTypes.add(relation.type as SemanticRelationType)
   }
