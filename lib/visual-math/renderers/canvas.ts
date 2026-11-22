@@ -11,6 +11,7 @@ import type {
 import { formatFraction, formatMixedNumber, rational } from '../math/rational'
 import { calculateVisualIntent } from '../math/calculator'
 import { getExactPictographUnit } from './pictograph-scale'
+import { planNumberLinePointLayout } from '../quality/validate-visual-layout'
 
 type FruitKind = 'apel' | 'jeruk' | 'pisang'
 type ObjectKind = FruitKind | 'round' | 'candy' | 'generic'
@@ -676,6 +677,8 @@ function compareValues(
 
 export async function createNumberLineImage(intent: NumberLineIntent): Promise<Blob | null> {
   if (intent.points.length < 1 || intent.points.length > 10) return null
+  const pointLayouts = planNumberLinePointLayout(intent)
+  if (!pointLayouts) return null
   const min = rationalToNumber(intent.minimum)
   const max = rationalToNumber(intent.maximum)
   if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min) return null
@@ -714,8 +717,8 @@ export async function createNumberLineImage(intent: NumberLineIntent): Promise<B
   intent.points.forEach((point, index) => {
     const value = rationalToNumber(point.value)
     if (!Number.isFinite(value) || value < min || value > max) return
-    const x = left + ((value - min) / range) * (right - left)
-    const y = axisY - 85 - (index % 2) * 85
+    const { x, lane } = pointLayouts[index]
+    const y = axisY - 85 - lane * 75
     context.strokeStyle = '#2563eb'
     context.lineWidth = 4
     context.beginPath()

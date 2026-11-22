@@ -21,6 +21,7 @@ import {
 } from './canvas'
 import { validateRenderArtifact } from '../quality/validate-artifact'
 import { validateVisualIntent } from '../analysis/validate-intent'
+import { validateVisualLayout } from '../quality/validate-visual-layout'
 import type { RenderArtifact, RenderContext, RendererQualityResult, VisualRenderer } from './types'
 
 const DEFAULT_CONTEXT: RenderContext = { width: 1600, height: 900, locale: 'id-ID' }
@@ -144,6 +145,14 @@ export async function renderVisualMathArtifact(
       status: 'rejected',
       reasonCode: 'INVALID_INTENT',
       message: 'Data visual matematika tidak valid. Gambar tidak dibuat.',
+    }
+  }
+
+  if (!validateVisualLayout(safeIntent)) {
+    return {
+      status: 'rejected',
+      reasonCode: 'INVALID_LAYOUT',
+      message: 'Susunan visual terlalu rapat atau tidak dapat ditampilkan dengan jelas.',
     }
   }
 

@@ -48,6 +48,7 @@ const operationPlanner = require(path.join(root, 'lib/visual-math/math/operation
 const pictographScale = require(path.join(root, 'lib/visual-math/renderers/pictograph-scale.ts'))
 const rendererRegistry = require(path.join(root, 'lib/visual-math/renderers/registry.ts'))
 const artifactQuality = require(path.join(root, 'lib/visual-math/quality/validate-artifact.ts'))
+const visualLayoutQuality = require(path.join(root, 'lib/visual-math/quality/validate-visual-layout.ts'))
 const visualRenderer = require(path.join(root, 'lib/visual-math/renderers/canvas.ts'))
 
 const equalSharingQuestion =
@@ -1049,4 +1050,69 @@ test('renderer registry converts unexpected canvas exceptions into a safe reject
     if (originalDocument === undefined) delete global.document
     else global.document = originalDocument
   }
+})
+
+
+test('fraction layout quality gate rejects segments too narrow to read', () => {
+  assert.equal(visualLayoutQuality.validateFractionPartitionLayout({
+    type: 'fraction_partition',
+    wholeLabel: 'pizza',
+    totalParts: 20,
+    selectedParts: 5,
+    selectedMeaning: 'selected',
+  }), true)
+  assert.equal(visualLayoutQuality.validateFractionPartitionLayout({
+    type: 'fraction_partition',
+    wholeLabel: 'pizza',
+    totalParts: 40,
+    selectedParts: 5,
+    selectedMeaning: 'selected',
+  }), false)
+})
+
+test('number line layout assigns five label lanes and rejects overlapping labels', () => {
+  const spaced = visualLayoutQuality.planNumberLinePointLayout({
+    type: 'number_line',
+    minimum: { numerator: '0', denominator: '1' },
+    maximum: { numerator: '10', denominator: '1' },
+    points: Array.from({ length: 5 }, (_, index) => ({
+      label: 'Titik ' + (index + 1),
+      value: { numerator: String(index * 2 + 1), denominator: '1' },
+    })),
+  })
+  assert.ok(spaced)
+  assert.deepEqual(spaced.map((point) => point.lane), [0, 1, 2, 3, 4])
+
+  const crowded = visualLayoutQuality.planNumberLinePointLayout({
+    type: 'number_line',
+    minimum: { numerator: '0', denominator: '1' },
+    maximum: { numerator: '100', denominator: '1' },
+    points: [
+      { label: 'Titik yang sangat dekat A', value: { numerator: '50', denominator: '1' } },
+      { label: 'Titik yang sangat dekat B', value: { numerator: '501', denominator: '10' } },
+      { label: 'Titik yang sangat dekat C', value: { numerator: '502', denominator: '10' } },
+      { label: 'Titik yang sangat dekat D', value: { numerator: '503', denominator: '10' } },
+      { label: 'Titik yang sangat dekat E', value: { numerator: '504', denominator: '10' } },
+      { label: 'Titik yang sangat dekat F', value: { numerator: '505', denominator: '10' } },
+    ],
+  })
+  assert.equal(crowded, null)
+})
+
+test('renderer registry rejects layouts whose labels would overlap', async () => {
+  const result = await rendererRegistry.renderVisualMathArtifact({
+    type: 'number_line',
+    minimum: { numerator: '0', denominator: '1' },
+    maximum: { numerator: '100', denominator: '1' },
+    points: [
+      { label: 'Nilai A', value: { numerator: '50', denominator: '1' } },
+      { label: 'Nilai B', value: { numerator: '501', denominator: '10' } },
+      { label: 'Nilai C', value: { numerator: '502', denominator: '10' } },
+      { label: 'Nilai D', value: { numerator: '503', denominator: '10' } },
+      { label: 'Nilai E', value: { numerator: '504', denominator: '10' } },
+      { label: 'Nilai F', value: { numerator: '505', denominator: '10' } },
+    ],
+  })
+  assert.equal(result.status, 'rejected')
+  assert.equal(result.reasonCode, 'INVALID_LAYOUT')
 })
