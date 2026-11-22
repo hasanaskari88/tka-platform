@@ -61,6 +61,7 @@ assert.deepEqual(
 
 {
   const { blueprint, question } = baseQuestion(0, {
+    question: 'Pizza dibagi menjadi 8 bagian. 3 bagian dimakan dan 4 bagian tersisa.',
     visualSpec: {
       contractVersion: 2,
       type: 'fraction_partition',
@@ -69,8 +70,8 @@ assert.deepEqual(
       totalParts: 8,
       totalEvidenceQuote: '8 bagian',
       statedSegments: [
-        { role: 'removed', count: 3, evidenceQuote: '3 bagian diwarnai' },
-        { role: 'remaining', count: 4, evidenceQuote: '3 bagian diwarnai' },
+        { role: 'removed', count: 3, evidenceQuote: '3 bagian dimakan' },
+        { role: 'remaining', count: 4, evidenceQuote: '4 bagian tersisa' },
       ],
       askedFor: 'remaining',
       actionKey: 'eaten',

@@ -6,6 +6,9 @@ on:
       - main
     paths:
       - 'lib/visual-math/**'
+      - 'lib/ai-question/**'
+      - 'scripts/test-ai-question-contract.cjs'
+      - 'package.json'
       - 'app/api/admin/ai/analyze-visual-intent/route.ts'
       - 'app/admin/asisten-ai/page.tsx'
       - 'app/api/media/upload/route.ts'
@@ -49,6 +52,9 @@ jobs:
       - name: Run fraction V2 contract and renderer tests
         run: npm run test:visual-math:v2
 
+      - name: Run AI question contract and blueprint tests
+        run: npm run test:ai-question-contract
+
       - name: Type-check the application
         run: npx tsc --noEmit
 
@@ -64,6 +70,10 @@ jobs:
           lib/visual-math/analysis/build-ai-intent.ts
           lib/visual-math/analysis/fraction-v2.ts
           lib/visual-math/types.ts
+          lib/ai-question/contracts.ts
+          lib/ai-question/fraction-blueprint.ts
+          lib/ai-question/validate-question.ts
+          scripts/test-ai-question-contract.cjs
           lib/visual-math/semantic/build-fact-graph.ts
           lib/visual-math/math/operation-planner.ts
           lib/visual-math/renderers/canvas.ts
