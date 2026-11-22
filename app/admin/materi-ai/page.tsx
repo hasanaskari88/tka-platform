@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { CURRICULUM_CATALOGS, getCurriculumTopics, type CurriculumTrack } from '@/lib/ai-question/curriculum-catalog'
 import RichTextEditor from '@/components/editor/RichTextEditor'
@@ -15,6 +15,7 @@ type ApiResult = {
   success?: boolean
   id?: string
   status?: string
+  drafts?: { id: string; title: string; topicId: string; description: string; contentHtml: string }[]
 }
 
 export default function AdminAiMaterialsPage() {
@@ -37,6 +38,26 @@ export default function AdminAiMaterialsPage() {
   const subjects = useMemo(() => Object.keys(CURRICULUM_CATALOGS[track]), [track])
   const topics = useMemo(() => getCurriculumTopics(track, subject), [track, subject])
   const selectedTopic = topics.find((topic) => topic.id === topicId)
+
+  useEffect(() => {
+    let active = true
+    async function loadDrafts() {
+      try {
+        const response = await fetch('/api/admin/ai/generate-materials', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list', track, subject }),
+        })
+        const result = await response.json() as ApiResult
+        if (!response.ok) throw new Error(result.error || 'Daftar draf gagal dimuat.')
+        if (active) setGeneratedDrafts(result.drafts || [])
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : 'Daftar draf gagal dimuat.')
+      }
+    }
+    void loadDrafts()
+    return () => { active = false }
+  }, [track, subject])
 
   const changeTrack = (next: CurriculumTrack) => {
     const nextSubjects = Object.keys(CURRICULUM_CATALOGS[next])
@@ -114,7 +135,17 @@ export default function AdminAiMaterialsPage() {
         grade: Number(grade),
         status,
       })
-      if (result.id) setMaterialId(result.id)
+      if (result.id) {
+        setMaterialId(result.id)
+        if (status === 'draft') {
+          setGeneratedDrafts((previous) => {
+            const draft = { id: result.id!, title, topicId, description, contentHtml }
+            return [draft, ...previous.filter((item) => item.id !== result.id)]
+          })
+        } else {
+          setGeneratedDrafts((previous) => previous.filter((item) => item.id !== result.id))
+        }
+      }
       setNotice(status === 'published' ? 'Materi berhasil disimpan dan diterbitkan.' : 'Materi berhasil disimpan sebagai draf.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Gagal menyimpan materi.')
