@@ -22,6 +22,7 @@ export type RendererQualityResult =
   | {
       status: 'rejected'
       reasonCode:
+        | 'NO_RENDERER'
         | 'BLOB_EMPTY'
         | 'INVALID_MIME_TYPE'
         | 'INVALID_DIMENSIONS'
