@@ -712,3 +712,20 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
   - Matematika Kelas VI: Panduan Guru di SIBI ISBN 978-602-427-900-4; katalog panduan mapel Matematika 2025 tetap menjadi rujukan CP/ATP. Jangan mengklaim ISBN ini sebagai buku siswa.
   - Seni Budaya bukan satu buku tunggal yang seragam. SIBI memuat Panduan Guru Seni Musik Kelas VI ISBN 978-602-244-605-7 dan Panduan Guru Seni Teater Kelas VI Edisi Revisi ISBN 978-634-00-3165-2. Bukti buku siswa kelas VI untuk semua cabang Seni Rupa/Musik/Tari/Teater belum lengkap pada penelusuran ini.
   - Karena Pendidikan Agama memiliki beberapa agama/kepercayaan dan Seni Budaya dapat memilih cabang seni, penambahan katalog perlu mengikuti mata pelajaran yang benar-benar diajarkan sekolah, bukan mengaktifkan satu varian agama/seni secara otomatis.
+
+
+### Penambahan katalog tiga agama yang diajarkan di sekolah — 23 November 2026
+
+- Berdasarkan konfirmasi guru, sekolah menyelenggarakan Pendidikan Agama Islam, Kristen, dan Katolik. Pendidikan Agama Buddha, Hindu, Khonghucu, dan Kepercayaan tidak dimasukkan.
+- Katalog `GRADE_6_CATALOG` sekarang memiliki tiga mapel agama terpisah, masing-masing dengan kelompok topik dan indikator sendiri; bukan satu materi agama generik.
+- Pendidikan Agama Islam dipetakan pada lima elemen CP Fase C: Al-Qur’an Hadis, Akidah, Akhlak, Fikih, dan Sejarah Peradaban Islam. Sumber SIBI: buku siswa ISBN 978-602-244-676-7 dan Panduan Guru ISBN 978-602-244-675-0 (Edisi 1).
+- Pendidikan Agama Kristen dipetakan pada empat elemen CP Fase C: Allah Berkarya, Manusia dan Nilai-nilai Kristiani, Gereja dan Masyarakat Majemuk, Alam dan Lingkungan Hidup. SIBI menyediakan Panduan Guru kelas VI ISBN 978-602-244-666-8 (Edisi 1); buku siswa kelas VI belum terverifikasi dalam katalog saat peninjauan. Prompt AI mengingatkan guru untuk mencocokkan dengan buku siswa yang dipakai sekolah dan tradisi gereja setempat.
+- Pendidikan Agama Katolik dipetakan pada empat elemen CP Fase C: Pribadi Peserta Didik, Yesus Kristus, Gereja, dan Masyarakat. Sumber SIBI: buku siswa kelas VI ISBN 978-602-244-690-3 (Edisi 1).
+- Semua mapel agama memakai CP Fase C dari Keputusan Kepala BSKAP Nomor 046/H/KR/2025; fase C berlaku untuk kelas V–VI, sehingga topik katalog bukan urutan semester atau klaim bab resmi buku.
+- Rujukan SIBI yang diperiksa:
+  - PAI siswa: https://buku.kemendikdasmen.go.id/katalog/pendidikan-agama-islam-dan-budi-pekerti-untuk-sdmi-kelas-vi
+  - PAI guru: https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-pendidikan-agama-islam-dan-budi-pekerti-untuk-sdmi-kelas-vi
+  - Kristen guru: https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-pendidikan-agama-kristen-dan-budi-pekerti-untuk-sd-kelas-vi
+  - Katolik siswa: https://buku.kemendikdasmen.go.id/katalog/pendidikan-agama-katolik-dan-budi-pekerti-untuk-sd-kelas-vi
+  - CP resmi 046/H/KR/2025: https://kurikulum.kemendikdasmen.go.id/file/1753929861_manage_file.pdf
+- Catatan deployment: deployment docs-only sebelumnya dibatalkan Vercel karena Ignored Build Step mengembalikan exit code 0. Ini bukan bukti kegagalan compile; konfigurasi tersebut melewati build. Commit kode katalog ini perlu dipastikan mendapat deployment Production baru, lalu cek status build.
