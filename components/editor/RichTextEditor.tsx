@@ -54,9 +54,22 @@ function prepareEditorContent(value: string): string {
     return '<' + tag + ' data-type="' + type + '" data-latex="' + escapeMathAttribute(latex) + '">' + escapeMathText(latex) + '</' + tag + '>'
   })
 
+  // Konversi pecahan sederhana yang ditulis AI sebagai teks biasa (misalnya 3/4)
+  // menjadi node matematika agar tampil sebagai pecahan bertingkat di editor.
+  // Tag HTML dan atribut tidak disentuh; hanya isi teks yang diproses.
+  const withPlainFractions = withMath.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
+    const converted = text.replace(
+      /(^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./])/g,
+      (_match, before: string, numerator: string, denominator: string) =>
+        before + '<span data-type="inline-math" data-latex="\\frac{' + numerator + '}{' + denominator + '}">' +
+        numerator + '/' + denominator + '</span>'
+    )
+    return prefix + converted
+  })
+
   // Jawaban lama atau teks Aksara Jawa tanpa atribut font tetap ditampilkan
   // menggunakan font lokal Nyk, termasuk pada editor mode baca-saja.
-  return withMath.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
+  return withPlainFractions.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
     const decoded = text
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
