@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto'
 import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 import { calculateVisualIntent } from '@/lib/visual-math/math/calculator'
+import { planVisualMathOperation } from '@/lib/visual-math/math/operation-planner'
 import { validateVisualIntent } from '@/lib/visual-math/analysis/validate-intent'
 import { buildAiVisualIntent } from '@/lib/visual-math/analysis/build-ai-intent'
 import { extractKnownVisualIntent } from '@/lib/visual-math/analysis/known-patterns'
@@ -303,7 +304,34 @@ export async function POST(request: Request) {
           }
         }
 
-        const calculation = calculateVisualIntent(validatedIntent)
+        if (!built.factGraph) {
+          return {
+            index: question.index,
+            result: {
+              version: 1,
+              status: 'ambiguous',
+              intent: null,
+              calculatedValue: null,
+              confidence,
+              reasonCode: 'FACTS_INCOMPLETE',
+              explanation: 'Graf fakta semantik tidak tersedia. Visualisasi dihentikan.',
+              trace: {
+                traceId: randomUUID(),
+                stages: [
+                  { stage: 'ai_extraction', status: 'ok' },
+                  { stage: 'semantic_fact_graph', status: 'failed', reasonCode: 'FACTS_INCOMPLETE' },
+                ],
+              },
+            },
+          }
+        }
+
+        const plan = planVisualMathOperation(
+          validatedIntent,
+          built.factGraph,
+          built.factGraphSources,
+        )
+        const calculation = plan.calculation
         const status = calculation.status === 'ready' ? 'ready' : calculation.status
         return {
           index: question.index,
@@ -320,6 +348,7 @@ export async function POST(request: Request) {
               stages: [
                 { stage: 'ai_extraction', status: 'ok' },
                 { stage: 'deterministic_fact_check', status: 'ok' },
+                { stage: 'semantic_fact_graph', status: plan.semanticValidation.status === 'accepted' ? 'ok' : 'failed', reasonCode: plan.semanticValidation.reasonCode || undefined },
                 { stage: 'intent_schema_validation', status: 'ok' },
                 {
                   stage: 'deterministic_calculation',
