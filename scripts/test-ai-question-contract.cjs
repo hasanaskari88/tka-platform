@@ -55,6 +55,12 @@ assert.ok(getCurriculumTopics('GRADE_6', 'IPAS').some((item) => item.title === '
 assert.ok(getCurriculumTopics('GRADE_6', 'Pendidikan Pancasila').some((item) => item.title === 'Sejarah kelahiran Pancasila'))
 assert.ok(getCurriculumTopics('GRADE_6', 'Matematika').some((item) => item.title === 'Bilangan cacah sampai 1.000.000'))
 assert.ok(Object.keys(GRADE_6_CATALOG).length >= 5)
+assert.ok(Object.keys(GRADE_6_CATALOG).includes('PJOK'))
+assert.ok(Object.keys(GRADE_6_CATALOG).includes('Bahasa Jawa'))
+assert.ok(getCurriculumTopics('GRADE_6', 'PJOK').some((item) => item.title === 'Kebugaran jasmani dan aktivitas fisik'))
+assert.ok(getCurriculumTopics('GRADE_6', 'PJOK').some((item) => item.title === 'Pola makan sehat dan gizi seimbang'))
+assert.ok(getCurriculumTopics('GRADE_6', 'Bahasa Jawa').some((item) => item.title === 'Unggah-ungguh basa ngoko lan krama'))
+assert.ok(getCurriculumTopics('GRADE_6', 'Bahasa Jawa').some((item) => item.title === 'Aksara Jawa legena, pasangan, lan sandhangan'))
 assert.deepEqual(
   FRACTION_PILOT_BLUEPRINT.reduce((counts, item) => {
     counts[item.grade] = (counts[item.grade] || 0) + 1
