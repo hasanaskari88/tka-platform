@@ -202,7 +202,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const grade = typeof body.grade === 'string' ? body.grade.trim() : ''
     const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
-    const topic = typeof body.topic === 'string' ? body.topic.trim() : ''
+    const topic = typeof body.topic === 'string' ? body.topic.trim() : ''\n    const topicGuidance = typeof body.topicGuidance === 'string' ? body.topicGuidance.trim() : ''\n    const curriculumTrack = typeof body.curriculumTrack === 'string' ? body.curriculumTrack.trim() : ''
     const count = Number(body.count)
     const shortAnswerCount = Number(body.shortAnswerCount ?? 10)
     const shortAnswerMaxScore = Number(body.shortAnswerMaxScore ?? 2)
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
 
     if (!grade || grade.length > 40) return NextResponse.json({ error: 'Kelas harus diisi.' }, { status: 400 })
     if (!subject || subject.length > 80) return NextResponse.json({ error: 'Mata pelajaran harus diisi.' }, { status: 400 })
-    if (!topic || topic.length > 300) return NextResponse.json({ error: 'Materi harus diisi (maksimal 300 karakter).' }, { status: 400 })
+    if (!topic || topic.length > 300) return NextResponse.json({ error: 'Materi harus diisi (maksimal 300 karakter).' }, { status: 400 })\n    if (topicGuidance.length > 1200) return NextResponse.json({ error: 'Panduan materi terlalu panjang.' }, { status: 400 })\n    if (curriculumTrack && !['TKA', 'GRADE_6'].includes(curriculumTrack)) return NextResponse.json({ error: 'Jalur materi tidak valid.' }, { status: 400 })
     if (!Number.isInteger(count) || count < 1 || count > 15) return NextResponse.json({ error: 'Jumlah soal harus antara 1 sampai 15.' }, { status: 400 })
     if (questionType === 'essay' && (![shortAnswerMaxScore, longEssayMaxScore].every((score) => Number.isFinite(score) && score > 0 && score <= 100))) return NextResponse.json({ error: 'Skor maksimal harus lebih dari 0 dan tidak lebih dari 100.' }, { status: 400 })
     if (indicator.length > 200) return NextResponse.json({ error: 'Indikator maksimal 200 karakter.' }, { status: 400 })
@@ -238,7 +238,7 @@ export async function POST(request: Request) {
 
     const indicatorInstruction = indicator ? '\nIndikator yang harus diukur: ' + indicator + '.' : '\nBuat indikator soal yang relevan berdasarkan materi.'
     const cognitiveInstruction = cognitiveLevel === 'AUTO' ? 'Tentukan level kognitif yang paling sesuai dengan indikator dan materi.' : 'Gunakan level kognitif ' + cognitiveLevel + ' secara konsisten.'
-    const prompt = 'Buat tepat ' + count + ' soal untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.' + indicatorInstruction +
+    const trackInstruction = curriculumTrack === 'TKA'\n      ? '\\nJalur: Persiapan TKA SD. Utamakan kompetensi dan karakteristik kerangka asesmen TKA SD untuk mata pelajaran ini; jangan mengklaim soal sebagai soal resmi.'\n      : curriculumTrack === 'GRADE_6'\n        ? '\\nJalur: Materi pembelajaran kelas 6 SD berdasarkan cakupan CP Fase C. Sesuaikan kedalaman dengan kelas akhir SD dan jangan menganggap urutan semester bersifat nasional.'\n        : ''\n    const guidanceInstruction = topicGuidance ? '\\nPenjelasan ruang lingkup materi: ' + topicGuidance : ''\n    const prompt = 'Buat tepat ' + count + ' soal untuk siswa ' + grade + ', mata pelajaran ' + subject + ', dengan materi: ' + topic + '.' + trackInstruction + guidanceInstruction + indicatorInstruction +
       '\n\nLevel kognitif: ' + cognitiveInstruction +
       '\n\nKetentuan bentuk soal: ' + typeInstruction +
       '\n\nKetentuan umum:\n- Gunakan bahasa Indonesia sederhana sesuai usia siswa.\n- Pastikan soal sesuai materi dan indikator, tidak ambigu, serta memiliki jawaban yang dapat dipertanggungjawabkan.\n- Berikan pembahasan singkat dan jelas pada properti explanation.\n- Untuk LOTS, utamakan mengingat/memahami; MOTS menerapkan; HOTS menalar/menganalisis.\n- Jika soal memuat hitungan matematika, hitung ulang secara mandiri sebelum menentukan pilihan dan kunci jawaban. Pastikan hasil hitung, pilihan jawaban, kunci, dan pembahasan saling konsisten. Jangan menulis pembahasan yang mengakui pilihan jawaban salah atau meminta guru memperbaiki soal; perbaiki soal dan pilihan sebelum mengembalikan JSON.\n- Untuk soal pecahan, pastikan pembilang adalah jumlah bagian yang ditanyakan dan penyebut adalah jumlah seluruh bagian. Sederhanakan pecahan hanya jika nilainya tetap sama. Pastikan salah satu pilihan jawaban tepat sama dengan hasilnya dan kunci menunjuk pilihan tersebut.\n- DILARANG membuat dua pilihan jawaban yang nilainya setara meskipun bentuk tulisannya berbeda. Contoh 6/5 dan 1 1/5 adalah nilai yang sama, sehingga hanya boleh muncul satu kali dalam pilihan A-D. Periksa kesetaraan pecahan, pecahan campuran, dan pecahan yang sudah disederhanakan sebelum mengembalikan JSON.\n- Jangan menambahkan teks di luar JSON' +

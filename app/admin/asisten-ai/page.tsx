@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState } from 'react'\nimport { CURRICULUM_CATALOGS, getCurriculumTopics, type CurriculumTrack } from '@/lib/ai-question/curriculum-catalog'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 import MathRenderer from '@/components/MathRenderer'
 import { renderVisualMathArtifact, renderVisualMathPlanV2 } from '@/lib/visual-math/renderers/registry'
@@ -252,7 +252,7 @@ export default function AsistenAIPage() {
         setLoadingMessage(`Membuat ${questionTypeLabels[type].toLowerCase()} (${typeIndex + 1}/${selectedTypes.length})...`)
         const response = await fetch('/api/admin/ai/generate-questions', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ grade, subject, topic, count: typeCount, indicator, cognitiveLevel, questionType: type,
+          body: JSON.stringify({ grade, subject, topic, topicGuidance: selectedTopic?.description || '', curriculumTrack, count: typeCount, indicator: indicator || selectedTopic?.indicator || '', cognitiveLevel, questionType: type,
             shortAnswerCount: Math.min(shortAnswerCount, typeCount - 1), shortAnswerMaxScore, longEssayMaxScore, includeImages, imageType }),
         })
         const payload = await response.json()
@@ -363,22 +363,53 @@ export default function AsistenAIPage() {
 
           <form onSubmit={generateQuestions} className="grid gap-4 sm:grid-cols-2">
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
+              Jalur materi
+              <select value={curriculumTrack} onChange={(e) => {
+                const nextTrack = e.target.value as CurriculumTrack
+                const nextSubjects = Object.keys(CURRICULUM_CATALOGS[nextTrack])
+                const nextSubject = nextSubjects[0]
+                const nextTopic = getCurriculumTopics(nextTrack, nextSubject)[0]
+                setCurriculumTrack(nextTrack)
+                setGrade('Kelas 6 SD')
+                setSubject(nextSubject)
+                setTopic(nextTopic?.title || '')
+                setIndicator(nextTopic?.indicator || '')
+              }} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                <option value="TKA">Persiapan TKA SD</option>
+                <option value="GRADE_6">Materi pembelajaran kelas 6 SD</option>
+              </select>
+            </label>
+            <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Kelas
-              <input list="asisten-ai-grade-options" value={grade} onChange={(e) => setGrade(e.target.value)} maxLength={40} required placeholder="Pilih atau ketik kelas..." className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
-              <datalist id="asisten-ai-grade-options">
-                {['Kelas 1 SD', 'Kelas 2 SD', 'Kelas 3 SD', 'Kelas 4 SD', 'Kelas 5 SD', 'Kelas 6 SD', 'Kelas 7 SMP', 'Kelas 8 SMP', 'Kelas 9 SMP', 'Kelas 10 SMA', 'Kelas 11 SMA', 'Kelas 12 SMA'].map((option) => <option key={option} value={option} />)}
-              </datalist>
+              <input value={grade} readOnly className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 font-normal text-slate-600" />
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700">
               Mata pelajaran
-              <input list="asisten-ai-subject-options" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={80} required placeholder="Pilih atau ketik mata pelajaran..." className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
-              <datalist id="asisten-ai-subject-options">
-                {['Pendidikan Pancasila', 'Bahasa Indonesia', 'Matematika', 'IPAS', 'Bahasa Inggris', 'Bahasa Jawa', 'Pendidikan Agama dan Budi Pekerti', 'PJOK', 'Seni Musik', 'Seni Rupa', 'Seni Tari', 'Seni Teater', 'Informatika', 'Muatan Lokal'].map((option) => <option key={option} value={option} />)}
-              </datalist>
+              <select value={subject} onChange={(e) => {
+                const nextSubject = e.target.value
+                const nextTopic = getCurriculumTopics(curriculumTrack, nextSubject)[0]
+                setSubject(nextSubject)
+                setTopic(nextTopic?.title || '')
+                setIndicator(nextTopic?.indicator || '')
+              }} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                {availableSubjects.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
               Materi / topik
-              <textarea value={topic} onChange={(e) => setTopic(e.target.value)} maxLength={300} required rows={3} className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" placeholder="Contoh: penjumlahan bilangan sampai 100" />
+              <select value={topic} onChange={(e) => {
+                const nextTopic = availableTopics.find((item) => item.title === e.target.value)
+                setTopic(e.target.value)
+                setIndicator(nextTopic?.indicator || '')
+              }} required className="w-full rounded-xl border border-slate-300 px-3 py-2.5 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
+                {CURRICULUM_CATALOGS[curriculumTrack][subject]?.groups.map((group) => (
+                  <optgroup key={group.title} label={group.title}>
+                    {group.topics.map((item) => <option key={item.id} value={item.title}>{item.title}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              {selectedTopic && <span className="block rounded-lg bg-indigo-50 p-3 text-xs font-normal leading-relaxed text-indigo-900">{selectedTopic.description}</span>}
+              {subjectSourceNote && <span className="block text-[11px] font-normal leading-relaxed text-slate-500">{subjectSourceNote}</span>}
             </label>
             <label className="space-y-1.5 text-sm font-semibold text-slate-700 sm:col-span-2">
               Indikator soal <span className="font-normal text-slate-400">(opsional)</span>
