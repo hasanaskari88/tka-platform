@@ -146,10 +146,12 @@ export async function POST(request: NextRequest) {
     if (!rawBody) {
       return NextResponse.json({ error: 'Ukuran permintaan melebihi batas 8 MB.' }, { status: 413 })
     }
+    const requestBody = new Uint8Array(rawBody.byteLength)
+    requestBody.set(rawBody)
     const form = await new Request(request.url, {
       method: 'POST',
       headers: request.headers,
-      body: rawBody,
+      body: requestBody,
     }).formData()
     const file = form.get('file')
     if (!(file instanceof File)) return NextResponse.json({ error: 'Pilih gambar terlebih dahulu.' }, { status: 400 })

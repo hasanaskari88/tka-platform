@@ -1,6 +1,7 @@
 import type {
   FactGraph,
   FactGraphSources,
+  FactSourceRef,
   SemanticFact,
   SemanticRelationType,
   SemanticValidationResult,
@@ -121,12 +122,13 @@ function validProvenance(
   if (!isRecord(provenance) || typeof provenance.kind !== 'string') return false
   if (provenance.kind === 'stated') {
     if (!validSource(provenance.source, sources)) return false
+    const statedSource = provenance.source as FactSourceRef
     if (legacySource === undefined) return true
     if (!validSource(legacySource, sources) || !isRecord(legacySource)) return false
-    return legacySource.source === provenance.source.source &&
-      legacySource.start === provenance.source.start &&
-      legacySource.end === provenance.source.end &&
-      legacySource.quote === provenance.source.quote
+    return legacySource.source === statedSource.source &&
+      legacySource.start === statedSource.start &&
+      legacySource.end === statedSource.end &&
+      legacySource.quote === statedSource.quote
   }
   if (provenance.kind !== 'derived' || typeof provenance.operation !== 'string' ||
     !DERIVED_OPERATIONS.has(provenance.operation) || !Array.isArray(provenance.inputFactIds) ||

@@ -24,6 +24,7 @@ export type RendererQualityResult =
       status: 'rejected'
       reasonCode:
         | 'INVALID_INTENT'
+        | 'INVALID_LAYOUT'
         | 'RENDER_FAILED'
         | 'NO_RENDERER'
         | 'BLOB_EMPTY'
