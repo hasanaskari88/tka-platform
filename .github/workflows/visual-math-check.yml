@@ -1,0 +1,51 @@
+name: Visual Math Engine checks
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'lib/visual-math/**'
+      - 'app/api/admin/ai/analyze-visual-intent/route.ts'
+      - 'scripts/test-visual-math.cjs'
+      - '.github/workflows/visual-math-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-math-checks-main
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Unit tests and lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Visual Math tests
+        run: npm run test:visual-math
+
+      - name: Lint changed Visual Math files
+        run: >-
+          npm run lint -- 
+          app/api/admin/ai/analyze-visual-intent/route.ts
+          lib/visual-math/analysis/build-ai-intent.ts
+          lib/visual-math/semantic/build-fact-graph.ts
+          lib/visual-math/semantic/validate-fact-graph.ts
+          lib/visual-math/math/operation-planner.ts
+          scripts/test-visual-math.cjs
