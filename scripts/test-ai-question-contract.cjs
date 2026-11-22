@@ -44,7 +44,7 @@ function baseQuestion(index, overrides = {}) {
   return { blueprint, question }
 }
 
-const { TKA_SD_CATALOG, GRADE_6_CATALOG, getCurriculumTopics } =
+const { TKA_SD_CATALOG, GRADE_6_CATALOG, getCurriculumTopics, CURRICULUM_SOURCE_REFERENCES, CURRICULUM_SUBJECT_METADATA } =
   require(path.join(__dirname, '../lib/ai-question/curriculum-catalog.ts'))
 
 assert.equal(FRACTION_PILOT_BLUEPRINT.length, 12)
@@ -198,6 +198,21 @@ assert.deepEqual(
   question.questionType = 'true_false_matrix'
   const result = validateGeneratedAssessmentQuestion(question, blueprint)
   assert.equal(result.valid, true, JSON.stringify(result.issues))
+}
+
+
+assert.equal(CURRICULUM_SUBJECT_METADATA.TKA['Bahasa Indonesia'].basis, 'TKA_FRAMEWORK')
+assert.equal(CURRICULUM_SUBJECT_METADATA.TKA.Matematika.phase, 'TKA_SD')
+assert.equal(CURRICULUM_SUBJECT_METADATA.GRADE_6.Matematika.phase, 'C')
+assert.equal(CURRICULUM_SUBJECT_METADATA.GRADE_6['Bahasa Jawa'].sequencePolicy, 'SCHOOL_ATP_AND_LOCAL_RULES')
+assert.ok(getCurriculumTopics('GRADE_6', 'Matematika').every((item) => item.contentStatus === 'CURATED_SUMMARY'))
+const sourceIds = new Set(CURRICULUM_SOURCE_REFERENCES.map((item) => item.id))
+for (const trackMetadata of Object.values(CURRICULUM_SUBJECT_METADATA)) {
+  for (const subjectMetadata of Object.values(trackMetadata)) {
+    for (const sourceId of subjectMetadata.sourceRefIds) {
+      assert.ok(sourceIds.has(sourceId), `Missing curriculum source reference: ${sourceId}`)
+    }
+  }
 }
 
 console.log('AI question contract and blueprint tests passed.')
