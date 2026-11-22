@@ -69,7 +69,8 @@ export function buildFactGraphFromIntent(
       const target = intent.categories.find((category) => category.id === intent.targetCategoryId)
       if (!target) return { graph: null, sources: { question }, reason: 'Kategori sasaran tidak ditemukan.' }
       facts.push(textFact('target_category', 'target_category', target.label, source))
-      relate('belongs_to_category', 'count_0', 'target_category')
+      const targetIndex = intent.categories.findIndex((category) => category.id === intent.targetCategoryId)
+      relate('belongs_to_category', 'count_' + targetIndex, 'target_category')
       return { graph: { requestedGoal: intent.type, facts, relations }, sources: { question }, reason: null }
     }
     case 'equal_sharing':
@@ -112,11 +113,9 @@ export function buildFactGraphFromIntent(
         facts.push({
           id,
           role: 'measurement',
-          value: {
-            kind: 'quantity',
-            value: measurement.value,
-            unit: measurement.unit || 'unit tidak disebutkan',
-          },
+          value: measurement.unit
+            ? { kind: 'quantity', value: measurement.value, unit: measurement.unit }
+            : { kind: 'rational', value: measurement.value },
           source,
         })
         relate('measured_by', 'shape', id)
