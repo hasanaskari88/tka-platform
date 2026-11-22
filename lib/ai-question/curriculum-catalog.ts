@@ -300,6 +300,72 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
       ]},
     ],
   },
+  'Seni Rupa': {
+    label: 'Seni Rupa',
+    sourceNote: 'Mengacu pada CP Seni Rupa Fase C dalam Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Elemen CP: Mengalami, Merefleksikan, Berpikir dan Bekerja Artistik, Menciptakan, dan Berdampak. Referensi SIBI yang terverifikasi saat peninjauan adalah Panduan Guru Seni Rupa untuk SD/MI Kelas VI (Edisi Revisi 2025), penulis Taufik Hidayatulloh dan Taibatus Solehah, ISBN 978-634-00-3151-5 (jil.6; versi PDF tercantum ISBN 978-634-00-3153-9). Buku panduan guru bukan buku siswa; buku siswa kelas VI belum berhasil diverifikasi. Topik adalah pemetaan CP, bukan urutan bab buku.',
+    groups: [
+      { title: 'Mengalami dan Mengapresiasi', topics: [
+        t('g6-srupa-unsur', 'Unsur rupa dan prinsip desain', 'Menjelaskan unsur rupa seperti garis, bentuk, warna, tekstur, ruang, serta prinsip desain pada benda dan karya seni di sekitar.', 'Murid menjelaskan unsur rupa dan prinsip desain yang tampak pada benda atau karya seni.'),
+        t('g6-srupa-apresiasi', 'Mengamati dan mengapresiasi karya seni rupa', 'Mengamati karya sendiri dan teman, menyampaikan tanggapan, serta menggunakan kosakata seni rupa yang sesuai.', 'Murid menyampaikan apresiasi dan refleksi karya dengan alasan serta istilah seni rupa yang tepat.'),
+      ]},
+      { title: 'Berpikir Artistik dan Menciptakan', topics: [
+        t('g6-srupa-teknik', 'Eksplorasi alat, bahan, dan teknik berkarya', 'Mengenali karakteristik alat dan bahan yang tersedia serta mencoba variasi teknik untuk menghasilkan karya.', 'Murid memilih alat, bahan, dan teknik yang sesuai serta menjelaskan alasan pemilihannya.'),
+        t('g6-srupa-karya', 'Menciptakan karya dari pengalaman dan lingkungan', 'Merancang dan membuat karya berdasarkan pengalaman, pengamatan lingkungan, gagasan sendiri, dan imajinasi.', 'Murid membuat karya seni rupa dengan menerapkan unsur dan prinsip desain yang dipilih.'),
+        t('g6-srupa-minat', 'Karya seni rupa sesuai minat dan kepedulian', 'Mengembangkan karya yang mewakili minat pribadi dan dapat merespons persoalan atau peristiwa di lingkungan sekitar.', 'Murid menghasilkan karya yang mencerminkan minat atau tanggapan terhadap lingkungan.'),
+      ]},
+    ],
+  },
+  'Seni Musik': {
+    label: 'Seni Musik',
+    sourceNote: 'Mengacu pada CP Seni Musik Fase C dalam Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Elemen CP mencakup pengenalan dan penerapan nada, irama, melodi dengan alat musik ritmis dan melodis; refleksi dan umpan balik; eksplorasi pola irama, tempo, melodi, notasi dan teknik; penciptaan pola irama yang berakar pada kearifan lokal; serta minat bermusik. Referensi SIBI yang terverifikasi adalah Buku Panduan Guru Seni Musik untuk SD/MI Kelas VI, ISBN 978-602-244-605-7, penulis Maylan Sofian dan Rohadi Sukton Nurjamal. Buku panduan guru bukan buku siswa; buku siswa kelas VI belum berhasil diverifikasi. Topik bukan klaim urutan bab buku.',
+    groups: [
+      { title: 'Mengalami Unsur Musik', topics: [
+        t('g6-smusik-unsur', 'Nada, irama, dan melodi', 'Mengenali serta menerapkan nada, irama, dan melodi melalui suara, anggota tubuh, dan alat musik.', 'Murid mengenali dan memainkan pola sederhana yang memuat nada, irama, atau melodi.'),
+        t('g6-smusik-ritmis-melodis', 'Alat musik ritmis dan melodis', 'Membedakan fungsi alat musik ritmis dan melodis serta menggunakannya sesuai kemampuan dan kondisi setempat.', 'Murid memilih dan memainkan alat musik ritmis atau melodis untuk mengiringi pola musik sederhana.'),
+      ]},
+      { title: 'Refleksi dan Eksplorasi Musik', topics: [
+        t('g6-smusik-apresiasi', 'Memberi umpan balik karya musik', 'Mendengarkan praktik bermusik diri sendiri atau orang lain dan memberi tanggapan menggunakan istilah musik yang tepat.', 'Murid memberi umpan balik yang santun dan spesifik tentang praktik atau karya musik.'),
+        t('g6-smusik-tempo-dinamika', 'Pola irama, tempo, dan dinamika', 'Mengeksplorasi variasi pola irama, tempo, melodi, notasi musik, dan teknik dasar menggunakan alat musik.', 'Murid memainkan variasi pola irama atau melodi dengan tempo dan dinamika yang sesuai.'),
+        t('g6-smusik-bahan', 'Eksplorasi bunyi dari bahan sekitar', 'Mencoba bahan yang tersedia di lingkungan untuk menghasilkan bunyi serta mempraktikkan cara memainkan dan merawat alat musik.', 'Murid membuat bunyi musik sederhana dari bahan sekitar dan menjelaskan cara merawat alatnya.'),
+      ]},
+      { title: 'Menciptakan dan Berdampak', topics: [
+        t('g6-smusik-kreasi-lokal', 'Menciptakan pola irama berbasis kearifan lokal', 'Membuat dan mengembangkan pola irama menggunakan anggota tubuh atau alat musik ritmis yang tersedia dengan inspirasi kearifan lokal.', 'Murid menciptakan dan menampilkan pola irama sederhana yang terinspirasi budaya setempat.'),
+        t('g6-smusik-minat', 'Menumbuhkan minat dan rasa ingin tahu bermusik', 'Mengenali ragam musik dan menunjukkan rasa ingin tahu serta kegembiraan dalam kegiatan bermusik.', 'Murid menunjukkan keterlibatan aktif dan rasa ingin tahu dalam kegiatan musik.'),
+      ]},
+    ],
+  },
+  'Seni Tari': {
+    label: 'Seni Tari',
+    sourceNote: 'Mengacu pada CP Seni Tari Fase C dalam Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Elemen CP: mengamati tari tradisi dan unsur pendukung; mengidentifikasi unsur pendukung serta merefleksikan pencapaian; meragakan rangkaian gerak dengan kerja sama; merangkai gerak tradisi/kreasi dengan desain kelompok; dan menanggapi peristiwa lingkungan melalui tari. Referensi SIBI yang terverifikasi adalah Buku Panduan Guru Seni Tari untuk SD/MI Kelas VI, ISBN 978-602-244-840-2, penulis Agus Budiman dan Dyan Indah Purnama Sari. Buku panduan guru bukan buku siswa; buku siswa kelas VI belum berhasil diverifikasi. Topik bukan klaim urutan bab buku.',
+    groups: [
+      { title: 'Mengalami dan Merefleksikan Tari', topics: [
+        t('g6-stari-tradisi', 'Mengamati bentuk tari tradisi', 'Mengamati beragam tari tradisi dan memahami bagaimana tari digunakan untuk mengekspresikan diri serta budaya.', 'Murid menjelaskan ciri bentuk penyajian tari tradisi berdasarkan hasil pengamatan.'),
+        t('g6-stari-pendukung', 'Unsur pendukung tari tradisi', 'Mengidentifikasi unsur pendukung tari seperti iringan, tata rias, busana, properti, pola lantai, dan tata pentas.', 'Murid mengidentifikasi unsur pendukung pada contoh tari tradisi.'),
+        t('g6-stari-refleksi', 'Apresiasi dan refleksi pencapaian tari', 'Menghargai hasil latihan diri dan kelompok serta mempertimbangkan masukan orang lain.', 'Murid menyampaikan refleksi dan tanggapan terhadap penampilan tari secara santun.'),
+      ]},
+      { title: 'Berpikir Artistik dan Menciptakan', topics: [
+        t('g6-stari-rangkaian', 'Meragakan rangkaian gerak tari', 'Meragakan rangkaian gerak dengan memanfaatkan unsur pendukung tari serta menunjukkan kerja sama dan peran aktif.', 'Murid memperagakan rangkaian gerak tari secara kompak dengan unsur pendukung yang sesuai.'),
+        t('g6-stari-desain', 'Merangkai gerak dan desain kelompok', 'Menyusun gerak tari yang berpijak pada tradisi atau kreasi serta menerapkan desain kelompok dan pola lantai.', 'Murid menyusun rangkaian gerak dan desain kelompok untuk sebuah penampilan.'),
+        t('g6-stari-lingkungan', 'Menyampaikan tanggapan melalui tari', 'Mengolah gagasan dari kejadian di lingkungan sekitar menjadi ekspresi tari yang disajikan kepada penonton atau masyarakat.', 'Murid menampilkan tari yang menyampaikan tanggapan terhadap peristiwa atau lingkungan sekitar.'),
+      ]},
+    ],
+  },
+  'Seni Teater': {
+    label: 'Seni Teater',
+    sourceNote: 'Mengacu pada CP Seni Teater Fase C dalam Keputusan Kepala BSKAP Nomor 046/H/KR/2025. Elemen CP: permainan peran dan improvisasi untuk melatih aksi-reaksi serta pengenalan karakter; refleksi cerita, penokohan dan perwatakan; identifikasi properti; memainkan ragam peran dari cerita sederhana; dan memerankan lakon secara individu maupun kelompok. Referensi SIBI yang terverifikasi adalah Panduan Guru Seni Teater untuk SD/MI Kelas VI (Edisi Revisi), ISBN 978-634-00-3165-2, penulis Mutiara Fallahdani dan Deden Haerudin. Buku panduan guru bukan buku siswa; buku siswa kelas VI belum berhasil diverifikasi. Topik bukan klaim urutan bab buku.',
+    groups: [
+      { title: 'Mengalami dan Merefleksikan Teater', topics: [
+        t('g6-steater-peran', 'Permainan peran dan improvisasi', 'Melakukan permainan peran berkelompok dan improvisasi untuk melatih aksi-reaksi serta mengembangkan cerita atau tokoh.', 'Murid memainkan improvisasi sederhana dengan merespons tindakan atau dialog teman.'),
+        t('g6-steater-karakter', 'Mengamati karakter dan kebiasaan tokoh', 'Mengenali karakter tokoh melalui pengamatan kebiasaan, tindakan, ekspresi, dan cara berbicara.', 'Murid menjelaskan karakter tokoh berdasarkan petunjuk perilaku dan dialog.'),
+        t('g6-steater-refleksi', 'Merefleksikan cerita dan penokohan', 'Menceritakan pendapat tentang cerita sederhana, penokohan, perwatakan, dan pesan yang disampaikan.', 'Murid menyampaikan tanggapan terhadap cerita dan karakter tokoh dengan alasan.'),
+      ]},
+      { title: 'Berpikir Artistik dan Menciptakan', topics: [
+        t('g6-steater-properti', 'Properti dan kebutuhan pementasan', 'Mengidentifikasi properti sederhana yang diperlukan berdasarkan latar dan cerita yang akan dimainkan.', 'Murid menentukan properti sederhana yang sesuai dengan cerita dan tokoh.'),
+        t('g6-steater-lakon', 'Memainkan ragam peran dalam cerita', 'Mengenal dan memainkan ragam peran berdasarkan hasil pengamatan, pengalaman, dan pengembangan cerita sederhana.', 'Murid memainkan tokoh dengan ekspresi, gerak, dan dialog yang sesuai.'),
+        t('g6-steater-pentas', 'Pementasan lakon individu dan kelompok', 'Menyajikan lakon secara individu atau kelompok dengan memperhatikan kerja sama, ekspresi, dan alur cerita.', 'Murid memerankan lakon sederhana secara utuh di hadapan penonton.'),
+      ]},
+    ],
+  },
   'Bahasa Jawa': {
     label: 'Bahasa Jawa',
     sourceNote: 'Mengikuti buku Grengseng Basa Jawa Kelas VI, Muatan Lokal Wajib Provinsi Jawa Tengah, CV Media Karya Putra 2025, ISBN 978-623-287-482-4. Struktur mengikuti lima Pasinaon. Setiap Pasinaon memuat Pitakon Panggugah, Materi, Njembarake Kawruh, Pitutur Luhur, Dudutan, Assesmen Sumatif, dan Refleksi; gunakan susunan ini saat menyusun materi ajar.',
@@ -352,6 +418,10 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { id: 'guide-pai-grade6', title: 'Panduan Guru Pendidikan Agama Islam dan Budi Pekerti untuk SD/MI Kelas VI, ISBN 978-602-244-675-0, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-pendidikan-agama-islam-dan-budi-pekerti-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
   { id: 'guide-pak-grade6', title: 'Panduan Guru Pendidikan Agama Kristen dan Budi Pekerti untuk SD Kelas VI, ISBN 978-602-244-666-8, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-pendidikan-agama-kristen-dan-budi-pekerti-untuk-sd-kelas-vi', reviewedAt: '2026-11-23' },
   { id: 'book-pakatolik-grade6', title: 'Pendidikan Agama Katolik dan Budi Pekerti untuk SD Kelas VI, ISBN 978-602-244-690-3, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/pendidikan-agama-katolik-dan-budi-pekerti-untuk-sd-kelas-vi', reviewedAt: '2026-11-23' },
+  { id: 'guide-seni-rupa-grade6-2025', title: 'Panduan Guru Seni Rupa untuk SD/MI Kelas VI (Edisi Revisi 2025), ISBN 978-634-00-3151-5; versi PDF ISBN 978-634-00-3153-9', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://static-sc.cloudapp.web.id/content/pdf/bukuteks/kurikulum21/Seni_Rupa_BG_KLS_VI_Rev.pdf', reviewedAt: '2026-11-23' },
+  { id: 'guide-seni-musik-grade6', title: 'Buku Panduan Guru Seni Musik untuk SD/MI Kelas VI, ISBN 978-602-244-605-7', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-seni-musik-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
+  { id: 'guide-seni-tari-grade6', title: 'Buku Panduan Guru Seni Tari untuk SD/MI Kelas VI, ISBN 978-602-244-840-2', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://icmlibrary.or.id/katalog/10928', reviewedAt: '2026-11-23' },
+  { id: 'guide-seni-teater-grade6-2025', title: 'Panduan Guru Seni Teater untuk SD/MI Kelas VI (Edisi Revisi), ISBN 978-634-00-3165-2', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/panduan-guru-seni-teater-untuk-sdmi-kelas-vi-edisi-revisi', reviewedAt: '2026-11-23' },
   { id: 'book-pjok-grade6-2026', title: 'Pendidikan Jasmani, Olahraga, dan Kesehatan untuk SD/MI Kelas VI, ISBN 978-634-00-3173-7', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/pendidikan-jasmani-olahraga-dan-kesehatan-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
   { id: 'perbup-semarang-14-2022', title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-23' },
   { id: 'kepgub-jateng-jawa-2026', title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
@@ -386,6 +456,10 @@ export const CURRICULUM_SUBJECT_METADATA: Record<CurriculumTrack, Record<string,
     'Pendidikan Agama Islam dan Budi Pekerti': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-pai-grade6', 'guide-pai-grade6'], sequencePolicy: 'SCHOOL_ATP' },
     'Pendidikan Agama Kristen dan Budi Pekerti': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pak-grade6'], sequencePolicy: 'SCHOOL_ATP' },
     'Pendidikan Agama Katolik dan Budi Pekerti': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-pakatolik-grade6'], sequencePolicy: 'SCHOOL_ATP' },
+    'Seni Rupa': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-seni-rupa-grade6-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Seni Musik': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-seni-musik-grade6'], sequencePolicy: 'SCHOOL_ATP' },
+    'Seni Tari': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-seni-tari-grade6'], sequencePolicy: 'SCHOOL_ATP' },
+    'Seni Teater': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-seni-teater-grade6-2025'], sequencePolicy: 'SCHOOL_ATP' },
     'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['kepgub-jateng-jawa-2026', 'book-grengseng-jawa-grade6-2025'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
   },
 }
