@@ -1013,3 +1013,40 @@ test('render artifact quality gate rejects empty blobs and incomplete metadata',
     'MISSING_REPRESENTED_VALUES',
   )
 })
+
+
+test('renderer registry rejects malformed runtime intents before drawing', async () => {
+  const malformed = await rendererRegistry.renderVisualMathArtifact({
+    type: 'equal_sharing',
+    objectLabel: 'jeruk',
+    totalObjects: 0,
+    groupCount: 3,
+  })
+  assert.equal(malformed.status, 'rejected')
+  assert.equal(malformed.reasonCode, 'INVALID_INTENT')
+
+  const unknown = await rendererRegistry.renderVisualMathArtifact({
+    type: 'unregistered_visual',
+  })
+  assert.equal(unknown.status, 'rejected')
+  assert.equal(unknown.reasonCode, 'INVALID_INTENT')
+})
+
+test('renderer registry converts unexpected canvas exceptions into a safe rejection', async () => {
+  const originalDocument = global.document
+  global.document = {
+    createElement: () => { throw new Error('simulated canvas failure') },
+  }
+  try {
+    const result = await rendererRegistry.renderVisualMathArtifact({
+      type: 'chart_table',
+      chartType: 'table',
+      categories: [{ label: 'apel', value: 4 }],
+    })
+    assert.equal(result.status, 'rejected')
+    assert.equal(result.reasonCode, 'RENDER_FAILED')
+  } finally {
+    if (originalDocument === undefined) delete global.document
+    else global.document = originalDocument
+  }
+})

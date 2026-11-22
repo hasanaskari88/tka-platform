@@ -20,6 +20,7 @@ import {
   createChartTableImage,
 } from './canvas'
 import { validateRenderArtifact } from '../quality/validate-artifact'
+import { validateVisualIntent } from '../analysis/validate-intent'
 import type { RenderArtifact, RenderContext, RendererQualityResult, VisualRenderer } from './types'
 
 const DEFAULT_CONTEXT: RenderContext = { width: 1600, height: 900, locale: 'id-ID' }
@@ -122,11 +123,31 @@ export async function renderVisualMathArtifact(
   intent: VisualIntent,
   context: RenderContext = DEFAULT_CONTEXT,
 ): Promise<RendererQualityResult> {
-  if (context.width !== 1600 || context.height !== 900) {
-    return { status: 'rejected', reasonCode: 'INVALID_DIMENSIONS', message: 'Renderer Canvas saat ini hanya mendukung ukuran 1600 × 900.' }
+  if (
+    !context ||
+    context.width !== 1600 ||
+    context.height !== 900 ||
+    context.locale !== 'id-ID'
+  ) {
+    return {
+      status: 'rejected',
+      reasonCode: 'INVALID_DIMENSIONS',
+      message: 'Renderer Canvas saat ini hanya mendukung ukuran 1600 × 900 dan locale Indonesia.',
+    }
   }
 
-  const renderer = RENDERERS.find((candidate) => candidate.supports(intent))
+  // Re-check at runtime: TypeScript types do not protect this boundary from
+  // malformed JSON, stale client state, or accidental casts.
+  const safeIntent = validateVisualIntent(intent)
+  if (!safeIntent) {
+    return {
+      status: 'rejected',
+      reasonCode: 'INVALID_INTENT',
+      message: 'Data visual matematika tidak valid. Gambar tidak dibuat.',
+    }
+  }
+
+  const renderer = RENDERERS.find((candidate) => candidate.supports(safeIntent))
   if (!renderer) {
     return {
       status: 'rejected',
@@ -135,20 +156,28 @@ export async function renderVisualMathArtifact(
     }
   }
 
-  const blob = await renderer.render(intent, context)
-  if (!blob || blob.size <= 0) {
-    return { status: 'rejected', reasonCode: 'BLOB_EMPTY', message: 'Renderer tidak menghasilkan gambar.' }
-  }
+  try {
+    const blob = await renderer.render(safeIntent, context)
+    if (!blob || blob.size <= 0) {
+      return { status: 'rejected', reasonCode: 'BLOB_EMPTY', message: 'Renderer tidak menghasilkan gambar.' }
+    }
 
-  const artifact: RenderArtifact = {
-    blob,
-    mimeType: 'image/png',
-    width: context.width,
-    height: context.height,
-    elementCount: expectedElementCount(intent),
-    representedValues: representedValues(intent),
-    rendererId: renderer.id,
-    rendererVersion: renderer.version,
+    const artifact: RenderArtifact = {
+      blob,
+      mimeType: 'image/png',
+      width: context.width,
+      height: context.height,
+      elementCount: expectedElementCount(safeIntent),
+      representedValues: representedValues(safeIntent),
+      rendererId: renderer.id,
+      rendererVersion: renderer.version,
+    }
+    return validateRenderArtifact(artifact)
+  } catch {
+    return {
+      status: 'rejected',
+      reasonCode: 'RENDER_FAILED',
+      message: 'Renderer mengalami kesalahan. Gambar tidak dibuat.',
+    }
   }
-  return validateRenderArtifact(artifact)
 }
