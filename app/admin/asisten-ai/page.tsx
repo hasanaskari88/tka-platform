@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'\nimport { CURRICULUM_CATALOGS, getCurriculumTopics, type CurriculumTrack } from '@/lib/ai-question/curriculum-catalog'
+import { useState } from 'react'
+import { CURRICULUM_CATALOGS, getCurriculumTopics, type CurriculumTrack } from '@/lib/ai-question/curriculum-catalog'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 import MathRenderer from '@/components/MathRenderer'
 import { renderVisualMathArtifact, renderVisualMathPlanV2 } from '@/lib/visual-math/renderers/registry'
@@ -51,9 +52,14 @@ function isMathematicsVisual(item: GeneratedQuestion, subject: string, topic: st
 }
 
 export default function AsistenAIPage() {
+  const [curriculumTrack, setCurriculumTrack] = useState<CurriculumTrack>('TKA')
   const [grade, setGrade] = useState('Kelas 6 SD')
   const [subject, setSubject] = useState('Bahasa Indonesia')
-  const [topic, setTopic] = useState('Kalimat sederhana dan penggunaan tanda baca')
+  const [topic, setTopic] = useState('Menemukan informasi tersurat')
+  const availableSubjects = Object.keys(CURRICULUM_CATALOGS[curriculumTrack])
+  const availableTopics = getCurriculumTopics(curriculumTrack, subject)
+  const selectedTopic = availableTopics.find((item) => item.title === topic)
+  const subjectSourceNote = CURRICULUM_CATALOGS[curriculumTrack][subject]?.sourceNote || ''
   const [selectedTypes, setSelectedTypes] = useState<QuestionType[]>(['multiple_choice'])
   const [countsByType, setCountsByType] = useState<Record<QuestionType, number>>({ multiple_choice: 5, complex_multiple_choice: 3, true_false_matrix: 3, essay: 4 })
   const [indicator, setIndicator] = useState('')
