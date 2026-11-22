@@ -54,10 +54,18 @@ export function calculateVisualIntent(intent: VisualIntent): IntentCalculation {
         intent.selectedParts > intent.totalParts) {
         return invalid('FACTS_INCOMPLETE', 'Jumlah bagian pecahan tidak valid.')
       }
+      const representedParts = intent.selectedMeaning === 'removed'
+        ? intent.totalParts - intent.selectedParts
+        : intent.selectedParts
+      const meaningLabel = intent.selectedMeaning === 'removed'
+        ? 'tersisa setelah bagian diambil'
+        : intent.selectedMeaning === 'remaining'
+          ? 'merupakan bagian yang tersisa'
+          : 'merupakan bagian yang dipilih'
       return ready(
-        rational(intent.selectedParts, intent.totalParts),
-        intent.selectedParts + ' dari ' + intent.totalParts + ' bagian ' + intent.wholeLabel +
-          ' merupakan bagian yang ditanyakan (' + intent.selectedMeaning + ').',
+        rational(representedParts, intent.totalParts),
+        representedParts + ' dari ' + intent.totalParts + ' bagian ' + intent.wholeLabel +
+          ' ' + meaningLabel + '.',
       )
     }
 
