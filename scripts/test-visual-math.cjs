@@ -879,6 +879,6 @@ test('AI intent builder returns a validated fact graph before an intent can be p
   )
   assert.equal(plan.operation.kind, 'divide_equally')
   assert.equal(plan.calculation.status, 'ready')
-  assert.equal(rational.formatFraction(plan.calculation.value), '2/1')
+  assert.equal(rational.formatFraction(plan.calculation.value), '2')
 })
 
