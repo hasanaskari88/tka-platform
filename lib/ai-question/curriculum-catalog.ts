@@ -225,6 +225,81 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
       ]},
     ],
   },
+  'Pendidikan Agama Islam dan Budi Pekerti': {
+    label: 'Pendidikan Agama Islam dan Budi Pekerti',
+    sourceNote: 'Disusun berdasarkan CP Fase C pada Keputusan Kepala BSKAP Nomor 046/H/KR/2025 dan buku siswa PAI dan Budi Pekerti Kelas VI SIBI ISBN 978-602-244-676-7 (Edisi 1), beserta Panduan Guru ISBN 978-602-244-675-0. Cakupan Fase C: Al-Qur’an Hadis (surah pendek, ayat dan hadis tentang keragaman); Akidah (asmaulhusna, hari akhir, qada dan qadar); Akhlak (doa, tawakal, teman, tetangga, nonmuslim, hewan, tumbuhan); Fikih (puasa sunah, zakat, infak, sedekah, hadiah, halal-haram); Sejarah Peradaban Islam (periode Madinah dan Khulafaurasyidin). Topik ini adalah pemetaan CP Fase C, bukan klaim urutan bab buku.',
+    groups: [
+      { title: 'Al-Qur’an Hadis', topics: [
+        t('g6-pai-quran-keragaman', 'Ayat Al-Qur’an dan hadis tentang keragaman', 'Memahami pesan ayat dan hadis tentang keberagaman serta menerapkannya dalam sikap saling menghormati.', 'Murid menjelaskan pesan ayat atau hadis tentang keragaman dan memberi contoh penerapannya.'),
+        t('g6-pai-surah-pendek', 'Memahami surah-surah pendek', 'Membaca, memahami kandungan, dan mengambil pelajaran dari surah-surah pendek yang dipelajari sesuai buku dan bimbingan guru.', 'Murid menjelaskan kandungan surah pendek dan menghubungkannya dengan perilaku sehari-hari.'),
+      ]},
+      { title: 'Akidah', topics: [
+        t('g6-pai-asmaulhusna', 'Asmaulhusna', 'Memahami makna beberapa Asmaulhusna dan meneladani nilai kebaikannya dalam kehidupan.', 'Murid menjelaskan makna Asmaulhusna yang dipelajari dan contoh perilaku yang sesuai.'),
+        t('g6-pai-hari-akhir', 'Iman kepada hari akhir', 'Memahami iman kepada hari akhir dan pengaruhnya terhadap tanggung jawab serta pilihan perilaku.', 'Murid menghubungkan iman kepada hari akhir dengan sikap bertanggung jawab.'),
+        t('g6-pai-qada-qadar', 'Qada dan qadar', 'Memahami qada dan qadar serta membedakan ikhtiar, doa, tawakal, dan menerima ketentuan Allah.', 'Murid menjelaskan hubungan ikhtiar, doa, tawakal, dan qada-qadar dalam contoh sederhana.'),
+      ]},
+      { title: 'Akhlak', topics: [
+        t('g6-pai-doa-tawakal', 'Berdoa dan bertawakal kepada Allah', 'Memahami adab berdoa dan sikap tawakal setelah berusaha.', 'Murid menunjukkan contoh perilaku berdoa dan bertawakal dalam kehidupan.'),
+        t('g6-pai-akhlak-sosial', 'Akhlak kepada teman, tetangga, dan nonmuslim', 'Membiasakan sikap santun, adil, menghormati perbedaan, serta menjaga hubungan baik dengan sesama.', 'Murid memilih sikap yang tepat dalam situasi pergaulan yang beragam.'),
+        t('g6-pai-sayang-makhluk', 'Menyayangi hewan dan tumbuhan', 'Memahami tanggung jawab manusia untuk memperlakukan hewan dengan baik dan merawat tumbuhan serta lingkungan.', 'Murid menjelaskan tindakan nyata menyayangi hewan dan tumbuhan.'),
+      ]},
+      { title: 'Fikih', topics: [
+        t('g6-pai-puasa-sunah', 'Puasa sunah', 'Mengenal contoh, tujuan, dan ketentuan puasa sunah sesuai materi yang dipelajari.', 'Murid menjelaskan tujuan dan contoh puasa sunah.'),
+        t('g6-pai-ziswaf', 'Zakat, infak, sedekah, dan hadiah', 'Membedakan pengertian dan tujuan zakat, infak, sedekah, serta hadiah serta menumbuhkan kepedulian.', 'Murid membedakan zakat, infak, sedekah, dan hadiah melalui contoh.'),
+        t('g6-pai-halal-haram', 'Makanan dan minuman halal dan haram', 'Memahami prinsip memilih makanan dan minuman halal serta menjauhi yang haram.', 'Murid mengidentifikasi contoh makanan dan minuman halal atau haram beserta alasannya.'),
+      ]},
+      { title: 'Sejarah Peradaban Islam', topics: [
+        t('g6-pai-madinah', 'Perjuangan Nabi Muhammad saw. periode Madinah', 'Mempelajari peristiwa penting, keteladanan, dan kehidupan masyarakat pada periode Madinah.', 'Murid menceritakan peristiwa periode Madinah dan mengambil nilai keteladanannya.'),
+        t('g6-pai-khulafaurasyidin', 'Keteladanan Khulafaurasyidin', 'Mengenal peran dan keteladanan Abu Bakar, Umar, Utsman, dan Ali dalam kepemimpinan serta perkembangan Islam.', 'Murid menyebutkan keteladanan Khulafaurasyidin dan penerapannya.'),
+      ]},
+    ],
+  },
+  'Pendidikan Agama Kristen dan Budi Pekerti': {
+    label: 'Pendidikan Agama Kristen dan Budi Pekerti',
+    sourceNote: 'Mengacu pada CP Pendidikan Agama Kristen Fase C dalam Keputusan Kepala BSKAP Nomor 046/H/KR/2025. SIBI yang ditemukan menyediakan Buku Panduan Guru Kelas VI ISBN 978-602-244-666-8 (Edisi 1); buku siswa kelas VI belum berhasil diverifikasi pada katalog saat peninjauan. Karena itu, topik di bawah adalah pemetaan CP Fase C, bukan urutan bab atau kutipan buku siswa. Guru perlu mencocokkan dengan buku siswa yang dipakai sekolah dan tradisi gereja setempat.',
+    groups: [
+      { title: 'Allah Berkarya', topics: [
+        t('g6-pak-allah-pencipta', 'Allah berkarya melalui keluarga, sekolah, dan masyarakat', 'Memahami karya Allah Pencipta melalui keluarga, sekolah, dan masyarakat serta mensyukuri peran diri di dalamnya.', 'Murid memberi contoh karya Allah melalui keluarga, sekolah, dan masyarakat.'),
+        t('g6-pak-allah-pemelihara', 'Allah memelihara seluruh umat manusia', 'Memahami pemeliharaan Allah bagi semua manusia, termasuk orang yang berkebutuhan khusus, dan menumbuhkan sikap peduli.', 'Murid menunjukkan contoh tindakan menghargai dan mendukung sesama.'),
+        t('g6-pak-yesus-penyelamat', 'Allah menyelamatkan manusia melalui Yesus Kristus', 'Mengenal karya penyelamatan Allah melalui Yesus Kristus berdasarkan Alkitab dan pembelajaran gerejawi.', 'Murid menceritakan makna karya penyelamatan Yesus Kristus secara sederhana.'),
+        t('g6-pak-allah-pembaru', 'Allah membarui hidup manusia', 'Memahami pembaruan hidup oleh Allah dan menghubungkannya dengan perubahan sikap ke arah kebaikan.', 'Murid memberi contoh perubahan sikap yang mencerminkan hidup yang diperbarui.'),
+      ]},
+      { title: 'Manusia dan Nilai-nilai Kristiani', topics: [
+        t('g6-pak-hakikat-manusia', 'Manusia sebagai makhluk terbatas', 'Menerima keterbatasan diri dan orang lain serta memahami bahwa setiap orang tetap memiliki martabat.', 'Murid menunjukkan sikap rendah hati dan menghargai kemampuan maupun keterbatasan orang lain.'),
+        t('g6-pak-buah-roh', 'Buah Roh dalam interaksi dengan sesama', 'Memahami dan mempraktikkan nilai buah Roh dalam hubungan dengan keluarga, teman, dan masyarakat.', 'Murid mengidentifikasi perilaku yang mencerminkan buah Roh dalam situasi sehari-hari.'),
+      ]},
+      { title: 'Gereja dan Masyarakat Majemuk', topics: [
+        t('g6-pak-pelayanan', 'Pelayanan kepada sesama', 'Memahami pelayanan sebagai tanggung jawab orang beriman dan menerapkannya dalam kehidupan sehari-hari.', 'Murid merancang atau menceritakan tindakan pelayanan sederhana.'),
+        t('g6-pak-toleransi', 'Hidup rukun dan toleransi dalam masyarakat majemuk', 'Menghargai perbedaan agama, budaya, dan latar belakang serta membangun hidup rukun.', 'Murid memilih tindakan yang menunjukkan toleransi dan penghormatan terhadap perbedaan.'),
+      ]},
+      { title: 'Alam dan Lingkungan Hidup', topics: [
+        t('g6-pak-ciptaan-allah', 'Alam sebagai ciptaan Allah', 'Memahami alam sebagai ciptaan Allah dan mensyukuri keindahan serta manfaatnya.', 'Murid menjelaskan alasan alam perlu dihargai dan dijaga.'),
+        t('g6-pak-lingkungan', 'Tanggung jawab memelihara lingkungan hidup', 'Menerapkan tanggung jawab orang beriman dalam merawat, mengelola, dan melestarikan lingkungan.', 'Murid menyusun tindakan nyata menjaga lingkungan rumah atau sekolah.'),
+      ]},
+    ],
+  },
+  'Pendidikan Agama Katolik dan Budi Pekerti': {
+    label: 'Pendidikan Agama Katolik dan Budi Pekerti',
+    sourceNote: 'Mengacu pada CP Pendidikan Agama Katolik Fase C dalam Keputusan Kepala BSKAP Nomor 046/H/KR/2025 dan buku siswa SIBI Pendidikan Agama Katolik dan Budi Pekerti untuk SD Kelas VI ISBN 978-602-244-690-3 (Edisi 1), penulis FX. Dapiyanta dan Marianus Didi Kasmudi. Cakupan Fase C dipetakan menurut empat elemen: Pribadi Peserta Didik, Yesus Kristus, Gereja, dan Masyarakat. Topik adalah ringkasan CP, bukan klaim urutan bab buku.',
+    groups: [
+      { title: 'Pribadi Peserta Didik', topics: [
+        t('g6-pakatholik-pribadi', 'Diri sebagai citra Allah yang sederajat', 'Memahami diri sebagai perempuan atau laki-laki yang diciptakan secitra dengan Allah, sederajat, dan saling melengkapi.', 'Murid menunjukkan sikap menghargai martabat dan kesetaraan setiap pribadi.'),
+        t('g6-pakatholik-warga', 'Hak dan kewajiban sebagai warga negara dan warga dunia', 'Memahami hak dan kewajiban, kebanggaan sebagai bangsa Indonesia, dan tanggung jawab sebagai warga dunia.', 'Murid memberi contoh pelaksanaan hak dan kewajiban secara bertanggung jawab.'),
+      ]},
+      { title: 'Yesus Kristus', topics: [
+        t('g6-pakatholik-tokoh-alkitab', 'Keteladanan tokoh-tokoh Kitab Suci', 'Mengenal keteladanan Daud, Salomo, Ester, Maria, Elisabet, Elia, Amos, dan Yesaya sesuai CP Fase C.', 'Murid menjelaskan nilai keteladanan tokoh Kitab Suci yang dipelajari.'),
+        t('g6-pakatholik-yesus', 'Yesus Kristus: pengampunan, wafat, dan kebangkitan', 'Memahami ketaatan Yesus kepada Allah, pengampunan, pewartaan Kerajaan Allah, sengsara, wafat, kebangkitan, dan pengutusan Roh Kudus.', 'Murid menceritakan peristiwa penting dalam karya dan kehidupan Yesus serta maknanya.'),
+      ]},
+      { title: 'Gereja', topics: [
+        t('g6-pakatholik-gereja', 'Gereja sebagai persekutuan umat Allah', 'Memahami keterlibatan dalam kehidupan menggereja serta makna Gereja yang satu, kudus, katolik, dan apostolik.', 'Murid memberi contoh keterlibatan dalam kehidupan menggereja.'),
+        t('g6-pakatholik-pengharapan', 'Persekutuan para kudus dan pengharapan iman', 'Mengenal persekutuan para kudus, pengampunan dosa, kebangkitan badan, dan kehidupan kekal sesuai ajaran Gereja Katolik.', 'Murid menjelaskan pokok iman yang dipelajari dengan bahasa sederhana.'),
+      ]},
+      { title: 'Masyarakat', topics: [
+        t('g6-pakatholik-keadilan', 'Kejujuran, hati nurani, dan keadilan', 'Menerapkan kejujuran, menggunakan hati nurani, dan memperjuangkan keadilan dalam kehidupan sehari-hari.', 'Murid menentukan tindakan jujur dan adil dalam situasi konkret.'),
+        t('g6-pakatholik-lingkungan', 'Pelestarian lingkungan dan dialog antarumat beragama', 'Memahami tanggung jawab menjaga lingkungan serta membangun dialog dan sikap hormat kepada pemeluk agama lain.', 'Murid merancang tindakan menjaga lingkungan dan menunjukkan sikap dialogis.'),
+      ]},
+    ],
+  },
   'Bahasa Jawa': {
     label: 'Bahasa Jawa',
     sourceNote: 'Mengikuti buku Grengseng Basa Jawa Kelas VI, Muatan Lokal Wajib Provinsi Jawa Tengah, CV Media Karya Putra 2025, ISBN 978-623-287-482-4. Struktur mengikuti lima Pasinaon. Setiap Pasinaon memuat Pitakon Panggugah, Materi, Njembarake Kawruh, Pitutur Luhur, Dudutan, Assesmen Sumatif, dan Refleksi; gunakan susunan ini saat menyusun materi ajar.',
@@ -273,6 +348,10 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { id: 'book-english-nusantara-kids-grade6-2024', title: 'English for Nusantara Kids Kelas VI 2024, ISBN 978-623-388-245-3', publisher: 'Pusat Perbukuan Kemendikbudristek', url: 'https://buku.kemdikbud.go.id', reviewedAt: '2026-11-23' },
   { id: 'book-grengseng-jawa-grade6-2025', title: 'Grengseng Basa Jawa Kelas VI 2025, ISBN 978-623-287-482-4', publisher: 'CV Media Karya Putra', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
   { id: 'guide-pjok-2025', title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-23' },
+  { id: 'book-pai-grade6', title: 'Pendidikan Agama Islam dan Budi Pekerti untuk SD/MI Kelas VI, ISBN 978-602-244-676-7, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/pendidikan-agama-islam-dan-budi-pekerti-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
+  { id: 'guide-pai-grade6', title: 'Panduan Guru Pendidikan Agama Islam dan Budi Pekerti untuk SD/MI Kelas VI, ISBN 978-602-244-675-0, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-pendidikan-agama-islam-dan-budi-pekerti-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
+  { id: 'guide-pak-grade6', title: 'Panduan Guru Pendidikan Agama Kristen dan Budi Pekerti untuk SD Kelas VI, ISBN 978-602-244-666-8, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-pendidikan-agama-kristen-dan-budi-pekerti-untuk-sd-kelas-vi', reviewedAt: '2026-11-23' },
+  { id: 'book-pakatolik-grade6', title: 'Pendidikan Agama Katolik dan Budi Pekerti untuk SD Kelas VI, ISBN 978-602-244-690-3, Edisi 1', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/pendidikan-agama-katolik-dan-budi-pekerti-untuk-sd-kelas-vi', reviewedAt: '2026-11-23' },
   { id: 'book-pjok-grade6-2026', title: 'Pendidikan Jasmani, Olahraga, dan Kesehatan untuk SD/MI Kelas VI, ISBN 978-634-00-3173-7', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/pendidikan-jasmani-olahraga-dan-kesehatan-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
   { id: 'perbup-semarang-14-2022', title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-23' },
   { id: 'kepgub-jateng-jawa-2026', title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
@@ -304,6 +383,9 @@ export const CURRICULUM_SUBJECT_METADATA: Record<CurriculumTrack, Record<string,
     'Pendidikan Pancasila': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pancasila-2025'], sequencePolicy: 'SCHOOL_ATP' },
     'Bahasa Inggris': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-english-nusantara-kids-grade6-2024'], sequencePolicy: 'SCHOOL_ATP' },
     PJOK: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pjok-2025', 'book-pjok-grade6-2026'], sequencePolicy: 'SCHOOL_ATP' },
+    'Pendidikan Agama Islam dan Budi Pekerti': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-pai-grade6', 'guide-pai-grade6'], sequencePolicy: 'SCHOOL_ATP' },
+    'Pendidikan Agama Kristen dan Budi Pekerti': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pak-grade6'], sequencePolicy: 'SCHOOL_ATP' },
+    'Pendidikan Agama Katolik dan Budi Pekerti': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-pakatolik-grade6'], sequencePolicy: 'SCHOOL_ATP' },
     'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['kepgub-jateng-jawa-2026', 'book-grengseng-jawa-grade6-2025'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
   },
 }
