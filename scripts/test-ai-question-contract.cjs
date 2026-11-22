@@ -61,6 +61,7 @@ assert.ok(getCurriculumTopics('GRADE_6', 'PJOK').some((item) => item.title === '
 assert.ok(getCurriculumTopics('GRADE_6', 'PJOK').some((item) => item.title === 'Pola makan sehat dan gizi seimbang'))
 assert.ok(getCurriculumTopics('GRADE_6', 'Bahasa Jawa').some((item) => item.title === 'Unggah-ungguh basa ngoko lan krama'))
 assert.ok(getCurriculumTopics('GRADE_6', 'Bahasa Jawa').some((item) => item.title === 'Aksara Jawa legena, pasangan, lan sandhangan'))
+assert.ok(getCurriculumTopics('GRADE_6', 'Bahasa Jawa').some((item) => item.title === 'Kesenian tradisional Kabupaten Semarang'))
 assert.deepEqual(
   FRACTION_PILOT_BLUEPRINT.reduce((counts, item) => {
     counts[item.grade] = (counts[item.grade] || 0) + 1
