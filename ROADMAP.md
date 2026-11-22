@@ -692,3 +692,17 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - **Tahap 5 — AI penilaian:** audit alur analisis hasil dan koreksi esai yang sudah ada sebelum memutuskan integrasi provider; jangan mengubah perhitungan nilai atau penilaian manual tanpa uji terpisah.
 
 **Batas audit:** pemeriksaan ini membaca riwayat GitHub, kode main, konfigurasi urutan provider dan agregat log Supabase. Belum melakukan uji browser/login, belum memanggil model AI untuk menghasilkan materi/gambar baru, dan belum mengubah konfigurasi provider maupun database.
+
+
+### Pemulihan draf dan referensi sumber pada generator — 23 November 2026
+
+- Perbaikan lanjutan dilakukan langsung pada `main`; tidak menggunakan Preview.
+- Halaman Pembuat Materi AI sekarang meminta daftar draf melalui API saat jalur kurikulum atau mapel berubah. Draf dimuat dari `study_materials` berdasarkan akun pembuat, status draft, jalur, dan mapel; dibatasi 100 draf terbaru.
+- API `/api/admin/ai/generate-materials` mendapat aksi `list` yang tetap melewati `requireTrustedAdmin()`. Tidak ada akses baca langsung dari browser ke tabel Supabase.
+- Setelah guru menyimpan draf, kartu daftar diperbarui; setelah guru menerbitkan materi, kartu draf tersebut dihapus dari daftar draf.
+- Prompt generator sekarang menerima `sourceNote` dan metadata dasar kurikulum dari katalog mapel. Prompt juga melarang AI mengarang judul bab, ISBN, kutipan, atau isi buku yang tidak tercantum pada sumber.
+- Untuk Bahasa Jawa Grengseng kelas VI, prompt mewajibkan tujuh bagian sesuai urutan: Pitakon Panggugah, Materi, Njembarake Kawruh, Pitutur Luhur, Dudutan, Assesmen Sumatif, dan Refleksi. Validasi server menolak hasil yang tidak memiliki ketujuh judul tersebut.
+- Referensi PJOK diperbarui dengan buku siswa Kelas VI pada SIBI, ISBN 978-634-00-3173-7, di samping Panduan Mata Pelajaran PJOK 2025. SIBI mencantumkan Pusat Perbukuan sebagai penerbit dan Alda Indrawan serta Tri Agus Prasetijo sebagai penulis.
+- Rujukan resmi yang diperiksa: katalog SIBI (https://buku.kemendikdasmen.go.id/katalog/pendidikan-jasmani-olahraga-dan-kesehatan-untuk-sdmi-kelas-vi) dan Panduan Mata Pelajaran PJOK 2025 (https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf).
+- Batas QA: kode telah diperbarui di GitHub, tetapi build Production dan uji browser login belum diverifikasi. Perlu uji muat ulang halaman, pergantian mapel, daftar draf lintas sesi, simpan, terbitkan, dan validasi tujuh bagian Bahasa Jawa.
+- Audit katalog menemukan mapel yang belum tersedia pada generator kelas VI, terutama Pendidikan Agama dan Seni Budaya. Referensi SIBI menunjukkan PAI Kelas VI ISBN 978-602-244-676-7 (edisi 1) dan buku/panduan seni per bidang yang bervariasi tahun serta kelasnya. Jangan menyamakan tahun/edisi atau menyusun daftar bab sebelum buku siswa kelas VI yang sesuai bidang dipastikan.
