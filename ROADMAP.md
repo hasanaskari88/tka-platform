@@ -729,3 +729,24 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
   - Katolik siswa: https://buku.kemendikdasmen.go.id/katalog/pendidikan-agama-katolik-dan-budi-pekerti-untuk-sd-kelas-vi
   - CP resmi 046/H/KR/2025: https://kurikulum.kemendikdasmen.go.id/file/1753929861_manage_file.pdf
 - Catatan deployment: deployment docs-only sebelumnya dibatalkan Vercel karena Ignored Build Step mengembalikan exit code 0. Ini bukan bukti kegagalan compile; konfigurasi tersebut melewati build. Commit kode katalog ini perlu dipastikan mendapat deployment Production baru, lalu cek status build.
+
+### Penambahan katalog Seni dan Budaya Fase C — 23 November 2026
+
+- Menambahkan empat pilihan katalog yang berdiri sendiri pada jalur GRADE_6: Seni Rupa, Seni Musik, Seni Tari, dan Seni Teater.
+- Setiap katalog dipetakan ke CP Fase C berdasarkan Keputusan Kepala BSKAP Nomor 046/H/KR/2025; topik dan indikator merupakan ringkasan kurasi, bukan kutipan verbatim CP dan bukan urutan bab buku.
+- Catatan struktur kurikulum: satuan pendidikan menyediakan minimal satu jenis seni dan murid memilih satu jenis seni. Empat katalog tersedia sebagai pilihan; sekolah tidak otomatis harus mengajarkan keempatnya. Pemilihan yang dipakai sekolah harus mengikuti ATP dan kondisi satuan pendidikan.
+- Referensi buku kelas VI yang berhasil diverifikasi saat peninjauan:
+  - Seni Rupa: Panduan Guru Edisi Revisi 2025, Taufik Hidayatulloh dan Taibatus Solehah, ISBN 978-634-00-3151-5 (jil.6); versi PDF tercantum ISBN 978-634-00-3153-9 (jil.6 PDF).
+  - Seni Musik: Buku Panduan Guru, Maylan Sofian dan Rohadi Sukton Nurjamal, ISBN 978-602-244-605-7.
+  - Seni Tari: Buku Panduan Guru, Agus Budiman dan Dyan Indah Purnama Sari, ISBN 978-602-244-840-2.
+  - Seni Teater: Panduan Guru Edisi Revisi, Mutiara Fallahdani dan Deden Haerudin, ISBN 978-634-00-3165-2.
+- Buku-buku yang terverifikasi di atas adalah panduan guru. Buku siswa kelas VI untuk keempat cabang seni belum berhasil diverifikasi dalam penelusuran ini; jangan mengklaim ISBN panduan guru sebagai ISBN buku siswa atau mengarang urutan bab. Materi AI harus tetap memakai CP Fase C dan disesuaikan dengan buku siswa/ATP yang benar-benar digunakan sekolah.
+- Sumber:
+  - CP 046/H/KR/2025: https://kurikulum.kemendikdasmen.go.id/file/1753929861_manage_file.pdf
+  - Permendikdasmen 13/2025 (keterangan jenis seni yang disediakan/dipilih): https://www.peraturan.go.id/files/Permendikdasmen-no-13-tahun-2025.pdf
+  - Seni Rupa: https://static-sc.cloudapp.web.id/content/pdf/bukuteks/kurikulum21/Seni_Rupa_BG_KLS_VI_Rev.pdf
+  - Seni Musik: https://buku.kemendikdasmen.go.id/katalog/buku-panduan-guru-seni-musik-untuk-sdmi-kelas-vi
+  - Seni Tari: https://icmlibrary.or.id/katalog/10928
+  - Seni Teater: https://buku.kemendikdasmen.go.id/katalog/panduan-guru-seni-teater-untuk-sdmi-kelas-vi-edisi-revisi
+- Kode ditambahkan langsung ke branch main. Status build Production perlu diverifikasi sebelum dinyatakan aktif di situs.
+
