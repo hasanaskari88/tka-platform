@@ -117,7 +117,17 @@ assert.deepEqual(
     ],
     options: undefined,
     answer: undefined,
-    visualSpec: undefined,
+    visualSpec: {
+      contractVersion: 2,
+      type: 'fraction_partition',
+      visualRequirement: 'required',
+      wholeLabel: 'Pizza',
+      totalParts: 8,
+      totalEvidenceQuote: '8 bagian',
+      statedSegments: [{ role: 'selected', count: 3, evidenceQuote: '3 bagian diwarnai' }],
+      askedFor: 'selected',
+      actionKey: 'colored',
+    },
   })
   const result = validateGeneratedAssessmentQuestion(question, blueprint)
   assert.equal(result.valid, true, JSON.stringify(result.issues))
@@ -131,10 +141,45 @@ assert.deepEqual(
     rubric: [{ criterion: 'Kriteria', description: 'Deskripsi', points: 3 }],
     options: undefined,
     answer: undefined,
-    visualSpec: undefined,
+    visualSpec: {
+      contractVersion: 2,
+      type: 'fraction_partition',
+      visualRequirement: 'required',
+      wholeLabel: 'Pizza',
+      totalParts: 8,
+      totalEvidenceQuote: '8 bagian',
+      statedSegments: [{ role: 'selected', count: 3, evidenceQuote: '3 bagian diwarnai' }],
+      askedFor: 'selected',
+      actionKey: 'colored',
+    },
   })
   const result = validateGeneratedAssessmentQuestion(question, blueprint)
   assert.ok(result.issues.some((issue) => issue.code === 'RUBRIC_INVALID'))
+}
+
+
+{
+  const { blueprint, question } = baseQuestion(1, {
+    questionType: 'complex_multiple_choice',
+    answers: ['A', 'C'],
+  })
+  question.questionType = 'complex_multiple_choice'
+  const result = validateGeneratedAssessmentQuestion(question, blueprint)
+  assert.equal(result.valid, true, JSON.stringify(result.issues))
+}
+
+{
+  const { blueprint, question } = baseQuestion(2, {
+    questionType: 'true_false_matrix',
+    statements: [
+      { id: '1', text: 'Jumlah seluruh bagian adalah delapan.', answer: 'Benar' },
+      { id: '2', text: 'Bagian diwarnai berjumlah tiga.', answer: 'Benar' },
+      { id: '3', text: 'Bagian tidak diwarnai berjumlah lima.', answer: 'Benar' },
+    ],
+  })
+  question.questionType = 'true_false_matrix'
+  const result = validateGeneratedAssessmentQuestion(question, blueprint)
+  assert.equal(result.valid, true, JSON.stringify(result.issues))
 }
 
 console.log('AI question contract and blueprint tests passed.')

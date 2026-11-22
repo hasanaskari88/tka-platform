@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:visual-math": "node scripts/test-visual-math.cjs",
-    "test:visual-math:v2": "node scripts/test-fraction-v2.cjs"
+    "test:visual-math:v2": "node scripts/test-fraction-v2.cjs",
+    "test:ai-question-contract": "node scripts/test-ai-question-contract.cjs"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",
