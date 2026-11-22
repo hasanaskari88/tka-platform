@@ -6,15 +6,15 @@ import type {
 } from './contracts'
 
 export type FractionCompetency =
-  | 'whole_and_equal_parts'
-  | 'identify_denominator'
-  | 'identify_numerator'
-  | 'read_shaded_parts'
-  | 'read_unshaded_parts'
-  | 'interpret_remaining_parts'
-  | 'fraction_story_problem'
-  | 'reason_about_unknown_parts'
-  | 'check_fraction_consistency'
+  | 'equal_sharing'
+  | 'recognize_half'
+  | 'recognize_quarter'
+  | 'represent_unit_fraction'
+  | 'compare_unit_fractions'
+  | 'identify_fraction_parts'
+  | 'compare_same_denominator'
+  | 'recognize_equivalent_fractions'
+  | 'solve_fraction_context'
 
 export type FractionCompetencyDefinition = {
   id: FractionCompetency
@@ -25,79 +25,22 @@ export type FractionCompetencyDefinition = {
   visualRequirement: 'required' | 'optional' | 'none'
 }
 
+/**
+ * Grade 2 follows Phase A: equal sharing, half and quarter through concrete
+ * contexts. Formal numerator/denominator terminology is deliberately excluded.
+ * Grades 3-4 are an illustrative progression within Phase B, not a nationally
+ * mandated grade-by-grade split; schools may sequence these objectives locally.
+ */
 export const FRACTION_COMPETENCIES: FractionCompetencyDefinition[] = [
-  {
-    id: 'whole_and_equal_parts',
-    label: 'Mengenali benda utuh dan bagian sama besar',
-    grade: 2,
-    description: 'Siswa mengenali satu benda utuh dan membedakan bagian yang sama besar.',
-    suggestedCognitiveLevels: ['C1', 'C2'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'identify_denominator',
-    label: 'Mengenali penyebut',
-    grade: 2,
-    description: 'Siswa menentukan jumlah seluruh bagian sama besar sebagai penyebut.',
-    suggestedCognitiveLevels: ['C1', 'C2'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'identify_numerator',
-    label: 'Mengenali pembilang',
-    grade: 2,
-    description: 'Siswa menentukan banyak bagian yang diperhatikan sebagai pembilang.',
-    suggestedCognitiveLevels: ['C1', 'C2'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'read_shaded_parts',
-    label: 'Membaca bagian diarsir',
-    grade: 2,
-    description: 'Siswa menghitung bagian yang diarsir dari keseluruhan bagian sama besar.',
-    suggestedCognitiveLevels: ['C1', 'C2'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'read_unshaded_parts',
-    label: 'Membaca bagian tidak diarsir',
-    grade: 3,
-    description: 'Siswa menentukan banyak bagian yang tidak diarsir dan menghubungkannya dengan pecahan.',
-    suggestedCognitiveLevels: ['C2', 'C3'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'interpret_remaining_parts',
-    label: 'Menentukan bagian tersisa',
-    grade: 3,
-    description: 'Siswa menafsirkan bagian yang dimakan, digunakan, atau diambil dan menentukan bagian tersisa.',
-    suggestedCognitiveLevels: ['C2', 'C3'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'fraction_story_problem',
-    label: 'Menyelesaikan cerita pecahan sederhana',
-    grade: 3,
-    description: 'Siswa mengubah informasi cerita tentang bagian dan keseluruhan menjadi model pecahan.',
-    suggestedCognitiveLevels: ['C2', 'C3', 'C4'],
-    visualRequirement: 'optional',
-  },
-  {
-    id: 'reason_about_unknown_parts',
-    label: 'Menalar bagian yang belum diketahui',
-    grade: 4,
-    description: 'Siswa menentukan kelompok bagian yang belum diketahui dari informasi yang tersedia.',
-    suggestedCognitiveLevels: ['C3', 'C4'],
-    visualRequirement: 'required',
-  },
-  {
-    id: 'check_fraction_consistency',
-    label: 'Memeriksa kesesuaian informasi pecahan',
-    grade: 4,
-    description: 'Siswa memeriksa apakah kelompok bagian yang disebutkan konsisten dengan keseluruhan.',
-    suggestedCognitiveLevels: ['C3', 'C4', 'C5'],
-    visualRequirement: 'optional',
-  },
+  { id: 'equal_sharing', label: 'Membagi benda sama banyak', grade: 2, description: 'Siswa memahami satu benda utuh atau kumpulan benda melalui kegiatan berbagi sama banyak.', suggestedCognitiveLevels: ['C1', 'C2'], visualRequirement: 'required' },
+  { id: 'recognize_half', label: 'Mengenali setengah', grade: 2, description: 'Siswa mengenali satu dari dua bagian sama besar sebagai setengah melalui benda konkret dan gambar.', suggestedCognitiveLevels: ['C1', 'C2'], visualRequirement: 'required' },
+  { id: 'recognize_quarter', label: 'Mengenali seperempat', grade: 2, description: 'Siswa mengenali satu dari empat bagian sama besar sebagai seperempat melalui benda konkret dan gambar.', suggestedCognitiveLevels: ['C1', 'C2'], visualRequirement: 'required' },
+  { id: 'represent_unit_fraction', label: 'Merepresentasikan pecahan unit', grade: 3, description: 'Siswa menghubungkan model konkret atau visual dengan pecahan unit seperti 1/2, 1/4, dan 1/8.', suggestedCognitiveLevels: ['C2', 'C3'], visualRequirement: 'required' },
+  { id: 'compare_unit_fractions', label: 'Membandingkan pecahan berpembilang satu', grade: 3, description: 'Siswa membandingkan ukuran pecahan unit menggunakan model konkret, gambar, atau garis bilangan.', suggestedCognitiveLevels: ['C2', 'C3'], visualRequirement: 'required' },
+  { id: 'identify_fraction_parts', label: 'Menghubungkan bagian dengan lambang pecahan', grade: 3, description: 'Siswa menghubungkan banyak bagian yang dipilih dengan keseluruhan dan lambang pecahan sederhana.', suggestedCognitiveLevels: ['C2', 'C3'], visualRequirement: 'required' },
+  { id: 'compare_same_denominator', label: 'Membandingkan pecahan berpenyebut sama', grade: 4, description: 'Siswa membandingkan dan mengurutkan pecahan dengan penyebut sama menggunakan model dan alasan.', suggestedCognitiveLevels: ['C2', 'C3', 'C4'], visualRequirement: 'optional' },
+  { id: 'recognize_equivalent_fractions', label: 'Mengenali pecahan senilai', grade: 4, description: 'Siswa mengenali pecahan senilai melalui model bagian sama besar dan representasi visual.', suggestedCognitiveLevels: ['C2', 'C3', 'C4'], visualRequirement: 'required' },
+  { id: 'solve_fraction_context', label: 'Menyelesaikan masalah pecahan sederhana', grade: 4, description: 'Siswa menggunakan model pecahan untuk menjelaskan atau menyelesaikan masalah kontekstual sederhana.', suggestedCognitiveLevels: ['C3', 'C4'], visualRequirement: 'optional' },
 ]
 
 export const FRACTION_PILOT_BLUEPRINT: Array<{
@@ -109,114 +52,18 @@ export const FRACTION_PILOT_BLUEPRINT: Array<{
   indicator: string
   visualRequirement: 'required' | 'optional' | 'none'
 }> = [
-  {
-    grade: 2,
-    questionType: 'multiple_choice',
-    competency: 'identify_denominator',
-    cognitiveLevel: 'C2',
-    subtopic: 'Jumlah seluruh bagian',
-    indicator: 'Disajikan satu benda yang dibagi sama besar, siswa menentukan jumlah seluruh bagian.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 2,
-    questionType: 'complex_multiple_choice',
-    competency: 'read_shaded_parts',
-    cognitiveLevel: 'C2',
-    subtopic: 'Bagian diarsir',
-    indicator: 'Siswa mengidentifikasi informasi yang benar tentang bagian diarsir dan keseluruhan.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 2,
-    questionType: 'true_false_matrix',
-    competency: 'identify_numerator',
-    cognitiveLevel: 'C2',
-    subtopic: 'Pembilang dan penyebut',
-    indicator: 'Siswa menilai pernyataan sederhana tentang pembilang dan penyebut berdasarkan model bagian sama besar.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 2,
-    questionType: 'essay',
-    competency: 'whole_and_equal_parts',
-    cognitiveLevel: 'C2',
-    subtopic: 'Bagian dari benda utuh',
-    indicator: 'Siswa menjelaskan hubungan benda utuh dengan bagian-bagian sama besar.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 3,
-    questionType: 'multiple_choice',
-    competency: 'read_unshaded_parts',
-    cognitiveLevel: 'C2',
-    subtopic: 'Bagian tidak diarsir',
-    indicator: 'Siswa menentukan pecahan yang mewakili bagian tidak diarsir.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 3,
-    questionType: 'complex_multiple_choice',
-    competency: 'interpret_remaining_parts',
-    cognitiveLevel: 'C3',
-    subtopic: 'Bagian yang tersisa',
-    indicator: 'Siswa memilih semua pernyataan benar tentang bagian yang digunakan dan bagian tersisa.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 3,
-    questionType: 'true_false_matrix',
-    competency: 'fraction_story_problem',
-    cognitiveLevel: 'C3',
-    subtopic: 'Cerita pecahan',
-    indicator: 'Siswa menilai kebenaran pernyataan berdasarkan informasi pecahan dalam cerita.',
-    visualRequirement: 'optional',
-  },
-  {
-    grade: 3,
-    questionType: 'essay',
-    competency: 'interpret_remaining_parts',
-    cognitiveLevel: 'C3',
-    subtopic: 'Menjelaskan bagian tersisa',
-    indicator: 'Siswa menuliskan langkah menentukan bagian yang tersisa dari keseluruhan.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 4,
-    questionType: 'multiple_choice',
-    competency: 'reason_about_unknown_parts',
-    cognitiveLevel: 'C3',
-    subtopic: 'Bagian yang belum diketahui',
-    indicator: 'Siswa menentukan jumlah bagian yang belum diketahui dari total dan bagian yang diketahui.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 4,
-    questionType: 'complex_multiple_choice',
-    competency: 'check_fraction_consistency',
-    cognitiveLevel: 'C4',
-    subtopic: 'Memeriksa konsistensi pecahan',
-    indicator: 'Siswa memilih seluruh informasi yang konsisten dengan jumlah bagian keseluruhan.',
-    visualRequirement: 'optional',
-  },
-  {
-    grade: 4,
-    questionType: 'true_false_matrix',
-    competency: 'reason_about_unknown_parts',
-    cognitiveLevel: 'C4',
-    subtopic: 'Menalar model pecahan',
-    indicator: 'Siswa menilai beberapa pernyataan tentang bagian diketahui dan bagian yang belum diketahui.',
-    visualRequirement: 'required',
-  },
-  {
-    grade: 4,
-    questionType: 'essay',
-    competency: 'check_fraction_consistency',
-    cognitiveLevel: 'C4',
-    subtopic: 'Menjelaskan kesesuaian data',
-    indicator: 'Siswa menjelaskan apakah informasi jumlah bagian dalam suatu cerita saling sesuai.',
-    visualRequirement: 'optional',
-  },
+  { grade: 2, questionType: 'multiple_choice', competency: 'equal_sharing', cognitiveLevel: 'C2', subtopic: 'Membagi sama banyak', indicator: 'Disajikan benda atau kumpulan benda, siswa mengenali pembagian menjadi kelompok sama banyak.', visualRequirement: 'required' },
+  { grade: 2, questionType: 'complex_multiple_choice', competency: 'recognize_half', cognitiveLevel: 'C2', subtopic: 'Mengenali setengah', indicator: 'Siswa memilih semua model yang menunjukkan satu dari dua bagian sama besar.', visualRequirement: 'required' },
+  { grade: 2, questionType: 'true_false_matrix', competency: 'recognize_quarter', cognitiveLevel: 'C2', subtopic: 'Mengenali seperempat', indicator: 'Siswa menilai pernyataan sederhana tentang satu dari empat bagian sama besar.', visualRequirement: 'required' },
+  { grade: 2, questionType: 'essay', competency: 'equal_sharing', cognitiveLevel: 'C2', subtopic: 'Menjelaskan berbagi adil', indicator: 'Siswa menjelaskan dengan kata-kata atau gambar mengapa bagian hasil pembagian harus sama banyak.', visualRequirement: 'required' },
+  { grade: 3, questionType: 'multiple_choice', competency: 'represent_unit_fraction', cognitiveLevel: 'C2', subtopic: 'Model pecahan unit', indicator: 'Disajikan model bagian sama besar, siswa memilih lambang pecahan unit yang sesuai.', visualRequirement: 'required' },
+  { grade: 3, questionType: 'complex_multiple_choice', competency: 'compare_unit_fractions', cognitiveLevel: 'C3', subtopic: 'Membandingkan pecahan unit', indicator: 'Siswa memilih semua pernyataan yang benar saat membandingkan pecahan berpembilang satu.', visualRequirement: 'required' },
+  { grade: 3, questionType: 'true_false_matrix', competency: 'identify_fraction_parts', cognitiveLevel: 'C2', subtopic: 'Bagian dan keseluruhan', indicator: 'Siswa menilai pernyataan tentang bagian yang dipilih dan jumlah seluruh bagian pada model.', visualRequirement: 'required' },
+  { grade: 3, questionType: 'essay', competency: 'represent_unit_fraction', cognitiveLevel: 'C3', subtopic: 'Menjelaskan model pecahan', indicator: 'Siswa menjelaskan hubungan satu bagian dengan jumlah bagian sama besar pada satu keseluruhan.', visualRequirement: 'required' },
+  { grade: 4, questionType: 'multiple_choice', competency: 'compare_same_denominator', cognitiveLevel: 'C3', subtopic: 'Membandingkan penyebut sama', indicator: 'Siswa menentukan pecahan yang lebih besar ketika penyebut kedua pecahan sama.', visualRequirement: 'optional' },
+  { grade: 4, questionType: 'complex_multiple_choice', competency: 'recognize_equivalent_fractions', cognitiveLevel: 'C4', subtopic: 'Pecahan senilai', indicator: 'Siswa memilih semua representasi visual yang menunjukkan nilai pecahan yang sama.', visualRequirement: 'required' },
+  { grade: 4, questionType: 'true_false_matrix', competency: 'compare_same_denominator', cognitiveLevel: 'C3', subtopic: 'Mengurutkan pecahan', indicator: 'Siswa menilai pernyataan tentang urutan pecahan dengan penyebut sama.', visualRequirement: 'optional' },
+  { grade: 4, questionType: 'essay', competency: 'solve_fraction_context', cognitiveLevel: 'C4', subtopic: 'Masalah kontekstual pecahan', indicator: 'Siswa menjelaskan strategi menggunakan model pecahan untuk menyelesaikan masalah sederhana.', visualRequirement: 'optional' },
 ]
 
 export function createFractionQuestionBlueprint(

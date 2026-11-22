@@ -44,7 +44,14 @@ function baseQuestion(index, overrides = {}) {
   return { blueprint, question }
 }
 
+const { FRACTION_CURRICULUM_FRAMEWORK } =
+  require(path.join(__dirname, '../lib/ai-question/curriculum-catalog.ts'))
+
 assert.equal(FRACTION_PILOT_BLUEPRINT.length, 12)
+assert.equal(FRACTION_CURRICULUM_FRAMEWORK.id, 'math-fractions-part-whole')
+assert.equal(FRACTION_CURRICULUM_FRAMEWORK.gradeGuidance[2].phase, 'A')
+assert.equal(FRACTION_CURRICULUM_FRAMEWORK.gradeGuidance[2].explicitTerms.includes('pembilang'), false)
+assert.equal(FRACTION_CURRICULUM_FRAMEWORK.gradeGuidance[3].phase, 'B')
 assert.deepEqual(
   FRACTION_PILOT_BLUEPRINT.reduce((counts, item) => {
     counts[item.grade] = (counts[item.grade] || 0) + 1
