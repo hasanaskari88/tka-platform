@@ -203,7 +203,7 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
   },
   'PJOK': {
     label: 'PJOK',
-    sourceNote: 'Mengacu pada Panduan PJOK Fase C (umumnya kelas V–VI): keterampilan gerak, belajar melalui gerak, gaya hidup aktif, dan memilih hidup sehat. Materi praktik perlu disesuaikan dengan fasilitas, keselamatan, dan kondisi murid.',
+    sourceNote: 'Mengacu pada buku siswa Pendidikan Jasmani, Olahraga, dan Kesehatan untuk SD/MI Kelas VI, Pusat Perbukuan, ISBN 978-634-00-3173-7, serta Panduan Mata Pelajaran PJOK Fase A–F (2025). Materi praktik perlu disesuaikan dengan fasilitas, keselamatan, dan kondisi murid.',
     groups: [
       { title: 'Terampil Bergerak', topics: [
         t('g6-pjok-gerak-lokomotor', 'Variasi dan kombinasi gerak dasar', 'Mempraktikkan variasi dan kombinasi gerak lokomotor, nonlokomotor, dan manipulatif dalam aktivitas permainan atau olahraga.', 'Murid memilih atau mempraktikkan kombinasi gerak yang tepat sesuai tujuan aktivitas.'),
@@ -273,6 +273,7 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { id: 'book-english-nusantara-kids-grade6-2024', title: 'English for Nusantara Kids Kelas VI 2024, ISBN 978-623-388-245-3', publisher: 'Pusat Perbukuan Kemendikbudristek', url: 'https://buku.kemdikbud.go.id', reviewedAt: '2026-11-23' },
   { id: 'book-grengseng-jawa-grade6-2025', title: 'Grengseng Basa Jawa Kelas VI 2025, ISBN 978-623-287-482-4', publisher: 'CV Media Karya Putra', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
   { id: 'guide-pjok-2025', title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-23' },
+  { id: 'book-pjok-grade6-2026', title: 'Pendidikan Jasmani, Olahraga, dan Kesehatan untuk SD/MI Kelas VI, ISBN 978-634-00-3173-7', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id/katalog/pendidikan-jasmani-olahraga-dan-kesehatan-untuk-sdmi-kelas-vi', reviewedAt: '2026-11-23' },
   { id: 'perbup-semarang-14-2022', title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-23' },
   { id: 'kepgub-jateng-jawa-2026', title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
   { id: 'rkpd-semarang-2026', title: 'Rencana Kerja Pemerintah Daerah Kabupaten Semarang Tahun 2026 (data pelestarian seni budaya daerah)', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://jdih.jatengprov.go.id/datacenter/files/inventarisasi-hukum/24/2025pb3322015.pdf', reviewedAt: '2026-11-23' },
@@ -302,7 +303,7 @@ export const CURRICULUM_SUBJECT_METADATA: Record<CurriculumTrack, Record<string,
     IPAS: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-ipas-grade6-rev-2025', 'guide-ipas-grade6-rev-2025'], sequencePolicy: 'SCHOOL_ATP' },
     'Pendidikan Pancasila': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pancasila-2025'], sequencePolicy: 'SCHOOL_ATP' },
     'Bahasa Inggris': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-english-nusantara-kids-grade6-2024'], sequencePolicy: 'SCHOOL_ATP' },
-    PJOK: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pjok-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    PJOK: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pjok-2025', 'book-pjok-grade6-2026'], sequencePolicy: 'SCHOOL_ATP' },
     'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['kepgub-jateng-jawa-2026', 'book-grengseng-jawa-grade6-2025'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
   },
 }
