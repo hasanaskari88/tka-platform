@@ -21,6 +21,8 @@ export default function AdminAiMaterialsPage() {
   const [track, setTrack] = useState<CurriculumTrack>('GRADE_6')
   const [subject, setSubject] = useState('Matematika')
   const [topicId, setTopicId] = useState('g6-mtk-pecahan')
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>(['g6-mtk-pecahan'])
+  const [generatedDrafts, setGeneratedDrafts] = useState<{ id: string; title: string; topicId: string; description: string; contentHtml: string }[]>([])
   const [grade, setGrade] = useState('6')
   const [extraInstructions, setExtraInstructions] = useState('')
   const [title, setTitle] = useState('')
@@ -43,6 +45,8 @@ export default function AdminAiMaterialsPage() {
     setTrack(next)
     setSubject(nextSubject)
     setTopicId(nextTopic?.id || '')
+    setSelectedTopicIds(nextTopic?.id ? [nextTopic.id] : [])
+    setGeneratedDrafts([])
     setGrade(next === 'GRADE_6' ? '6' : '6')
     setTitle('')
     setDescription('')
@@ -65,27 +69,28 @@ export default function AdminAiMaterialsPage() {
   }
 
   async function generate() {
-    if (!selectedTopic) {
-      setError('Pilih topik terlebih dahulu.')
-      return
-    }
-    setBusy(true)
-    setError('')
-    setNotice('')
-    setProviderInfo('')
+    const selectedTopics = topics.filter((topic) => selectedTopicIds.includes(topic.id))
+    if (!selectedTopics.length) { setError('Pilih minimal satu bab/topik terlebih dahulu.'); return }
+    setBusy(true); setError(''); setNotice(''); setProviderInfo('')
+    const created: { id: string; title: string; topicId: string; description: string; contentHtml: string }[] = []
     try {
-      const result = await callApi({ action: 'generate', track, subject, topicId, grade: Number(grade), extraInstructions })
-      setTitle(result.title || selectedTopic.title)
-      setDescription(result.description || '')
-      setContentHtml(result.contentHtml || '')
-      setMaterialId('')
-      setProviderInfo([result.provider, result.model].filter(Boolean).join(' · '))
-      setNotice('Draf materi berhasil dibuat. Silakan periksa dan sunting sebelum menyimpan.')
+      for (const topic of selectedTopics) {
+        setNotice(`Sedang membuat materi: ${topic.title}...`)
+        const result = await callApi({ action: 'generate', track, subject, topicId: topic.id, grade: Number(grade), extraInstructions })
+        if (!result.title || !result.contentHtml) throw new Error(`Materi untuk "${topic.title}" tidak lengkap.`)
+        const saved = await callApi({ action: 'save', title: result.title, description: result.description || '', contentHtml: result.contentHtml, subject, track, topicId: topic.id, grade: Number(grade), status: 'draft' })
+        if (!saved.id) throw new Error(`ID draf "${topic.title}" tidak diterima.`)
+        const draft = { id: saved.id, title: result.title, topicId: topic.id, description: result.description || '', contentHtml: result.contentHtml }
+        created.push(draft); setGeneratedDrafts((previous) => [...previous, draft])
+      }
+      const first = created[0]
+      if (first) { setTopicId(first.topicId); setTitle(first.title); setDescription(first.description); setContentHtml(first.contentHtml); setMaterialId(first.id) }
+      setProviderInfo('Draf tersimpan otomatis')
+      setNotice(`${created.length} materi berhasil dibuat dan disimpan sebagai draf terpisah. Belum ada yang diterbitkan.`)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Gagal membuat materi.')
-    } finally {
-      setBusy(false)
-    }
+      if (created.length) setNotice(`${created.length} draf berhasil disimpan sebelum proses terhenti.`)
+    } finally { setBusy(false) }
   }
 
   async function save(status: 'draft' | 'published') {
@@ -151,26 +156,59 @@ export default function AdminAiMaterialsPage() {
             <select value={subject} onChange={(event) => {
               const next = event.target.value
               setSubject(next)
-              setTopicId(getCurriculumTopics(track, next)[0]?.id || '')
+              const firstTopic = getCurriculumTopics(track, next)[0]
+              setTopicId(firstTopic?.id || '')
+              setSelectedTopicIds(firstTopic?.id ? [firstTopic.id] : [])
+              setGeneratedDrafts([])
             }} className={field}>
               {subjects.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           </label>
-          <label className="text-xs font-bold text-slate-600">Topik
-            <select value={topicId} onChange={(event) => setTopicId(event.target.value)} className={field}>
-              {topics.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}
-            </select>
-          </label>
+          <div className="text-xs font-bold text-slate-600 md:col-span-2">Bab / Topik
+            <div className="mt-2 max-h-72 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-600">Pilih satu atau beberapa bab/topik</span>
+                <button type="button" onClick={() => setSelectedTopicIds(topics.map((item) => item.id))} className="text-xs font-bold text-indigo-600">Pilih semua</button>
+              </div>
+              {CURRICULUM_CATALOGS[track][subject]?.groups.map((group) => (
+                <div key={group.title}>
+                  <p className="mb-1 text-xs font-black text-slate-700">{group.title}</p>
+                  <div className="grid gap-1 sm:grid-cols-2">
+                    {group.topics.map((item) => (
+                      <label key={item.id} className="flex cursor-pointer items-start gap-2 rounded-lg bg-white p-2 text-xs text-slate-700">
+                        <input type="checkbox" checked={selectedTopicIds.includes(item.id)} onChange={(event) => setSelectedTopicIds((previous) => event.target.checked ? [...previous, item.id] : previous.filter((id) => id !== item.id))} className="mt-0.5 accent-indigo-600" />
+                        <span>{item.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
           <label className="text-xs font-bold text-slate-600 md:col-span-2">Arahan tambahan (opsional)
             <textarea value={extraInstructions} onChange={(event) => setExtraInstructions(event.target.value)} rows={3} maxLength={1200} placeholder="Contoh: gunakan konteks kehidupan sehari-hari di lingkungan desa dan bahasa yang sederhana." className={field} />
           </label>
           <div className="flex flex-wrap items-center justify-between gap-3 md:col-span-2">
-            <p className="max-w-2xl text-xs leading-relaxed text-slate-500">{selectedTopic?.description || 'Pilih topik untuk melihat cakupan materi.'}</p>
-            <button type="button" onClick={generate} disabled={busy || !topicId} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+            <p className="max-w-2xl text-xs leading-relaxed text-slate-500">{selectedTopic?.description || 'Pilih topik untuk melihat cakupan materi.'} · {selectedTopicIds.length} topik dipilih. Setiap hasil otomatis disimpan sebagai draf terpisah.</p>
+            <button type="button" onClick={generate} disabled={busy || selectedTopicIds.length === 0} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
               {busy ? 'Memproses...' : '✨ Buat Materi dengan AI'}
             </button>
           </div>
         </section>
+
+        {generatedDrafts.length > 0 && (
+          <section className="rounded-2xl border bg-white p-4 shadow-sm">
+            <h2 className="mb-2 font-black text-slate-900">Draf yang sudah dibuat</h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {generatedDrafts.map((draft) => (
+                <button key={draft.id} type="button" onClick={() => { setTopicId(draft.topicId); setTitle(draft.title); setDescription(draft.description); setContentHtml(draft.contentHtml); setMaterialId(draft.id); setNotice('Membuka draf untuk disunting.'); setError('') }} className={`rounded-xl border p-3 text-left text-sm ${materialId === draft.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                  <span className="block font-bold text-slate-800">{draft.title}</span>
+                  <span className="mt-1 block text-xs text-emerald-700">Tersimpan sebagai draf</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {(contentHtml || title) && (
           <section className="space-y-4 rounded-2xl border bg-white p-4 shadow-sm">
