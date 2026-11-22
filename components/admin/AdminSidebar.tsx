@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ClipboardList, Megaphone, Users, Gamepad2, FileText, Settings2, ChevronLeft, Menu, ExternalLink, BarChart3, Sparkles, Images } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Megaphone, Users, Gamepad2, FileText, Settings2, ChevronLeft, Menu, ExternalLink, BarChart3, Sparkles, Images, BookOpen } from 'lucide-react'
 
 const menuItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard', group: 'UTAMA' },
   { href: '/admin/bank-soal', icon: ClipboardList, label: 'Bank Soal & Ujian', group: 'PEMBELAJARAN' },
   { href: '/admin/asisten-ai', icon: Sparkles, label: 'Asisten AI Guru', group: 'PEMBELAJARAN' },
+  { href: '/admin/materi-ai', icon: BookOpen, label: 'Pembuat Materi AI', group: 'PEMBELAJARAN' },
   { href: '/admin/practice', icon: Gamepad2, label: 'Mode Latihan', group: 'PEMBELAJARAN' },
   { href: '/admin/users', icon: Users, label: 'Data Peserta', group: 'PENGELOLAAN' },
   { href: '/admin/rekap-nilai', icon: BarChart3, label: 'Rekap Nilai', group: 'PENGELOLAAN' },
