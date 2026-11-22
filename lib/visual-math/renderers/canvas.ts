@@ -174,7 +174,7 @@ function drawHeader(context: CanvasRenderingContext2D, title: string) {
   context.fillText(title, 800, 72)
 }
 
-async function createCategoryOfTotalImage(
+export async function createCategoryOfTotalImage(
   intent: CategoryOfTotalIntent,
 ): Promise<Blob | null> {
   if (intent.categories.length < 2 || intent.categories.length > 4) return null
@@ -272,7 +272,7 @@ async function createCategoryOfTotalImage(
   return canvasToBlob(canvas)
 }
 
-async function createEqualSharingImage(
+export async function createEqualSharingImage(
   intent: EqualSharingIntent,
 ): Promise<Blob | null> {
   const kind = normalizeObjectLabel(intent.objectLabel)
@@ -487,7 +487,7 @@ function drawApplePartition(
   context.stroke()
 }
 
-async function createFractionPartitionImage(
+export async function createFractionPartitionImage(
   intent: FractionPartitionIntent,
 ): Promise<Blob | null> {
   if (
@@ -628,7 +628,7 @@ function formatMeasure(value: { numerator: string; denominator: string }, unit?:
   return formatMixedNumber(value) + (unit ? ' ' + unit : '')
 }
 
-async function createNumberComparisonImage(intent: NumberComparisonIntent): Promise<Blob | null> {
+export async function createNumberComparisonImage(intent: NumberComparisonIntent): Promise<Blob | null> {
   const created = createCanvas()
   if (!created) return null
   const { canvas, context } = created
@@ -674,7 +674,7 @@ function compareValues(
   return left < right ? -1 : left > right ? 1 : 0
 }
 
-async function createNumberLineImage(intent: NumberLineIntent): Promise<Blob | null> {
+export async function createNumberLineImage(intent: NumberLineIntent): Promise<Blob | null> {
   if (intent.points.length < 1 || intent.points.length > 10) return null
   const min = rationalToNumber(intent.minimum)
   const max = rationalToNumber(intent.maximum)
@@ -734,7 +734,7 @@ async function createNumberLineImage(intent: NumberLineIntent): Promise<Blob | n
   return canvasToBlob(canvas)
 }
 
-async function createGeometryImage(intent: GeometryIntent): Promise<Blob | null> {
+export async function createGeometryImage(intent: GeometryIntent): Promise<Blob | null> {
   if (!intent.measurements.length || intent.measurements.length > 4 || intent.shape === 'other') return null
   const created = createCanvas()
   if (!created) return null
@@ -770,7 +770,7 @@ async function createGeometryImage(intent: GeometryIntent): Promise<Blob | null>
   return canvasToBlob(canvas)
 }
 
-async function createChartTableImage(intent: ChartTableIntent): Promise<Blob | null> {
+export async function createChartTableImage(intent: ChartTableIntent): Promise<Blob | null> {
   if (!intent.categories.length || intent.categories.length > 10) return null
   const created = createCanvas()
   if (!created) return null
