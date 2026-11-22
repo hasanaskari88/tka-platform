@@ -55,5 +55,6 @@ jobs:
           lib/visual-math/renderers/registry.ts
           lib/visual-math/renderers/types.ts
           lib/visual-math/quality/validate-artifact.ts
+          lib/visual-math/quality/validate-visual-layout.ts
           lib/visual-math/index.ts
           scripts/test-visual-math.cjs

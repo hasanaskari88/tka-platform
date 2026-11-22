@@ -718,7 +718,7 @@ export async function createNumberLineImage(intent: NumberLineIntent): Promise<B
     const value = rationalToNumber(point.value)
     if (!Number.isFinite(value) || value < min || value > max) return
     const { x, lane } = pointLayouts[index]
-    const y = axisY - 85 - lane * 75
+    const y = axisY - 85 - lane * 65
     context.strokeStyle = '#2563eb'
     context.lineWidth = 4
     context.beginPath()
