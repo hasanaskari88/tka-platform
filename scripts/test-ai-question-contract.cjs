@@ -216,3 +216,17 @@ for (const trackMetadata of Object.values(CURRICULUM_SUBJECT_METADATA)) {
 }
 
 console.log('AI question contract and blueprint tests passed.')
+
+
+const { MATERIAL_BLUEPRINTS, getMaterialBlueprint, validateMaterialBlueprint } =
+  require(path.join(__dirname, '../lib/ai-question/material-blueprints.ts'))
+assert.equal(MATERIAL_BLUEPRINTS.length, 1)
+const fractionMaterial = getMaterialBlueprint('GRADE_6', 'Matematika', 'g6-mtk-pecahan')
+assert.ok(fractionMaterial, 'Grade 6 fraction material blueprint should be registered')
+assert.equal(fractionMaterial.sourceBasis, 'CURRICULUM_CATALOG_SUMMARY')
+assert.deepEqual(validateMaterialBlueprint(fractionMaterial), [])
+assert.ok(fractionMaterial.learningObjectives.length >= 3)
+assert.ok(fractionMaterial.lessonFlow.length >= 3)
+assert.ok(fractionMaterial.workedExamples.length >= 1)
+assert.ok(fractionMaterial.teacherAdaptation.some((item) => item.includes('ATP')))
+assert.equal(getMaterialBlueprint('TKA', 'Matematika', 'g6-mtk-pecahan'), undefined)
