@@ -452,6 +452,7 @@ export default function AsistenAIPage() {
                 ))}
               </div>
               <p className="text-xs font-semibold text-indigo-900">Total yang dipilih: {selectedTypes.reduce((sum, type) => sum + countsByType[type], 0)} / 15 soal</p>
+              {curriculumTrack === 'TKA' && <p className="rounded-lg bg-amber-50 p-3 text-xs font-normal leading-relaxed text-amber-900">Catatan TKA: bentuk resmi mencakup pilihan ganda dan pilihan ganda kompleks (termasuk kategori Benar/Salah pada contoh kerangka). Uraian digunakan sebagai latihan pendamping, bukan bentuk soal resmi TKA SD.</p>}
             </div>
             {selectedTypes.includes('essay') && (
               <div className="space-y-3 rounded-xl border border-violet-200 bg-violet-50 p-4 sm:col-span-2">
