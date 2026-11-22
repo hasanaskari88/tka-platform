@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 import MathRenderer from '@/components/MathRenderer'
-import { createVisualMathImage } from '@/lib/visual-math/renderers/canvas'
+import { renderVisualMathArtifact } from '@/lib/visual-math/renderers/registry'
 import type { VisualMathResult, VisualReasonCode } from '@/lib/visual-math/types'
 
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
@@ -83,11 +83,14 @@ export default function AsistenAIPage() {
     try {
       if (visualMath?.status === 'ready' && visualMath.intent) {
         setLoadingMessage('Membuat diagram dari fakta dan perhitungan yang sudah divalidasi...')
-        const exactMathBlob = await createVisualMathImage(visualMath.intent)
-        if (!exactMathBlob) {
-          visualFailureCode = 'RENDERER_NOT_SUPPORTED'
-          throw new Error('Renderer belum mendukung bentuk objek pada soal ini. Tidak ada gambar tebakan yang dibuat.')
+        const renderResult = await renderVisualMathArtifact(visualMath.intent)
+        if (renderResult.status !== 'accepted') {
+          visualFailureCode = renderResult.reasonCode === 'BLOB_EMPTY'
+            ? 'IMAGE_BLOB_EMPTY'
+            : 'RENDER_FAILED'
+          throw new Error(renderResult.message + ' Tidak ada gambar tebakan yang dibuat.')
         }
+        const exactMathBlob = renderResult.artifact.blob
 
         visualFailureCode = 'UPLOAD_FAILED'
         const formData = new FormData()
