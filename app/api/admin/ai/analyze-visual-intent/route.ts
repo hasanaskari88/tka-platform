@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
-import { calculateVisualIntent } from '@/lib/visual-math/math/calculator'
+import { buildFactGraphFromIntent } from '@/lib/visual-math/semantic/build-fact-graph'
 import { planVisualMathOperation } from '@/lib/visual-math/math/operation-planner'
 import { validateVisualIntent } from '@/lib/visual-math/analysis/validate-intent'
 import { buildAiVisualIntent } from '@/lib/visual-math/analysis/build-ai-intent'
@@ -42,7 +42,29 @@ function createKnownQuestionResult(question: string): VisualMathResult | null {
     }
   }
 
-  const calculation = calculateVisualIntent(validatedIntent)
+  const graphResult = buildFactGraphFromIntent(validatedIntent, question, question)
+  if (!graphResult.graph) {
+    return {
+      version: 1,
+      status: 'ambiguous',
+      intent: null,
+      calculatedValue: null,
+      confidence: 1,
+      reasonCode: 'FACTS_INCOMPLETE',
+      explanation: graphResult.reason || 'Graf fakta tidak dapat dibentuk dari soal.',
+      trace: {
+        traceId: randomUUID(),
+        stages: [
+          { stage: 'deterministic_semantic_extraction', status: 'ok' },
+          { stage: 'intent_schema_validation', status: 'ok' },
+          { stage: 'semantic_fact_graph', status: 'failed', reasonCode: 'FACTS_INCOMPLETE' },
+        ],
+      },
+    }
+  }
+
+  const plan = planVisualMathOperation(validatedIntent, graphResult.graph, graphResult.sources)
+  const calculation = plan.calculation
   return {
     version: 1,
     status: calculation.status,
@@ -56,6 +78,11 @@ function createKnownQuestionResult(question: string): VisualMathResult | null {
       stages: [
         { stage: 'deterministic_semantic_extraction', status: 'ok' },
         { stage: 'intent_schema_validation', status: 'ok' },
+        {
+          stage: 'semantic_fact_graph',
+          status: plan.semanticValidation.status === 'accepted' ? 'ok' : 'failed',
+          reasonCode: plan.semanticValidation.reasonCode || undefined,
+        },
         {
           stage: 'deterministic_calculation',
           status: calculation.status === 'ready' ? 'ok' : 'failed',
