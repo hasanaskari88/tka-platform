@@ -201,7 +201,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Daftar draf gagal dimuat.' }, { status: 500 })
       }
       return NextResponse.json({
-        drafts: (data || []).map((row) => ({
+        drafts: (data || []).map((row: { id: string; title: string; topic_id: string | null; description: string | null; content_html: string | null }) => ({
           id: row.id,
           title: row.title,
           topicId: row.topic_id,
