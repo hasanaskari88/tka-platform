@@ -760,3 +760,12 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Batas pekerjaan: ini penguatan instruksi dan validasi struktur, bukan verifikasi otomatis kebenaran faktual semua jawaban AI. Pemeriksaan isi dan QA browser sengaja ditunda untuk satu sesi pengujian gabungan sesuai arahan pengguna.
 - Deployment Vercel Production untuk commit tersebut terdeteksi dengan ID `dpl_54HQPkTYbRqe6ch66qCEhSkRhrBA`, target Production, branch `main`; saat pencatatan masih BUILDING. Status READY dan QA runtime belum dikonfirmasi.
 
+### Normalisasi pecahan materi AI pada editor dan halaman baca — 23 November 2026
+
+- Perubahan kode dilakukan langsung pada `main`; tidak menyentuh schema, data, scoring, atau alur CBT.
+- `components/editor/RichTextEditor.tsx` kini menormalisasi tiga bentuk pecahan yang umum dikirim AI sebelum konten dimuat ke Tiptap: LaTeX `\\frac{a}{b}` tanpa delimiter `$...$`, glyph pecahan Unicode (½, ⅓, ⅔, ¼, ¾, dan seterusnya), serta bentuk numerik `a/b`. Bentuk-bentuk ini diubah menjadi node Mathematics agar dapat tampil sebagai pecahan bertingkat dan tetap dapat diedit.
+- Normalisasi dilakukan dalam satu lintasan teks dan melewati node matematika Tiptap yang sudah ada agar tidak membuat node pecahan bersarang atau memproses ulang rumus lama.
+- `components/MathRenderer.tsx` diberi dukungan yang sama untuk halaman baca materi, termasuk pecahan campuran seperti `1 1/2`. Tujuannya menjaga hasil baca tetap konsisten ketika konten lama atau konten AI belum pernah dibuka/disimpan ulang melalui editor.
+- Commit terkait: `4065a2f` (normalisasi awal editor), `ff125f3` dan `a2169da` (penyempurnaan agar konversi tidak bersarang), serta `9ae799c` (renderer halaman baca).
+- Batas QA: perubahan ini belum diuji visual di browser dan belum diklaim menyelesaikan seluruh variasi rumus. Pengujian gabungan nanti perlu mencakup pecahan numerik, pecahan campuran, LaTeX berdelimiter/tanpa delimiter, glyph Unicode, operasi pecahan, rumus lama, buka-simpan-buka ulang di editor, serta tampilan halaman baca.
+
