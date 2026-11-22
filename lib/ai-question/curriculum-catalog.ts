@@ -214,6 +214,7 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
       ]},
       { title: 'Kabudayan lan Kearifan Lokal', topics: [
         t('g6-jawa-semarang', 'Tradhisi lan kearifan lokal Kabupaten Semarang', 'Mengenali cerita, kesenian, tradisi, lingkungan, dan potensi budaya Kabupaten Semarang sebagai bahan membaca, berdiskusi, dan menulis berbahasa Jawa.', 'Murid njlentrehake informasi utawa nilai becik saka tradhisi lan budaya ing Kabupaten Semarang.'),
+        t('g6-jawa-kesenian', 'Kesenian tradisional Kabupaten Semarang', 'Mengenali ragam kesenian daerah seperti ketoprak, kuda lumping atau reog, rodat, karawitan, prajuritan, soreng, warokan, drumblek, pedalangan atau wayang kulit, campursari, dan kuntulan; murid menggunakannya sebagai bahan membaca, wawancara, dialog, dan tulisan berbahasa Jawa.', 'Murid ngenali jinis kesenian tradisional Kabupaten Semarang lan nyritakake fungsi, proses, utawa nilai gotong royong ing sajroning kesenian kasebut.')
       ]},
     ],
   },
@@ -235,5 +236,6 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-22' },
   { title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-22' },
   { title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-22' },
+  { title: 'Rencana Kerja Pemerintah Daerah Kabupaten Semarang Tahun 2026 (data pelestarian seni budaya daerah)', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://jdih.jatengprov.go.id/datacenter/files/inventarisasi-hukum/24/2025pb3322015.pdf', reviewedAt: '2026-11-22' },
 
 ] as const
