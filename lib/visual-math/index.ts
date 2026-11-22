@@ -65,3 +65,8 @@ export { buildFactGraphFromIntent } from './semantic/build-fact-graph'
 export type { BuildFactGraphResult } from './semantic/build-fact-graph'
 export { planVisualMathOperation } from './math/operation-planner'
 export type { VisualOperation, VisualOperationPlan } from './math/operation-planner'
+
+export { renderVisualMathArtifact } from './renderers/registry'
+export type { RenderArtifact, RenderContext, RendererQualityResult, VisualRenderer } from './renderers/types'
+export { validateRenderArtifact } from './quality/validate-artifact'
+export { getExactPictographUnit } from './renderers/pictograph-scale'
