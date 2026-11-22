@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Bot, Sparkles, Loader2, BookOpen, CheckCircle2, AlertCircle } from 'lucide-react'
 import MathRenderer from '@/components/MathRenderer'
-import { renderVisualMathArtifact } from '@/lib/visual-math/renderers/registry'
+import { renderVisualMathArtifact, renderVisualMathPlanV2 } from '@/lib/visual-math/renderers/registry'
 import type { VisualMathResult, VisualReasonCode } from '@/lib/visual-math/types'
 
 type QuestionType = 'multiple_choice' | 'complex_multiple_choice' | 'true_false_matrix' | 'essay'
@@ -22,6 +22,8 @@ type GeneratedQuestion = {
   image_url?: string
   image_status?: 'none' | 'pending' | 'generating' | 'ready' | 'failed'
   image_error?: string
+  image_warning?: string
+  image_request_id?: string
   visual_math?: VisualMathResult
 }
 
@@ -75,15 +77,18 @@ export default function AsistenAIPage() {
     item: GeneratedQuestion,
     visualMath?: VisualMathResult | null,
   ) {
+    const requestId = crypto.randomUUID()
     setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-      ? { ...question, image_status: 'generating', image_error: undefined }
+      ? { ...question, image_request_id: requestId, image_status: 'generating', image_error: undefined, image_warning: undefined }
       : question))
 
     let visualFailureCode: VisualReasonCode = 'RENDER_FAILED'
     try {
-      if (visualMath?.status === 'ready' && visualMath.intent) {
+      if (visualMath?.status === 'ready' && (visualMath.renderPlan || visualMath.intent)) {
         setLoadingMessage('Membuat diagram dari fakta dan perhitungan yang sudah divalidasi...')
-        const renderResult = await renderVisualMathArtifact(visualMath.intent)
+        const renderResult = visualMath.renderPlan
+          ? await renderVisualMathPlanV2(visualMath.renderPlan)
+          : await renderVisualMathArtifact(visualMath.intent!)
         if (renderResult.status !== 'accepted') {
           visualFailureCode = renderResult.reasonCode === 'BLOB_EMPTY'
             ? 'IMAGE_BLOB_EMPTY'
@@ -115,7 +120,9 @@ export default function AsistenAIPage() {
             : undefined,
         }
         setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-          ? { ...question, visual_math: completedVisualMath, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+          ? question.image_request_id === requestId
+            ? { ...question, visual_math: completedVisualMath, image_url: uploadPayload.file.imageUrl, image_request_id: undefined, image_status: 'ready', image_error: undefined, image_warning: typeof uploadPayload.warning === 'string' ? uploadPayload.warning : undefined }
+            : question
           : question))
         return
       }
@@ -130,7 +137,9 @@ export default function AsistenAIPage() {
       ) {
         const reason = visualMath?.explanation || 'Analisis matematika belum berhasil. Gambar dihentikan agar tidak menampilkan diagram yang keliru.'
         setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-          ? { ...question, visual_math: visualMath || undefined, image_status: 'failed', image_error: reason }
+          ? question.image_request_id === requestId
+            ? { ...question, visual_math: visualMath || undefined, image_request_id: undefined, image_status: 'failed', image_error: reason }
+            : question
           : question))
         return
       }
@@ -192,16 +201,15 @@ export default function AsistenAIPage() {
       }
 
       setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-        ? { ...question, image_url: uploadPayload.file.imageUrl, image_status: 'ready', image_error: undefined }
+        ? question.image_request_id === requestId
+          ? { ...question, image_url: uploadPayload.file.imageUrl, image_request_id: undefined, image_status: 'ready', image_error: undefined, image_warning: typeof uploadPayload.warning === 'string' ? uploadPayload.warning : undefined }
+          : question
         : question))
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Gagal membuat gambar.'
       const failedVisualMath = visualMath?.status === 'ready'
         ? {
             ...visualMath,
-            status: visualFailureCode === 'RENDERER_NOT_SUPPORTED' ? 'unsupported' as const : 'invalid' as const,
-            reasonCode: visualFailureCode,
-            explanation: message,
             trace: visualMath.trace
               ? {
                   ...visualMath.trace,
@@ -218,7 +226,9 @@ export default function AsistenAIPage() {
           }
         : undefined
       setQuestions((current) => current.map((question, itemIndex): GeneratedQuestion => itemIndex === index
-        ? { ...question, visual_math: failedVisualMath, image_status: 'failed', image_error: message }
+        ? question.image_request_id === requestId
+          ? { ...question, visual_math: failedVisualMath, image_request_id: undefined, image_status: 'failed', image_error: message }
+          : question
         : question))
     }
   }
@@ -531,22 +541,31 @@ export default function AsistenAIPage() {
 
                 {(item.image_prompt || (item.image_status && item.image_status !== 'none')) && (
                   <div className="ml-11 mt-3 space-y-2">
-                    {item.image_url ? (
+                    {item.image_status === 'generating' ? (
+                      <div className="space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-xs font-semibold text-indigo-700">
+                        <span>Sedang membuat dan menyimpan gambar baru. Gambar lama belum dianggap sebagai hasil baru.</span>
+                        {item.image_url && <img src={item.image_url} alt={`Gambar sebelumnya untuk soal nomor ${index + 1}`} className="max-h-80 w-full rounded-lg bg-white object-contain" />}
+                      </div>
+                    ) : item.image_status === 'failed' ? (
+                      <div className="space-y-2">
+                        {item.image_url && <img src={item.image_url} alt={`Gambar tersimpan sebelumnya untuk soal nomor ${index + 1}`} className="max-h-80 w-full rounded-lg border border-slate-200 object-contain" />}
+                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs text-rose-700">
+                          <span>{item.image_error || 'Gambar gagal dibuat.'}{item.image_url ? ' Gambar sebelumnya tetap tersimpan.' : ''}</span>
+                          <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} className="font-bold underline">Coba lagi</button>
+                        </div>
+                      </div>
+                    ) : item.image_url ? (
+                      <div className="space-y-2">
+                      {item.image_warning && <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{item.image_warning}</div>}
                       <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                         <img src={item.image_url} alt={`Gambar penyerta soal nomor ${index + 1}`} className="max-h-80 w-full object-contain" />
                         <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-3 py-2">
                           <span className="text-xs font-semibold text-emerald-700">Gambar tersimpan di penyimpanan media</span>
-                          <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} disabled={item.image_status === 'generating'} className="text-xs font-bold text-indigo-700 hover:text-indigo-900 disabled:opacity-50">
+                          <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} className="text-xs font-bold text-indigo-700 hover:text-indigo-900">
                             Buat ulang gambar
                           </button>
                         </div>
                       </div>
-                    ) : item.image_status === 'generating' ? (
-                      <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-xs font-semibold text-indigo-700">Sedang membuat dan menyimpan gambar...</div>
-                    ) : item.image_status === 'failed' ? (
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-3 text-xs text-rose-700">
-                        <span>{item.image_error || 'Gambar gagal dibuat.'}</span>
-                        <button type="button" onClick={() => generateImageForQuestion(index, item, item.visual_math)} className="font-bold underline">Coba lagi</button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">

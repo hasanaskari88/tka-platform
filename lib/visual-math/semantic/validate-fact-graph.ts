@@ -103,9 +103,153 @@ function validSource(source: unknown, sources: FactGraphSources): boolean {
 
 function isPositiveFact(fact: SemanticFact): boolean {
   if (fact.value.kind === 'integer') return fact.value.value > 0
-  if (fact.value.kind === 'rational') return Number(fact.value.value.numerator) > 0
-  if (fact.value.kind === 'quantity') return Number(fact.value.value.numerator) > 0
+  if (fact.value.kind === 'rational') return BigInt(fact.value.value.numerator) > BigInt(0)
+  if (fact.value.kind === 'quantity') return BigInt(fact.value.value.numerator) > BigInt(0)
   return fact.value.kind === 'text' && fact.value.value.trim().length > 0
+}
+
+const DERIVED_OPERATIONS = new Set(['add', 'subtract', 'multiply', 'divide', 'complement'])
+
+function validProvenance(
+  provenance: unknown,
+  legacySource: unknown,
+  sources: FactGraphSources,
+  factIds: Set<string>,
+  currentId: string,
+): boolean {
+  if (provenance === undefined) return validSource(legacySource, sources)
+  if (!isRecord(provenance) || typeof provenance.kind !== 'string') return false
+  if (provenance.kind === 'stated') {
+    if (!validSource(provenance.source, sources)) return false
+    if (legacySource === undefined) return true
+    if (!validSource(legacySource, sources) || !isRecord(legacySource)) return false
+    return legacySource.source === provenance.source.source &&
+      legacySource.start === provenance.source.start &&
+      legacySource.end === provenance.source.end &&
+      legacySource.quote === provenance.source.quote
+  }
+  if (provenance.kind !== 'derived' || typeof provenance.operation !== 'string' ||
+    !DERIVED_OPERATIONS.has(provenance.operation) || !Array.isArray(provenance.inputFactIds) ||
+    provenance.inputFactIds.length < 2 || provenance.inputFactIds.length > 8) return false
+  return provenance.inputFactIds.every((id) =>
+    typeof id === 'string' && id !== currentId && factIds.has(id),
+  )
+}
+
+type BigRational = { numerator: bigint; denominator: bigint }
+
+function gcd(a: bigint, b: bigint): bigint {
+  let left = a < BigInt(0) ? -a : a
+  let right = b < BigInt(0) ? -b : b
+  while (right !== BigInt(0)) {
+    const remainder = left % right
+    left = right
+    right = remainder
+  }
+  return left || BigInt(1)
+}
+
+function normalizeRational(value: BigRational): BigRational {
+  if (value.denominator === BigInt(0)) return value
+  const sign = value.denominator < BigInt(0) ? BigInt(-1) : BigInt(1)
+  const divisor = gcd(value.numerator, value.denominator)
+  return {
+    numerator: (value.numerator / divisor) * sign,
+    denominator: (value.denominator / divisor) * sign,
+  }
+}
+
+function rationalFromFact(fact: SemanticFact): BigRational | null {
+  if (fact.value.kind === 'integer') {
+    return { numerator: BigInt(fact.value.value), denominator: BigInt(1) }
+  }
+  if (fact.value.kind === 'rational') {
+    return normalizeRational({
+      numerator: BigInt(fact.value.value.numerator),
+      denominator: BigInt(fact.value.value.denominator),
+    })
+  }
+  return null
+}
+
+function derivedValueMatches(fact: SemanticFact, factsById: Map<string, SemanticFact>): boolean {
+  const provenance = fact.provenance
+  if (!provenance || provenance.kind !== 'derived') return true
+  const values: BigRational[] = []
+  for (const id of provenance.inputFactIds) {
+    const item = factsById.get(id)
+    if (!item) return false
+    const value = rationalFromFact(item)
+    if (!value) return false
+    values.push(value)
+  }
+
+  let expected: BigRational
+  switch (provenance.operation) {
+    case 'add':
+      expected = values.reduce(
+        (sum, value) => normalizeRational({
+          numerator: sum.numerator * value.denominator + value.numerator * sum.denominator,
+          denominator: sum.denominator * value.denominator,
+        }),
+        { numerator: BigInt(0), denominator: BigInt(1) },
+      )
+      break
+    case 'subtract':
+    case 'complement':
+      if (values.length !== 2) return false
+      expected = normalizeRational({
+        numerator: values[0].numerator * values[1].denominator - values[1].numerator * values[0].denominator,
+        denominator: values[0].denominator * values[1].denominator,
+      })
+      break
+    case 'multiply':
+      expected = values.reduce(
+        (product, value) => normalizeRational({
+          numerator: product.numerator * value.numerator,
+          denominator: product.denominator * value.denominator,
+        }),
+        { numerator: BigInt(1), denominator: BigInt(1) },
+      )
+      break
+    case 'divide':
+      if (values.length !== 2 || values[1].numerator === BigInt(0)) return false
+      expected = normalizeRational({
+        numerator: values[0].numerator * values[1].denominator,
+        denominator: values[0].denominator * values[1].numerator,
+      })
+      break
+    default:
+      return false
+  }
+
+  const actual = rationalFromFact(fact)
+  return Boolean(actual &&
+    expected.numerator * actual.denominator === actual.numerator * expected.denominator)
+}
+
+function hasDerivedCycle(facts: SemanticFact[]): boolean {
+  const derived = new Map<string, string[]>()
+  for (const fact of facts) {
+    if (fact.provenance?.kind === 'derived') {
+      derived.set(fact.id, fact.provenance.inputFactIds)
+    }
+  }
+  const visiting = new Set<string>()
+  const visited = new Set<string>()
+  const visit = (id: string): boolean => {
+    if (visiting.has(id)) return false
+    if (visited.has(id)) return true
+    visiting.add(id)
+    for (const input of derived.get(id) || []) {
+      if (derived.has(input) && !visit(input)) return false
+    }
+    visiting.delete(id)
+    visited.add(id)
+    return true
+  }
+  for (const id of derived.keys()) if (!visit(id)) return true
+  return false
 }
 
 function reject(message: string, reasonCode: 'FACTS_INCOMPLETE' | 'FACTS_CONFLICT' = 'FACTS_INCOMPLETE'): SemanticValidationResult {
@@ -133,10 +277,18 @@ export function validateFactGraph(input: unknown, sources: FactGraphSources): Se
   for (const fact of graph.facts) {
     if (!isRecord(fact) || typeof fact.id !== 'string' || !/^[a-zA-Z0-9_-]{1,40}$/.test(fact.id) ||
       factIds.has(fact.id) || typeof fact.role !== 'string' || !/^[a-z][a-z0-9_]{1,39}$/.test(fact.role) ||
-      !validFactValue(fact.value) || !validSource(fact.source, sources)) {
+      !validFactValue(fact.value)) {
       return reject('Ada fakta yang tidak valid atau tidak memiliki kutipan sumber yang tepat.')
     }
     factIds.add(fact.id)
+  }
+  for (const fact of graph.facts) {
+    if (!validProvenance(fact.provenance, fact.source, sources, factIds, fact.id)) {
+      return reject('Asal fakta tidak valid atau referensi fakta turunan tidak lengkap.')
+    }
+  }
+  if (hasDerivedCycle(graph.facts)) {
+    return reject('Rantai fakta turunan membentuk siklus.', 'FACTS_CONFLICT')
   }
 
   const rule = GOAL_RULES[graph.requestedGoal]
@@ -159,7 +311,7 @@ export function validateFactGraph(input: unknown, sources: FactGraphSources): Se
       !VALID_RELATIONS.has(relation.type as SemanticRelationType) ||
       typeof relation.from !== 'string' || typeof relation.to !== 'string' ||
       !factIds.has(relation.from) || !factIds.has(relation.to) ||
-      relation.from === relation.to || !validSource(relation.source, sources)) {
+      relation.from === relation.to || !validProvenance(relation.provenance, relation.source, sources, factIds, relation.from)) {
       return reject('Ada hubungan antar fakta yang tidak valid atau tidak didukung kutipan sumber.')
     }
     const key = [relation.type, relation.from, relation.to].join(':')
@@ -174,6 +326,10 @@ export function validateFactGraph(input: unknown, sources: FactGraphSources): Se
     }
     relationKeys.add(key)
     relationTypes.add(relation.type as SemanticRelationType)
+  }
+
+  if (graph.facts.some((fact) => fact.provenance?.kind === 'derived' && !derivedValueMatches(fact, factsById))) {
+    return reject('Nilai fakta turunan tidak cocok dengan operasi dan fakta masukan yang dirujuk.', 'FACTS_CONFLICT')
   }
 
   for (const required of rule.requiredRelations) {

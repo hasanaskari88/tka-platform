@@ -15,6 +15,7 @@ export type RenderArtifact = {
   representedValues: string[]
   rendererId: string
   rendererVersion: number
+  semanticSummary?: string
 }
 
 export type RendererQualityResult =

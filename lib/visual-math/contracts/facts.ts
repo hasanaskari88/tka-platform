@@ -15,11 +15,20 @@ export type SemanticFactValue =
   | { kind: 'text'; value: string }
   | { kind: 'quantity'; value: RationalValue; unit: string }
 
+export type SemanticProvenance =
+  | { kind: 'stated'; source: FactSourceRef }
+  | {
+      kind: 'derived'
+      operation: 'add' | 'subtract' | 'multiply' | 'divide' | 'complement'
+      inputFactIds: string[]
+    }
+
 export type SemanticFact = {
   id: string
   role: string
   value: SemanticFactValue
-  source: FactSourceRef
+  source?: FactSourceRef
+  provenance?: SemanticProvenance
 }
 
 export type SemanticRelationType =
@@ -42,7 +51,8 @@ export type SemanticRelation = {
   type: SemanticRelationType
   from: string
   to: string
-  source: FactSourceRef
+  source?: FactSourceRef
+  provenance?: SemanticProvenance
 }
 
 export type FactGraph = {

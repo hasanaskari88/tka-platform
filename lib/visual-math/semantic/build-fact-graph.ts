@@ -26,11 +26,11 @@ function findExactSource(question: string, evidence: string): FactSourceRef | nu
 }
 
 function textFact(id: string, role: string, value: string, source: FactSourceRef): SemanticFact {
-  return { id, role, value: { kind: 'text', value }, source }
+  return { id, role, value: { kind: 'text', value }, source, provenance: { kind: 'stated', source } }
 }
 
 function integerFact(id: string, role: string, value: number, source: FactSourceRef): SemanticFact {
-  return { id, role, value: { kind: 'integer', value }, source }
+  return { id, role, value: { kind: 'integer', value }, source, provenance: { kind: 'stated', source } }
 }
 
 function rationalFact(
@@ -39,7 +39,7 @@ function rationalFact(
   value: { numerator: string; denominator: string },
   source: FactSourceRef,
 ): SemanticFact {
-  return { id, role, value: { kind: 'rational', value }, source }
+  return { id, role, value: { kind: 'rational', value }, source, provenance: { kind: 'stated', source } }
 }
 
 /**
@@ -57,7 +57,7 @@ export function buildFactGraphFromIntent(
   const facts: SemanticFact[] = []
   const relations: SemanticRelation[] = []
   const relate = (type: SemanticRelation['type'], from: string, to: string) => {
-    relations.push({ type, from, to, source })
+    relations.push({ type, from, to, source, provenance: { kind: 'stated', source } })
   }
 
   switch (intent.type) {
@@ -117,6 +117,7 @@ export function buildFactGraphFromIntent(
             ? { kind: 'quantity', value: measurement.value, unit: measurement.unit }
             : { kind: 'rational', value: measurement.value },
           source,
+          provenance: { kind: 'stated', source },
         })
         relate('measured_by', 'shape', id)
       })

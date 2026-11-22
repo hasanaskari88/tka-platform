@@ -7,6 +7,7 @@ import { planVisualMathOperation } from '@/lib/visual-math/math/operation-planne
 import { validateVisualIntent } from '@/lib/visual-math/analysis/validate-intent'
 import { buildAiVisualIntent } from '@/lib/visual-math/analysis/build-ai-intent'
 import { extractKnownVisualIntent } from '@/lib/visual-math/analysis/known-patterns'
+import { assessLegacyFractionForV2, buildAiFractionPlanV2, extractKnownFractionPlanV2 } from '@/lib/visual-math/analysis/fraction-v2'
 import type { VisualMathResult } from '@/lib/visual-math/types'
 
 export const maxDuration = 60
@@ -19,8 +20,68 @@ function cleanText(value: unknown, maxLength: number): string {
 
 
 function createKnownQuestionResult(question: string): VisualMathResult | null {
+  const fractionV2 = extractKnownFractionPlanV2(question)
+  if (fractionV2) {
+    if (fractionV2.status !== 'accepted') {
+      return {
+        version: 1,
+        status: 'needs_teacher_review',
+        intent: null,
+        calculatedValue: null,
+        renderPlan: null,
+        confidence: 1,
+        reasonCode: 'NEEDS_TEACHER_REVIEW',
+        explanation: fractionV2.reason,
+        trace: {
+          traceId: randomUUID(),
+          stages: [
+            { stage: 'fraction_v2_extraction', status: 'ok' },
+            { stage: 'fraction_v2_semantic_validation', status: 'failed', reasonCode: 'NEEDS_TEACHER_REVIEW' },
+          ],
+        },
+      }
+    }
+    return {
+      version: 1,
+      status: 'ready',
+      intent: null,
+      calculatedValue: fractionV2.plan.answer,
+      renderPlan: fractionV2.plan,
+      confidence: 1,
+      reasonCode: null,
+      explanation: 'Fakta pecahan dan peran setiap kelompok telah dicocokkan dengan kutipan asli soal.',
+      trace: {
+        traceId: randomUUID(),
+        stages: [
+          { stage: 'fraction_v2_extraction', status: 'ok' },
+          { stage: 'fraction_v2_semantic_validation', status: 'ok' },
+          { stage: 'fraction_v2_render_plan', status: 'ok' },
+        ],
+      },
+    }
+  }
+
   const intent = extractKnownVisualIntent(question)
   if (!intent) return null
+  if (intent.type === 'fraction_partition') {
+    const legacy = assessLegacyFractionForV2(intent)
+    return {
+      version: 1,
+      status: 'needs_teacher_review',
+      intent: null,
+      calculatedValue: null,
+      renderPlan: null,
+      confidence: 1,
+      reasonCode: 'NEEDS_TEACHER_REVIEW',
+      explanation: legacy.status === 'accepted' ? 'Intent pecahan lama belum dapat diverifikasi.' : legacy.reason,
+      trace: {
+        traceId: randomUUID(),
+        stages: [
+          { stage: 'legacy_fraction_adapter', status: 'failed', reasonCode: 'NEEDS_TEACHER_REVIEW' },
+        ],
+      },
+    }
+  }
 
   const validatedIntent = validateVisualIntent(intent)
   if (!validatedIntent) {
@@ -158,7 +219,8 @@ export async function POST(request: Request) {
       'Pilih intentType dan isi facts sebagai STRING JSON:',
       '- category_of_total: facts = {"categories":[{"id":"apel","label":"apel","count":10},{"id":"jeruk","label":"jeruk","count":6}],"targetCategoryId":"apel"}',
       '- equal_sharing: facts = {"objectLabel":"jeruk","totalObjects":6,"groupCount":5,"selectedGroupCount":1}',
-      '- fraction_partition: facts = {"wholeLabel":"pizza","totalParts":8,"selectedParts":3,"selectedMeaning":"removed"}',
+      '- fraction_partition_v2: facts = {"wholeLabel":"pizza","totalParts":8,"totalEvidenceQuote":"dibagi menjadi 8 bagian","statedSegments":[{"role":"removed","count":3,"evidenceQuote":"3 bagian dimakan"}],"askedFor":"remaining","actionKey":"eaten"}. Setiap evidenceQuote harus kutipan persis dari teks soal. Gunakan role removed, selected, remaining, atau unselected.',
+      '- fraction_partition (legacy): hanya untuk soal lama yang tidak dapat diekstrak ke kontrak V2; jangan mengubah makna selectedParts.',
       '- number_comparison: facts = {"first":{"numerator":"1","denominator":"2"},"second":{"numerator":"3","denominator":"4"},"requestedRelation":"compare"}',
       '- number_line: facts = {"minimum":{"numerator":"0","denominator":"1"},"maximum":{"numerator":"1","denominator":"1"},"points":[{"label":"A","value":{"numerator":"1","denominator":"2"}}]}',
       '- geometry: facts = {"shape":"rectangle","measurements":[{"label":"panjang","value":{"numerator":"8","denominator":"1"},"unit":"cm"},{"label":"lebar","value":{"numerator":"4","denominator":"1"},"unit":"cm"}]}',
@@ -185,7 +247,7 @@ export async function POST(request: Request) {
                 type: 'object',
                 properties: {
                   index: { type: 'integer' },
-                  intentType: { type: 'string', enum: ['category_of_total', 'equal_sharing', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table', 'none'] },
+                  intentType: { type: 'string', enum: ['category_of_total', 'equal_sharing', 'fraction_partition_v2', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table', 'none'] },
                   confidence: { type: 'number' },
                   reason: { type: 'string' },
                   evidence: { type: 'string' },
@@ -208,7 +270,7 @@ export async function POST(request: Request) {
                 type: 'OBJECT',
                 properties: {
                   index: { type: 'INTEGER' },
-                  intentType: { type: 'STRING', enum: ['category_of_total', 'equal_sharing', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table', 'none'] },
+                  intentType: { type: 'STRING', enum: ['category_of_total', 'equal_sharing', 'fraction_partition_v2', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table', 'none'] },
                   confidence: { type: 'NUMBER' },
                   reason: { type: 'STRING' },
                   evidence: { type: 'STRING' },
@@ -285,7 +347,78 @@ export async function POST(request: Request) {
         }
 
         const confidence = typeof raw.confidence === 'number' ? raw.confidence : Number.NaN
+        if (raw.intentType === 'fraction_partition_v2') {
+          const fractionV2 = buildAiFractionPlanV2(raw.facts, question.question)
+          if (fractionV2.status !== 'accepted' || !Number.isFinite(confidence) || confidence < 0.85 || confidence > 1) {
+            return {
+              index: question.index,
+              result: {
+                version: 1,
+                status: 'needs_teacher_review',
+                intent: null,
+                calculatedValue: null,
+                renderPlan: null,
+                confidence: Number.isFinite(confidence) ? confidence : null,
+                reasonCode: 'NEEDS_TEACHER_REVIEW',
+                explanation: fractionV2.status === 'accepted'
+                  ? 'Tingkat keyakinan AI belum memenuhi ambang pemeriksaan.'
+                  : fractionV2.reason,
+                trace: {
+                  traceId: randomUUID(),
+                  stages: [
+                    { stage: 'ai_extraction', status: 'ok' },
+                    { stage: 'fraction_v2_evidence_validation', status: 'failed', reasonCode: 'NEEDS_TEACHER_REVIEW' },
+                  ],
+                },
+              },
+            }
+          }
+          return {
+            index: question.index,
+            result: {
+              version: 1,
+              status: 'ready',
+              intent: null,
+              calculatedValue: fractionV2.plan.answer,
+              renderPlan: fractionV2.plan,
+              confidence,
+              reasonCode: null,
+              explanation: 'Fakta pecahan dan kutipan buktinya lolos validasi. Render plan dibuat secara deterministik.',
+              trace: {
+                traceId: randomUUID(),
+                stages: [
+                  { stage: 'ai_extraction', status: 'ok' },
+                  { stage: 'fraction_v2_evidence_validation', status: 'ok' },
+                  { stage: 'fraction_v2_render_plan', status: 'ok' },
+                ],
+              },
+            },
+          }
+        }
         const built = buildAiVisualIntent(raw, question.question)
+        if (built.intent?.type === 'fraction_partition') {
+          const legacy = assessLegacyFractionForV2(built.intent)
+          return {
+            index: question.index,
+            result: {
+              version: 1,
+              status: 'needs_teacher_review',
+              intent: null,
+              calculatedValue: null,
+              renderPlan: null,
+              confidence: Number.isFinite(confidence) ? confidence : null,
+              reasonCode: 'NEEDS_TEACHER_REVIEW',
+              explanation: legacy.status === 'accepted' ? 'Intent pecahan lama belum dapat diverifikasi.' : legacy.reason,
+              trace: {
+                traceId: randomUUID(),
+                stages: [
+                  { stage: 'ai_extraction', status: 'ok' },
+                  { stage: 'legacy_fraction_adapter', status: 'failed', reasonCode: 'NEEDS_TEACHER_REVIEW' },
+                ],
+              },
+            },
+          }
+        }
         if (!built.intent || !Number.isFinite(confidence) || confidence < 0.85 || confidence > 1) {
           return {
             index: question.index,

@@ -1,3 +1,5 @@
+import type { FractionRenderPlanV2 } from '../analysis/fraction-v2'
+
 import type {
   CategoryOfTotalIntent,
   EqualSharingIntent,
@@ -869,4 +871,82 @@ export async function createVisualMathImage(intent: VisualIntent): Promise<Blob 
       break
   }
   return blob && blob.size > 0 && blob.type === 'image/png' ? blob : null
+}
+const FRACTION_ROLE_STYLE: Record<string, { color: string; label: string }> = {
+  removed: { color: '#ef4444', label: 'Dimakan / diambil' },
+  remaining: { color: '#22c55e', label: 'Tersisa' },
+  selected: { color: '#3b82f6', label: 'Dipilih / diwarnai' },
+  unselected: { color: '#cbd5e1', label: 'Tidak dipilih' },
+  other: { color: '#a1a1aa', label: 'Bagian lainnya' },
+}
+
+export async function createFractionPlanV2Image(plan: FractionRenderPlanV2): Promise<Blob | null> {
+  if (!/pizza|piza|pai|roti bundar|lingkaran/i.test(plan.wholeLabel) ||
+    !Number.isSafeInteger(plan.totalParts) || plan.totalParts < 2 || plan.totalParts > 20 ||
+    plan.segments.length < 2 || plan.segments.length > 2 ||
+    plan.segments.some((segment) => !FRACTION_ROLE_STYLE[segment.role] ||
+      !Number.isSafeInteger(segment.count) || segment.count < 0) ||
+    plan.segments.reduce((sum, segment) => sum + segment.count, 0) !== plan.totalParts) return null
+
+  const target = plan.segments.find((segment) => segment.role === plan.targetRole)
+  if (!target || plan.answer.numerator !== String(target.count) ||
+    plan.answer.denominator !== String(plan.totalParts)) return null
+
+  const created = createCanvas()
+  if (!created) return null
+  const { canvas, context } = created
+  drawHeader(context, 'BAGIAN DARI ' + plan.wholeLabel.toLocaleUpperCase('id-ID'))
+
+  const centerX = 800
+  const centerY = 400
+  const radius = 245
+  const startAngle = -Math.PI / 2
+  let currentPart = 0
+  for (const segment of plan.segments) {
+    const style = FRACTION_ROLE_STYLE[segment.role]
+    for (let index = 0; index < segment.count; index += 1) {
+      const angleStart = startAngle + (currentPart * Math.PI * 2) / plan.totalParts
+      const angleEnd = startAngle + ((currentPart + 1) * Math.PI * 2) / plan.totalParts
+      context.beginPath()
+      context.moveTo(centerX, centerY)
+      context.arc(centerX, centerY, radius, angleStart, angleEnd)
+      context.closePath()
+      context.fillStyle = style.color
+      context.fill()
+      context.strokeStyle = '#334155'
+      context.lineWidth = 4
+      context.stroke()
+      currentPart += 1
+    }
+  }
+
+  const legendY = 705
+  const legendWidth = 560
+  const legendStart = 800 - (plan.segments.length * legendWidth) / 2
+  plan.segments.forEach((segment, index) => {
+    const x = legendStart + index * legendWidth
+    const style = FRACTION_ROLE_STYLE[segment.role]
+    context.fillStyle = style.color
+    context.fillRect(x, legendY, 34, 34)
+    context.strokeStyle = '#334155'
+    context.lineWidth = 2
+    context.strokeRect(x, legendY, 34, 34)
+    context.fillStyle = '#0f172a'
+    context.font = 'bold 22px Arial, sans-serif'
+    context.textAlign = 'left'
+    context.fillText(style.label + ': ' + segment.count, x + 48, legendY + 18)
+  })
+
+  const formula = plan.formula.map((token) => String(token.value)).join(' ')
+  context.fillStyle = '#172554'
+  context.font = 'bold 34px Arial, sans-serif'
+  context.textAlign = 'center'
+  context.fillText(formula, 800, 805)
+  context.fillStyle = '#0f172a'
+  context.font = 'bold 28px Arial, sans-serif'
+  context.fillText('Yang ditanyakan: ' + FRACTION_ROLE_STYLE[plan.targetRole].label, 800, 855)
+  context.font = 'bold 30px Arial, sans-serif'
+  context.fillText(plan.answer.numerator + '/' + plan.answer.denominator, 800, 885)
+
+  return canvasToBlob(canvas)
 }

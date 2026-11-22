@@ -23,6 +23,8 @@ import { validateRenderArtifact } from '../quality/validate-artifact'
 import { validateVisualIntent } from '../analysis/validate-intent'
 import { validateVisualLayout } from '../quality/validate-visual-layout'
 import type { RenderArtifact, RenderContext, RendererQualityResult, VisualRenderer } from './types'
+import type { FractionRenderPlanV2 } from '../analysis/fraction-v2'
+import { createFractionPlanV2Image } from './canvas'
 
 const DEFAULT_CONTEXT: RenderContext = { width: 1600, height: 900, locale: 'id-ID' }
 
@@ -187,6 +189,68 @@ export async function renderVisualMathArtifact(
       status: 'rejected',
       reasonCode: 'RENDER_FAILED',
       message: 'Renderer mengalami kesalahan. Gambar tidak dibuat.',
+    }
+  }
+}
+
+
+/** Renders the server-owned V2 plan without reinterpreting legacy selectedMeaning. */
+export async function renderVisualMathPlanV2(
+  plan: FractionRenderPlanV2,
+  context: RenderContext = DEFAULT_CONTEXT,
+): Promise<RendererQualityResult> {
+  if (!context || context.width !== 1600 || context.height !== 900 || context.locale !== 'id-ID') {
+    return {
+      status: 'rejected',
+      reasonCode: 'INVALID_DIMENSIONS',
+      message: 'Renderer Canvas saat ini hanya mendukung ukuran 1600 × 900 dan locale Indonesia.',
+    }
+  }
+  const roles = new Set(['removed', 'selected', 'remaining', 'unselected', 'other'])
+  if (!plan || plan.contractVersion !== 2 ||
+    !Number.isSafeInteger(plan.totalParts) || plan.totalParts < 2 || plan.totalParts > 20 ||
+    !Array.isArray(plan.segments) || plan.segments.length !== 2 ||
+    plan.segments.some((segment) => !segment || !roles.has(segment.role) ||
+      !Number.isSafeInteger(segment.count) || segment.count < 0) ||
+    plan.segments.reduce((sum, segment) => sum + segment.count, 0) !== plan.totalParts ||
+    !plan.segments.some((segment) => segment.role === plan.targetRole) ||
+    !plan.answer || plan.answer.denominator !== String(plan.totalParts) ||
+    plan.answer.numerator !== String(plan.segments.find((segment) => segment.role === plan.targetRole)?.count) ||
+    !Array.isArray(plan.formula) || plan.formula.length < 3 || plan.formula.length > 7 ||
+    plan.formula.some((token) => !token || !['number', 'operator'].includes(token.type))) {
+    return {
+      status: 'rejected',
+      reasonCode: 'INVALID_INTENT',
+      message: 'Render plan pecahan V2 tidak valid. Gambar tidak dibuat.',
+    }
+  }
+
+  try {
+    const blob = await createFractionPlanV2Image(plan)
+    if (!blob || blob.size <= 0) {
+      return { status: 'rejected', reasonCode: 'BLOB_EMPTY', message: 'Renderer V2 tidak menghasilkan gambar.' }
+    }
+    const artifact: RenderArtifact = {
+      blob,
+      mimeType: 'image/png',
+      width: context.width,
+      height: context.height,
+      elementCount: plan.totalParts,
+      representedValues: [
+        ...plan.segments.map((segment) => segment.role + '=' + segment.count),
+        'answer=' + plan.answer.numerator + '/' + plan.answer.denominator,
+        'formula=' + plan.formula.map((token) => String(token.value)).join(' '),
+      ],
+      rendererId: 'fraction-partition-v2-canvas',
+      rendererVersion: 2,
+      semanticSummary: plan.semanticSummary,
+    }
+    return validateRenderArtifact(artifact)
+  } catch {
+    return {
+      status: 'rejected',
+      reasonCode: 'RENDER_FAILED',
+      message: 'Renderer pecahan V2 mengalami kesalahan. Gambar tidak dibuat.',
     }
   }
 }

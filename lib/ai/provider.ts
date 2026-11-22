@@ -8,6 +8,7 @@ type GenerateJsonInput = {
   groqSchema: JsonObject
   geminiSchema: JsonObject
   timeoutMs?: number
+  deadlineAt?: number
   maxOutputTokens?: number
 }
 type Usage = { promptTokens?: number; completionTokens?: number; totalTokens?: number }
@@ -21,6 +22,35 @@ export class AIProvidersUnavailableError extends Error {
     this.name = 'AIProvidersUnavailableError'
     this.status = status
   }
+}
+
+function remainingBudget(input: GenerateJsonInput): number {
+  return Math.max(0, (input.deadlineAt ?? (Date.now() + (input.timeoutMs ?? 45000))) - Date.now())
+}
+
+async function runWithinBudget<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error('Batas waktu total provider AI habis.')), Math.max(1, timeoutMs))
+      }),
+    ])
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+async function settleWithin<T>(promise: PromiseLike<T>, timeoutMs: number): Promise<T | null> {
+  if (timeoutMs <= 0) return null
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), timeoutMs)
+    Promise.resolve(promise).then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      () => { clearTimeout(timer); resolve(null) },
+    )
+  })
 }
 
 function parseJsonObject(text: string | null | undefined): JsonObject {
@@ -42,15 +72,16 @@ function getGroqRateLimitInfo(headers: Headers) {
   }
 }
 
-async function getProviderConfig() {
+async function getProviderConfig(deadlineAt: number) {
   const fallback = {
     provider_order: ['groq', 'gemini_primary', 'gemini_secondary'],
     providers: { groq: { enabled: true }, gemini_primary: { enabled: true }, gemini_secondary: { enabled: true } },
   }
   try {
     const supabase = createServiceRoleClient()
-    const { data } = await supabase.from('platform_service_settings').select('ai_config').eq('id', 'singleton').maybeSingle()
-    return data?.ai_config || fallback
+    const query = supabase.from('platform_service_settings').select('ai_config').eq('id', 'singleton').maybeSingle()
+      .then(({ data }) => data?.ai_config || fallback)
+    return await settleWithin(query, Math.min(1200, deadlineAt - Date.now() - 1500)) || fallback
   } catch {
     return fallback
   }
@@ -59,10 +90,10 @@ async function getProviderConfig() {
 async function logAttempt(input: {
   requestId: string; task: string; provider: string; model?: string; status: 'success' | 'failed' | 'skipped'
   usage?: Usage; latencyMs?: number; error?: string; errorCode?: string
-}) {
+}, deadlineAt?: number) {
   try {
     const supabase = createServiceRoleClient()
-    await supabase.from('ai_usage_logs').insert({
+    const insert = supabase.from('ai_usage_logs').insert({
       request_id: input.requestId,
       task: input.task,
       provider: input.provider,
@@ -75,6 +106,7 @@ async function logAttempt(input: {
       error_code: input.errorCode || null,
       error_message: input.error?.slice(0, 500) || null,
     })
+    await settleWithin(insert, deadlineAt === undefined ? 300 : Math.min(300, deadlineAt - Date.now() - 250))
   } catch (error) {
     console.error('AI usage log insert failed:', error)
   }
@@ -89,6 +121,8 @@ async function generateWithGroq(input: GenerateJsonInput): Promise<ProviderResul
     const correction = attempt === 2
       ? '\n\nPERBAIKAN WAJIB: Respons sebelumnya ditolak karena tidak memenuhi JSON Schema untuk tugas "' + input.task + '". Periksa kembali seluruh instruksi tugas dan skema JSON yang diberikan pada permintaan ini. Kembalikan satu objek JSON yang valid dengan struktur dan tipe data yang tepat sesuai skema tersebut. Pastikan semua properti wajib tersedia, tidak menambahkan properti yang tidak diizinkan, dan jangan sertakan markdown atau teks di luar JSON.'
       : ''
+    const remaining = remainingBudget(input)
+    if (remaining <= 1000) throw new Error('Batas waktu total AI habis sebelum percobaan Groq berikutnya.')
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
@@ -101,7 +135,7 @@ async function generateWithGroq(input: GenerateJsonInput): Promise<ProviderResul
         response_format: { type: 'json_schema', json_schema: { name: 'ai_result', strict: true, schema: input.groqSchema } },
         max_completion_tokens: input.maxOutputTokens ?? 1200,
       }),
-      signal: AbortSignal.timeout(input.timeoutMs ?? 45000),
+      signal: AbortSignal.timeout(Math.max(1000, remaining - 750)),
     })
     if (!response.ok) {
       const details = await response.text().catch(() => '')
@@ -133,7 +167,9 @@ async function generateWithGroq(input: GenerateJsonInput): Promise<ProviderResul
 }
 
 async function generateWithGemini(input: GenerateJsonInput, apiKey: string, model: string): Promise<ProviderResult> {
-  const client = new GoogleGenAI({ apiKey, httpOptions: { timeout: input.timeoutMs ?? 45000 } })
+  const remaining = remainingBudget(input)
+  if (remaining <= 1000) throw new Error('Batas waktu total AI habis sebelum permintaan Gemini.')
+  const client = new GoogleGenAI({ apiKey, httpOptions: { timeout: Math.max(1000, remaining - 750) } })
   const response = await client.models.generateContent({
     model,
     contents: input.prompt,
@@ -155,7 +191,9 @@ async function generateWithGemini(input: GenerateJsonInput, apiKey: string, mode
 export async function generateJsonWithFallback(input: GenerateJsonInput) {
   const requestId = crypto.randomUUID()
   const failures: ProviderFailure[] = []
-  const config = await getProviderConfig()
+  const deadlineAt = Date.now() + (input.timeoutMs ?? 45000)
+  const boundedInput: GenerateJsonInput = { ...input, deadlineAt }
+  const config = await getProviderConfig(deadlineAt)
   const accounts = {
     groq: { label: 'Groq', provider: 'Groq' as const, apiKey: process.env.GROQ_API_KEY, model: process.env.GROQ_TEXT_MODEL || 'openai/gpt-oss-120b' },
     gemini_primary: { label: 'Gemini utama', provider: 'Gemini' as const, apiKey: process.env.GEMINI_API_KEY, model: process.env.GEMINI_TEXT_MODEL || 'gemini-4-hydrogen' },
@@ -168,22 +206,29 @@ export async function generateJsonWithFallback(input: GenerateJsonInput) {
     if (!account) continue
     const enabled = config?.providers?.[id]?.enabled !== false
     if (!enabled || !account.apiKey) {
-      await logAttempt({ requestId, task: input.task, provider: account.provider, model: account.model, status: 'skipped', error: !enabled ? 'Dinonaktifkan admin.' : 'API key belum dikonfigurasi.' })
+      await logAttempt({ requestId, task: input.task, provider: account.provider, model: account.model, status: 'skipped', error: !enabled ? 'Dinonaktifkan admin.' : 'API key belum dikonfigurasi.' }, deadlineAt)
       continue
     }
 
+    const remaining = deadlineAt - Date.now()
+    if (remaining <= 2000) {
+      await logAttempt({ requestId, task: input.task, provider: account.provider, model: account.model, status: 'skipped', error: 'Batas waktu total tidak cukup untuk memulai provider berikutnya.' }, deadlineAt)
+      break
+    }
     const started = Date.now()
     try {
-      const result = id === 'groq'
-        ? await generateWithGroq(input)
-        : await generateWithGemini(input, account.apiKey!, account.model)
-      await logAttempt({ requestId, task: input.task, provider: account.provider, model: result.model, status: 'success', usage: result.usage, latencyMs: Date.now() - started })
+      const providerBudget = Math.max(1, deadlineAt - Date.now() - 750)
+      const operation = id === 'groq'
+        ? generateWithGroq(boundedInput)
+        : generateWithGemini(boundedInput, account.apiKey!, account.model)
+      const result = await runWithinBudget(operation, providerBudget)
+      await logAttempt({ requestId, task: input.task, provider: account.provider, model: result.model, status: 'success', usage: result.usage, latencyMs: Date.now() - started }, deadlineAt)
       return { data: result.data, provider: account.provider, model: result.model, usage: result.usage, requestId }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const details = error as Error & { status?: number; retryAfter?: string }
       failures.push({ provider: account.provider, status: details.status, message, retryAfter: details.retryAfter })
-      await logAttempt({ requestId, task: input.task, provider: account.provider, model: account.model, status: 'failed', latencyMs: Date.now() - started, error: message, errorCode: details.status ? String(details.status) : undefined })
+      await logAttempt({ requestId, task: input.task, provider: account.provider, model: account.model, status: 'failed', latencyMs: Date.now() - started, error: message, errorCode: details.status ? String(details.status) : undefined }, deadlineAt)
       console.error('AI provider ' + account.label + ' failed for ' + input.task + ':', message)
     }
   }

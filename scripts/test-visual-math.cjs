@@ -693,6 +693,78 @@ test('semantic fact graph accepts only source-backed facts and required relation
   assert.equal(validateFactGraph(wrongRelationRoles, { question }).status, 'rejected')
 })
 
+test('semantic graph validates derived integer provenance and rejects dependency cycles', () => {
+  const { validateFactGraph } = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
+  const question = '6 jeruk dibagikan sama rata kepada 3 anak.'
+  const excerpt = (quote) => {
+    const start = question.indexOf(quote)
+    return { source: 'question', start, end: start + quote.length, quote }
+  }
+  const graph = {
+    requestedGoal: 'equal_sharing',
+    facts: [
+      { id: 'total', role: 'total_objects', value: { kind: 'integer', value: 6 }, source: excerpt('6 jeruk') },
+      { id: 'groups', role: 'group_count', value: { kind: 'integer', value: 3 }, source: excerpt('3 anak') },
+      {
+        id: 'per_child',
+        role: 'objects_per_group',
+        value: { kind: 'integer', value: 2 },
+        provenance: { kind: 'derived', operation: 'divide', inputFactIds: ['total', 'groups'] },
+      },
+    ],
+    relations: [
+      { type: 'divided_into', from: 'total', to: 'groups', source: excerpt('dibagikan sama rata') },
+      { type: 'equal_share_of', from: 'total', to: 'groups', source: excerpt('dibagikan sama rata') },
+    ],
+  }
+  assert.equal(validateFactGraph(graph, { question }).status, 'accepted')
+
+  const wrongValue = structuredClone(graph)
+  wrongValue.facts[2].value.value = 3
+  assert.equal(validateFactGraph(wrongValue, { question }).reasonCode, 'FACTS_CONFLICT')
+
+  const cycle = structuredClone(graph)
+  cycle.facts[0].provenance = {
+    kind: 'derived',
+    operation: 'add',
+    inputFactIds: ['per_child', 'groups'],
+  }
+  assert.equal(validateFactGraph(cycle, { question }).reasonCode, 'FACTS_CONFLICT')
+})
+
+test('semantic graph recomputes derived rational values with exact BigInt arithmetic', () => {
+  const { validateFactGraph } = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
+  const question = '6 jeruk dibagikan sama rata kepada 3 anak.'
+  const excerpt = (quote) => {
+    const start = question.indexOf(quote)
+    return { source: 'question', start, end: start + quote.length, quote }
+  }
+  const graph = {
+    requestedGoal: 'equal_sharing',
+    facts: [
+      { id: 'total', role: 'total_objects', value: { kind: 'integer', value: 6 }, source: excerpt('6 jeruk') },
+      { id: 'groups', role: 'group_count', value: { kind: 'integer', value: 3 }, source: excerpt('3 anak') },
+      { id: 'large_a', role: 'input_a', value: { kind: 'integer', value: 9007199254740991 }, source: excerpt('6 jeruk') },
+      { id: 'large_b', role: 'input_b', value: { kind: 'integer', value: 9007199254740990 }, source: excerpt('3 anak') },
+      {
+        id: 'exact_ratio',
+        role: 'derived_ratio',
+        value: { kind: 'rational', value: { numerator: '9007199254740991', denominator: '9007199254740990' } },
+        provenance: { kind: 'derived', operation: 'divide', inputFactIds: ['large_a', 'large_b'] },
+      },
+    ],
+    relations: [
+      { type: 'divided_into', from: 'total', to: 'groups', source: excerpt('dibagikan sama rata') },
+      { type: 'equal_share_of', from: 'total', to: 'groups', source: excerpt('dibagikan sama rata') },
+    ],
+  }
+  assert.equal(validateFactGraph(graph, { question }).status, 'accepted')
+
+  const wrongValue = structuredClone(graph)
+  wrongValue.facts[4].value.value.numerator = '1'
+  assert.equal(validateFactGraph(wrongValue, { question }).reasonCode, 'FACTS_CONFLICT')
+})
+
 test('semantic fact graph detects contradictory fraction partition counts', () => {
   const { validateFactGraph } = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
   const question = 'Pizza dibagi menjadi 8 bagian sama besar. 9 bagian dipilih.'

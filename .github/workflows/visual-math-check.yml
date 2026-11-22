@@ -8,7 +8,12 @@ on:
       - 'lib/visual-math/**'
       - 'app/api/admin/ai/analyze-visual-intent/route.ts'
       - 'app/admin/asisten-ai/page.tsx'
+      - 'app/api/media/upload/route.ts'
+      - 'lib/ai/provider.ts'
+      - 'lib/visual-math/contracts/facts.ts'
+      - 'lib/visual-math/semantic/validate-fact-graph.ts'
       - 'scripts/test-visual-math.cjs'
+      - 'scripts/test-fraction-v2.cjs'
       - '.github/workflows/visual-math-check.yml'
   workflow_dispatch:
 
@@ -38,17 +43,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run Visual Math tests
+      - name: Run legacy Visual Math tests
         run: npm run test:visual-math
+
+      - name: Run fraction V2 contract and renderer tests
+        run: npm run test:visual-math:v2
+
+      - name: Type-check the application
+        run: npx tsc --noEmit
 
       - name: Lint changed Visual Math files
         run: >-
           npm run lint -- 
           app/api/admin/ai/analyze-visual-intent/route.ts
           app/admin/asisten-ai/page.tsx
-          lib/visual-math/analysis/build-ai-intent.ts
-          lib/visual-math/semantic/build-fact-graph.ts
+          app/api/media/upload/route.ts
+          lib/ai/provider.ts
+          lib/visual-math/contracts/facts.ts
           lib/visual-math/semantic/validate-fact-graph.ts
+          lib/visual-math/analysis/build-ai-intent.ts
+          lib/visual-math/analysis/fraction-v2.ts
+          lib/visual-math/types.ts
+          lib/visual-math/semantic/build-fact-graph.ts
           lib/visual-math/math/operation-planner.ts
           lib/visual-math/renderers/canvas.ts
           lib/visual-math/renderers/pictograph-scale.ts
@@ -58,3 +74,4 @@ jobs:
           lib/visual-math/quality/validate-visual-layout.ts
           lib/visual-math/index.ts
           scripts/test-visual-math.cjs
+          scripts/test-fraction-v2.cjs

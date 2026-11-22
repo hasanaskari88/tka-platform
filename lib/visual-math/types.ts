@@ -1,3 +1,5 @@
+import type { FractionRenderPlanV2 } from './analysis/fraction-v2'
+
 /**
  * Canonical contracts for the AI Visual Math Engine.
  *
@@ -75,11 +77,13 @@ export type VisualReasonCode =
   | 'UPLOAD_FAILED'
   | 'AI_RESPONSE_INVALID'
   | 'NEEDS_TEACHER_REVIEW'
+
 export type VisualMathResult = {
   version: 1
   status: VisualStatus
   intent: VisualIntent | null
   calculatedValue: RationalValue | null
+  renderPlan?: FractionRenderPlanV2 | null
   confidence: number | null
   reasonCode: VisualReasonCode | null
   explanation: string
