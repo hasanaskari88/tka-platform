@@ -227,7 +227,7 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
   },
   'Bahasa Jawa': {
     label: 'Bahasa Jawa',
-    sourceNote: 'Mengikuti buku Grengseng Basa Jawa Kelas VI, Muatan Lokal Wajib Provinsi Jawa Tengah, CV Media Karya Putra 2025, ISBN 978-623-287-482-4. Struktur mengikuti lima Pasinaon dan bagian pembelajaran dari guru.',
+    sourceNote: 'Mengikuti buku Grengseng Basa Jawa Kelas VI, Muatan Lokal Wajib Provinsi Jawa Tengah, CV Media Karya Putra 2025, ISBN 978-623-287-482-4. Struktur mengikuti lima Pasinaon. Setiap Pasinaon memuat Pitakon Panggugah, Materi, Njembarake Kawruh, Pitutur Luhur, Dudutan, Assesmen Sumatif, dan Refleksi; gunakan susunan ini saat menyusun materi ajar.',
     groups: [
       { title: 'Pasinaon 1 — Ngajeni Guru', topics: [
         t('g6-jawa-p1-ngajeni', 'Ngajeni guru lan unggah-ungguh', 'Memahami sikap hormat marang guru, tata krama, unggah-ungguh basa, lan tumindak santun ing sekolah.', 'Murid bisa nerangake lan nindakake sikap ngajeni guru.'),
