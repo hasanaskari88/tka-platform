@@ -630,3 +630,19 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - `RichTextEditor` mendapat prop opsional `showToolbar` dengan default `true`, sehingga editor lengkap yang sudah ada tidak berubah.
 - Commit: `56ba5619ac6155cfe7bed739a8e394af8edd7734` dan `2ed11b24e5c0b589c1818a8658c5c9e66899ae25`.
 - Build Vercel dan QA interaksi setelah login masih perlu diverifikasi. Tidak ada perubahan schema/database, histori jawaban, scoring, atau halaman latihan.
+
+
+### Generator materi ajar AI — 23 November 2026
+
+- Implementasi dilakukan langsung pada branch `main`, sesuai arahan; tidak menggunakan Preview dan tidak membuat branch baru.
+- Migrasi Supabase Production `extend_study_materials_for_ai_content` menambahkan `content_html`, `status`, `curriculum_track`, `grade`, `topic_id`, dan `updated_at`; `file_url` menjadi nullable. Verifikasi setelah migrasi menunjukkan 14 record lama tetap ada, semuanya berstatus `published`, dan 14 tautan file lama tetap terisi.
+- API admin `/api/admin/ai/generate-materials` ditambahkan. Endpoint memakai pemeriksaan same-origin dan `requireTrustedAdmin()`, katalog kurikulum yang sudah ada, serta provider AI Groq/Gemini. Output terstruktur divalidasi sebelum dikonversi menjadi HTML untuk editor.
+- Halaman `/admin/materi-ai` ditambahkan dengan pilihan jalur TKA SD atau pembelajaran kelas 6, mata pelajaran, topik, arahan tambahan, generator, dan penyuntingan menggunakan `RichTextEditor`.
+- Penyimpanan mendukung status `draft` atau `published`; materi baru default disimpan sesuai tindakan guru. Publikasi memerlukan tindakan eksplisit guru.
+- Sidebar admin mendapat menu **Pembuat Materi AI**.
+- Katalog siswa `/materi` hanya meminta record berstatus `published`; materi digital dengan `content_html` memiliki halaman baca `/materi/[id]`. Materi lama yang menggunakan tautan file tetap didukung.
+- Penyesuaian daftar Konten Website agar record materi digital internal tidak memicu pratinjau URL kosong.
+- Commit langsung ke `main`: API `16114f02`; halaman generator `00f0c50f`; menu admin `2eb54a4c`; katalog siswa `6295e969`; halaman baca `6ac2ef9e`; perbaikan penulis saat edit `5c1d15f7`; kompatibilitas CMS lama `696ba863`.
+- Deployment Production untuk commit terakhir `696ba8636a556612890f274429ada3b2f8875c18` telah dibuat oleh Vercel dan saat catatan ini diperbarui masih berstatus QUEUED. Belum boleh dinyatakan READY sebelum pemeriksaan deployment selesai.
+- Build/type-check dan QA browser login belum dikonfirmasi. Perlu menguji akses non-admin ditolak oleh API, generasi untuk TKA dan kelas 6, penyuntingan rumus/gambar/tabel, simpan draf, terbitkan, dan pembatasan katalog siswa.
+- Catatan keamanan penting: `study_materials` dan `announcements` masih RLS nonaktif dengan policy lama yang mengizinkan operasi publik ketika RLS diaktifkan. UI admin saja tidak melindungi akses langsung ke REST API Supabase. API AI yang baru memakai trusted-admin server-side, tetapi perbaikan RLS dan pemindahan operasi CMS lama ke server perlu menjadi pekerjaan keamanan tersendiri. Jangan mengklaim tabel sudah aman hanya karena halaman generator berada di area admin.
