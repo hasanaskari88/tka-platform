@@ -23,6 +23,7 @@ export default function MateriCatalogPage() {
       const { data, error } = await supabase
         .from('study_materials')
         .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
+        .eq('status', 'published')
         .order('created_at', { ascending: false })
 
       if (!active) return
@@ -135,7 +136,9 @@ export default function MateriCatalogPage() {
                     <p className="mt-1 text-[11px] font-semibold text-slate-500">✍️ {item.author_display_name || item.author?.full_name || 'Tim Penyusun'}</p>
                     {item.description && <div className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-600"><MathRenderer content={item.description} /></div>}
                   </div>
-                  {item.file_url ? (
+                  {item.content_html ? (
+                    <Link href={'/materi/' + item.id} className="shrink-0 rounded-xl border-2 border-slate-900 bg-amber-300 px-3 py-2 text-[11px] font-black text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition hover:-translate-y-0.5">Baca Materi ↗</Link>
+                  ) : item.file_url ? (
                     <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-xl border-2 border-slate-900 bg-amber-300 px-3 py-2 text-[11px] font-black text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition hover:-translate-y-0.5">Buka ↗</a>
                   ) : <span className="shrink-0 text-[10px] font-semibold text-slate-400">Belum tersedia</span>}
                 </article>
