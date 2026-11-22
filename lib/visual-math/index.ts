@@ -48,3 +48,16 @@ export type {
   OptionSetValidation,
   KnownAnswerValidation,
 } from './validation'
+export { validateFactGraph } from './semantic/validate-fact-graph'
+export type {
+  FactGraph,
+  FactGraphSources,
+  FactSourceKind,
+  FactSourceRef,
+  SemanticFact,
+  SemanticFactValue,
+  SemanticRelation,
+  SemanticRelationType,
+  SemanticValidationCode,
+  SemanticValidationResult,
+} from './contracts/facts'
