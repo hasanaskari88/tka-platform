@@ -438,13 +438,49 @@ test('Canvas renderers cover comparison, number line, geometry, and chart/table'
           { label: 'lebar', value: { numerator: '4', denominator: '1' }, unit: 'cm' },
         ],
       },
-      { type: 'chart_table', chartType: 'bar', categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }] },
-      { type: 'chart_table', chartType: 'pictograph', categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }] },
-      { type: 'chart_table', chartType: 'table', categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }] },
-      { type: 'fraction_partition', wholeLabel: 'apel', totalParts: 4, selectedParts: 2, selectedMeaning: 'selected' },
-      { type: 'fraction_partition', wholeLabel: 'jam analog', totalParts: 12, selectedParts: 3, selectedMeaning: 'selected' },
-      { type: 'fraction_partition', wholeLabel: 'kelereng', totalParts: 8, selectedParts: 3, selectedMeaning: 'selected' },
-      { type: 'fraction_partition', wholeLabel: 'garis bilangan', totalParts: 5, selectedParts: 2, selectedMeaning: 'selected' },
+      {
+        type: 'chart_table',
+        chartType: 'bar',
+        categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+      },
+      {
+        type: 'chart_table',
+        chartType: 'pictograph',
+        categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+      },
+      {
+        type: 'chart_table',
+        chartType: 'table',
+        categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+      },
+      {
+        type: 'fraction_partition',
+        wholeLabel: 'apel',
+        totalParts: 4,
+        selectedParts: 2,
+        selectedMeaning: 'selected',
+      },
+      {
+        type: 'fraction_partition',
+        wholeLabel: 'jam analog',
+        totalParts: 12,
+        selectedParts: 3,
+        selectedMeaning: 'selected',
+      },
+      {
+        type: 'fraction_partition',
+        wholeLabel: 'kelereng',
+        totalParts: 8,
+        selectedParts: 3,
+        selectedMeaning: 'selected',
+      },
+      {
+        type: 'fraction_partition',
+        wholeLabel: 'garis bilangan',
+        totalParts: 5,
+        selectedParts: 2,
+        selectedMeaning: 'selected',
+      },
     ]
     for (const intent of intents) {
       const blob = await visualRenderer.createVisualMathImage(intent)
