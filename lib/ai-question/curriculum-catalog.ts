@@ -264,6 +264,6 @@ export const CURRICULUM_SUBJECT_METADATA: Record<CurriculumTrack, Record<string,
     'Pendidikan Pancasila': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pancasila-2025'], sequencePolicy: 'SCHOOL_ATP' },
     'Bahasa Inggris': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025'], sequencePolicy: 'SCHOOL_ATP' },
     PJOK: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pjok-2025'], sequencePolicy: 'SCHOOL_ATP' },
-    'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'perbup-semarang-14-2022', 'kepgub-jateng-jawa-2026'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
+    'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'perbup-semarang-14-2022', 'kepgub-jateng-jawa-2026', 'rkpd-semarang-2026'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
   },
 }
