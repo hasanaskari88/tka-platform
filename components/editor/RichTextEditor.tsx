@@ -63,8 +63,18 @@ function prepareEditorContent(value: string): string {
     '⅙': '\\frac{1}{6}', '⅚': '\\frac{5}{6}', '⅛': '\\frac{1}{8}',
     '⅜': '\\frac{3}{8}', '⅝': '\\frac{5}{8}', '⅞': '\\frac{7}{8}',
   }
-  const withPlainFractions = withMath.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
-    const converted = text.replace(
+  let insideMathNode = false
+  const withPlainFractions = withMath.replace(/(<[^>]+>|[^<]+)/g, (token) => {
+    if (token.startsWith('<')) {
+      if (/^<(?:span|div)\b(?=[^>]*\bdata-type=["'](?:inline|block)-math["'])/i.test(token)) {
+        insideMathNode = true
+      } else if (/^<\/(?:span|div)>/i.test(token) && insideMathNode) {
+        insideMathNode = false
+      }
+      return token
+    }
+    if (insideMathNode) return token
+    return token.replace(
       /(\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\})|([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])|((^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./]))/g,
       (_match, _latex: string, latexNumerator: string, latexDenominator: string, glyph: string, _plain: string, plainPrefix: string, numerator: string, denominator: string) => {
         const latex = latexNumerator !== undefined
@@ -80,7 +90,6 @@ function prepareEditorContent(value: string): string {
           escapeMathText(visible) + '</span>'
       }
     )
-    return prefix + converted
   })
 
   // Jawaban lama atau teks Aksara Jawa tanpa atribut font tetap ditampilkan
