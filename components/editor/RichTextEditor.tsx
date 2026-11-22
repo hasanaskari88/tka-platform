@@ -54,10 +54,31 @@ function prepareEditorContent(value: string): string {
     return '<' + tag + ' data-type="' + type + '" data-latex="' + escapeMathAttribute(latex) + '">' + escapeMathText(latex) + '</' + tag + '>'
   })
 
-  // Konversi pecahan sederhana yang ditulis AI sebagai teks biasa (misalnya 3/4)
-  // menjadi node matematika agar tampil sebagai pecahan bertingkat di editor.
+  // AI kadang mengirim LaTeX pecahan tanpa delimiter $...$.
+  // Ubah juga pecahan Unicode umum menjadi node matematika Tiptap.
+  const fractionGlyphs: Record<string, string> = {
+    '½': '\\frac{1}{2}', '⅓': '\\frac{1}{3}', '⅔': '\\frac{2}{3}',
+    '¼': '\\frac{1}{4}', '¾': '\\frac{3}{4}', '⅕': '\\frac{1}{5}',
+    '⅖': '\\frac{2}{5}', '⅗': '\\frac{3}{5}', '⅘': '\\frac{4}{5}',
+    '⅙': '\\frac{1}{6}', '⅚': '\\frac{5}{6}', '⅛': '\\frac{1}{8}',
+    '⅜': '\\frac{3}{8}', '⅝': '\\frac{5}{8}', '⅞': '\\frac{7}{8}',
+  }
+  const withBareLatexFractions = withMath.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
+    const latexConverted = text.replace(
+      /\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\}/g,
+      (_match, numerator: string, denominator: string) =>
+        '<span data-type="inline-math" data-latex="\\frac{' + escapeMathAttribute(numerator) + '}{' + escapeMathAttribute(denominator) + '}">' +
+        escapeMathText(numerator) + '/' + escapeMathText(denominator) + '</span>'
+    )
+    const glyphConverted = latexConverted.replace(/[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g, (glyph) =>
+      '<span data-type="inline-math" data-latex="' + fractionGlyphs[glyph] + '">' + glyph + '</span>'
+    )
+    return prefix + glyphConverted
+  })
+
+  // Konversi pecahan sederhana yang ditulis sebagai teks biasa (misalnya 3/4).
   // Tag HTML dan atribut tidak disentuh; hanya isi teks yang diproses.
-  const withPlainFractions = withMath.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
+  const withPlainFractions = withBareLatexFractions.replace(/(^|>)([^<>]+)(?=<|$)/g, (full, prefix, text: string) => {
     const converted = text.replace(
       /(^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./])/g,
       (_match, before: string, numerator: string, denominator: string) =>
