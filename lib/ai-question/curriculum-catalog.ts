@@ -183,7 +183,3 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { title: 'Panduan Mata Pelajaran IPAS Fase A–C (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/7.%20Final%20Panduan%20Mata%20Pelajaran%20IPAS_03_10_2025_Revisi%204.pdf', reviewedAt: '2026-11-22' },
   { title: 'Panduan Mata Pelajaran Pendidikan Pancasila Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/2.%20Final%20Panduan%20Mata%20Pelajaran%20Pendidikan%20Pancasila_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
 ] as const
-export function getCurriculumTopics(track: CurriculumTrack, subject: string): CurriculumTopic[] {
-  const selected = CURRICULUM_CATALOGS[track][subject]
-  return selected ? selected.groups.flatMap((group) => group.topics) : []
-}
