@@ -168,6 +168,55 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
       ]},
     ],
   },
+
+  'PJOK': {
+    label: 'PJOK',
+    sourceNote: 'Mengacu pada Panduan PJOK Fase C (umumnya kelas V–VI): keterampilan gerak, belajar melalui gerak, gaya hidup aktif, dan memilih hidup sehat. Materi praktik perlu disesuaikan dengan fasilitas, keselamatan, dan kondisi murid.',
+    groups: [
+      { title: 'Terampil Bergerak', topics: [
+        t('g6-pjok-gerak-lokomotor', 'Variasi dan kombinasi gerak dasar', 'Mempraktikkan variasi dan kombinasi gerak lokomotor, nonlokomotor, dan manipulatif dalam aktivitas permainan atau olahraga.', 'Murid memilih atau mempraktikkan kombinasi gerak yang tepat sesuai tujuan aktivitas.'),
+        t('g6-pjok-permainan-bola', 'Permainan bola besar dan bola kecil', 'Menerapkan keterampilan gerak, aturan sederhana, dan strategi dalam permainan bola besar maupun bola kecil yang dimodifikasi.', 'Murid menentukan teknik, strategi, atau keputusan bermain yang tepat dalam situasi permainan.'),
+        t('g6-pjok-atletik', 'Aktivitas atletik dan gerak berirama', 'Mempraktikkan kombinasi gerak dasar dalam aktivitas jalan, lari, lompat, lempar, serta gerak berirama sesuai kemampuan.', 'Murid mengidentifikasi urutan gerak atau prinsip keselamatan dalam aktivitas atletik dan gerak berirama.'),
+        t('g6-pjok-senam', 'Aktivitas senam dan kebugaran gerak', 'Mempraktikkan rangkaian gerak senam sederhana dengan memperhatikan koordinasi, keseimbangan, kelenturan, dan keselamatan.', 'Murid memilih rangkaian gerak yang sesuai dengan unsur kebugaran dan prosedur keselamatan.'),
+      ]},
+      { title: 'Belajar Melalui Gerak', topics: [
+        t('g6-pjok-strategi', 'Strategi dan modifikasi permainan', 'Menganalisis efektivitas strategi, memodifikasi aturan atau alat, dan memilih cara bermain yang aman serta inklusif.', 'Murid menentukan modifikasi aturan atau strategi yang meningkatkan keselamatan dan partisipasi semua pemain.'),
+        t('g6-pjok-sportivitas', 'Kerja sama, fair play, dan tanggung jawab', 'Menunjukkan komunikasi, kerja sama tim, kepemimpinan, sportivitas, dan tanggung jawab dalam aktivitas jasmani.', 'Murid memilih sikap yang mencerminkan kerja sama, fair play, dan tanggung jawab saat beraktivitas.'),
+      ]},
+      { title: 'Bergaya Hidup Aktif', topics: [
+        t('g6-pjok-kebugaran', 'Kebugaran jasmani dan aktivitas fisik', 'Memahami komponen kebugaran, menyusun aktivitas fisik teratur, serta mengenali manfaat gerak dan risiko perilaku sedenter.', 'Murid menghubungkan aktivitas fisik teratur dengan kebugaran dan memilih kebiasaan aktif yang sesuai.'),
+      ]},
+      { title: 'Memilih Hidup Sehat', topics: [
+        t('g6-pjok-gizi', 'Pola makan sehat dan gizi seimbang', 'Mengenali ragam zat gizi, membaca informasi sederhana pada makanan, dan memilih pola makan yang mendukung aktivitas.', 'Murid memilih susunan makanan atau kebiasaan makan yang mendukung kesehatan dan aktivitas jasmani.'),
+        t('g6-pjok-pencegahan', 'Pencegahan risiko kesehatan', 'Menghubungkan kebersihan diri, istirahat, hidrasi, aktivitas jasmani, dan kebiasaan sehat dengan pencegahan risiko kesehatan.', 'Murid menentukan tindakan pencegahan yang tepat untuk menjaga kesehatan saat beraktivitas.'),
+        t('g6-pjok-cedera', 'Keselamatan aktivitas dan pertolongan pertama', 'Mengenali risiko cedera, melakukan langkah awal penanganan cedera sesuai tingkat keparahan, dan mengetahui kapan meminta bantuan orang dewasa atau tenaga kesehatan.', 'Murid menentukan tindakan aman saat terjadi cedera dan memilih kapan harus meminta pertolongan.'),
+      ]},
+    ],
+  },
+  'Bahasa Jawa': {
+    label: 'Bahasa Jawa',
+    sourceNote: 'Muatan lokal Jawa Tengah, diselaraskan dengan CP Bahasa Jawa Fase C (kelas V–VI), Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang buku teks muatan lokal, serta Perbup Kabupaten Semarang Nomor 14 Tahun 2022. Urutan dan kedalaman materi mengikuti buku yang digunakan sekolah dan ATP satuan pendidikan.',
+    groups: [
+      { title: 'Menyimak lan Mangerteni', topics: [
+        t('g6-jawa-nyemak', 'Nyemak pawarta lan informasi', 'Memahami gagasan pokok, rincian, pesan, dan instruksi lisan berbahasa Jawa ngoko atau krama dalam konteks sehari-hari.', 'Murid nemtokake gagasan pokok, informasi wigati, utawa pesen saka teks lisan basa Jawa.'),
+        t('g6-jawa-teks-informasi', 'Teks informasi babagan tradhisi lan budaya', 'Membaca dan mengolah informasi tentang tradisi, budaya, lingkungan, serta peristiwa di Jawa Tengah dan Kabupaten Semarang.', 'Murid nemokake informasi, urutan kedadeyan, lan nilai budaya saka teks informasi basa Jawa.'),
+        t('g6-jawa-cerita', 'Crita legenda lan wayang', 'Memahami tokoh, watak, alur, konflik, dan nilai budi pekerti dalam cerita legenda serta kisah wayang Pandawa dan Punakawan.', 'Murid njlentrehake paraga, watak, kedadeyan, utawa piwulang saka crita legenda lan wayang.'),
+        t('g6-jawa-geguritan', 'Geguritan lan tembang Macapat', 'Memahami isi, pilihan kata, suasana, pesan, dan unsur sederhana geguritan serta tembang Maskumambang dan Mijil.', 'Murid napsirake isi, swasana, utawa piwulang ing geguritan lan tembang Macapat.'),
+      ]},
+      { title: 'Maca lan Nggunakake Basa', topics: [
+        t('g6-jawa-unggahungguh', 'Unggah-ungguh basa ngoko lan krama', 'Memilih ragam ngoko atau krama sesuai lawan bicara, tujuan, dan situasi komunikasi; membiasakan tutur santun kepada teman dan orang yang lebih tua.', 'Murid milih ukara ngoko utawa krama sing trep karo kahanan lan wong sing diajak guneman.'),
+        t('g6-jawa-kosakata', 'Kosakata, paribasan, bebasan, lan saloka', 'Memahami kosakata dan ungkapan Jawa serta maknanya dalam percakapan, bacaan, dan situasi kehidupan sehari-hari.', 'Murid nemtokake teges tembung utawa ungkapan Jawa adhedhasar konteks ukara.'),
+        t('g6-jawa-dialog', 'Pacelathon lan presentasi sederhana', 'Menyusun dialog, menyampaikan pendapat, bertanya, menanggapi, dan mempresentasikan informasi dengan pilihan kata serta intonasi santun.', 'Murid nglengkapi utawa nyusun pacelathon kanthi unggah-ungguh basa sing trep.'),
+      ]},
+      { title: 'Nulis lan Aksara Jawa', topics: [
+        t('g6-jawa-nulis', 'Nulis teks narasi lan deskripsi', 'Menulis teks narasi atau deskripsi berbahasa Jawa dengan urutan gagasan, kosakata, dan unggah-ungguh yang sesuai.', 'Murid nyusun teks narasi utawa deskripsi basa Jawa kanthi runtut lan trep.'),
+        t('g6-jawa-aksara', 'Aksara Jawa legena, pasangan, lan sandhangan', 'Membaca dan menulis kalimat sederhana menggunakan aksara Jawa legena, pasangan, sandhangan swara, serta sandhangan panyigeg wanda sesuai materi buku sekolah.', 'Murid maca utawa nulis ukara prasaja nganggo aksara Jawa lan sandhangan sing trep.'),
+      ]},
+      { title: 'Kabudayan lan Kearifan Lokal', topics: [
+        t('g6-jawa-semarang', 'Tradhisi lan kearifan lokal Kabupaten Semarang', 'Mengenali cerita, kesenian, tradisi, lingkungan, dan potensi budaya Kabupaten Semarang sebagai bahan membaca, berdiskusi, dan menulis berbahasa Jawa.', 'Murid njlentrehake informasi utawa nilai becik saka tradhisi lan budaya ing Kabupaten Semarang.'),
+      ]},
+    ],
+  },
 }
 
 export const CURRICULUM_CATALOGS: Record<CurriculumTrack, CurriculumCatalog> = { TKA: TKA_SD_CATALOG, GRADE_6: GRADE_6_CATALOG }
@@ -182,4 +231,9 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { title: 'Panduan Mata Pelajaran Matematika Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://repositori.kemendikdasmen.go.id/33608/1/5.%20Final%20Panduan%20Mata%20Pelajaran%20Matematika_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
   { title: 'Panduan Mata Pelajaran IPAS Fase A–C (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/7.%20Final%20Panduan%20Mata%20Pelajaran%20IPAS_03_10_2025_Revisi%204.pdf', reviewedAt: '2026-11-22' },
   { title: 'Panduan Mata Pelajaran Pendidikan Pancasila Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/2.%20Final%20Panduan%20Mata%20Pelajaran%20Pendidikan%20Pancasila_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
+
+  { title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-22' },
+  { title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-22' },
+  { title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-22' },
+
 ] as const
