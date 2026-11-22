@@ -48,4 +48,6 @@ jobs:
           lib/visual-math/semantic/build-fact-graph.ts
           lib/visual-math/semantic/validate-fact-graph.ts
           lib/visual-math/math/operation-planner.ts
+          lib/visual-math/renderers/canvas.ts
+          lib/visual-math/renderers/pictograph-scale.ts
           scripts/test-visual-math.cjs
