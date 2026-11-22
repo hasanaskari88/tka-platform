@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
+import { recordAIUsage } from '@/lib/ai/provider'
 
 const IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell'
 
@@ -22,6 +23,9 @@ const imageTypeDescriptions: Record<string, string> = {
 }
 
 export async function POST(request: Request) {
+  const requestId = crypto.randomUUID()
+  let generationStartedAt: number | null = null
+  let usageLogged = false
   try {
     const origin = request.headers.get('origin')
     if (!origin || origin !== new URL(request.url).origin) {
@@ -65,6 +69,7 @@ export async function POST(request: Request) {
       'Do not reveal or hint at the answer unless the visual brief explicitly requires it.',
     ].filter(Boolean).join('\n').slice(0, 2048)
 
+    generationStartedAt = Date.now()
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${IMAGE_MODEL}`,
       {
@@ -85,6 +90,13 @@ export async function POST(request: Request) {
     }
 
     if (!response.ok || !payload.success || !payload.result?.image) {
+      const failureMessage = payload.errors?.map((item) => item.message).filter(Boolean).join('; ') || 'Cloudflare image generation failed.'
+      await recordAIUsage({
+        requestId, task: 'question_image_generation', provider: 'Cloudflare Workers AI',
+        model: IMAGE_MODEL, status: 'failed', latencyMs: Date.now() - generationStartedAt!,
+        error: failureMessage, errorCode: String(response.status),
+      })
+      usageLogged = true
       console.error('Cloudflare Workers AI image generation failed:', {
         httpStatus: response.status,
         errors: payload.errors?.map((item) => ({ code: item.code, message: item.message })),
@@ -100,12 +112,31 @@ export async function POST(request: Request) {
     const imageBase64 = payload.result.image
     const size = Buffer.byteLength(imageBase64, 'base64')
     if (size > 8 * 1024 * 1024) {
+      await recordAIUsage({
+        requestId, task: 'question_image_generation', provider: 'Cloudflare Workers AI',
+        model: IMAGE_MODEL, status: 'failed', latencyMs: Date.now() - generationStartedAt!,
+        error: 'Generated image exceeded 8 MB.', errorCode: 'OUTPUT_TOO_LARGE',
+      })
+      usageLogged = true
       return NextResponse.json({ error: 'Ukuran gambar hasil AI melebihi 8 MB.' }, { status: 502 })
     }
 
+    await recordAIUsage({
+      requestId, task: 'question_image_generation', provider: 'Cloudflare Workers AI',
+      model: IMAGE_MODEL, status: 'success', latencyMs: Date.now() - generationStartedAt!,
+    })
+    usageLogged = true
     return NextResponse.json({ success: true, imageBase64, mimeType: 'image/jpeg' })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    if (generationStartedAt !== null && !usageLogged) {
+      await recordAIUsage({
+        requestId, task: 'question_image_generation', provider: 'Cloudflare Workers AI',
+        model: IMAGE_MODEL, status: 'failed', latencyMs: Date.now() - generationStartedAt,
+        error: message, errorCode: /timed out|timeout/i.test(message) ? 'TIMEOUT' : 'REQUEST_FAILED',
+      })
+      usageLogged = true
+    }
     console.error('Cloudflare Workers AI image generation request failed:', { message })
     return NextResponse.json(
       { error: message.includes('timed out') || message.includes('Timeout')
