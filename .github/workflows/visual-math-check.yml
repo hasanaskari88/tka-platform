@@ -7,6 +7,7 @@ on:
     paths:
       - 'lib/visual-math/**'
       - 'app/api/admin/ai/analyze-visual-intent/route.ts'
+      - 'app/admin/asisten-ai/page.tsx'
       - 'scripts/test-visual-math.cjs'
       - '.github/workflows/visual-math-check.yml'
   workflow_dispatch:
@@ -44,6 +45,7 @@ jobs:
         run: >-
           npm run lint -- 
           app/api/admin/ai/analyze-visual-intent/route.ts
+          app/admin/asisten-ai/page.tsx
           lib/visual-math/analysis/build-ai-intent.ts
           lib/visual-math/semantic/build-fact-graph.ts
           lib/visual-math/semantic/validate-fact-graph.ts
