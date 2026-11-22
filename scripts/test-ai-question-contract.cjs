@@ -44,14 +44,17 @@ function baseQuestion(index, overrides = {}) {
   return { blueprint, question }
 }
 
-const { FRACTION_CURRICULUM_FRAMEWORK } =
+const { TKA_SD_CATALOG, GRADE_6_CATALOG, getCurriculumTopics } =
   require(path.join(__dirname, '../lib/ai-question/curriculum-catalog.ts'))
 
 assert.equal(FRACTION_PILOT_BLUEPRINT.length, 12)
-assert.equal(FRACTION_CURRICULUM_FRAMEWORK.id, 'math-fractions-part-whole')
-assert.equal(FRACTION_CURRICULUM_FRAMEWORK.gradeGuidance[2].phase, 'A')
-assert.equal(FRACTION_CURRICULUM_FRAMEWORK.gradeGuidance[2].explicitTerms.includes('pembilang'), false)
-assert.equal(FRACTION_CURRICULUM_FRAMEWORK.gradeGuidance[3].phase, 'B')
+assert.deepEqual(Object.keys(TKA_SD_CATALOG).sort(), ['Bahasa Indonesia', 'Matematika'])
+assert.ok(getCurriculumTopics('TKA', 'Matematika').some((item) => item.title === 'Pecahan senilai'))
+assert.ok(getCurriculumTopics('TKA', 'Bahasa Indonesia').some((item) => item.title === 'Menyimpulkan informasi tersirat'))
+assert.ok(getCurriculumTopics('GRADE_6', 'IPAS').some((item) => item.title === 'Sistem organ tubuh dan kesehatan'))
+assert.ok(getCurriculumTopics('GRADE_6', 'Pendidikan Pancasila').some((item) => item.title === 'Sejarah kelahiran Pancasila'))
+assert.ok(getCurriculumTopics('GRADE_6', 'Matematika').some((item) => item.title === 'Bilangan cacah sampai 1.000.000'))
+assert.ok(Object.keys(GRADE_6_CATALOG).length >= 5)
 assert.deepEqual(
   FRACTION_PILOT_BLUEPRINT.reduce((counts, item) => {
     counts[item.grade] = (counts[item.grade] || 0) + 1
