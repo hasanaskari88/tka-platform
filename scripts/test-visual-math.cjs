@@ -853,3 +853,32 @@ test('operation planner blocks calculation when semantic facts are incomplete', 
   assert.equal(plan.calculation.value, null)
 })
 
+test('AI intent builder returns a validated fact graph before an intent can be planned', () => {
+  const question = '6 jeruk dibagikan sama rata kepada 3 anak.'
+  const built = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'equal_sharing',
+    evidence: question,
+    facts: JSON.stringify({
+      objectLabel: 'jeruk',
+      totalObjects: 6,
+      groupCount: 3,
+      selectedGroupCount: 1,
+    }),
+  }, question)
+  assert.equal(built.reasonCode, null)
+  assert.equal(built.intent.type, 'equal_sharing')
+  assert.ok(built.factGraph)
+  assert.equal(
+    semanticValidation.validateFactGraph(built.factGraph, built.factGraphSources).status,
+    'accepted',
+  )
+  const plan = operationPlanner.planVisualMathOperation(
+    built.intent,
+    built.factGraph,
+    built.factGraphSources,
+  )
+  assert.equal(plan.operation.kind, 'divide_equally')
+  assert.equal(plan.calculation.status, 'ready')
+  assert.equal(rational.formatFraction(plan.calculation.value), '2/1')
+})
+
