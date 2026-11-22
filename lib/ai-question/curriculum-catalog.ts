@@ -1,6 +1,6 @@
 /**
  * Curated material catalog for TKA SD and Grade 6 learning.
- * Official references reviewed: 22 November 2026.
+ * Official references reviewed: 23 November 2026.
  * TKA scope comes from Pusat Asesmen Pendidikan's SD assessment framework.
  * Grade 6 topics are mapped to Phase C (generally grades V-VI), not asserted
  * as a nationally fixed semester-by-semester sequence.
@@ -98,40 +98,57 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
   },
   'Bahasa Indonesia': {
     label: 'Bahasa Indonesia',
-    sourceNote: 'Mengacu pada CP Bahasa Indonesia Fase C (umumnya kelas V–VI): menyimak, membaca dan memirsa, berbicara dan mempresentasikan, serta menulis.',
+    sourceNote: 'Mengikuti buku siswa Anak-Anak yang Mengubah Dunia (Edisi Revisi 2025), ISBN 978-634-00-2617-7, dan Panduan Guru ISBN 978-634-00-2484-5. Empat bab menjadi struktur utama; topik adalah ringkasan materi.',
     groups: [
-      { title: 'Menyimak dan Membaca', topics: [
-        t('g6-bi-informasi', 'Menganalisis informasi teks nonsastra', 'Menemukan ciri objek, urutan proses, informasi penting, dan hubungan antaride dalam teks informasi.', 'Murid menganalisis informasi, ciri objek, atau urutan proses dari teks nonsastra.'),
-        t('g6-bi-sastra', 'Menganalisis teks sastra', 'Memahami unsur cerita, peristiwa, nilai, pesan, dan perubahan tokoh dalam teks sastra.', 'Murid menganalisis tokoh, peristiwa, nilai, atau pesan dalam teks sastra.'),
-        t('g6-bi-visual', 'Memahami teks visual dan audiovisual', 'Menafsirkan informasi dari bacaan, gambar, infografik, tayangan, atau gabungan teks dan visual.', 'Murid menggabungkan informasi dari teks dan unsur visual untuk menjawab pertanyaan.'),
-        t('g6-bi-kosakata', 'Kosakata dan makna kontekstual', 'Memahami kosakata baru, makna denotatif dan konotatif terbatas, ungkapan, serta pilihan kata sesuai konteks.', 'Murid menentukan makna kata atau ungkapan berdasarkan konteks teks.'),
+      { title: 'Bab 1 — Anak-Anak yang Mengubah Dunia', topics: [
+        t('g6-bi-b1-eksplanasi', 'Teks eksplanasi dan perubahan iklim', 'Memahami proses perubahan iklim, dampak lingkungan, dan tindakan menjaga bumi.', 'Murid menemukan informasi dan menyusun teks eksplanasi sederhana.'),
+        t('g6-bi-b1-bahasa', 'Kosakata, pola huruf, dan kata penghubung', 'Membaca kata berpola huruf beragam serta menggunakan kosakata dan kata penghubung.', 'Murid memahami kosakata dan menggunakan kata penghubung tepat.'),
+        t('g6-bi-b1-visual', 'Teks visual dan audiovisual', 'Menemukan informasi tersurat dan inferensial dari gambar, komik, infografik, atau tayangan.', 'Murid menyimpulkan informasi dari teks visual.'),
       ]},
-      { title: 'Berbicara dan Menulis', topics: [
-        t('g6-bi-presentasi', 'Menyampaikan pendapat dan presentasi', 'Menyampaikan gagasan, tanggapan, dan hasil pengamatan secara runtut dengan alasan yang sesuai.', 'Murid menyampaikan pendapat atau hasil pengamatan secara runtut dan didukung alasan.'),
-        t('g6-bi-menulis', 'Menulis berbagai jenis teks', 'Menulis teks berdasarkan pengamatan atau pengalaman dengan kalimat kompleks, kosakata tepat, dan kaidah kebahasaan.', 'Murid menyusun teks yang runtut, jelas, dan sesuai tujuan serta kaidah kebahasaan.'),
-        t('g6-bi-ringkasan', 'Meringkas dan menyajikan kembali informasi', 'Menyusun ringkasan, laporan, atau bagan berdasarkan informasi dari beberapa bagian teks.', 'Murid menyajikan kembali informasi utama secara ringkas tanpa mengubah makna.'),
+      { title: 'Bab 2 — Nusantara Berjuta Cerita', topics: [
+        t('g6-bi-b2-rakyat', 'Cerita rakyat dan teks sastra bergambar', 'Mengenali unsur cerita, tokoh, peristiwa, nilai budaya, dan pesan cerita rakyat Nusantara.', 'Murid mengidentifikasi unsur dan pesan cerita.'),
+        t('g6-bi-b2-makna', 'Makna denotatif dan konotatif', 'Membedakan makna sebenarnya dan makna kiasan berdasarkan konteks.', 'Murid menentukan makna kata berdasarkan konteks.'),
+        t('g6-bi-b2-menulis', 'Menulis cerita rakyat sederhana', 'Menyampaikan tanggapan dan menulis cerita rakyat dengan pilihan kata bervariasi.', 'Murid menulis cerita runtut dengan pilihan kata sesuai.'),
+      ]},
+      { title: 'Bab 3 — Temukan Minat, Tunjukkan Bakat', topics: [
+        t('g6-bi-b3-minat', 'Minat, bakat, dan cita-cita', 'Menggali informasi minat, bakat, pengalaman, prestasi, dan cita-cita melalui bacaan serta wawancara.', 'Murid menjelaskan hubungan minat, bakat, usaha, dan cita-cita.'),
+        t('g6-bi-b3-wawancara', 'Wawancara dan kalimat langsung', 'Menyusun pertanyaan, melakukan wawancara, serta mengenali kalimat langsung dan tidak langsung.', 'Murid menyusun pertanyaan dan mengubah kalimat langsung.'),
+        t('g6-bi-b3-presentasi', 'Menyajikan hasil wawancara', 'Mengolah hasil wawancara menjadi tulisan atau presentasi yang runtut.', 'Murid menyajikan hasil wawancara dengan bahasa santun.'),
+      ]},
+      { title: 'Bab 4 — Dari Hobi Menjadi Profesi', topics: [
+        t('g6-bi-b4-profesi', 'Hobi, keterampilan, dan profesi', 'Menghubungkan hobi dengan keterampilan, ragam profesi, dan peluang pekerjaan.', 'Murid menjelaskan hubungan hobi dan profesi.'),
+        t('g6-bi-b4-laporan', 'Teks laporan hasil pengamatan', 'Melakukan pengamatan, mencatat fakta, menyusun laporan, dan membedakan fakta dengan opini.', 'Murid menyusun laporan secara objektif dan runtut.'),
+        t('g6-bi-b4-ejaan', 'Kalimat efektif dan ejaan', 'Mengembangkan paragraf padu serta menggunakan kosakata, huruf kapital, dan tanda baca.', 'Murid memperbaiki teks sesuai kaidah bahasa.'),
       ]},
     ],
   },
-  IPAS: {
+  'IPAS': {
     label: 'IPAS',
-    sourceNote: 'Mengacu pada CP IPAS Fase C (umumnya kelas V–VI), meliputi pemahaman alam dan sosial serta keterampilan proses penyelidikan.',
+    sourceNote: 'Mengikuti buku siswa IPAS Kelas VI Edisi Revisi 2025, ISBN 978-634-00-2164-6, dan Panduan Guru ISBN 978-634-00-2168-4. Enam bab menjadi struktur utama.',
     groups: [
-      { title: 'Ilmu Pengetahuan Alam', topics: [
-        t('g6-ipas-organ', 'Sistem organ tubuh dan kesehatan', 'Menghubungkan sistem organ manusia dengan fungsi tubuh, kebiasaan hidup sehat, dan upaya menjaga kesehatan.', 'Murid menjelaskan hubungan sistem organ dengan cara menjaga kesehatan tubuh.'),
-        t('g6-ipas-ekosistem', 'Ekosistem dan hubungan makhluk hidup', 'Menganalisis hubungan komponen biotik dan abiotik serta dampak perubahan pada keseimbangan ekosistem.', 'Murid menganalisis hubungan komponen biotik dan abiotik dalam suatu ekosistem.'),
-        t('g6-ipas-bunyi-cahaya', 'Gelombang bunyi dan cahaya', 'Menjelaskan sifat atau fenomena bunyi dan cahaya melalui peristiwa dalam kehidupan sehari-hari.', 'Murid menjelaskan fenomena bunyi atau cahaya berdasarkan pengamatan dan konsep sederhana.'),
-        t('g6-ipas-energi', 'Energi, penghematan, dan perubahan iklim', 'Mengenali sumber energi, upaya penghematan, dan pemanfaatan energi alternatif untuk mengurangi dampak perubahan iklim.', 'Murid memilih atau menjelaskan tindakan penghematan energi dan pemanfaatan energi alternatif.'),
-        t('g6-ipas-tatasurya', 'Tata surya, rotasi, dan revolusi bumi', 'Menjelaskan susunan tata surya dan kaitan rotasi serta revolusi bumi dengan gejala yang diamati.', 'Murid menjelaskan sistem tata surya dan akibat rotasi atau revolusi bumi.'),
+      { title: 'Bab 1 — Makanan Bergizi untuk Kesehatan Pencernaanmu', topics: [
+        t('g6-ipas-b1-pencernaan', 'Sistem pencernaan manusia', 'Mengenali organ pencernaan, fungsi, perjalanan makanan, dan proses pencernaan.', 'Murid menjelaskan urutan organ dan proses pencernaan.'),
+        t('g6-ipas-b1-gizi', 'Gizi dan kesehatan pencernaan', 'Menghubungkan kandungan gizi, pilihan makanan, gangguan pencernaan, dan kebiasaan sehat.', 'Murid memilih makanan dan kebiasaan untuk menjaga pencernaan.'),
       ]},
-      { title: 'Ilmu Pengetahuan Sosial', topics: [
-        t('g6-ipas-geografi', 'Letak dan kondisi geografis Indonesia', 'Menggunakan peta konvensional atau digital untuk memahami letak, wilayah, dan kondisi geografis Indonesia.', 'Murid membaca peta dan menjelaskan letak atau kondisi geografis Indonesia.'),
-        t('g6-ipas-sejarah', 'Sejarah perjuangan bangsa dan tokoh', 'Meninjau peristiwa perjuangan bangsa, tokoh, perubahan, dan nilai yang dapat dipelajari dari sejarah.', 'Murid menghubungkan peristiwa sejarah dengan tokoh, sebab, akibat, atau nilai perjuangan.'),
-        t('g6-ipas-sosial-ekonomi', 'Kegiatan ekonomi dan kehidupan masyarakat', 'Mempelajari kebutuhan, kegiatan ekonomi, interaksi sosial, serta perubahan kehidupan masyarakat di lingkungan sekitar.', 'Murid menganalisis hubungan kegiatan ekonomi atau interaksi sosial dengan kehidupan masyarakat.'),
+      { title: 'Bab 2 — Tarik dan Embuskan', topics: [
+        t('g6-ipas-b2-pernapasan', 'Organ dan proses pernapasan', 'Mengenali organ pernapasan dan proses udara masuk serta keluar tubuh.', 'Murid menjelaskan jalur udara dan fungsi organ.'),
+        t('g6-ipas-b2-sehat', 'Menjaga kesehatan pernapasan', 'Menganalisis pengaruh kebiasaan dan lingkungan terhadap kesehatan pernapasan.', 'Murid menentukan tindakan menjaga kesehatan pernapasan.'),
       ]},
-      { title: 'Keterampilan Proses', topics: [
-        t('g6-ipas-penyelidikan', 'Mengamati dan merancang penyelidikan', 'Mengajukan pertanyaan, membuat prediksi, merencanakan langkah penyelidikan, dan menggunakan alat ukur sederhana.', 'Murid menentukan pertanyaan, prediksi, atau langkah penyelidikan yang sesuai.'),
-        t('g6-ipas-data', 'Mengolah data dan mengomunikasikan hasil', 'Mengorganisasikan data, mengenali pola, membandingkan hasil dengan prediksi, membuat refleksi, dan menyampaikan temuan.', 'Murid membaca data hasil pengamatan dan menyusun simpulan berdasarkan bukti.'),
+      { title: 'Bab 3 — Jejak Sang Pahlawan', topics: [
+        t('g6-ipas-b3-sejarah', 'Perjuangan dan peristiwa sejarah', 'Mempelajari peristiwa perjuangan bangsa, tokoh, kronologi, dan latar sejarah.', 'Murid mengurutkan peristiwa dan menjelaskan peran tokoh.'),
+        t('g6-ipas-b3-teladan', 'Keteladanan tokoh perjuangan', 'Menghubungkan tindakan tokoh dengan keberanian, persatuan, tanggung jawab, dan cinta tanah air.', 'Murid menyimpulkan nilai keteladanan.'),
+      ]},
+      { title: 'Bab 4 — Kearifan Lokal, Warisan Leluhur untuk Persatuan Bangsa', topics: [
+        t('g6-ipas-b4-budaya', 'Kearifan lokal dan warisan budaya', 'Mengenali tradisi, pengetahuan lokal, dan warisan budaya daerah.', 'Murid menjelaskan contoh dan manfaat kearifan lokal.'),
+        t('g6-ipas-b4-persatuan', 'Keberagaman dan persatuan', 'Menganalisis hubungan keberagaman, sikap saling menghargai, dan persatuan.', 'Murid memilih sikap menjaga persatuan.'),
+      ]},
+      { title: 'Bab 5 — Energi untuk Masa Depan', topics: [
+        t('g6-ipas-b5-listrik', 'Energi listrik dan pemanfaatannya', 'Memahami sumber energi listrik, pemanfaatan, dan keselamatan peralatan listrik.', 'Murid menjelaskan pemanfaatan listrik dan tindakan aman.'),
+        t('g6-ipas-b5-energi', 'Penghematan dan energi masa depan', 'Mengenali sumber energi terbarukan dan penghematan energi.', 'Murid membandingkan sumber energi dan mengusulkan penghematan.'),
+      ]},
+      { title: 'Bab 6 — Mengembara di Jagat Raya', topics: [
+        t('g6-ipas-b6-tatasurya', 'Tata surya dan benda langit', 'Mengenali Matahari, planet, satelit, dan susunan tata surya.', 'Murid mengidentifikasi anggota tata surya.'),
+        t('g6-ipas-b6-bumi', 'Bumi, rotasi, dan revolusi', 'Memahami gerak Bumi dan kaitannya dengan siang-malam serta fenomena tahunan.', 'Murid menjelaskan akibat rotasi dan revolusi Bumi.'),
       ]},
     ],
   },
@@ -156,19 +173,34 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
   },
   'Bahasa Inggris': {
     label: 'Bahasa Inggris',
-    sourceNote: 'Mengacu pada CP Bahasa Inggris Fase C; fokus komunikasi lisan dan tulisan tentang topik kehidupan sehari-hari dengan sasaran kemampuan dasar sekitar A1.',
+    sourceNote: 'Mengikuti buku English for Nusantara Kids Kelas VI cetakan 2024, ISBN 978-623-388-245-3. Enam bab menjadi struktur utama.',
     groups: [
-      { title: 'Everyday Communication', topics: [
-        t('g6-en-identity', 'Personal information and identity', 'Memahami dan menyampaikan informasi diri, keluarga, kesukaan, dan kegiatan sehari-hari.', 'Murid memahami atau menggunakan ungkapan sederhana untuk menyampaikan informasi diri.'),
-        t('g6-en-routines', 'Daily routines and time', 'Memahami kosakata kegiatan harian, waktu, urutan aktivitas, dan kebiasaan.', 'Murid mengidentifikasi informasi tentang rutinitas dan waktu dari teks atau dialog sederhana.'),
-        t('g6-en-description', 'Describing people, places, and things', 'Mendeskripsikan orang, tempat, benda, dan lingkungan dengan kosakata serta kalimat sederhana.', 'Murid memilih deskripsi yang sesuai dengan objek, tempat, atau orang.'),
-        t('g6-en-instructions', 'Instructions and directions', 'Memahami instruksi, petunjuk, lokasi, dan arah sederhana dalam konteks sehari-hari.', 'Murid mengikuti atau menentukan petunjuk dan arah berdasarkan informasi sederhana.'),
-        t('g6-en-reading', 'Reading short everyday texts', 'Memahami pesan, label, jadwal, pengumuman, dialog, atau paragraf pendek tentang kehidupan sehari-hari.', 'Murid menemukan informasi utama dan rincian dalam teks Bahasa Inggris sederhana.'),
-        t('g6-en-writing', 'Writing simple messages and descriptions', 'Menulis pesan, kalimat, atau deskripsi sederhana dengan kosakata yang sesuai konteks.', 'Murid melengkapi atau menyusun kalimat sederhana sesuai tujuan komunikasi.'),
+      { title: 'Chapter 1 — Healthy Vegetables', topics: [
+        t('g6-en-c1-veg', 'Vegetables and healthy food', 'Mengenal nama sayuran, warna, rasa, jumlah, dan ungkapan tentang makanan sehat.', 'Students identify vegetables and simple food descriptions.'),
+        t('g6-en-c1-ask', 'Asking about vegetables', 'Menggunakan kosakata dan kalimat sederhana untuk bertanya serta memberi informasi tentang sayuran.', 'Students ask and answer simple questions about vegetables.'),
+      ]},
+      { title: 'Chapter 2 — Our Hygiene Habits', topics: [
+        t('g6-en-c2-hygiene', 'Personal hygiene habits', 'Mengenal kosakata kebersihan diri dan kebiasaan menjaga kesehatan.', 'Students identify and describe personal hygiene habits.'),
+        t('g6-en-c2-routine', 'Healthy daily routines', 'Memahami dan menyampaikan urutan kegiatan hidup bersih.', 'Students describe simple hygiene routines.'),
+      ]},
+      { title: 'Chapter 3 — A Trip to the Zoo', topics: [
+        t('g6-en-c3-animals', 'Animals and their characteristics', 'Mengenal nama hewan, ciri fisik, habitat, makanan, dan perilaku.', 'Students identify animals and their characteristics.'),
+        t('g6-en-c3-zoo', 'A visit to the zoo', 'Memahami informasi tentang tempat, kegiatan, dan pengalaman ke kebun binatang.', 'Students find information in short texts about a zoo visit.'),
+      ]},
+      { title: 'Chapter 4 — Let’s Play!', topics: [
+        t('g6-en-c4-games', 'Games and play activities', 'Mengenal kosakata permainan dan ungkapan saat bermain.', 'Students identify games and expressions used during play.'),
+        t('g6-en-c4-rules', 'Rules and instructions', 'Memahami instruksi, aturan, dan urutan langkah permainan.', 'Students follow simple game instructions.'),
+      ]},
+      { title: 'Chapter 5 — Having Fun in Our After-School Club', topics: [
+        t('g6-en-c5-club', 'After-school clubs and hobbies', 'Mengenal kegiatan ekstrakurikuler, hobi, minat, dan aktivitas setelah sekolah.', 'Students describe after-school activities and hobbies.'),
+        t('g6-en-c5-interest', 'Expressing interests', 'Menyampaikan kesukaan, pilihan, kemampuan, dan pengalaman kegiatan klub.', 'Students use simple expressions about interests.'),
+      ]},
+      { title: 'Chapter 6 — Our School Project', topics: [
+        t('g6-en-c6-project', 'School projects and collaboration', 'Memahami kosakata dan ungkapan untuk merencanakan proyek bersama.', 'Students understand simple collaborative project instructions.'),
+        t('g6-en-c6-present', 'Presenting a project', 'Menyampaikan informasi sederhana tentang hasil proyek sekolah.', 'Students communicate basic information about a school project.'),
       ]},
     ],
   },
-
   'PJOK': {
     label: 'PJOK',
     sourceNote: 'Mengacu pada Panduan PJOK Fase C (umumnya kelas V–VI): keterampilan gerak, belajar melalui gerak, gaya hidup aktif, dan memilih hidup sehat. Materi praktik perlu disesuaikan dengan fasilitas, keselamatan, dan kondisi murid.',
@@ -195,26 +227,27 @@ export const GRADE_6_CATALOG: CurriculumCatalog = {
   },
   'Bahasa Jawa': {
     label: 'Bahasa Jawa',
-    sourceNote: 'Muatan lokal Jawa Tengah, diselaraskan dengan CP Bahasa Jawa Fase C (kelas V–VI), Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang buku teks muatan lokal, serta Perbup Kabupaten Semarang Nomor 14 Tahun 2022. Urutan dan kedalaman materi mengikuti buku yang digunakan sekolah dan ATP satuan pendidikan.',
+    sourceNote: 'Mengikuti buku Grengseng Basa Jawa Kelas VI, Muatan Lokal Wajib Provinsi Jawa Tengah, CV Media Karya Putra 2025, ISBN 978-623-287-482-4. Struktur mengikuti lima Pasinaon dan bagian pembelajaran dari guru.',
     groups: [
-      { title: 'Menyimak lan Mangerteni', topics: [
-        t('g6-jawa-nyemak', 'Nyemak pawarta lan informasi', 'Memahami gagasan pokok, rincian, pesan, dan instruksi lisan berbahasa Jawa ngoko atau krama dalam konteks sehari-hari.', 'Murid nemtokake gagasan pokok, informasi wigati, utawa pesen saka teks lisan basa Jawa.'),
-        t('g6-jawa-teks-informasi', 'Teks informasi babagan tradhisi lan budaya', 'Membaca dan mengolah informasi tentang tradisi, budaya, lingkungan, serta peristiwa di Jawa Tengah dan Kabupaten Semarang.', 'Murid nemokake informasi, urutan kedadeyan, lan nilai budaya saka teks informasi basa Jawa.'),
-        t('g6-jawa-cerita', 'Crita legenda lan wayang', 'Memahami tokoh, watak, alur, konflik, dan nilai budi pekerti dalam cerita legenda serta kisah wayang Pandawa dan Punakawan.', 'Murid njlentrehake paraga, watak, kedadeyan, utawa piwulang saka crita legenda lan wayang.'),
-        t('g6-jawa-geguritan', 'Geguritan lan tembang Macapat', 'Memahami isi, pilihan kata, suasana, pesan, dan unsur sederhana geguritan serta tembang Maskumambang dan Mijil.', 'Murid napsirake isi, swasana, utawa piwulang ing geguritan lan tembang Macapat.'),
+      { title: 'Pasinaon 1 — Ngajeni Guru', topics: [
+        t('g6-jawa-p1-ngajeni', 'Ngajeni guru lan unggah-ungguh', 'Memahami sikap hormat marang guru, tata krama, unggah-ungguh basa, lan tumindak santun ing sekolah.', 'Murid bisa nerangake lan nindakake sikap ngajeni guru.'),
+        t('g6-jawa-p1-pitutur', 'Pitutur luhur babagan ngajeni', 'Nggoleki piwulang becik lan tuladha tumindak saka materi ngajeni guru.', 'Murid bisa nyebutake pitutur luhur lan tuladha ing urip saben dina.'),
       ]},
-      { title: 'Maca lan Nggunakake Basa', topics: [
-        t('g6-jawa-unggahungguh', 'Unggah-ungguh basa ngoko lan krama', 'Memilih ragam ngoko atau krama sesuai lawan bicara, tujuan, dan situasi komunikasi; membiasakan tutur santun kepada teman dan orang yang lebih tua.', 'Murid milih ukara ngoko utawa krama sing trep karo kahanan lan wong sing diajak guneman.'),
-        t('g6-jawa-kosakata', 'Kosakata, paribasan, bebasan, lan saloka', 'Memahami kosakata dan ungkapan Jawa serta maknanya dalam percakapan, bacaan, dan situasi kehidupan sehari-hari.', 'Murid nemtokake teges tembung utawa ungkapan Jawa adhedhasar konteks ukara.'),
-        t('g6-jawa-dialog', 'Pacelathon lan presentasi sederhana', 'Menyusun dialog, menyampaikan pendapat, bertanya, menanggapi, dan mempresentasikan informasi dengan pilihan kata serta intonasi santun.', 'Murid nglengkapi utawa nyusun pacelathon kanthi unggah-ungguh basa sing trep.'),
+      { title: 'Pasinaon 2 — Crita Wayang', topics: [
+        t('g6-jawa-p2-wayang', 'Crita wayang lan paraga', 'Maca utawa nyemak crita wayang, ngenali paraga, watak, papan, lan urutan kedadeyan.', 'Murid bisa nyritakake maneh isi crita lan watak paraga.'),
+        t('g6-jawa-p2-piwulang', 'Piwulang ing crita wayang', 'Nafsirake piwulang lan akibat saka tumindake paraga wayang.', 'Murid bisa njlentrehake piwulang luhur saka crita wayang.'),
       ]},
-      { title: 'Nulis lan Aksara Jawa', topics: [
-        t('g6-jawa-nulis', 'Nulis teks narasi lan deskripsi', 'Menulis teks narasi atau deskripsi berbahasa Jawa dengan urutan gagasan, kosakata, dan unggah-ungguh yang sesuai.', 'Murid nyusun teks narasi utawa deskripsi basa Jawa kanthi runtut lan trep.'),
-        t('g6-jawa-aksara', 'Aksara Jawa legena, pasangan, lan sandhangan', 'Membaca dan menulis kalimat sederhana menggunakan aksara Jawa legena, pasangan, sandhangan swara, serta sandhangan panyigeg wanda sesuai materi buku sekolah.', 'Murid maca utawa nulis ukara prasaja nganggo aksara Jawa lan sandhangan sing trep.'),
+      { title: 'Pasinaon 3 — Tembang Macapat Mijil', topics: [
+        t('g6-jawa-p3-mijil', 'Tembang Macapat Mijil', 'Ngenali ciri, paugeran, guru gatra, guru wilangan, lan guru lagu tembang Mijil.', 'Murid bisa ngenali paugeran tembang Mijil.'),
+        t('g6-jawa-p3-teges', 'Teges lan pitutur tembang Mijil', 'Nyemak, maca, lan napsirake isi, kosakata, pesen, sarta pitutur luhur tembang Mijil.', 'Murid bisa nerangake teges lan piwulang tembang Mijil.'),
       ]},
-      { title: 'Kabudayan lan Kearifan Lokal', topics: [
-        t('g6-jawa-semarang', 'Tradhisi lan kearifan lokal Kabupaten Semarang', 'Mengenali cerita, kesenian, tradisi, lingkungan, dan potensi budaya Kabupaten Semarang sebagai bahan membaca, berdiskusi, dan menulis berbahasa Jawa.', 'Murid njlentrehake informasi utawa nilai becik saka tradhisi lan budaya ing Kabupaten Semarang.'),
-        t('g6-jawa-kesenian', 'Kesenian tradisional Kabupaten Semarang', 'Mengenali ragam kesenian daerah seperti ketoprak, kuda lumping atau reog, rodat, karawitan, prajuritan, soreng, warokan, drumblek, pedalangan atau wayang kulit, campursari, dan kuntulan; murid menggunakannya sebagai bahan membaca, wawancara, dialog, dan tulisan berbahasa Jawa.', 'Murid ngenali jinis kesenian tradisional Kabupaten Semarang lan nyritakake fungsi, proses, utawa nilai gotong royong ing sajroning kesenian kasebut.')
+      { title: 'Pasinaon 4 — Tradhisi', topics: [
+        t('g6-jawa-p4-tradhisi', 'Tradhisi lan kabudayan Jawa', 'Ngenali tradhisi masyarakat Jawa, tata cara, wektu, papan, lan masyarakat sing melu.', 'Murid bisa njlentrehake tradhisi lan urutan kagiyatane.'),
+        t('g6-jawa-p4-nilai', 'Nilai luhur ing tradhisi', 'Ngrembug gotong royong, rasa syukur, kerukunan, lan nguri-uri budaya.', 'Murid bisa nemokake nilai becik saka tradhisi.'),
+      ]},
+      { title: 'Pasinaon 5 — Sesaji Rewanda', topics: [
+        t('g6-jawa-p5-sesaji', 'Sesaji Rewanda minangka tradhisi lokal', 'Mangerteni informasi, latar, pihak sing melu, lan urutan kagiyatan Sesaji Rewanda.', 'Murid bisa nyritakake informasi pokok lan urutan tradhisi.'),
+        t('g6-jawa-p5-nilai', 'Kearifan lokal lan pitutur luhur Sesaji Rewanda', 'Nggoleki nilai budaya, rasa syukur, gotong royong, lan piwulang nguri-uri lingkungan.', 'Murid bisa nerangake nilai luhur lan ngajeni budaya lokal.'),
       ]},
     ],
   },
@@ -233,10 +266,16 @@ export const CURRICULUM_SOURCE_REFERENCES = [
   { id: 'guide-ipas-2025', title: 'Panduan Mata Pelajaran IPAS Fase A–C (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/7.%20Final%20Panduan%20Mata%20Pelajaran%20IPAS_03_10_2025_Revisi%204.pdf', reviewedAt: '2026-11-22' },
   { id: 'guide-pancasila-2025', title: 'Panduan Mata Pelajaran Pendidikan Pancasila Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/2.%20Final%20Panduan%20Mata%20Pelajaran%20Pendidikan%20Pancasila_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
 
-  { id: 'guide-pjok-2025', title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-22' },
-  { id: 'perbup-semarang-14-2022', title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-22' },
-  { id: 'kepgub-jateng-jawa-2026', title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-22' },
-  { id: 'rkpd-semarang-2026', title: 'Rencana Kerja Pemerintah Daerah Kabupaten Semarang Tahun 2026 (data pelestarian seni budaya daerah)', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://jdih.jatengprov.go.id/datacenter/files/inventarisasi-hukum/24/2025pb3322015.pdf', reviewedAt: '2026-11-22' },
+  { id: 'book-bi-grade6-rev-2025', title: 'Bahasa Indonesia Anak-Anak yang Mengubah Dunia Kelas VI Edisi Revisi 2025, ISBN 978-634-00-2617-7', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id', reviewedAt: '2026-11-23' },
+  { id: 'guide-bi-grade6-rev-2025', title: 'Panduan Guru Bahasa Indonesia Kelas VI Edisi Revisi 2025, ISBN 978-634-00-2484-5', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id', reviewedAt: '2026-11-23' },
+  { id: 'book-ipas-grade6-rev-2025', title: 'IPAS Kelas VI Edisi Revisi 2025, ISBN 978-634-00-2164-6', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id', reviewedAt: '2026-11-23' },
+  { id: 'guide-ipas-grade6-rev-2025', title: 'Panduan Guru IPAS Kelas VI Edisi Revisi 2025, ISBN 978-634-00-2168-4', publisher: 'Pusat Perbukuan Kemendikdasmen', url: 'https://buku.kemendikdasmen.go.id', reviewedAt: '2026-11-23' },
+  { id: 'book-english-nusantara-kids-grade6-2024', title: 'English for Nusantara Kids Kelas VI 2024, ISBN 978-623-388-245-3', publisher: 'Pusat Perbukuan Kemendikbudristek', url: 'https://buku.kemdikbud.go.id', reviewedAt: '2026-11-23' },
+  { id: 'book-grengseng-jawa-grade6-2025', title: 'Grengseng Basa Jawa Kelas VI 2025, ISBN 978-623-287-482-4', publisher: 'CV Media Karya Putra', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
+  { id: 'guide-pjok-2025', title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-23' },
+  { id: 'perbup-semarang-14-2022', title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-23' },
+  { id: 'kepgub-jateng-jawa-2026', title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-23' },
+  { id: 'rkpd-semarang-2026', title: 'Rencana Kerja Pemerintah Daerah Kabupaten Semarang Tahun 2026 (data pelestarian seni budaya daerah)', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://jdih.jatengprov.go.id/datacenter/files/inventarisasi-hukum/24/2025pb3322015.pdf', reviewedAt: '2026-11-23' },
 
 ] as const
 
@@ -259,11 +298,11 @@ export const CURRICULUM_SUBJECT_METADATA: Record<CurriculumTrack, Record<string,
   },
   GRADE_6: {
     Matematika: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-matematika-2025'], sequencePolicy: 'SCHOOL_ATP' },
-    'Bahasa Indonesia': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-bahasa-indonesia-2025'], sequencePolicy: 'SCHOOL_ATP' },
-    IPAS: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-ipas-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Bahasa Indonesia': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-bi-grade6-rev-2025', 'guide-bi-grade6-rev-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    IPAS: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-ipas-grade6-rev-2025', 'guide-ipas-grade6-rev-2025'], sequencePolicy: 'SCHOOL_ATP' },
     'Pendidikan Pancasila': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pancasila-2025'], sequencePolicy: 'SCHOOL_ATP' },
-    'Bahasa Inggris': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Bahasa Inggris': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'book-english-nusantara-kids-grade6-2024'], sequencePolicy: 'SCHOOL_ATP' },
     PJOK: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pjok-2025'], sequencePolicy: 'SCHOOL_ATP' },
-    'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'perbup-semarang-14-2022', 'kepgub-jateng-jawa-2026', 'rkpd-semarang-2026'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
+    'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['kepgub-jateng-jawa-2026', 'book-grengseng-jawa-grade6-2025'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
   },
 }
