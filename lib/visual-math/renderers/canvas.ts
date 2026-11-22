@@ -599,8 +599,12 @@ async function createFractionPartitionImage(
   if (!value) return null
   context.fillStyle = '#0f172a'
   context.font = 'bold 40px Arial, sans-serif'
+  const representedParts = intent.selectedMeaning === 'removed'
+    ? intent.totalParts - intent.selectedParts
+    : intent.selectedParts
   context.fillText(
-    intent.selectedParts + ' dari ' + intent.totalParts + ' bagian = ' + formatFraction(value),
+    representedParts + ' dari ' + intent.totalParts + ' bagian = ' + formatFraction(value) +
+      (intent.selectedMeaning === 'removed' ? ' (tersisa)' : ''),
     800,
     735,
   )
