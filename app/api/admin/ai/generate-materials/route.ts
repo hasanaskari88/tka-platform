@@ -238,7 +238,7 @@ export async function POST(request: Request) {
         'Jangan mencampur jalur TKA dengan materi pembelajaran umum kelas 6.',
         'Gunakan Bahasa Indonesia yang jelas. Istilah Bahasa Jawa atau Bahasa Inggris boleh digunakan sesuai mata pelajaran.',
         'Keluaran wajib mengikuti JSON Schema. Jangan menulis HTML atau Markdown.',
-        'Buat 3 sampai 6 bagian materi. Setiap bagian memiliki penjelasan substantif, contoh jika sesuai, dan aktivitas belajar jika sesuai.',
+        requiredHeadings.length ? 'Buat tepat tujuh bagian sesuai daftar struktur wajib di bawah. Setiap bagian memiliki penjelasan substantif, contoh jika sesuai, dan aktivitas belajar jika sesuai.' : 'Buat 3 sampai 6 bagian materi. Setiap bagian memiliki penjelasan substantif, contoh jika sesuai, dan aktivitas belajar jika sesuai.',
         'Sertakan sedikitnya 3 latihan dengan jawaban dan pembahasan yang benar. Periksa kembali seluruh hitungan, fakta, ejaan, dan konsistensi.',
         'Jangan mengarang kutipan atau menyatakan materi ini sebagai teks resmi pemerintah. Untuk TKA, fokus pada kompetensi yang diukur, bukan mengklaim sebagai soal resmi.',
         'Sesuaikan kedalaman dengan kelas 6 SD/Fase C bila jalur GRADE_6. Untuk jalur TKA SD, gunakan konteks dan tingkat kesulitan yang sesuai asesmen SD.',
