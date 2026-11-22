@@ -251,7 +251,7 @@ export async function POST(request: Request) {
         topic_id: topicId,
         status,
         updated_at: new Date().toISOString(),
-        author_display_name: typeof body.authorName === 'string' ? body.authorName.trim().slice(0, 120) || null : null,
+        ...(typeof body.authorName === 'string' ? { author_display_name: body.authorName.trim().slice(0, 120) || null } : {}),
       }
       const query = auth.adminClient.from('study_materials')
       const result = materialId
