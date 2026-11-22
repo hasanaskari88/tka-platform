@@ -708,3 +708,28 @@ test('semantic fact graph detects contradictory fraction partition counts', () =
   assert.equal(result.status, 'rejected')
   assert.equal(result.reasonCode, 'FACTS_CONFLICT')
 })
+
+test('fraction calculator distinguishes selected, removed, and remaining parts', () => {
+  const base = {
+    type: 'fraction_partition',
+    wholeLabel: 'pizza',
+    totalParts: 8,
+    selectedParts: 3,
+  }
+  assert.equal(
+    rational.formatFraction(calculator.calculateVisualIntent({ ...base, selectedMeaning: 'selected' }).value),
+    '3/8',
+  )
+  assert.equal(
+    rational.formatFraction(calculator.calculateVisualIntent({ ...base, selectedMeaning: 'removed' }).value),
+    '5/8',
+  )
+  assert.equal(
+    rational.formatFraction(calculator.calculateVisualIntent({
+      ...base,
+      selectedParts: 5,
+      selectedMeaning: 'remaining',
+    }).value),
+    '5/8',
+  )
+})
