@@ -123,24 +123,30 @@ function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
+// AI kadang mengirim karakter "\\n" secara literal, bukan baris baru.
+// Ubah keduanya menjadi <br> agar dialog tampil per baris di materi.
+function textHtml(value: string): string {
+  return escapeHtml(value).replace(/\\\\n/g, '<br>').replace(/\\r?\\n/g, '<br>')
+}
+
 function listHtml(items: string[]) {
-  return '<ul>' + items.map((item) => '<li>' + escapeHtml(item) + '</li>').join('') + '</ul>'
+  return '<ul>' + items.map((item) => '<li>' + textHtml(item) + '</li>').join('') + '</ul>'
 }
 
 function materialToHtml(material: GeneratedMaterial): string {
   const sections = material.sections.map((section) => {
     const examples = section.examples.length ? '<h4>Contoh</h4>' + listHtml(section.examples) : ''
     const activities = section.activities.length ? '<h4>Aktivitas belajar</h4>' + listHtml(section.activities) : ''
-    return '<h2>' + escapeHtml(section.heading) + '</h2><p>' + escapeHtml(section.content) + '</p>' + examples + activities
+    return '<h2>' + textHtml(section.heading) + '</h2><p>' + textHtml(section.content) + '</p>' + examples + activities
   }).join('')
   const exercises = material.exercises.map((exercise, index) =>
-    '<li><p><strong>' + (index + 1) + '. ' + escapeHtml(exercise.question) + '</strong></p><p><strong>Jawaban:</strong> ' + escapeHtml(exercise.answer) + '</p><p><strong>Pembahasan:</strong> ' + escapeHtml(exercise.explanation) + '</p></li>'
+    '<li><p><strong>' + (index + 1) + '. ' + textHtml(exercise.question) + '</strong></p><p><strong>Jawaban:</strong> ' + textHtml(exercise.answer) + '</p><p><strong>Pembahasan:</strong> ' + textHtml(exercise.explanation) + '</p></li>'
   ).join('')
   const teacherNotes = material.teacherNotes.length ? '<h2>Catatan untuk Guru</h2>' + listHtml(material.teacherNotes) : ''
   return [
-    '<h1>' + escapeHtml(material.subtitle) + '</h1>',
+    '<h1>' + textHtml(material.subtitle) + '</h1>',
     '<h2>Tujuan Pembelajaran</h2>' + listHtml(material.learningObjectives),
-    '<h2>Pendahuluan</h2><p>' + escapeHtml(material.introduction) + '</p>',
+    '<h2>Pendahuluan</h2><p>' + textHtml(material.introduction) + '</p>',
     sections,
     '<h2>Rangkuman</h2>' + listHtml(material.summary),
     '<h2>Latihan dan Pembahasan</h2><ol>' + exercises + '</ol>',
