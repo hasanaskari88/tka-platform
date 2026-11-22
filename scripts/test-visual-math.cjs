@@ -42,6 +42,9 @@ const optionValidation = require(path.join(root, 'lib/visual-math/validation/val
 const answerValidation = require(path.join(root, 'lib/visual-math/validation/validate-answer.ts'))
 const intentValidation = require(path.join(root, 'lib/visual-math/analysis/validate-intent.ts'))
 const aiIntentBuilder = require(path.join(root, 'lib/visual-math/analysis/build-ai-intent.ts'))
+const factGraphBuilder = require(path.join(root, 'lib/visual-math/semantic/build-fact-graph.ts'))
+const semanticValidation = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
+const operationPlanner = require(path.join(root, 'lib/visual-math/math/operation-planner.ts'))
 const visualRenderer = require(path.join(root, 'lib/visual-math/renderers/canvas.ts'))
 
 const equalSharingQuestion =
@@ -733,3 +736,120 @@ test('fraction calculator distinguishes selected, removed, and remaining parts',
     '5/8',
   )
 })
+
+test('semantic graph adapter and operation planner cover all supported intent families', () => {
+  const cases = [
+    {
+      question: 'Dari total 6 jeruk dan 8 apel, berapa bagian apel?',
+      intent: {
+        type: 'category_of_total',
+        categories: [
+          { id: 'jeruk', label: 'jeruk', count: 6 },
+          { id: 'apel', label: 'apel', count: 8 },
+        ],
+        targetCategoryId: 'apel',
+      },
+    },
+    {
+      question: '6 jeruk dibagikan sama rata kepada 3 anak.',
+      intent: { type: 'equal_sharing', objectLabel: 'jeruk', totalObjects: 6, groupCount: 3 },
+    },
+    {
+      question: 'Pizza dibagi menjadi 8 bagian sama besar. 3 bagian dimakan.',
+      intent: {
+        type: 'fraction_partition',
+        wholeLabel: 'pizza',
+        totalParts: 8,
+        selectedParts: 3,
+        selectedMeaning: 'removed',
+      },
+    },
+    {
+      question: 'Bandingkan 1/2 dan 3/4.',
+      intent: {
+        type: 'number_comparison',
+        first: { numerator: '1', denominator: '2' },
+        second: { numerator: '3', denominator: '4' },
+        requestedRelation: 'compare',
+      },
+    },
+    {
+      question: 'Garis bilangan dari 0 sampai 1. Letakkan titik A pada 1/2.',
+      intent: {
+        type: 'number_line',
+        minimum: { numerator: '0', denominator: '1' },
+        maximum: { numerator: '1', denominator: '1' },
+        points: [{ label: 'A', value: { numerator: '1', denominator: '2' } }],
+      },
+    },
+    {
+      question: 'Persegi panjang memiliki panjang 8 cm dan lebar 4 cm.',
+      intent: {
+        type: 'geometry',
+        shape: 'rectangle',
+        measurements: [
+          { label: 'panjang', value: { numerator: '8', denominator: '1' }, unit: 'cm' },
+          { label: 'lebar', value: { numerator: '4', denominator: '1' }, unit: 'cm' },
+        ],
+      },
+    },
+    {
+      question: 'Data jumlah buah: apel 4 dan jeruk 3. Buat diagram batang.',
+      intent: {
+        type: 'chart_table',
+        chartType: 'bar',
+        categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+      },
+    },
+  ]
+
+  for (const item of cases) {
+    const built = factGraphBuilder.buildFactGraphFromIntent(item.intent, item.question, item.question)
+    assert.ok(built.graph, item.intent.type + ' graph')
+    assert.equal(
+      semanticValidation.validateFactGraph(built.graph, built.sources).status,
+      'accepted',
+      item.intent.type + ' semantic validation',
+    )
+    const plan = operationPlanner.planVisualMathOperation(item.intent, built.graph, built.sources)
+    assert.equal(plan.semanticValidation.status, 'accepted', item.intent.type + ' plan gate')
+    assert.equal(plan.calculation.status, 'ready', item.intent.type + ' deterministic calculation')
+  }
+})
+
+test('semantic graph adapter refuses paraphrased or missing source excerpts', () => {
+  const intent = {
+    type: 'equal_sharing',
+    objectLabel: 'jeruk',
+    totalObjects: 6,
+    groupCount: 3,
+  }
+  const missing = factGraphBuilder.buildFactGraphFromIntent(
+    intent,
+    'Enam jeruk dibagi rata kepada tiga anak.',
+    '6 jeruk dibagikan sama rata kepada 3 anak.',
+  )
+  assert.equal(missing.graph, null)
+  assert.match(missing.reason, /sama persis/)
+})
+
+test('operation planner blocks calculation when semantic facts are incomplete', () => {
+  const question = '6 jeruk dibagikan sama rata kepada 3 anak.'
+  const built = factGraphBuilder.buildFactGraphFromIntent({
+    type: 'equal_sharing',
+    objectLabel: 'jeruk',
+    totalObjects: 6,
+    groupCount: 3,
+  }, question, question)
+  const invalidGraph = structuredClone(built.graph)
+  invalidGraph.relations.pop()
+  const plan = operationPlanner.planVisualMathOperation(
+    { type: 'equal_sharing', objectLabel: 'jeruk', totalObjects: 6, groupCount: 3 },
+    invalidGraph,
+    built.sources,
+  )
+  assert.equal(plan.semanticValidation.status, 'rejected')
+  assert.equal(plan.calculation.status, 'invalid')
+  assert.equal(plan.calculation.value, null)
+})
+
