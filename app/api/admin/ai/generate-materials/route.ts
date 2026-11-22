@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
-import { getCurriculumTopics, type CurriculumTrack } from '@/lib/ai-question/curriculum-catalog'
+import { CURRICULUM_CATALOGS, CURRICULUM_SUBJECT_METADATA, getCurriculumTopics, type CurriculumTrack } from '@/lib/ai-question/curriculum-catalog'
 
 export const maxDuration = 60
 
@@ -96,7 +96,7 @@ function isText(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-function validateMaterial(value: unknown): value is GeneratedMaterial {
+function validateMaterial(value: unknown, requiredHeadings: string[] = []): value is GeneratedMaterial {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
   const item = value as Record<string, unknown>
   if (!isText(item.subtitle) || !isText(item.introduction)) return false
@@ -105,6 +105,14 @@ function validateMaterial(value: unknown): value is GeneratedMaterial {
   if (!Array.isArray(item.summary) || item.summary.length < 2 || !item.summary.every(isText)) return false
   if (!Array.isArray(item.exercises) || item.exercises.length < 3 || item.exercises.length > 12) return false
   if (!Array.isArray(item.teacherNotes) || !item.teacherNotes.every(isText)) return false
+  if (requiredHeadings.length) {
+    const headings = (item.sections as unknown[]).map((section) =>
+      section && typeof section === 'object' && !Array.isArray(section)
+        ? String((section as Record<string, unknown>).heading || '').trim().toLocaleLowerCase('id')
+        : ''
+    )
+    if (requiredHeadings.some((heading) => !headings.includes(heading.toLocaleLowerCase('id')))) return false
+  }
   for (const section of item.sections) {
     if (!section || typeof section !== 'object' || Array.isArray(section)) return false
     const row = section as Record<string, unknown>
@@ -172,6 +180,36 @@ export async function POST(request: Request) {
     const body = await request.json()
     const action = body?.action
 
+    if (action === 'list') {
+      const track = body.track as CurriculumTrack
+      const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
+      if (!['TKA', 'GRADE_6'].includes(track) || !subject || !CURRICULUM_CATALOGS[track][subject]) {
+        return NextResponse.json({ error: 'Pilihan kurikulum atau mata pelajaran tidak valid.' }, { status: 400 })
+      }
+      const { data, error } = await auth.adminClient
+        .from('study_materials')
+        .select('id,title,topic_id,description,content_html')
+        .eq('created_by', auth.userId)
+        .eq('status', 'draft')
+        .eq('curriculum_track', track)
+        .eq('subject', subject)
+        .order('updated_at', { ascending: false })
+        .limit(100)
+      if (error) {
+        console.error('AI material draft list failed:', error)
+        return NextResponse.json({ error: 'Daftar draf gagal dimuat.' }, { status: 500 })
+      }
+      return NextResponse.json({
+        drafts: (data || []).map((row) => ({
+          id: row.id,
+          title: row.title,
+          topicId: row.topic_id,
+          description: row.description || '',
+          contentHtml: row.content_html || '',
+        })),
+      })
+    }
+
     if (action === 'generate') {
       const track = body.track as CurriculumTrack
       const subject = typeof body.subject === 'string' ? body.subject.trim() : ''
@@ -188,6 +226,13 @@ export async function POST(request: Request) {
       const topic = getCurriculumTopics(track, subject).find((item) => item.id === topicId)
       if (!topic) return NextResponse.json({ error: 'Topik tidak ditemukan dalam katalog kurikulum.' }, { status: 400 })
 
+      const subjectCatalog = CURRICULUM_CATALOGS[track][subject]
+      const subjectMetadata = CURRICULUM_SUBJECT_METADATA[track]?.[subject]
+      const sourceNote = subjectCatalog?.sourceNote || ''
+      const requiredHeadings = track === 'GRADE_6' && subject === 'Bahasa Jawa'
+        ? ['Pitakon Panggugah', 'Materi', 'Njembarake Kawruh', 'Pitutur Luhur', 'Dudutan', 'Assesmen Sumatif', 'Refleksi']
+        : []
+
       const prompt = [
         'Anda adalah ahli pengembangan bahan ajar SD di Indonesia. Buat satu materi ajar yang akurat, runtut, ramah murid, dan dapat diedit guru.',
         'Jangan mencampur jalur TKA dengan materi pembelajaran umum kelas 6.',
@@ -200,6 +245,10 @@ export async function POST(request: Request) {
         'Konteks kurikulum: ' + track,
         'Kelas: ' + (grade || 'Sesuai cakupan TKA SD'),
         'Mata pelajaran: ' + subject,
+        sourceNote ? 'RUJUKAN KHUSUS MAPEL (ringkasan kurasi; bukan kutipan resmi): ' + sourceNote : '',
+        subjectMetadata ? 'Dasar kurikulum: ' + subjectMetadata.basis + '; fase: ' + subjectMetadata.phase + '; kebijakan urutan: ' + subjectMetadata.sequencePolicy : '',
+        'Gunakan referensi mapel di atas untuk menjaga istilah, ruang lingkup, dan pendekatan materi. Jangan mengarang nomor bab, judul bab, ISBN, kutipan, atau isi buku yang tidak tercantum dalam rujukan.',
+        requiredHeadings.length ? 'STRUKTUR WAJIB: buat tepat tujuh bagian materi dengan judul persis dan urut: ' + requiredHeadings.join(' → ') + '. Jangan mengganti, menggabungkan, atau menghilangkan bagian tersebut. Isi Assesmen Sumatif dengan soal/asesmen dan Refleksi dengan pertanyaan refleksi murid.' : '',
         'Topik: ' + topic.title,
         'Deskripsi topik: ' + topic.description,
         'Indikator: ' + topic.indicator,
@@ -214,7 +263,7 @@ export async function POST(request: Request) {
         timeoutMs: 55000,
         maxOutputTokens: 6500,
       })
-      if (!validateMaterial(generated.data)) {
+      if (!validateMaterial(generated.data, requiredHeadings)) {
         return NextResponse.json({ error: 'Hasil AI belum memenuhi struktur materi yang diwajibkan. Silakan coba lagi.' }, { status: 502 })
       }
       return NextResponse.json({
