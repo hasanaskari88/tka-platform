@@ -45,6 +45,7 @@ const aiIntentBuilder = require(path.join(root, 'lib/visual-math/analysis/build-
 const factGraphBuilder = require(path.join(root, 'lib/visual-math/semantic/build-fact-graph.ts'))
 const semanticValidation = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
 const operationPlanner = require(path.join(root, 'lib/visual-math/math/operation-planner.ts'))
+const pictographScale = require(path.join(root, 'lib/visual-math/renderers/pictograph-scale.ts'))
 const visualRenderer = require(path.join(root, 'lib/visual-math/renderers/canvas.ts'))
 
 const equalSharingQuestion =
@@ -882,3 +883,60 @@ test('AI intent builder returns a validated fact graph before an intent can be p
   assert.equal(rational.formatFraction(plan.calculation.value), '2')
 })
 
+
+
+test('pictograph scale represents every value exactly without hidden rounding', () => {
+  assert.equal(pictographScale.getExactPictographUnit([13, 7]), 1)
+  assert.equal(pictographScale.getExactPictographUnit([100, 50]), 50)
+  assert.equal(pictographScale.getExactPictographUnit([0, 12, 18]), 6)
+  assert.equal(pictographScale.getExactPictographUnit([16, 7]), null)
+  assert.equal(pictographScale.getExactPictographUnit([0, 0]), null)
+})
+
+test('pictograph renderer draws an exact symbol count and abstains when it cannot fit', async () => {
+  const originalDocument = global.document
+  let symbolCount = 0
+  const renderedTexts = []
+  const context = new Proxy(
+    { fillText: (value) => renderedTexts.push(String(value)) },
+    {
+      get(target, property) {
+        if (property in target) return target[property]
+        if (property === 'arc') return () => { symbolCount += 1 }
+        return () => undefined
+      },
+      set(target, property, value) {
+        target[property] = value
+        return true
+      },
+    },
+  )
+  global.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => context,
+      toBlob: (callback) => callback(new Blob(['test-png'], { type: 'image/png' })),
+    }),
+  }
+  try {
+    const image = await visualRenderer.createVisualMathImage({
+      type: 'chart_table',
+      chartType: 'pictograph',
+      categories: [{ label: 'apel', value: 13 }, { label: 'jeruk', value: 7 }],
+    })
+    assert.ok(image instanceof Blob)
+    assert.equal(symbolCount, 20)
+    assert.ok(renderedTexts.includes('1 simbol = 1 satuan'))
+
+    const unsupported = await visualRenderer.createVisualMathImage({
+      type: 'chart_table',
+      chartType: 'pictograph',
+      categories: [{ label: 'apel', value: 16 }, { label: 'jeruk', value: 7 }],
+    })
+    assert.equal(unsupported, null)
+  } finally {
+    if (originalDocument === undefined) delete global.document
+    else global.document = originalDocument
+  }
+})
