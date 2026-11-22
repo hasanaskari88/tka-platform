@@ -138,19 +138,28 @@ function renderLegacyMath(html: string): string {
       const formattedText = part.split(/(<[^>]*>)/g).map((segment) => {
         if (segment.startsWith('<') && segment.endsWith('>')) return segment
 
-        // Pecahan campuran: 1 1/2, 2 3/4, -3 1/5.
-        // Konversi sebagai satu rumus agar bilangan bulat dan pecahannya menyatu.
-        const withMixedFractions = segment.replace(
-          /(^|[^\w./])(-?\d+)\s+(\d+)\s*\/\s*(\d+)(?![\w./])/g,
-          (_match, prefix: string, whole: string, numerator: string, denominator: string) =>
-            prefix + renderKatex(whole + '\\frac{' + numerator + '}{' + denominator + '}', false)
-        )
+        const fractionGlyphs: Record<string, string> = {
+          '½': '\\frac{1}{2}', '⅓': '\\frac{1}{3}', '⅔': '\\frac{2}{3}',
+          '¼': '\\frac{1}{4}', '¾': '\\frac{3}{4}', '⅕': '\\frac{1}{5}',
+          '⅖': '\\frac{2}{5}', '⅗': '\\frac{3}{5}', '⅘': '\\frac{4}{5}',
+          '⅙': '\\frac{1}{6}', '⅚': '\\frac{5}{6}', '⅛': '\\frac{1}{8}',
+          '⅜': '\\frac{3}{8}', '⅝': '\\frac{5}{8}', '⅞': '\\frac{7}{8}',
+        }
 
-        // Pecahan biasa: 1/2, 3/4, dan seterusnya.
-        return withMixedFractions.replace(
-          /(^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./])/g,
-          (_match, prefix: string, numerator: string, denominator: string) =>
-            prefix + renderKatex('\\frac{' + numerator + '}{' + denominator + '}', false)
+        // Tangani LaTeX tanpa delimiter, pecahan Unicode, pecahan campuran,
+        // dan pecahan numerik dalam satu lintasan agar markup KaTeX tidak diproses ulang.
+        return segment.replace(
+          /(\\(?:dfrac|tfrac|frac)\s*\{([^{}]+)\}\s*\{([^{}]+)\})|([½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])|((^|[^\w./])(-?\d+)\s+(\d+)\s*\/\s*(\d+)(?![\w./]))|((^|[^\w./])(-?\d+)\s*\/\s*(\d+)(?![\w./]))/g,
+          (_match, _latex: string, latexNumerator: string, latexDenominator: string, glyph: string, _mixed: string, mixedPrefix: string, whole: string, mixedNumerator: string, mixedDenominator: string, _plain: string, plainPrefix: string, numerator: string, denominator: string) => {
+            if (latexNumerator !== undefined) {
+              return renderKatex('\\frac{' + latexNumerator + '}{' + latexDenominator + '}', false)
+            }
+            if (glyph) return renderKatex(fractionGlyphs[glyph], false)
+            if (whole !== undefined) {
+              return (mixedPrefix || '') + renderKatex(whole + '\\frac{' + mixedNumerator + '}{' + mixedDenominator + '}', false)
+            }
+            return (plainPrefix || '') + renderKatex('\\frac{' + numerator + '}{' + denominator + '}', false)
+          }
         )
       }).join('')
 
