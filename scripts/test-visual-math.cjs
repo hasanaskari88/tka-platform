@@ -1116,3 +1116,47 @@ test('renderer registry rejects layouts whose labels would overlap', async () =>
   assert.equal(result.status, 'rejected')
   assert.equal(result.reasonCode, 'INVALID_LAYOUT')
 })
+
+
+test('number line tick labels preserve exact rational values', async () => {
+  const originalDocument = global.document
+  const renderedTexts = []
+  const context = new Proxy(
+    { fillText: (value) => renderedTexts.push(String(value)) },
+    {
+      get(target, property) {
+        if (property in target) return target[property]
+        return () => undefined
+      },
+      set(target, property, value) {
+        target[property] = value
+        return true
+      },
+    },
+  )
+  global.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => context,
+      toBlob: (callback) => callback(new Blob(['test-png'], { type: 'image/png' })),
+    }),
+  }
+  try {
+    const image = await visualRenderer.createNumberLineImage({
+      type: 'number_line',
+      minimum: { numerator: '0', denominator: '1' },
+      maximum: { numerator: '1', denominator: '3' },
+      points: [{ label: 'Titik A', value: { numerator: '1', denominator: '6' } }],
+    })
+    assert.ok(image instanceof Blob)
+    assert.ok(renderedTexts.includes('0'))
+    assert.ok(renderedTexts.includes('1/6'))
+    assert.ok(renderedTexts.includes('1/3'))
+    assert.ok(!renderedTexts.includes('0.167'))
+    assert.ok(!renderedTexts.includes('0.333'))
+  } finally {
+    if (originalDocument === undefined) delete global.document
+    else global.document = originalDocument
+  }
+})

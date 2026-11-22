@@ -8,7 +8,7 @@ import type {
   ChartTableIntent,
   VisualIntent,
 } from '../types'
-import { formatFraction, formatMixedNumber, rational } from '../math/rational'
+import { add, divide, formatFraction, formatMixedNumber, multiply, rational, subtract } from '../math/rational'
 import { calculateVisualIntent } from '../math/calculator'
 import { getExactPictographUnit } from './pictograph-scale'
 import { planNumberLinePointLayout } from '../quality/validate-visual-layout'
@@ -708,11 +708,14 @@ export async function createNumberLineImage(intent: NumberLineIntent): Promise<B
     context.strokeStyle = '#475569'
     context.lineWidth = 4
     context.stroke()
-    const value = min + range * i / ticks
+    const exactTickValue = add(
+      intent.minimum,
+      multiply(subtract(intent.maximum, intent.minimum), divide(rational(i), rational(ticks))),
+    )
     context.fillStyle = '#334155'
     context.font = '20px Arial, sans-serif'
     context.textAlign = 'center'
-    context.fillText(Number(value.toFixed(3)).toString(), x, axisY + 55)
+    context.fillText(formatMixedNumber(exactTickValue), x, axisY + 55)
   }
   intent.points.forEach((point, index) => {
     const value = rationalToNumber(point.value)
