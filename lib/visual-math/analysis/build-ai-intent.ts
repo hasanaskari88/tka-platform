@@ -1,11 +1,16 @@
 import { formatFraction, formatMixedNumber } from '../math/rational'
 import { validateVisualIntent } from './validate-intent'
 import type { VisualIntent, VisualReasonCode } from '../types'
+import { buildFactGraphFromIntent } from '../semantic/build-fact-graph'
+import { validateFactGraph } from '../semantic/validate-fact-graph'
+import type { FactGraph, FactGraphSources } from '../contracts/facts'
 
 export type BuildIntentResult = {
   intent: VisualIntent | null
   reasonCode: VisualReasonCode | null
   reason: string
+  factGraph: FactGraph | null
+  factGraphSources: FactGraphSources
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -115,27 +120,29 @@ export function buildAiVisualIntent(raw: UnknownRecord, question: string): Build
       intent: null,
       reasonCode: 'INTENT_NOT_RECOGNIZED',
       reason: cleanText(raw.reason, 240) || 'Soal tidak memerlukan visual matematika yang didukung.',
+      factGraph: null,
+      factGraphSources: {},
     }
   }
 
   if (!['category_of_total', 'equal_sharing', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table'].includes(String(raw.intentType))) {
-    return { intent: null, reasonCode: 'AI_RESPONSE_INVALID', reason: 'Jenis intent dari AI tidak dikenal.' }
+    return { intent: null, reasonCode: 'AI_RESPONSE_INVALID', reason: 'Jenis intent dari AI tidak dikenal.', factGraph: null, factGraphSources: {} }
   }
 
   let facts: unknown
   try {
     facts = typeof raw.facts === 'string' ? JSON.parse(raw.facts) : raw.facts
   } catch {
-    return { intent: null, reasonCode: 'AI_RESPONSE_INVALID', reason: 'Data fakta dari AI bukan JSON yang valid.' }
+    return { intent: null, reasonCode: 'AI_RESPONSE_INVALID', reason: 'Data fakta dari AI bukan JSON yang valid.', factGraph: null, factGraphSources: {} }
   }
   if (!facts || typeof facts !== 'object' || Array.isArray(facts)) {
-    return { intent: null, reasonCode: 'FACTS_INCOMPLETE', reason: 'AI belum memberikan fakta terstruktur.' }
+    return { intent: null, reasonCode: 'FACTS_INCOMPLETE', reason: 'AI belum memberikan fakta terstruktur.', factGraph: null, factGraphSources: {} }
   }
 
   const candidate = { ...(facts as Record<string, unknown>), type: raw.intentType }
   const intent = validateVisualIntent(candidate)
   if (!intent) {
-    return { intent: null, reasonCode: 'AI_RESPONSE_INVALID', reason: 'Fakta AI tidak lolos validasi struktur atau batas keamanan.' }
+    return { intent: null, reasonCode: 'AI_RESPONSE_INVALID', reason: 'Fakta AI tidak lolos validasi struktur atau batas keamanan.', factGraph: null, factGraphSources: {} }
   }
 
   const evidence = typeof raw.evidence === 'string' ? raw.evidence : ''
@@ -146,8 +153,37 @@ export function buildAiVisualIntent(raw: UnknownRecord, question: string): Build
       intent: null,
       reasonCode: 'FACTS_INCOMPLETE',
       reason: 'Fakta yang dipilih AI tidak dapat dicocokkan dengan kutipan bukti pada teks soal. Gambar dihentikan agar tidak menebak.',
+      factGraph: null,
+      factGraphSources: {},
     }
   }
 
-  return { intent, reasonCode: null, reason: cleanText(raw.reason, 240) }
+  const graphResult = buildFactGraphFromIntent(intent, evidence, question)
+  if (!graphResult.graph) {
+    return {
+      intent: null,
+      reasonCode: 'FACTS_INCOMPLETE',
+      reason: graphResult.reason || 'Graf fakta tidak dapat dibentuk dari bukti soal.',
+      factGraph: null,
+      factGraphSources: graphResult.sources,
+    }
+  }
+  const semantic = validateFactGraph(graphResult.graph, graphResult.sources)
+  if (semantic.status !== 'accepted') {
+    return {
+      intent: null,
+      reasonCode: semantic.reasonCode || 'FACTS_INCOMPLETE',
+      reason: semantic.message,
+      factGraph: null,
+      factGraphSources: graphResult.sources,
+    }
+  }
+
+  return {
+    intent,
+    reasonCode: null,
+    reason: cleanText(raw.reason, 240),
+    factGraph: graphResult.graph,
+    factGraphSources: graphResult.sources,
+  }
 }
