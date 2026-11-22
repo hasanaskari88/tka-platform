@@ -679,6 +679,11 @@ test('semantic fact graph accepts only source-backed facts and required relation
   const duplicateId = structuredClone(graph)
   duplicateId.facts[1].id = 'total'
   assert.equal(validateFactGraph(duplicateId, { question }).status, 'rejected')
+
+  const wrongRelationRoles = structuredClone(graph)
+  wrongRelationRoles.relations[0].from = 'groups'
+  wrongRelationRoles.relations[0].to = 'total'
+  assert.equal(validateFactGraph(wrongRelationRoles, { question }).status, 'rejected')
 })
 
 test('semantic fact graph detects contradictory fraction partition counts', () => {
