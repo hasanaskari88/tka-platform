@@ -112,6 +112,20 @@ async function logAttempt(input: {
   }
 }
 
+/** Catat pemakaian AI non-teks (misalnya generator gambar) pada tabel log yang sama. */
+export async function recordAIUsage(input: {
+  requestId: string
+  task: string
+  provider: string
+  model: string
+  status: 'success' | 'failed' | 'skipped'
+  latencyMs?: number
+  error?: string
+  errorCode?: string
+}) {
+  await logAttempt(input)
+}
+
 async function generateWithGroq(input: GenerateJsonInput): Promise<ProviderResult> {
   const apiKey = process.env.GROQ_API_KEY
   if (!apiKey) throw new Error('GROQ_API_KEY belum dikonfigurasi.')
