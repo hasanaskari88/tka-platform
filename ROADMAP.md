@@ -648,3 +648,47 @@ Catatan: deployment READY membuktikan build berhasil, bukan pengujian runtime pe
 - Catatan keamanan penting: `study_materials` dan `announcements` masih RLS nonaktif dengan policy lama yang mengizinkan operasi publik ketika RLS diaktifkan. UI admin saja tidak melindungi akses langsung ke REST API Supabase. API AI yang baru memakai trusted-admin server-side, tetapi perbaikan RLS dan pemindahan operasi CMS lama ke server perlu menjadi pekerjaan keamanan tersendiri. Jangan mengklaim tabel sudah aman hanya karena halaman generator berada di area admin.
 
 - Build pertama untuk halaman baca materi gagal pada tahap prerender karena `useParams()` berada di Client Component tanpa Suspense. Temuan dari log Vercel diperbaiki pada commit `95da9604890fed3e6cb472311f62ecb40c0c4937` dengan membungkus komponen pembaca dalam `Suspense`. Deployment Production untuk commit perbaikan ini sedang BUILDING saat pemeriksaan terakhir; status READY belum terkonfirmasi.
+
+## 10. Audit AI dan rencana lanjutan — 23 November 2026
+
+### Arsip perkembangan AI yang sudah diverifikasi
+
+Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak membuat roadmap/checklist terpisah.
+
+**Provider AI teks**
+- Implementasi pusat provider berada di lib/ai/provider.ts; alur dipakai oleh generator soal, perencanaan ilustrasi soal, analisis visual soal batch, dan generator materi ajar.
+- Konfigurasi aktual platform_service_settings.ai_config dibaca secara read-only pada 23 Nov 2026: urutan Groq → Gemini akun kedua → Gemini akun utama; ketiganya aktif. Pembaruan konfigurasi tercatat 21 Nov 2026. Tidak ada nilai API key yang dibaca atau dicatat.
+- Audit ai_usage_logs untuk 7 hari terakhir menemukan 42 percobaan sukses yang tercatat: 28 pembuatan soal otomatis, 10 analisis visual soal batch, dan 4 generator materi. Semua tercatat berhasil melalui Groq openai/gpt-oss-120b; rata-rata latensi masing-masing sekitar 2,1 detik, 2,6 detik, dan 4,8 detik. Tidak ada fallback Gemini yang tercatat pada hasil query periode tersebut. Ini membuktikan penggunaan Groq pada sampel log, bukan jaminan semua permintaan selalu berhasil.
+- Provider mencatat percobaan sukses/gagal/skip ke ai_usage_logs, membaca urutan provider dari pengaturan layanan, dan melakukan fallback berurutan. Groq mencoba ulang hanya pada kegagalan validasi JSON Schema, bukan pada HTTP 429.
+
+**Pembuatan gambar dan penyimpanan**
+- Gambar soal non-matematika memakai Cloudflare Workers AI model @cf/black-forest-labs/flux-1-schnell; ini jalur terpisah dari fallback teks Groq/Gemini.
+- Soal matematika yang memerlukan visual presisi diarahkan ke renderer matematika deterministik dan validasi, bukan generator gambar bebas, untuk mengurangi risiko diagram yang salah.
+- Hasil gambar diunggah melalui /api/media/upload. Urutan penyimpanan aktual di pengaturan database: ImageKit → Google Drive → Supabase Storage; ketiganya aktif pada konfigurasi 21 Nov 2026.
+- Route FLUX belum mencatat penggunaan ke ai_usage_logs; statistik provider AI pada Pusat Layanan karena itu tidak mewakili seluruh biaya/pemakaian gambar. Kredensial dan keberhasilan runtime FLUX belum diverifikasi dalam audit ini.
+
+**Generator materi ajar**
+- API /api/admin/ai/generate-materials memakai fallback teks yang sama, validasi JSON, dan mengubah hasil menjadi HTML untuk RichTextEditor.
+- Katalog kelas 6 sudah memuat bab Bahasa Indonesia, IPAS, Bahasa Inggris, dan Bahasa Jawa Grengseng. Materi Bahasa Jawa yang diminta pengguna memiliki struktur tujuh bagian: Pitakon Panggugah, Materi, Njembarake Kawruh, Pitutur Luhur, Dudutan, Assesmen Sumatif, dan Refleksi.
+- Commit 583475a243801ad4cf6e5371acfc95224bfcdb5b menambahkan pemilihan satu/beberapa/semua topik. Tiap topik diproses berurutan dan disimpan sebagai draf terpisah. Deployment dpl_9bQATFLMLis3GftqBqzu68swSqt3 berstatus READY pada Production/main.
+- Commit 50fa79189c77ace86b3566a230761c912f896d8f dan 1dcb733747067d59f24b48b0e6c46c5c4f8a32a1 memperbaiki konversi karakter literal \n dan baris baru menjadi pergantian baris HTML.
+- Pembuatan AI selalu mengirim status draft; tombol Terbitkan masih tersedia sebagai tindakan manual eksplisit guru. Daftar draf yang baru dibuat saat ini disimpan di state halaman, sehingga daftar tersebut belum tentu tetap terlihat setelah halaman dimuat ulang, meskipun record sudah tersimpan di database.
+
+### Temuan yang masih terbuka
+
+1. **Uji batch materi:** belum ada konfirmasi uji browser untuk satu bab, beberapa bab, pilih semua, kegagalan di tengah batch, dan memastikan seluruh hasil tersimpan sebagai draf.
+2. **Pemulihan daftar draf:** daftar hasil batch masih state sementara di browser; perlu memuat kembali draf tersimpan dari database agar tidak hilang dari tampilan setelah refresh.
+3. **Akurasi kurikulum:** prompt generator saat ini mengirim judul, deskripsi, dan indikator topik. Catatan sumber buku/struktur khusus mata pelajaran belum seluruhnya dipaksakan ke prompt dan skema JSON. Khusus Bahasa Jawa, skema umum 3–8 bagian belum menjamin tujuh bagian Grengseng tampil lengkap.
+4. **Pecahan di editor materi:** konversi pecahan teks biasa telah dicoba pada RichTextEditor, tetapi pengguna sebelumnya melaporkan pecahan masih tampil sebagai teks biasa. Statusnya belum lulus QA visual dan harus ditelusuri sebelum dinyatakan selesai.
+5. **Gambar FLUX:** perlu uji gambar nyata, pemeriksaan ketepatan brief, penanganan kuota/timeout, dan pencatatan penggunaan agar biaya serta kegagalan dapat dipantau.
+6. **Analisis dan koreksi esai:** analisis visual soal sudah memakai fallback multi-provider. Integrasi multi-provider untuk analisis hasil ujian yang lebih luas dan koreksi esai otomatis masih merupakan pengembangan lanjutan; penilaian esai manual yang ada tidak boleh terganggu.
+
+### Urutan kerja satu minggu yang disarankan
+
+- **Tahap 1 — Verifikasi generator materi:** uji satu topik dan beberapa topik, status draf, penyimpanan, refresh, serta pemformatan dialog literal \n.
+- **Tahap 2 — Mutu isi:** kirim sumber kurikulum yang relevan ke prompt dan buat struktur khusus Bahasa Jawa tujuh bagian; cek kebenaran latihan dan pembahasan.
+- **Tahap 3 — Editor:** telusuri jalur pecahan dari respons AI → HTML → prepareEditorContent → node Mathematics → tampilan editor dan halaman baca.
+- **Tahap 4 — Gambar:** uji FLUX dan jalur renderer matematika, lalu tambahkan pencatatan penggunaan gambar tanpa mencampur statistiknya dengan token teks.
+- **Tahap 5 — AI penilaian:** audit alur analisis hasil dan koreksi esai yang sudah ada sebelum memutuskan integrasi provider; jangan mengubah perhitungan nilai atau penilaian manual tanpa uji terpisah.
+
+**Batas audit:** pemeriksaan ini membaca riwayat GitHub, kode main, konfigurasi urutan provider dan agregat log Supabase. Belum melakukan uji browser/login, belum memanggil model AI untuk menghasilkan materi/gambar baru, dan belum mengubah konfigurasi provider maupun database.
