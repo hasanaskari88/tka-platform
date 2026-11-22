@@ -111,7 +111,8 @@ function validateMaterial(value: unknown, requiredHeadings: string[] = []): valu
         ? String((section as Record<string, unknown>).heading || '').trim().toLocaleLowerCase('id')
         : ''
     )
-    if (requiredHeadings.some((heading) => !headings.includes(heading.toLocaleLowerCase('id')))) return false
+    const positions = requiredHeadings.map((heading) => headings.indexOf(heading.toLocaleLowerCase('id')))
+    if (positions.some((position, index) => position < 0 || (index > 0 && position <= positions[index - 1]))) return false
   }
   for (const section of item.sections) {
     if (!section || typeof section !== 'object' || Array.isArray(section)) return false
