@@ -6,6 +6,7 @@ import type {
   VisualIntent,
 } from '../types'
 import { calculateVisualIntent } from '../math/calculator'
+import { parseRational } from '../math/rational'
 import { validateVisualIntent } from './validate-intent'
 
 export type KnownFruitName = 'jeruk' | 'pisang' | 'apel'
@@ -238,6 +239,33 @@ export function extractFractionPartitionFacts(question: string): FractionPartiti
   }
 }
 
+/** Recognizes explicit numeric comparison instructions without guessing context. */
+export function extractNumberComparisonIntent(question: string): VisualIntent | null {
+  const source = normalizeQuestion(question)
+  const hasIntent = /\b(bandingkan|perbandingan|lebih besar|lebih kecil|paling besar|paling kecil|urutkan|manakah yang lebih|mana yang lebih)\b/.test(source)
+  if (!hasIntent) return null
+
+  const number = '(-?\\d+\\s+\\d+\\s*\\/\\s*\\d+|-?\\d+\\s*\\/\\s*\\d+|-?\\d+(?:[.,]\\d+)?|[½⅓⅔¼¾⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞])'
+  const patterns = [
+    new RegExp(number + '\\s*(?:atau|dan|dibandingkan dengan|dengan|versus)\\s*' + number),
+    new RegExp('antara\\s*' + number + '\\s*(?:dan|atau)\\s*' + number),
+  ]
+  for (const pattern of patterns) {
+    const match = source.match(pattern)
+    if (!match) continue
+    const first = parseRational(match[1])
+    const second = parseRational(match[2])
+    if (!first || !second) continue
+    return validateVisualIntent({
+      type: 'number_comparison',
+      first,
+      second,
+      requestedRelation: 'compare',
+    })
+  }
+  return null
+}
+
 /**
  * Extracts only known, text-checkable intents. Unsupported language patterns
  * return null and must be reviewed or handled by a future semantic adapter.
@@ -254,6 +282,9 @@ export function extractKnownVisualIntent(question: string): VisualIntent | null 
     }
     return validateVisualIntent(intent)
   }
+
+  const comparison = extractNumberComparisonIntent(question)
+  if (comparison) return comparison
 
   const sharing = extractEqualSharingFacts(question)
   if (sharing) {

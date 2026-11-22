@@ -42,7 +42,10 @@ function formatMathOption(value: string): string {
 
 function isMathematicsVisual(item: GeneratedQuestion, subject: string, topic: string): boolean {
   const text = (subject + ' ' + topic + ' ' + item.question + ' ' + item.explanation).toLocaleLowerCase('id')
-  return /matematika|pecahan|bilangan|penjumlahan|pengurangan|perkalian|pembagian|dibagi|dibagikan|dari total|bagian dari total|per bagian|setengah|sepertiga|seperempat|bangun datar|bangun ruang|keliling|luas|volume|sudut|pola bilangan|diagram|grafik|perbandingan angka|jam analog|nilai tempat|desimal|persen/.test(text)
+  const explicitComparison = /(?:bandingkan|manakah yang lebih|mana yang lebih|lebih besar|lebih kecil)[^.!?]{0,100}(?:\d+|\d+\s*\/\s*\d+).{0,40}(?:dan|atau|dengan).{0,20}(?:\d+|\d+\s*\/\s*\d+)/.test(text)
+  const geometryOrData = /segitiga|persegi|lingkaran|kubus|balok|garis bilangan|diagram batang|piktograf|tabel data/.test(text)
+  return explicitComparison || geometryOrData ||
+    /matematika|pecahan|bilangan|penjumlahan|pengurangan|perkalian|pembagian|dibagi|dibagikan|dari total|bagian dari total|per bagian|setengah|sepertiga|seperempat|bangun datar|bangun ruang|keliling|luas|volume|sudut|pola bilangan|diagram|grafik|perbandingan angka|jam analog|nilai tempat|desimal|persen/.test(text)
 }
 
 export default function AsistenAIPage() {

@@ -3,13 +3,10 @@ import { randomUUID } from 'crypto'
 import { generateJsonWithFallback, AIProvidersUnavailableError } from '@/lib/ai/provider'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
 import { calculateVisualIntent } from '@/lib/visual-math/math/calculator'
+import { buildAiVisualIntent } from '@/lib/visual-math/analysis/build-ai-intent'
 import { validateVisualIntent } from '@/lib/visual-math/analysis/validate-intent'
 import { extractKnownVisualIntent } from '@/lib/visual-math/analysis/known-patterns'
-import type {
-  VisualIntent,
-  VisualMathResult,
-  VisualReasonCode,
-} from '@/lib/visual-math/types'
+import type { VisualMathResult } from '@/lib/visual-math/types'
 
 export const maxDuration = 60
 
@@ -19,23 +16,6 @@ function cleanText(value: unknown, maxLength: number): string {
     : ''
 }
 
-function buildIntent(
-  raw: Record<string, unknown>,
-): { intent: VisualIntent | null; reasonCode: VisualReasonCode | null; reason: string } {
-  if (raw.intentType === 'none') {
-    return {
-      intent: null,
-      reasonCode: 'RENDERER_NOT_SUPPORTED',
-      reason: cleanText(raw.reason, 240) || 'Soal tidak memerlukan visual matematika yang didukung.',
-    }
-  }
-
-  return {
-    intent: null,
-    reasonCode: 'FACTS_INCOMPLETE',
-    reason: 'AI mengenali kemungkinan visual matematika, tetapi pola bahasanya belum memiliki ekstraksi fakta deterministik. Gambar dihentikan agar tidak menebak.',
-  }
-}
 
 function createKnownQuestionResult(question: string): VisualMathResult | null {
   const intent = extractKnownVisualIntent(question)
@@ -136,7 +116,10 @@ export async function POST(request: Request) {
     }
 
     const prompt = [
-      'Klasifikasikan kebutuhan visual matematika dari setiap soal. Jangan menghitung dan jangan mengarang fakta.',
+      'Analisis kebutuhan visual matematika untuk setiap soal. AI bertugas mengenali intent dan mengekstrak fakta yang tertulis; jangan menghitung hasil matematika.',
+      'Gunakan hanya fakta yang benar-benar ada dalam teks soal. Jangan mengambil angka dari pembahasan, jangan menebak satuan, dan jangan menambah kategori.',
+      'Kutip satu bagian teks soal secara persis pada properti evidence. Kutipan harus benar-benar muncul di teks soal dan memuat semua angka serta label yang dipakai.',
+      'Jika fakta tidak cukup, bertentangan, atau bukti tidak dapat dikutip, pilih intentType none.',
       '',
       'Mata pelajaran: ' + (subject || 'Tidak disebutkan'),
       'Materi: ' + (topic || 'Tidak disebutkan'),
@@ -144,63 +127,71 @@ export async function POST(request: Request) {
       'SOAL:',
       JSON.stringify(unresolvedQuestions),
       '',
-      'Pilih intentType:',
-      '- category_of_total: menanyakan bagian satu kategori dari keseluruhan beberapa kategori.',
-      '- equal_sharing: membagi sejumlah benda sama rata ke beberapa kelompok.',
-      '- fraction_partition: membagi satu keseluruhan menjadi bagian sama besar.',
-      '- none: tidak membutuhkan diagram matematika atau tidak cukup informasi.',
+      'Pilih intentType dan isi facts sebagai STRING JSON:',
+      '- category_of_total: facts = {"categories":[{"id":"apel","label":"apel","count":10},{"id":"jeruk","label":"jeruk","count":6}],"targetCategoryId":"apel"}',
+      '- equal_sharing: facts = {"objectLabel":"jeruk","totalObjects":6,"groupCount":5,"selectedGroupCount":1}',
+      '- fraction_partition: facts = {"wholeLabel":"pizza","totalParts":8,"selectedParts":3,"selectedMeaning":"removed"}',
+      '- number_comparison: facts = {"first":{"numerator":"1","denominator":"2"},"second":{"numerator":"3","denominator":"4"},"requestedRelation":"compare"}',
+      '- number_line: facts = {"minimum":{"numerator":"0","denominator":"1"},"maximum":{"numerator":"1","denominator":"1"},"points":[{"label":"A","value":{"numerator":"1","denominator":"2"}}]}',
+      '- geometry: facts = {"shape":"rectangle","measurements":[{"label":"panjang","value":{"numerator":"8","denominator":"1"},"unit":"cm"},{"label":"lebar","value":{"numerator":"4","denominator":"1"},"unit":"cm"}]}',
+      '- chart_table: facts = {"chartType":"bar","categories":[{"label":"apel","value":4},{"label":"jeruk","value":3}]}',
+      '- none: facts = "{}". Gunakan jika tidak membutuhkan visual atau fakta tidak dapat dibuktikan.',
       '',
-      'AI hanya mengklasifikasikan maksud. Fakta dan perhitungan akan diperiksa terpisah oleh program. Jika tidak yakin, pilih none dengan confidence rendah.',
-      'Kembalikan JSON dengan index, intentType, confidence (0 sampai 1), dan reason untuk setiap soal.',
+      'Aturan tambahan: count/total harus bilangan bulat nonnegatif; pecahan memakai pembilang dan penyebut integer dalam string; requestedRelation gunakan compare kecuali pernyataan eksplisit; selectedMeaning gunakan selected, removed, atau remaining.',
+      'Jangan menghasilkan jawaban atau hasil hitung. Kembalikan satu hasil untuk setiap index yang diberikan, tanpa mengubah index.',
     ].join('\n')
 
     let data: Record<string, unknown> = {}
     let provider = 'deterministic_partial'
     try {
       const aiResponse = await generateJsonWithFallback({
-      task: 'ekstraksi intent visual matematika',
-      prompt,
-      maxOutputTokens: 2600,
-      groqSchema: {
-        type: 'object',
-        properties: {
-          results: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                index: { type: 'integer' },
-                intentType: { type: 'string', enum: ['category_of_total', 'equal_sharing', 'fraction_partition', 'none'] },
-                confidence: { type: 'number' },
-                reason: { type: 'string' },
+        task: 'ekstraksi intent dan fakta visual matematika',
+        prompt,
+        maxOutputTokens: 3600,
+        groqSchema: {
+          type: 'object',
+          properties: {
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  index: { type: 'integer' },
+                  intentType: { type: 'string', enum: ['category_of_total', 'equal_sharing', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table', 'none'] },
+                  confidence: { type: 'number' },
+                  reason: { type: 'string' },
+                  evidence: { type: 'string' },
+                  facts: { type: 'string' },
+                },
+                required: ['index', 'intentType', 'confidence', 'reason', 'evidence', 'facts'],
+                additionalProperties: false,
               },
-              required: ['index', 'intentType', 'confidence', 'reason'],
-              additionalProperties: false,
             },
           },
+          required: ['results'],
+          additionalProperties: false,
         },
-        required: ['results'],
-        additionalProperties: false,
-      },
-      geminiSchema: {
-        type: 'OBJECT',
-        properties: {
-          results: {
-            type: 'ARRAY',
-            items: {
-              type: 'OBJECT',
-              properties: {
-                index: { type: 'INTEGER' },
-                intentType: { type: 'STRING', enum: ['category_of_total', 'equal_sharing', 'fraction_partition', 'none'] },
-                confidence: { type: 'NUMBER' },
-                reason: { type: 'STRING' },
+        geminiSchema: {
+          type: 'OBJECT',
+          properties: {
+            results: {
+              type: 'ARRAY',
+              items: {
+                type: 'OBJECT',
+                properties: {
+                  index: { type: 'INTEGER' },
+                  intentType: { type: 'STRING', enum: ['category_of_total', 'equal_sharing', 'fraction_partition', 'number_comparison', 'number_line', 'geometry', 'chart_table', 'none'] },
+                  confidence: { type: 'NUMBER' },
+                  reason: { type: 'STRING' },
+                  evidence: { type: 'STRING' },
+                  facts: { type: 'STRING' },
+                },
+                required: ['index', 'intentType', 'confidence', 'reason', 'evidence', 'facts'],
               },
-              required: ['index', 'intentType', 'confidence', 'reason'],
             },
           },
+          required: ['results'],
         },
-        required: ['results'],
-      },
       })
       data = aiResponse.data as Record<string, unknown>
       provider = aiResponse.provider
@@ -246,7 +237,7 @@ export async function POST(request: Request) {
           (entry: unknown) =>
             entry &&
             typeof entry === 'object' &&
-            Number((entry as Record<string, unknown>).index) === question.index,
+            (entry as Record<string, unknown>).index === question.index,
         ) as Record<string, unknown> | undefined
 
         if (!raw) {
@@ -265,14 +256,14 @@ export async function POST(request: Request) {
           }
         }
 
-        const confidence = Number(raw.confidence)
-        const built = buildIntent(raw)
-        if (!built.intent || !Number.isFinite(confidence) || confidence < 0.8 || confidence > 1) {
+        const confidence = typeof raw.confidence === 'number' ? raw.confidence : Number.NaN
+        const built = buildAiVisualIntent(raw, question.question)
+        if (!built.intent || !Number.isFinite(confidence) || confidence < 0.85 || confidence > 1) {
           return {
             index: question.index,
             result: {
               version: 1,
-              status: built.reasonCode === 'RENDERER_NOT_SUPPORTED' ? 'unsupported' : 'ambiguous',
+              status: built.reasonCode === 'RENDERER_NOT_SUPPORTED' || built.reasonCode === 'INTENT_NOT_RECOGNIZED' ? 'unsupported' : 'ambiguous',
               intent: null,
               calculatedValue: null,
               confidence: Number.isFinite(confidence) ? confidence : null,

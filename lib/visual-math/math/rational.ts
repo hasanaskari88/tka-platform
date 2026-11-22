@@ -171,7 +171,7 @@ const UNICODE_FRACTIONS: Record<string, [string, string]> = {
  * Unit-bearing values and algebraic expressions are intentionally rejected.
  */
 function parseRationalUnsafe(rawInput: string): RationalValue | null {
-  if (!rawInput || typeof rawInput !== 'string') return null
+  if (!rawInput || typeof rawInput !== 'string' || rawInput.length > 80) return null
   let input = normalizeInput(rawInput)
   if (!input) return null
 

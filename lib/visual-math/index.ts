@@ -36,6 +36,7 @@ export {
   extractFractionPartitionFacts,
   extractFruitCategories,
   extractKnownVisualIntent,
+  extractNumberComparisonIntent,
   extractTargetFruit,
 } from './analysis/known-patterns'
 

@@ -40,6 +40,8 @@ const knownPatterns = require(path.join(root, 'lib/visual-math/analysis/known-pa
 const calculator = require(path.join(root, 'lib/visual-math/math/calculator.ts'))
 const optionValidation = require(path.join(root, 'lib/visual-math/validation/validate-options.ts'))
 const answerValidation = require(path.join(root, 'lib/visual-math/validation/validate-answer.ts'))
+const intentValidation = require(path.join(root, 'lib/visual-math/analysis/validate-intent.ts'))
+const aiIntentBuilder = require(path.join(root, 'lib/visual-math/analysis/build-ai-intent.ts'))
 const visualRenderer = require(path.join(root, 'lib/visual-math/renderers/canvas.ts'))
 
 const equalSharingQuestion =
@@ -311,16 +313,297 @@ test('deterministic Canvas renderers create PNG output with the calculated label
     assert.ok(fractionBlob instanceof Blob)
     assert.ok(renderedTexts.some((value) => value.includes('5 dari 8 bagian = 5/8')))
 
-    const unsupportedBlob = await visualRenderer.createVisualMathImage({
+    const genericObjectBlob = await visualRenderer.createVisualMathImage({
       type: 'equal_sharing',
       objectLabel: 'gajah',
       totalObjects: 6,
       groupCount: 5,
       selectedGroupCount: 1,
     })
-    assert.equal(unsupportedBlob, null)
+    assert.ok(genericObjectBlob instanceof Blob)
   } finally {
     if (originalDocument === undefined) delete global.document
     else global.document = originalDocument
+  }
+})
+
+
+test('number comparison intent extracts fractions only when the question clearly asks to compare', () => {
+  const intent = knownPatterns.extractKnownVisualIntent(
+    'Bandingkan 1/2 dan 3/4. Manakah yang lebih besar?',
+  )
+  assert.equal(intent.type, 'number_comparison')
+  assert.equal(rational.formatFraction(intent.first), '1/2')
+  assert.equal(rational.formatFraction(intent.second), '3/4')
+  const result = calculator.calculateVisualIntent(intent)
+  assert.equal(result.status, 'ready')
+  assert.equal(result.comparison, -1)
+  assert.equal(knownPatterns.extractKnownVisualIntent('Ada angka 1/2 dan 3/4 pada cerita.')?.type, undefined)
+})
+
+test('number line, geometry, and chart/table intents pass strict validation', () => {
+  const numberLine = intentValidation.validateVisualIntent({
+    type: 'number_line',
+    minimum: { numerator: '0', denominator: '1' },
+    maximum: { numerator: '1', denominator: '1' },
+    points: [{ label: 'A', value: { numerator: '1', denominator: '2' } }],
+  })
+  assert.equal(numberLine.type, 'number_line')
+  assert.equal(calculator.calculateVisualIntent(numberLine).status, 'ready')
+
+  const geometry = intentValidation.validateVisualIntent({
+    type: 'geometry',
+    shape: 'rectangle',
+    measurements: [
+      { label: 'panjang', value: { numerator: '8', denominator: '1' }, unit: 'cm' },
+      { label: 'lebar', value: { numerator: '4', denominator: '1' }, unit: 'cm' },
+    ],
+  })
+  assert.equal(geometry.type, 'geometry')
+  assert.equal(calculator.calculateVisualIntent(geometry).status, 'ready')
+
+  const chart = intentValidation.validateVisualIntent({
+    type: 'chart_table',
+    chartType: 'bar',
+    categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+  })
+  assert.equal(chart.type, 'chart_table')
+  assert.equal(calculator.calculateVisualIntent(chart).status, 'ready')
+})
+
+test('intent validation rejects unsafe values and unsupported bounds', () => {
+  assert.equal(intentValidation.validateVisualIntent({
+    type: 'number_line',
+    minimum: { numerator: '0', denominator: '1' },
+    maximum: { numerator: '1', denominator: '1' },
+    points: Array.from({ length: 11 }, (_, index) => ({
+      label: String(index),
+      value: { numerator: '1', denominator: '2' },
+    })),
+  }), null)
+  assert.equal(intentValidation.validateVisualIntent({
+    type: 'category_of_total',
+    categories: [
+      { id: 'a', label: 'apel', count: 30 },
+      { id: 'b', label: 'jeruk', count: 20 },
+    ],
+    targetCategoryId: 'a',
+  }), null)
+  assert.equal(rational.parseRational('9'.repeat(100)), null)
+})
+
+test('Canvas renderers cover comparison, number line, geometry, and chart/table', async () => {
+  const originalDocument = global.document
+  const renderedTexts = []
+  const context = new Proxy(
+    { fillText: (value) => renderedTexts.push(String(value)) },
+    {
+      get(target, property) {
+        if (property in target) return target[property]
+        return () => undefined
+      },
+      set(target, property, value) {
+        target[property] = value
+        return true
+      },
+    },
+  )
+  global.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => context,
+      toBlob: (callback) => callback(new Blob(['test-png'], { type: 'image/png' })),
+    }),
+  }
+  try {
+    const intents = [
+      {
+        type: 'number_comparison',
+        first: { numerator: '1', denominator: '2' },
+        second: { numerator: '3', denominator: '4' },
+        requestedRelation: 'compare',
+      },
+      {
+        type: 'number_line',
+        minimum: { numerator: '0', denominator: '1' },
+        maximum: { numerator: '1', denominator: '1' },
+        points: [{ label: 'A', value: { numerator: '1', denominator: '2' } }],
+      },
+      {
+        type: 'geometry',
+        shape: 'rectangle',
+        measurements: [
+          { label: 'panjang', value: { numerator: '8', denominator: '1' }, unit: 'cm' },
+          { label: 'lebar', value: { numerator: '4', denominator: '1' }, unit: 'cm' },
+        ],
+      },
+      { type: 'chart_table', chartType: 'bar', categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }] },
+      { type: 'chart_table', chartType: 'pictograph', categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }] },
+      { type: 'chart_table', chartType: 'table', categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }] },
+      { type: 'fraction_partition', wholeLabel: 'apel', totalParts: 4, selectedParts: 2, selectedMeaning: 'selected' },
+      { type: 'fraction_partition', wholeLabel: 'jam analog', totalParts: 12, selectedParts: 3, selectedMeaning: 'selected' },
+      { type: 'fraction_partition', wholeLabel: 'kelereng', totalParts: 8, selectedParts: 3, selectedMeaning: 'selected' },
+      { type: 'fraction_partition', wholeLabel: 'garis bilangan', totalParts: 5, selectedParts: 2, selectedMeaning: 'selected' },
+    ]
+    for (const intent of intents) {
+      const blob = await visualRenderer.createVisualMathImage(intent)
+      assert.ok(blob instanceof Blob, intent.type + ' ' + (intent.chartType || ''))
+      assert.ok(blob.size > 0)
+      assert.equal(blob.type, 'image/png')
+    }
+    assert.ok(renderedTexts.includes('<'))
+  } finally {
+    if (originalDocument === undefined) delete global.document
+    else global.document = originalDocument
+  }
+})
+
+test('AI facts are accepted only when evidence is a literal and supports the facts', () => {
+  const valid = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'number_comparison',
+    confidence: 0.94,
+    evidence: 'Bandingkan 1/2 dan 3/4.',
+    facts: JSON.stringify({
+      first: { numerator: '1', denominator: '2' },
+      second: { numerator: '3', denominator: '4' },
+      requestedRelation: 'compare',
+    }),
+  }, 'Bandingkan 1/2 dan 3/4. Manakah yang lebih besar?')
+  assert.equal(valid.intent.type, 'number_comparison')
+  assert.equal(valid.reasonCode, null)
+
+  const unicodeFraction = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'number_comparison',
+    evidence: 'Bandingkan ½ dan ¾.',
+    facts: JSON.stringify({
+      first: { numerator: '1', denominator: '2' },
+      second: { numerator: '3', denominator: '4' },
+      requestedRelation: 'compare',
+    }),
+  }, 'Bandingkan ½ dan ¾.')
+  assert.equal(unicodeFraction.intent.type, 'number_comparison')
+
+  const inventedQuote = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'number_comparison',
+    evidence: 'Bandingkan 1/3 dan 3/4.',
+    facts: JSON.stringify({
+      first: { numerator: '1', denominator: '3' },
+      second: { numerator: '3', denominator: '4' },
+      requestedRelation: 'compare',
+    }),
+  }, 'Bandingkan 1/2 dan 3/4.')
+  assert.equal(inventedQuote.intent, null)
+  assert.equal(inventedQuote.reasonCode, 'FACTS_INCOMPLETE')
+
+  const mismatchedFact = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'equal_sharing',
+    evidence: '6 jeruk dibagikan sama rata kepada 5 anak.',
+    facts: JSON.stringify({
+      objectLabel: 'jeruk',
+      totalObjects: 6,
+      groupCount: 4,
+      selectedGroupCount: 1,
+    }),
+  }, '6 jeruk dibagikan sama rata kepada 5 anak.')
+  assert.equal(mismatchedFact.intent, null)
+  assert.equal(mismatchedFact.reasonCode, 'FACTS_INCOMPLETE')
+})
+
+test('AI intent builder rejects malformed JSON and facts outside supported limits', () => {
+  const malformed = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'number_comparison',
+    evidence: 'Bandingkan 1 dan 2.',
+    facts: '{broken json',
+  }, 'Bandingkan 1 dan 2.')
+  assert.equal(malformed.reasonCode, 'AI_RESPONSE_INVALID')
+
+  const tooManyPoints = aiIntentBuilder.buildAiVisualIntent({
+    intentType: 'number_line',
+    evidence: 'Garis bilangan dari 0 sampai 1.',
+    facts: JSON.stringify({
+      minimum: { numerator: '0', denominator: '1' },
+      maximum: { numerator: '1', denominator: '1' },
+      points: Array.from({ length: 11 }, (_, index) => ({
+        label: 'A' + index,
+        value: { numerator: '1', denominator: '2' },
+      })),
+    }),
+  }, 'Garis bilangan dari 0 sampai 1.')
+  assert.equal(tooManyPoints.intent, null)
+  assert.equal(tooManyPoints.reasonCode, 'AI_RESPONSE_INVALID')
+})
+
+test('AI intent builder validates evidence for every supported visual intent', () => {
+  const cases = [
+    {
+      intentType: 'category_of_total',
+      question: 'Ada 6 jeruk, 8 pisang, dan 10 apel. Berapa bagian apel dari total buah?',
+      facts: {
+        categories: [
+          { id: 'jeruk', label: 'jeruk', count: 6 },
+          { id: 'pisang', label: 'pisang', count: 8 },
+          { id: 'apel', label: 'apel', count: 10 },
+        ],
+        targetCategoryId: 'apel',
+      },
+    },
+    {
+      intentType: 'equal_sharing',
+      question: '6 jeruk dibagikan sama rata kepada 3 anak.',
+      facts: { objectLabel: 'jeruk', totalObjects: 6, groupCount: 3, selectedGroupCount: 1 },
+    },
+    {
+      intentType: 'fraction_partition',
+      question: 'Pizza dibagi menjadi 8 bagian sama besar. 3 bagian dimakan.',
+      facts: { wholeLabel: 'pizza', totalParts: 8, selectedParts: 3, selectedMeaning: 'removed' },
+    },
+    {
+      intentType: 'number_comparison',
+      question: 'Bandingkan 1/2 dan 3/4. Manakah yang lebih besar?',
+      facts: {
+        first: { numerator: '1', denominator: '2' },
+        second: { numerator: '3', denominator: '4' },
+        requestedRelation: 'compare',
+      },
+    },
+    {
+      intentType: 'number_line',
+      question: 'Letakkan titik A bernilai 1/2 pada garis bilangan dari 0 sampai 1.',
+      facts: {
+        minimum: { numerator: '0', denominator: '1' },
+        maximum: { numerator: '1', denominator: '1' },
+        points: [{ label: 'A', value: { numerator: '1', denominator: '2' } }],
+      },
+    },
+    {
+      intentType: 'geometry',
+      question: 'Persegi panjang memiliki panjang 8 cm dan lebar 4 cm.',
+      facts: {
+        shape: 'rectangle',
+        measurements: [
+          { label: 'panjang', value: { numerator: '8', denominator: '1' }, unit: 'cm' },
+          { label: 'lebar', value: { numerator: '4', denominator: '1' }, unit: 'cm' },
+        ],
+      },
+    },
+    {
+      intentType: 'chart_table',
+      question: 'Data jumlah buah: apel 4 dan jeruk 3. Buat diagram batang.',
+      facts: {
+        chartType: 'bar',
+        categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+      },
+    },
+  ]
+
+  for (const item of cases) {
+    const result = aiIntentBuilder.buildAiVisualIntent({
+      intentType: item.intentType,
+      evidence: item.question,
+      facts: JSON.stringify(item.facts),
+    }, item.question)
+    assert.equal(result.intent?.type, item.intentType, item.intentType)
+    assert.equal(result.reasonCode, null, item.intentType)
   }
 })
