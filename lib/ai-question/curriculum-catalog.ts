@@ -6,11 +6,11 @@
  * as a nationally fixed semester-by-semester sequence.
  */
 export type CurriculumTrack = 'TKA' | 'GRADE_6'
-export type CurriculumTopic = { id: string; title: string; description: string; indicator: string }
+export type CurriculumTopic = { id: string; title: string; description: string; indicator: string; contentStatus: 'CURATED_SUMMARY' }
 export type CurriculumTopicGroup = { title: string; topics: CurriculumTopic[] }
 export type CurriculumSubject = { label: string; sourceNote: string; groups: CurriculumTopicGroup[] }
 export type CurriculumCatalog = Record<string, CurriculumSubject>
-const t = (id: string, title: string, description: string, indicator: string): CurriculumTopic => ({ id, title, description, indicator })
+const t = (id: string, title: string, description: string, indicator: string): CurriculumTopic => ({ id, title, description, indicator, contentStatus: 'CURATED_SUMMARY' })
 
 export const TKA_SD_CATALOG: CurriculumCatalog = {
   'Bahasa Indonesia': {
@@ -226,16 +226,44 @@ export function getCurriculumTopics(track: CurriculumTrack, subject: string): Cu
   return selected ? selected.groups.flatMap((group) => group.topics) : []
 }
 export const CURRICULUM_SOURCE_REFERENCES = [
-  { title: 'Kerangka Asesmen TKA SD/MI/Sederajat', publisher: 'Pusat Asesmen Pendidikan, Kemendikdasmen', url: 'https://pusmendik.kemendikdasmen.go.id/tka/kerangka/sd/', reviewedAt: '2026-11-22' },
-  { title: 'Keputusan Kepala BSKAP Nomor 046/H/KR/2025 tentang Capaian Pembelajaran', publisher: 'Kemendikdasmen', url: 'https://kurikulum.kemendikdasmen.go.id/file/1753929861_manage_file.pdf', reviewedAt: '2026-11-22' },
-  { title: 'Panduan Mata Pelajaran Bahasa Indonesia Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://repositori.kemendikdasmen.go.id/33598/1/4.%20Panduan%20Mata%20Pelajaran%20Bahasa%20Indonesia_16_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
-  { title: 'Panduan Mata Pelajaran Matematika Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://repositori.kemendikdasmen.go.id/33608/1/5.%20Final%20Panduan%20Mata%20Pelajaran%20Matematika_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
-  { title: 'Panduan Mata Pelajaran IPAS Fase A–C (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/7.%20Final%20Panduan%20Mata%20Pelajaran%20IPAS_03_10_2025_Revisi%204.pdf', reviewedAt: '2026-11-22' },
-  { title: 'Panduan Mata Pelajaran Pendidikan Pancasila Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/2.%20Final%20Panduan%20Mata%20Pelajaran%20Pendidikan%20Pancasila_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
+  { id: 'tka-sd-framework', title: 'Kerangka Asesmen TKA SD/MI/Sederajat', publisher: 'Pusat Asesmen Pendidikan, Kemendikdasmen', url: 'https://pusmendik.kemendikdasmen.go.id/tka/kerangka/sd/', reviewedAt: '2026-11-22' },
+  { id: 'cp-046-hk-2025', title: 'Keputusan Kepala BSKAP Nomor 046/H/KR/2025 tentang Capaian Pembelajaran', publisher: 'Kemendikdasmen', url: 'https://kurikulum.kemendikdasmen.go.id/file/1753929861_manage_file.pdf', reviewedAt: '2026-11-22' },
+  { id: 'guide-bahasa-indonesia-2025', title: 'Panduan Mata Pelajaran Bahasa Indonesia Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://repositori.kemendikdasmen.go.id/33598/1/4.%20Panduan%20Mata%20Pelajaran%20Bahasa%20Indonesia_16_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
+  { id: 'guide-matematika-2025', title: 'Panduan Mata Pelajaran Matematika Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://repositori.kemendikdasmen.go.id/33608/1/5.%20Final%20Panduan%20Mata%20Pelajaran%20Matematika_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
+  { id: 'guide-ipas-2025', title: 'Panduan Mata Pelajaran IPAS Fase A–C (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/7.%20Final%20Panduan%20Mata%20Pelajaran%20IPAS_03_10_2025_Revisi%204.pdf', reviewedAt: '2026-11-22' },
+  { id: 'guide-pancasila-2025', title: 'Panduan Mata Pelajaran Pendidikan Pancasila Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/2.%20Final%20Panduan%20Mata%20Pelajaran%20Pendidikan%20Pancasila_12_09_2025_Revisi%203.pdf', reviewedAt: '2026-11-22' },
 
-  { title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-22' },
-  { title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-22' },
-  { title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-22' },
-  { title: 'Rencana Kerja Pemerintah Daerah Kabupaten Semarang Tahun 2026 (data pelestarian seni budaya daerah)', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://jdih.jatengprov.go.id/datacenter/files/inventarisasi-hukum/24/2025pb3322015.pdf', reviewedAt: '2026-11-22' },
+  { id: 'guide-pjok-2025', title: 'Panduan Mata Pelajaran PJOK Fase A–F (2025)', publisher: 'Pusat Kurikulum dan Pembelajaran', url: 'https://kurikulum.kemendikdasmen.go.id/file/panduan/dokumen/Panduan%20Mata%20Pelajaran%20PJOK.pdf', reviewedAt: '2026-11-22' },
+  { id: 'perbup-semarang-14-2022', title: 'Peraturan Bupati Semarang Nomor 14 Tahun 2022 tentang Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://peraturan.bpk.go.id/Details/211472/perbup-kab-semarang-no-14-tahun-2022', reviewedAt: '2026-11-22' },
+  { id: 'kepgub-jateng-jawa-2026', title: 'Keputusan Gubernur Jawa Tengah Nomor 100.3.3.1/5 Tahun 2026 tentang Buku Teks Muatan Lokal Bahasa Jawa', publisher: 'Pemerintah Provinsi Jawa Tengah', url: 'https://jdih.jatengprov.go.id/inventarisasi-hukum/detail/kepgub_100-3-3-1-5_th_2026', reviewedAt: '2026-11-22' },
+  { id: 'rkpd-semarang-2026', title: 'Rencana Kerja Pemerintah Daerah Kabupaten Semarang Tahun 2026 (data pelestarian seni budaya daerah)', publisher: 'Pemerintah Kabupaten Semarang', url: 'https://jdih.jatengprov.go.id/datacenter/files/inventarisasi-hukum/24/2025pb3322015.pdf', reviewedAt: '2026-11-22' },
 
 ] as const
+
+
+/**
+ * Subject-level provenance. Topic descriptions and indicators in this catalog are
+ * curated summaries for authoring support, not verbatim official CP/assessment text.
+ * School ATP and teaching materials remain the authority for local sequencing.
+ */
+export type CurriculumSubjectMetadata = {
+  basis: 'TKA_FRAMEWORK' | 'CP_PHASE_C' | 'LOCAL_CONTENT'
+  phase: 'TKA_SD' | 'C'
+  sourceRefIds: string[]
+  sequencePolicy: 'ASSESSMENT_FRAMEWORK' | 'SCHOOL_ATP' | 'SCHOOL_ATP_AND_LOCAL_RULES'
+}
+export const CURRICULUM_SUBJECT_METADATA: Record<CurriculumTrack, Record<string, CurriculumSubjectMetadata>> = {
+  TKA: {
+    'Bahasa Indonesia': { basis: 'TKA_FRAMEWORK', phase: 'TKA_SD', sourceRefIds: ['tka-sd-framework'], sequencePolicy: 'ASSESSMENT_FRAMEWORK' },
+    Matematika: { basis: 'TKA_FRAMEWORK', phase: 'TKA_SD', sourceRefIds: ['tka-sd-framework'], sequencePolicy: 'ASSESSMENT_FRAMEWORK' },
+  },
+  GRADE_6: {
+    Matematika: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-matematika-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Bahasa Indonesia': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-bahasa-indonesia-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    IPAS: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-ipas-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Pendidikan Pancasila': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pancasila-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Bahasa Inggris': { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    PJOK: { basis: 'CP_PHASE_C', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'guide-pjok-2025'], sequencePolicy: 'SCHOOL_ATP' },
+    'Bahasa Jawa': { basis: 'LOCAL_CONTENT', phase: 'C', sourceRefIds: ['cp-046-hk-2025', 'perbup-semarang-14-2022', 'kepgub-jateng-jawa-2026'], sequencePolicy: 'SCHOOL_ATP_AND_LOCAL_RULES' },
+  },
+}
