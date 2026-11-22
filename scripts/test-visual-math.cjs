@@ -46,6 +46,8 @@ const factGraphBuilder = require(path.join(root, 'lib/visual-math/semantic/build
 const semanticValidation = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
 const operationPlanner = require(path.join(root, 'lib/visual-math/math/operation-planner.ts'))
 const pictographScale = require(path.join(root, 'lib/visual-math/renderers/pictograph-scale.ts'))
+const rendererRegistry = require(path.join(root, 'lib/visual-math/renderers/registry.ts'))
+const artifactQuality = require(path.join(root, 'lib/visual-math/quality/validate-artifact.ts'))
 const visualRenderer = require(path.join(root, 'lib/visual-math/renderers/canvas.ts'))
 
 const equalSharingQuestion =
@@ -939,4 +941,75 @@ test('pictograph renderer draws an exact symbol count and abstains when it canno
     if (originalDocument === undefined) delete global.document
     else global.document = originalDocument
   }
+})
+
+
+test('renderer registry returns versioned artifacts and rejects unsupported output sizes', async () => {
+  const originalDocument = global.document
+  const context = new Proxy(
+    { fillText: () => undefined },
+    {
+      get(target, property) {
+        if (property in target) return target[property]
+        return () => undefined
+      },
+      set(target, property, value) {
+        target[property] = value
+        return true
+      },
+    },
+  )
+  global.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => context,
+      toBlob: (callback) => callback(new Blob(['test-png'], { type: 'image/png' })),
+    }),
+  }
+  try {
+    const result = await rendererRegistry.renderVisualMathArtifact({
+      type: 'chart_table',
+      chartType: 'table',
+      categories: [{ label: 'apel', value: 4 }, { label: 'jeruk', value: 3 }],
+    })
+    assert.equal(result.status, 'accepted')
+    assert.equal(result.artifact.rendererId, 'chart-table-canvas')
+    assert.equal(result.artifact.rendererVersion, 1)
+    assert.equal(result.artifact.width, 1600)
+    assert.deepEqual(result.artifact.representedValues, ['apel=4', 'jeruk=3'])
+
+    const wrongSize = await rendererRegistry.renderVisualMathArtifact({
+      type: 'chart_table',
+      chartType: 'table',
+      categories: [{ label: 'apel', value: 4 }],
+    }, { width: 800, height: 600, locale: 'id-ID' })
+    assert.equal(wrongSize.status, 'rejected')
+    assert.equal(wrongSize.reasonCode, 'INVALID_DIMENSIONS')
+  } finally {
+    if (originalDocument === undefined) delete global.document
+    else global.document = originalDocument
+  }
+})
+
+test('render artifact quality gate rejects empty blobs and incomplete metadata', () => {
+  const base = {
+    blob: new Blob(['ok'], { type: 'image/png' }),
+    mimeType: 'image/png',
+    width: 1600,
+    height: 900,
+    elementCount: 2,
+    representedValues: ['apel=4'],
+    rendererId: 'chart-table-canvas',
+    rendererVersion: 1,
+  }
+  assert.equal(artifactQuality.validateRenderArtifact(base).status, 'accepted')
+  assert.equal(
+    artifactQuality.validateRenderArtifact({ ...base, blob: new Blob([], { type: 'image/png' }) }).reasonCode,
+    'BLOB_EMPTY',
+  )
+  assert.equal(
+    artifactQuality.validateRenderArtifact({ ...base, representedValues: [] }).reasonCode,
+    'MISSING_REPRESENTED_VALUES',
+  )
 })
