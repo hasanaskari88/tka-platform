@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -18,7 +18,7 @@ type Material = {
   created_at: string
 }
 
-export default function PublishedMaterialPage() {
+function PublishedMaterialContent() {
   const params = useParams<{ id: string }>()
   const id = params.id
   const [material, setMaterial] = useState<Material | null>(null)
@@ -71,5 +71,13 @@ export default function PublishedMaterialPage() {
         ) : null}
       </main>
     </div>
+  )
+}
+
+export default function PublishedMaterialPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 p-10 text-center text-sm text-slate-500">Memuat materi...</div>}>
+      <PublishedMaterialContent />
+    </Suspense>
   )
 }
