@@ -61,3 +61,7 @@ export type {
   SemanticValidationCode,
   SemanticValidationResult,
 } from './contracts/facts'
+export { buildFactGraphFromIntent } from './semantic/build-fact-graph'
+export type { BuildFactGraphResult } from './semantic/build-fact-graph'
+export { planVisualMathOperation } from './math/operation-planner'
+export type { VisualOperation, VisualOperationPlan } from './math/operation-planner'
