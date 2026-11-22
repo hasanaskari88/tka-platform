@@ -126,7 +126,7 @@ function escapeHtml(value: string): string {
 // AI kadang mengirim karakter "\\n" secara literal, bukan baris baru.
 // Ubah keduanya menjadi <br> agar dialog tampil per baris di materi.
 function textHtml(value: string): string {
-  return escapeHtml(value).replace(/\\\\n/g, '<br>').replace(/\\r?\\n/g, '<br>')
+  return escapeHtml(value).replace(/\\n/g, '<br>').replace(/\r?\n/g, '<br>')
 }
 
 function listHtml(items: string[]) {
