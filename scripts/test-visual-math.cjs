@@ -643,3 +643,63 @@ test('AI intent builder validates evidence for every supported visual intent', (
     assert.equal(result.reasonCode, null, item.intentType)
   }
 })
+
+test('semantic fact graph accepts only source-backed facts and required relations', () => {
+  const { validateFactGraph } = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
+  const question = '6 jeruk dibagikan sama rata kepada 3 anak.'
+  const excerpt = (quote) => {
+    const start = question.indexOf(quote)
+    return { source: 'question', start, end: start + quote.length, quote }
+  }
+  const graph = {
+    requestedGoal: 'equal_sharing',
+    facts: [
+      { id: 'total', role: 'total_objects', value: { kind: 'integer', value: 6 }, source: excerpt('6 jeruk') },
+      { id: 'groups', role: 'group_count', value: { kind: 'integer', value: 3 }, source: excerpt('3 anak') },
+    ],
+    relations: [
+      { type: 'divided_into', from: 'total', to: 'groups', source: excerpt('dibagikan sama rata') },
+      { type: 'equal_share_of', from: 'total', to: 'groups', source: excerpt('dibagikan sama rata') },
+    ],
+  }
+  assert.equal(validateFactGraph(graph, { question }).status, 'accepted')
+
+  const unsupportedQuote = structuredClone(graph)
+  unsupportedQuote.facts[0].source.quote = '6 apel'
+  assert.equal(validateFactGraph(unsupportedQuote, { question }).status, 'rejected')
+
+  const missingRelation = structuredClone(graph)
+  missingRelation.relations.pop()
+  assert.equal(validateFactGraph(missingRelation, { question }).status, 'rejected')
+
+  const brokenReference = structuredClone(graph)
+  brokenReference.relations[0].to = 'missing'
+  assert.equal(validateFactGraph(brokenReference, { question }).status, 'rejected')
+
+  const duplicateId = structuredClone(graph)
+  duplicateId.facts[1].id = 'total'
+  assert.equal(validateFactGraph(duplicateId, { question }).status, 'rejected')
+})
+
+test('semantic fact graph detects contradictory fraction partition counts', () => {
+  const { validateFactGraph } = require(path.join(root, 'lib/visual-math/semantic/validate-fact-graph.ts'))
+  const question = 'Pizza dibagi menjadi 8 bagian sama besar. 9 bagian dipilih.'
+  const excerpt = (quote) => {
+    const start = question.indexOf(quote)
+    return { source: 'question', start, end: start + quote.length, quote }
+  }
+  const result = validateFactGraph({
+    requestedGoal: 'fraction_partition',
+    facts: [
+      { id: 'whole', role: 'whole', value: { kind: 'text', value: 'pizza' }, source: excerpt('Pizza') },
+      { id: 'total', role: 'total_parts', value: { kind: 'integer', value: 8 }, source: excerpt('8 bagian') },
+      { id: 'selected', role: 'selected_parts', value: { kind: 'integer', value: 9 }, source: excerpt('9 bagian') },
+    ],
+    relations: [
+      { type: 'divided_into', from: 'whole', to: 'total', source: excerpt('dibagi menjadi') },
+      { type: 'equal_parts', from: 'whole', to: 'total', source: excerpt('bagian sama besar') },
+    ],
+  }, { question })
+  assert.equal(result.status, 'rejected')
+  assert.equal(result.reasonCode, 'FACTS_CONFLICT')
+})
