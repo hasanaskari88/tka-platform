@@ -750,3 +750,13 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
   - Seni Teater: https://buku.kemendikdasmen.go.id/katalog/panduan-guru-seni-teater-untuk-sdmi-kelas-vi-edisi-revisi
 - Kode ditambahkan langsung ke branch main. Status build Production perlu diverifikasi sebelum dinyatakan aktif di situs.
 
+### Penguatan mutu prompt dan validasi materi AI — 23 November 2026
+
+- Perubahan kode dilakukan langsung pada `main` dalam commit `531086d7abd7624a87b2826a8d7cf5d92a4b8151`, file `app/api/admin/ai/generate-materials/route.ts`.
+- Prompt sekarang memberi pedoman khusus per mapel untuk tiga agama yang diajarkan sekolah, empat cabang seni, PJOK, dan Bahasa Jawa. Pedoman mencegah pencampuran ajaran agama, kutipan kitab suci/ayat yang direka, mengklaim panduan guru sebagai buku siswa, serta aktivitas seni/PJOK yang tidak aman atau mensyaratkan alat khusus.
+- Instruksi latihan diperketat: 3–5 latihan bervariasi, masing-masing dengan jawaban dan pembahasan yang dapat diperiksa. Model diminta memeriksa ulang hitungan, satuan, fakta, ejaan, istilah, dan konsistensi; jika rujukan tidak cukup, jangan mengarang detail dan beri catatan verifikasi kepada guru.
+- Validasi struktur Bahasa Jawa sekarang menuntut tepat tujuh bagian dengan judul dan urutan yang persis. Sebelumnya validasi hanya memastikan tujuh judul wajib muncul berurutan, tetapi masih mengizinkan bagian tambahan di antaranya/di luar daftar.
+- Rujukan `sourceNote` dan metadata kurikulum dari katalog tetap disisipkan ke prompt. Instruksi baru menegaskan pembedaan buku siswa, panduan guru, dan dokumen CP.
+- Batas pekerjaan: ini penguatan instruksi dan validasi struktur, bukan verifikasi otomatis kebenaran faktual semua jawaban AI. Pemeriksaan isi dan QA browser sengaja ditunda untuk satu sesi pengujian gabungan sesuai arahan pengguna.
+- Deployment Vercel Production untuk commit tersebut terdeteksi dengan ID `dpl_54HQPkTYbRqe6ch66qCEhSkRhrBA`, target Production, branch `main`; saat pencatatan masih BUILDING. Status READY dan QA runtime belum dikonfirmasi.
+
