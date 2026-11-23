@@ -838,3 +838,11 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
   - Supabase Security Advisor tidak lagi melaporkan helper RLS baru sebagai SECURITY DEFINER RPC publik. Peringatan yang tersisa berasal dari fungsi/tabel lain di luar dua tabel konten ini dan memerlukan audit terpisah.
 - Batas verifikasi: akses baris dan URL diuji melalui simulasi role database; izin berbagi masing-masing file Google Drive (misalnya `Anyone with the link – Viewer`) tidak diubah dan tidak diverifikasi oleh migration ini. RLS tidak mengubah izin file pada Google Drive.
 - Tidak ada file kode aplikasi yang diubah dalam pekerjaan ini. QA browser Production untuk halaman beranda, pusat sumber belajar, halaman detail materi, dan CMS admin masih perlu dilakukan pada sesi QA gabungan.
+
+
+### Temuan keamanan profil yang perlu penanganan terpisah — 23 November 2026
+
+- Pemeriksaan lanjutan setelah penguncian role menemukan policy SELECT lama pada `profiles` masih mengizinkan pembacaan publik untuk seluruh kolom.
+- Tabel memiliki kolom `plain_password`; query agregat tanpa membaca atau menampilkan nilainya menemukan 35 dari 37 baris memiliki nilai pada kolom tersebut. Karena policy SELECT masih publik, nilai kolom itu berpotensi dapat dibaca melalui REST API oleh pihak yang tidak login.
+- Nilai/password tidak dibaca, disalin, atau ditampilkan. Perubahan akses SELECT dan migrasi penghapusan/penanganan data kolom tersebut tidak dilakukan pada sesi ini karena berada di luar persetujuan terbatas yang diberikan (pengamanan role saja) dan memerlukan audit dependensi query `profiles` serta rencana perubahan kompatibel.
+- Ini temuan keamanan prioritas tinggi yang perlu persetujuan dan pekerjaan terpisah segera. Jangan menganggap seluruh tabel `profiles` sudah aman; yang sudah diamankan pada tahap ini hanya UPDATE agar terbatas pada profil sendiri dan pencegahan eskalasi role.
