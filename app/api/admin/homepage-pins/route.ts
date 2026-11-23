@@ -100,7 +100,7 @@ export async function PUT(request: Request) {
     )
 
     const sourceRows = await getSurfaceSourceRows(adminClient, typedSurface, itemIds)
-    const sourceById = new Map(sourceRows.map((row: any) => [String(row.id), row]))
+    const sourceById = new Map<string, any>(sourceRows.map((row: any) => [String(row.id), row] as [string, any]))
 
     if (sourceById.size !== itemIds.length) {
       return jsonError('Ada konten yang sudah tidak tersedia.', 400)

@@ -74,7 +74,7 @@ export default function HomepageSettingsPage() {
   const data = dataBySurface[activeSurface]
   const pinnedIds = draftBySurface[activeSurface]
   const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds])
-  const itemById = useMemo(() => new Map(data.items.map((item) => [item.id, item])), [data.items])
+  const itemById = useMemo(() => new Map<string, Item>(data.items.map((item) => [item.id, item] as [string, Item])), [data.items])
   const pinnedItems = pinnedIds.map((id) => itemById.get(id)).filter(Boolean) as Item[]
   const searchableItems = data.items.filter((item) =>
     item.eligible &&

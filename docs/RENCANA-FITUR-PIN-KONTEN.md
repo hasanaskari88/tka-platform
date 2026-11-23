@@ -721,7 +721,7 @@ Implementasi hanya dimulai setelah rancangan kode, SQL migration, dan daftar fil
 
 ## 12. Catatan implementasi dan verifikasi (23 November 2026)
 
-Kode fitur telah disiapkan pada branch `main` dalam satu commit, mencakup:
+Kode fitur telah disiapkan untuk branch `main` dalam satu commit, mencakup:
 - tabel metadata pin dan RPC penggantian urutan secara atomik;
 - API publik fail-open dan API admin dengan verifikasi `requireTrustedAdmin()`;
 - halaman admin empat tab dengan tombol naik/turun, tambah, lepas, dan simpan;
