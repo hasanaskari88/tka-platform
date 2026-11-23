@@ -863,3 +863,11 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Deployment Vercel Production untuk commit kode terakhir 5d48746283857a776d42e1321d5f0a1d591aa8ee telah dikonfirmasi READY (deployment dpl_4uL33SG67H6nndtQyYW7eSRnFR3a); alias Production mencakup https://grisan.vercel.app/.
 - Supabase Security Advisor setelah perubahan masih menampilkan peringatan lain yang tidak disebabkan oleh migration ini: RLS tanpa policy pada sejumlah tabel, mutable search_path pada dua fungsi, SECURITY DEFINER RPC yang dapat dipanggil anon/authenticated, serta leaked-password protection Auth yang belum aktif. Semua itu berada di luar cakupan perubahan profil ini dan perlu audit tersendiri.
 - QA browser/runtime untuk halaman profil, daftar siswa, cetak kartu login, dan halaman ujian belum dilakukan. Sesuai arahan pengguna, QA aplikasi tetap dikumpulkan untuk sesi gabungan; verifikasi saat ini adalah build Production READY dan simulasi/cek privilege SQL.
+
+
+### Penyeragaman font Arab dan Aksara Jawa — 23 November 2026
+
+- Font Arab editor dan tampilan global dialihkan dari Noto Arabic Local ke file lokal `public/fonts/arabic/translit.ttf`, dengan nama CSS `Translit Arabic Local`. File font dimuat melalui `@font-face` dan tidak membutuhkan permintaan font eksternal.
+- Tombol cepat Arab dan pilihan font toolbar diperbarui menggunakan `Translit Arabic Local`.
+- Aturan editor dan global untuk Aksara Jawa dipastikan memakai satu keluarga font lokal `Nyk Ngayogyan Jejeg` dari `public/fonts/javanese/nyk%20Ngayogyan%20Jejeg.ttf`. Pemetaan kompatibilitas dipertahankan untuk konten lama yang masih menyimpan nama font sebelumnya.
+- Perubahan kode dilakukan langsung pada branch `main`. Pengujian visual browser belum dilakukan; perlu dicek setelah deployment, terutama bentuk huruf Arab/harakat pada font Translit serta keseragaman aksara Jawa di editor, pratinjau, dan hasil soal.
