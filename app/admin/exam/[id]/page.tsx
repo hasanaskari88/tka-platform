@@ -134,6 +134,28 @@ function getGoogleDriveImageProxyUrl(src: string) {
 function rewriteGoogleDriveImageUrls(html: string) {
  return String(html || '').replace(/(<img\b[^>]*\bsrc\s*=\s*)(["'])(.*?)\2/gi,(_match,prefix,quote,src)=>prefix+quote+getGoogleDriveImageProxyUrl(src)+quote)
 }
+function getGoogleDriveImageDisplayUrl(src: string) {
+ if (!src) return src
+ const normalizedSrc = String(src).trim().replace(/&amp;/gi, '&').replace(/&#0*38;/gi, '&')
+ try {
+  const url = new URL(normalizedSrc, window.location.origin)
+  const host = url.hostname.toLowerCase()
+  if (host !== 'drive.google.com' && host !== 'www.drive.google.com') return normalizedSrc
+  let fileId = url.searchParams.get('id')
+  if (!fileId) {
+   const match = url.pathname.match(/\/(?:file\/d|thumbnail|uc)\/([a-zA-Z0-9_-]+)/)
+   fileId = match?.[1] || null
+  }
+  if (!fileId || !/^[a-zA-Z0-9_-]{10,200}$/.test(fileId)) return normalizedSrc
+  // URL publik dimuat langsung oleh browser, tanpa proxy OAuth admin.
+  return 'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId)
+ } catch {
+  return normalizedSrc
+ }
+}
+function rewriteGoogleDriveImageUrlsForDisplay(html: string) {
+ return String(html || '').replace(/(<img\b[^>]*\bsrc\s*=\s*)(["'])(.*?)\2/gi,(_match,prefix,quote,src)=>prefix+quote+getGoogleDriveImageDisplayUrl(src)+quote)
+}
 
 async function exportQuestionPaperDocx(settings:DocxSettings,questions:DocxQuestion[],examTitle:string,subtest:string,duration:number|null) {
  const media:{name:string;data:Uint8Array}[]=[],rels:string[]=[],types=new Set<string>()
@@ -1331,13 +1353,13 @@ function QuestionManagerContent() {
                 <span className="font-bold shrink-0">{idx + 1}.</span>
                 <div className="space-y-1 w-full">
                   <div className="font-medium text-justify">
-                    <MathRenderer content={rewriteGoogleDriveImageUrls(q.question_text || '')} />
+                    <MathRenderer content={rewriteGoogleDriveImageUrlsForDisplay(q.question_text || '')} />
                   </div>
 
                   {/* GAMBAR SOAL JIKA ADA */}
                   {q.image_url && (
                     <img
-                      src={getGoogleDriveImageProxyUrl(q.image_url)}
+                      src={getGoogleDriveImageDisplayUrl(q.image_url)}
                       alt="Gambar Soal"
                       className="max-h-36 object-contain rounded my-1 border border-slate-300"
                     />
@@ -1350,9 +1372,9 @@ function QuestionManagerContent() {
                         <div key={opt.key} className="flex items-start space-x-1.5">
                           <span className="font-bold">{opt.key}.</span>
                           <span>
-                            <MathRenderer content={rewriteGoogleDriveImageUrls(opt.text || '')} />
+                            <MathRenderer content={rewriteGoogleDriveImageUrlsForDisplay(opt.text || '')} />
                             {opt.image_url && (
-                              <img src={getGoogleDriveImageProxyUrl(opt.image_url)} alt={`Gambar pilihan ${opt.key || ''}`} className="mt-1 max-h-28 object-contain" />
+                              <img src={getGoogleDriveImageDisplayUrl(opt.image_url)} alt={`Gambar pilihan ${opt.key || ''}`} className="mt-1 max-h-28 object-contain" />
                             )}
                           </span>
                         </div>
@@ -1374,9 +1396,9 @@ function QuestionManagerContent() {
                         {q.options.map((st: any) => (
                           <tr key={st.id}>
                             <td className="border border-black p-1">
-                              <MathRenderer content={rewriteGoogleDriveImageUrls(st.text || '')} />
+                              <MathRenderer content={rewriteGoogleDriveImageUrlsForDisplay(st.text || '')} />
                               {st.image_url && (
-                                <img src={getGoogleDriveImageProxyUrl(st.image_url)} alt="Gambar pernyataan" className="mt-1 max-h-28 object-contain" />
+                                <img src={getGoogleDriveImageDisplayUrl(st.image_url)} alt="Gambar pernyataan" className="mt-1 max-h-28 object-contain" />
                               )}
                             </td>
                             <td className="border border-black p-1 text-center">◯</td>
@@ -1439,7 +1461,7 @@ function QuestionManagerContent() {
                     {printSettings.includeExplanations && (
                       <td className="border border-black p-2 leading-relaxed">
                         {q.explanation ? (
-                          <MathRenderer content={rewriteGoogleDriveImageUrls(q.explanation || '')} />
+                          <MathRenderer content={rewriteGoogleDriveImageUrlsForDisplay(q.explanation || '')} />
                         ) : (
                           <span className="italic text-slate-500">Tidak ada pembahasan.</span>
                         )}
@@ -1696,7 +1718,7 @@ function QuestionManagerContent() {
                       {opt.image_url && (
                         <div className="pl-6">
                           <img
-                            src={getGoogleDriveImageProxyUrl(opt.image_url)}
+                            src={getGoogleDriveImageDisplayUrl(opt.image_url)}
                             alt={`Gambar lama opsi ${opt.key}`}
                             className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
                           />
@@ -1738,7 +1760,7 @@ function QuestionManagerContent() {
                       {opt.image_url && (
                         <div className="pl-6">
                           <img
-                            src={getGoogleDriveImageProxyUrl(opt.image_url)}
+                            src={getGoogleDriveImageDisplayUrl(opt.image_url)}
                             alt={`Gambar lama opsi ${opt.key}`}
                             className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
                           />
@@ -1802,7 +1824,7 @@ function QuestionManagerContent() {
                       {st.image_url && (
                         <div className="pl-8">
                           <img
-                            src={getGoogleDriveImageProxyUrl(st.image_url)}
+                            src={getGoogleDriveImageDisplayUrl(st.image_url)}
                             alt={`Gambar lama pernyataan ${idx + 1}`}
                             className="max-h-28 max-w-full rounded-lg object-contain border border-slate-200 bg-white p-1"
                           />
@@ -2012,7 +2034,7 @@ function QuestionManagerContent() {
                             {quickEditData.image_url ? (
                               <div className="mb-2 space-y-2">
                                 <div className="flex items-start gap-3">
-                                  <img src={getGoogleDriveImageProxyUrl(quickEditData.image_url)} alt="Lampiran gambar soal" className="max-h-28 max-w-44 rounded border bg-white object-contain" onError={(e) => { e.currentTarget.style.opacity = '0.35' }} />
+                                  <img src={getGoogleDriveImageDisplayUrl(quickEditData.image_url)} alt="Lampiran gambar soal" className="max-h-28 max-w-44 rounded border bg-white object-contain" onError={(e) => { e.currentTarget.style.opacity = '0.35' }} />
                                   <div className="flex flex-wrap gap-2">
                                     <button type="button" onClick={() => { void navigator.clipboard?.writeText(quickEditData.image_url).then(() => alert('URL gambar disalin.')).catch(() => alert('Tidak dapat menyalin otomatis. Salin URL dari kolom di bawah.')) }} className="text-xs font-bold text-cyan-700">Salin URL</button>
                                     <a href={quickEditData.image_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-blue-700 underline">Buka URL</a>
@@ -2045,7 +2067,7 @@ function QuestionManagerContent() {
                                 <div className="text-xs font-bold text-slate-600">{quickEditData.question_type === 'true_false_matrix' ? 'Pernyataan ' : 'Pilihan '}{key}</div>
                                 <RichTextEditor showToolbar={false} content={label} onChange={(html) => setQuickEditData((current: any) => ({ ...current, options: current.options.map((item: any, itemIndex: number) => itemIndex === index ? (typeof item === 'string' ? html : { ...item, text: html }) : item) }))} minHeight={65} placeholder="Isi pilihan/pernyataan…" className="border-slate-300" />
                                 <div className="flex flex-wrap items-center gap-2">
-                                  {option.image_url && <img src={getGoogleDriveImageProxyUrl(option.image_url)} alt={`Lampiran ${key}`} className="max-h-20 max-w-32 rounded border object-contain" onError={(e) => { e.currentTarget.style.opacity = '0.35' }} />}
+                                  {option.image_url && <img src={getGoogleDriveImageDisplayUrl(option.image_url)} alt={`Lampiran ${key}`} className="max-h-20 max-w-32 rounded border object-contain" onError={(e) => { e.currentTarget.style.opacity = '0.35' }} />}
                                   <input type="url" aria-label={`URL gambar ${key}`} value={option.image_url || ''} onChange={(e) => updateQuickEditOptionImage(index, e.target.value)} placeholder="Tempel URL gambar…" className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-800" />
                                   {option.image_url && <button type="button" onClick={() => { void navigator.clipboard?.writeText(option.image_url).then(() => alert('URL gambar disalin.')).catch(() => alert('Salin URL melalui kolom gambar.')) }} className="text-[11px] font-bold text-cyan-700">Salin</button>}
                                   <label className="inline-flex cursor-pointer items-center rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200">
@@ -2079,7 +2101,7 @@ function QuestionManagerContent() {
 
                     {q.image_url && (
                       <div className="my-2">
-                        <img src={getGoogleDriveImageProxyUrl(q.image_url)} alt="Gambar Soal" className="max-h-56 rounded-xl border" />
+                        <img src={getGoogleDriveImageDisplayUrl(q.image_url)} alt="Gambar Soal" className="max-h-56 rounded-xl border" />
                       </div>
                     )}
 
@@ -2109,7 +2131,7 @@ function QuestionManagerContent() {
                                 <div className="flex-1">
                                   <MathRenderer content={typeof opt === 'string' ? opt : opt.text} />
                                   {opt.image_url && (
-                                    <img src={getGoogleDriveImageProxyUrl(opt.image_url)} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
+                                    <img src={getGoogleDriveImageDisplayUrl(opt.image_url)} alt={`Gambar Opsi ${optKey}`} className="max-h-24 mt-1 rounded border" />
                                   )}
                                 </div>
                                 {isKey && <span className="text-[10px] bg-emerald-100 px-1.5 py-0.5 rounded font-bold">Kunci</span>}
@@ -2137,7 +2159,7 @@ function QuestionManagerContent() {
                                   <td className="p-2.5">
                                     <MathRenderer content={typeof st === 'string' ? st : st.text} />
                                     {st.image_url && (
-                                      <img src={getGoogleDriveImageProxyUrl(st.image_url)} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
+                                      <img src={getGoogleDriveImageDisplayUrl(st.image_url)} alt="Gambar Pernyataan" className="max-h-20 mt-1 rounded border" />
                                     )}
                                   </td>
                                   <td className="p-2.5 text-center border-l font-bold text-indigo-700">
@@ -2238,8 +2260,8 @@ function QuestionManagerContent() {
                             {isDuplicate && <span className="text-amber-300">Sudah ada di paket tujuan</span>}
                             {!isDuplicate && <span className="text-emerald-300">Siap diimpor</span>}
                           </div>
-                          <div className="text-xs text-slate-100 leading-relaxed"><MathRenderer content={question.question_text || '(Pertanyaan kosong)'} className="flow-root" normalizeRotatedImages /></div>
-                          {question.image_url && <img src={getGoogleDriveImageProxyUrl(question.image_url)} alt="Pratinjau gambar soal" className="max-h-24 max-w-full rounded-lg border border-slate-700 object-contain" />}
+                          <div className="text-xs text-slate-100 leading-relaxed"><MathRenderer content={rewriteGoogleDriveImageUrlsForDisplay(question.question_text || '(Pertanyaan kosong)')} className="flow-root" normalizeRotatedImages /></div>
+                          {question.image_url && <img src={getGoogleDriveImageDisplayUrl(question.image_url)} alt="Pratinjau gambar soal" className="max-h-24 max-w-full rounded-lg border border-slate-700 object-contain" />}
                           {Array.isArray(question.options) && question.options.length > 0 && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 pt-1">
                               {question.options.map((option: any, optionIndex: number) => (
