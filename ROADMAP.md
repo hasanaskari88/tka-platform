@@ -796,3 +796,16 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Pembaruan `ROADMAP.md` setelah commit kode memicu deployment dokumentasi yang dapat berstatus CANCELED oleh Ignored Build Step; hal tersebut tidak membatalkan deployment aplikasi READY di atas.
 - QA runtime dan uji browser tetap belum dilakukan. Pengujian fitur materi AI, pecahan, gambar FLUX, dan analisis/penilaian AI akan dikumpulkan pada satu sesi gabungan sesuai arahan pengguna.
 
+
+
+
+### Pemisahan statistik penggunaan AI teks dan generator gambar — 23 November 2026
+
+- Audit menemukan bahwa endpoint `/api/admin/ai-usage` dan halaman `app/admin/pusat-layanan/page.tsx` masih menampilkan seluruh keberhasilan sebagai satu angka. Setelah FLUX mulai menulis ke `ai_usage_logs`, statistik gambar ikut masuk ke agregat umum meskipun gambar tidak memakai token teks.
+- API sekarang mempertahankan field agregat lama untuk kompatibilitas, sekaligus menambahkan `textCalls`, `textFailures`, `textTokens`, `imageCalls`, dan `imageFailures`. Klasifikasi gambar menggunakan task `question_image_generation`; semua task lain dihitung sebagai AI teks.
+- Halaman Pusat Layanan kini menampilkan kartu terpisah untuk keberhasilan AI teks, keberhasilan gambar, kegagalan gambar, seluruh percobaan gagal, dan total token AI teks. Tabel aktivitas terbaru tetap menampilkan log per percobaan.
+- File yang diubah: `app/api/admin/ai-usage/route.ts` dan `app/admin/pusat-layanan/page.tsx`. Tidak ada perubahan schema, migration, konfigurasi provider, token, data siswa, atau alur AI yang menghasilkan konten.
+- Commit API: `fca79ee9e5bf1aea862982cd2aa59540f02939da`. Commit UI: `87fa547a01b65eccbd9b25327b3e3823c3324155`.
+- Verifikasi statis setelah commit memastikan field statistik baru tersedia pada respons API dan digunakan pada kartu UI. Ini bukan pengganti build atau uji browser.
+- Deployment Vercel Production untuk commit UI terdeteksi dengan ID `dpl_Bsdn4cH5YPn3CFkXbS4w55LhnzNW`, branch `main`, target `production`; status terakhir saat catatan ini ditulis **QUEUED**. Status READY belum dikonfirmasi.
+- QA browser tetap ditunda untuk sesi gabungan sesuai arahan pengguna. Sesi tersebut perlu memastikan angka gambar tidak menambah token teks, statistik per provider tetap konsisten, dan tabel aktivitas menampilkan log FLUX dengan benar.
