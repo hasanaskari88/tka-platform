@@ -4,6 +4,7 @@ import { google } from 'googleapis'
 import { requireAdmin } from '@/lib/supabase/admin'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { decryptToken } from '@/lib/google-drive/token-encryption'
+import { isSameOriginRequest } from '@/lib/security/request-origin'
 
 export const maxDuration = 60
 
@@ -128,8 +129,7 @@ async function runWithinTimeout<T>(promise: Promise<T>, timeoutMs: number): Prom
 }
 
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  if (!origin || origin !== new URL(request.url).origin) {
+  if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: 'Permintaan lintas situs ditolak.' }, { status: 403 })
   }
 
