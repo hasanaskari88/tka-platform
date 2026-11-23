@@ -125,3 +125,63 @@ Jika halaman memakai pagination di sisi server, pengurutan harus dilakukan sebel
 2. Apakah admin perlu mengatur nomor urut pin secara manual? Rancangan ini merekomendasikan **ya**, dengan angka kecil tampil lebih dahulu.
 3. Apakah pin individual harus selalu berada di atas subtes yang dipin? Rancangan ini merekomendasikan **ya**.
 
+## 10. Keputusan rancangan antarmuka admin — rekomendasi utama
+
+### Prinsip penempatan pengaturan
+
+Pin adalah metadata tampilan beranda, bukan bagian dari isi soal, kunci jawaban, pembahasan, atau isi materi. Karena itu, jangan menaruh pengaturan lengkap pin di editor soal/WYSIWYG atau form isi materi.
+
+Gunakan satu pusat pengaturan bernama **Pengaturan Beranda** (atau **Prioritas Konten Beranda**) sebagai tempat utama mengelola semua prioritas. Sediakan tombol pintas Pin/Lepas pin di daftar Bank Soal dan daftar Materi. Semua pintasan harus mengubah data prioritas yang sama; jangan membuat mekanisme pin kedua yang terpisah.
+
+### Struktur halaman yang diusulkan
+
+**Admin → Pengaturan Beranda**
+
+Halaman ini memiliki dua tab utama:
+
+1. **Daftar Ujian**
+   - Bagian prioritas subtes ujian: daftar subtes, status tampilkan lebih dahulu, dan urutan manual.
+   - Bagian prioritas paket ujian: daftar paket, pencarian/filter subtes, status pin, dan urutan manual.
+2. **Daftar Materi**
+   - Bagian prioritas kategori/subtes materi: daftar kategori yang benar-benar digunakan materi, status tampilkan lebih dahulu, dan urutan manual.
+   - Bagian prioritas materi: daftar materi, pencarian/filter kategori, status pin, dan urutan manual.
+
+Di setiap tab, tampilkan area "Sedang diprioritaskan" di bagian atas dan daftar "Konten lainnya" di bawahnya. Admin dapat mengubah urutan melalui tombol naik/turun atau drag-and-drop yang dapat diakses keyboard. Jangan bergantung hanya pada drag-and-drop.
+
+### Pintasan di halaman pengelolaan konten
+
+- Daftar Bank Soal: tambahkan aksi Pin/Lepas pin dan indikator "Prioritas Beranda" pada setiap paket.
+- Daftar Materi: tambahkan aksi Pin/Lepas pin dan indikator yang sama pada setiap materi.
+- Daftar/pengelolaan subtes: sediakan tautan menuju bagian prioritas subtes ujian atau materi yang relevan.
+- Editor isi soal dan editor isi materi tidak perlu menampilkan pengaturan pin lengkap. Jika ada pintasan di halaman edit, cukup satu kontrol ringkas yang menuju fungsi yang sama.
+
+### Mengapa bukan hanya di Bank Soal?
+
+Pin subtes dan paket ujian memang berhubungan dengan bank soal, tetapi pin materi memiliki kebutuhan dan daftar yang berbeda. Jika seluruh pengaturan diletakkan di Bank Soal, pengelolaan materi akan terasa menumpang dan sulit ditemukan. Selain itu, pengaturan urutan keseluruhan lebih mudah dipahami bila tersedia satu tempat khusus.
+
+### Mengapa bukan hanya halaman Pengaturan Beranda?
+
+Halaman pusat memberi kontrol dan gambaran menyeluruh, tetapi admin yang sedang melihat daftar paket atau materi seharusnya tidak perlu berpindah halaman hanya untuk mem-pin satu item. Tombol pintas membuat pekerjaan rutin lebih cepat tanpa menduplikasi logika.
+
+## 11. Perilaku dan batasan UX yang direkomendasikan
+
+- Tampilkan jumlah item yang diprioritaskan dan batas maksimum yang disepakati. Rekomendasi awal: batasi jumlah pin aktif per daftar agar beranda tidak kehilangan fungsi prioritas; angka batas final ditentukan setelah melihat jumlah konten dan desain beranda.
+- Beri label jelas: "Tampil lebih dahulu di Beranda", bukan sekadar ikon pin tanpa penjelasan.
+- Pisahkan urutan ujian dari urutan materi. Perubahan di satu tab tidak mengubah tab lainnya.
+- Pin tidak boleh otomatis mengubah status publikasi, status aktif, target mode, akses kelas, atau tanggal konten.
+- Jika konten di-unpublish/nonaktif/dihapus, konten itu tidak boleh muncul di beranda hanya karena masih memiliki nilai urutan pin.
+- Saat pin dilepas, konten langsung kembali ke urutan normal terbaru.
+- Gunakan penyimpanan urutan yang stabil dan validasi admin di sisi server/database. Jika dua admin mengubah urutan bersamaan, perubahan terakhir harus ditangani secara konsisten dan UI memberi pesan jika penyimpanan gagal.
+- Perubahan urutan harus disimpan eksplisit (tombol Simpan) atau melalui aksi yang memberi umpan balik keberhasilan yang jelas; jangan membuat drag yang tampak tersimpan padahal belum tersimpan.
+
+## 12. Keputusan teknis yang harus dikunci lewat audit sebelum migration
+
+1. Identifikasi tabel dan relasi subtes ujian yang benar, termasuk apakah nilai `exams.subtest` adalah teks bebas atau foreign key.
+2. Identifikasi cara materi dikategorikan saat ini; jangan mengasumsikan materi memakai relasi `subtests`.
+3. Identifikasi halaman dan komponen admin yang benar-benar mengelola Bank Soal, Materi, dan Subtes.
+4. Identifikasi pola otorisasi admin, RLS, dan cara aman menyimpan perubahan urutan.
+5. Periksa query beranda, filter, dan pagination agar prioritas diterapkan pada urutan penuh sebelum pemotongan halaman.
+6. Putuskan apakah batas jumlah pin dibutuhkan dan berapa nilai awal yang sesuai berdasarkan jumlah konten nyata.
+7. Tentukan strategi urutan yang aman untuk daftar ujian dan materi. Jangan membuat kolom/relasi sampai hasil audit mendukungnya.
+
+Rancangan antarmuka ini adalah rekomendasi arsitektur, bukan izin untuk mengubah kode atau database. Implementasi tetap menunggu persetujuan khusus.
