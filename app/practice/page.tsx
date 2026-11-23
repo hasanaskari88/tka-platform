@@ -233,7 +233,7 @@ export default function PracticeHubPage() {
 
         const { data: profData } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, full_name, username, class_code, role, xp, level, badges, avatar_url')
           .eq('id', user.id)
           .maybeSingle()
 
