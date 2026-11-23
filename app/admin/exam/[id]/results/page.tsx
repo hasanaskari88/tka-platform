@@ -400,7 +400,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
       .order('created_at', { ascending: false })
 
     // 4. Ambil Profil Seluruh Siswa (Untuk pencocokan Nama & Kelas)
-    const { data: profileData } = await supabase.from('profiles').select('*')
+    const { data: profileData } = await supabase.from('profiles').select('id, full_name, username, class_code')
 
     // 5. Ambil seluruh jawaban per sesi dengan pagination.
     // Tidak menggunakan created_at karena kolom tersebut tidak tersedia di tabel answers.
