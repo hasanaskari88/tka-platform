@@ -788,3 +788,11 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Hal yang perlu diperhatikan saat QA: route menetapkan skor minimum 1 untuk jawaban apa pun yang terisi pada essay dengan skor maksimal ≥3, termasuk jawaban yang dinilai tidak relevan (sesuai aturan prompt saat ini). Ini hanya rekomendasi AI, bukan skor yang otomatis tersimpan. Perlu dipastikan kebijakan ini memang dikehendaki guru sebelum mengubahnya.
 - Tidak mengubah algoritma nilai, nilai manual, data jawaban, kunci, XP, atau CBT. Sesi uji gabungan tetap ditunda sesuai arahan pengguna.
 
+### Status deployment gabungan perubahan AI — 23 November 2026
+
+- Vercel Production untuk commit kode `b5b4dc8150842e4fcb7b3de000bc99818d94305c` telah diverifikasi **READY**.
+- Deployment ID: `dpl_Gn6DgtfxFSCYMAekZYzkWkGeq3va`; branch `main`; target `production`; alias Production terverifikasi mencakup `https://grisan.vercel.app/`.
+- Commit tersebut memuat perubahan kode sebelumnya pada rangkaian ini: penguatan prompt/validasi materi AI, normalisasi pecahan editor/renderer, serta pencatatan penggunaan generator gambar AI. Dengan demikian perubahan kode tersebut sudah masuk ke artefak Production yang READY.
+- Pembaruan `ROADMAP.md` setelah commit kode memicu deployment dokumentasi yang dapat berstatus CANCELED oleh Ignored Build Step; hal tersebut tidak membatalkan deployment aplikasi READY di atas.
+- QA runtime dan uji browser tetap belum dilakukan. Pengujian fitur materi AI, pecahan, gambar FLUX, dan analisis/penilaian AI akan dikumpulkan pada satu sesi gabungan sesuai arahan pengguna.
+
