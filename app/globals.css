@@ -47,8 +47,10 @@ body {
 
 /* FONT KHUSUS ARAB */
 .font-arabic,
-[lang="ar"] {
-  font-family: "Translit Arabic Local", serif;
+[lang="ar"],
+[style*="Noto Arabic Local"],
+[style*="Translit Arabic Local"] {
+  font-family: "Translit Arabic Local", serif !important;
   direction: rtl;
   text-align: right;
   line-height: 2;
