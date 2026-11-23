@@ -233,7 +233,7 @@
 /* Mode font Arab dan Aksara Jawa dari tombol cepat toolbar siswa */
 .rich-text-editor .editor-content [style*="Noto Arabic Local"],
 .rich-text-editor .editor-content [style*="Translit Arabic Local"] {
-  font-family: 'Noto Arabic Local', serif !important;
+  font-family: 'Translit Arabic Local', serif !important;
   direction: rtl;
   text-align: right;
   unicode-bidi: plaintext;
