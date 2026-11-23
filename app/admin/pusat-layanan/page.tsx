@@ -15,7 +15,7 @@ type Asset = {
   created_at: string
   usage: { questionCount: number; materialCount: number; total: number } | null
 }
-type AIUsage = { summary: { calls: number; failures: number; tokens: number; providers: Record<string, { calls: number; failures: number; tokens: number }> }; logs: Array<{ request_id: string; task: string; provider: string; model: string | null; status: string; total_tokens: number | null; latency_ms: number | null; error_message: string | null; created_at: string }> }
+type AIUsage = { summary: { calls: number; failures: number; tokens: number; textCalls: number; textFailures: number; textTokens: number; imageCalls: number; imageFailures: number; providers: Record<string, { calls: number; failures: number; tokens: number }> }; logs: Array<{ request_id: string; task: string; provider: string; model: string | null; status: string; total_tokens: number | null; latency_ms: number | null; error_message: string | null; created_at: string }> }
 type SettingsPayload = {
   storage_config: ProviderConfig
   ai_config: ProviderConfig
@@ -351,10 +351,12 @@ export default function ServiceCenterPage() {
     </section>}
 
     {tab === 'usage' && <section className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Permintaan berhasil · 30 hari</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.calls ?? '—'}</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Percobaan gagal</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.failures ?? '—'}</p></div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Total token tercatat</p><p className="mt-1 text-2xl font-black text-slate-900">{(aiUsage?.summary.tokens ?? 0).toLocaleString('id-ID')}</p></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">AI teks berhasil · 30 hari</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.textCalls ?? '—'}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Gambar berhasil · 30 hari</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.imageCalls ?? '—'}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Gambar gagal · 30 hari</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.imageFailures ?? '—'}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Semua percobaan gagal</p><p className="mt-1 text-2xl font-black text-slate-900">{aiUsage?.summary.failures ?? '—'}</p></div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-500">Token AI teks tercatat</p><p className="mt-1 text-2xl font-black text-slate-900">{(aiUsage?.summary.textTokens ?? 0).toLocaleString('id-ID')}</p></div>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-4">
         <h2 className="font-black text-slate-900">Penggunaan per penyedia</h2>
