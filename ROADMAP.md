@@ -778,3 +778,13 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Audit Visual Math: mesin diagram deterministik sudah memiliki tujuh renderer, pemeriksaan intent/layout, validasi artefak, serta regression script `scripts/test-visual-math.cjs`. Dokumen arsitektur menyatakan AI hanya mengusulkan intent; nilai hitung dan diagram final harus ditentukan program deterministik. Tidak ada perubahan pada mesin tersebut dalam tahap ini.
 - Batas QA: belum memanggil Cloudflare/FLUX, belum menguji unggah hasil gambar, dan belum menjalankan regression script Visual Math. Pengguna meminta pengujian dikumpulkan untuk satu sesi berikutnya. Pastikan sesi gabungan memeriksa hasil gambar, timeout/429, log `ai_usage_logs`, alur penyimpanan, serta regression Visual Math.
 
+### Audit lanjutan AI analisis butir dan saran penilaian uraian — 23 November 2026
+
+- Audit read-only pada `app/api/admin/ai/analyze-question/route.ts`, `app/api/admin/ai/grade-essay/route.ts`, dan integrasi UI di `app/admin/exam/[id]/analysis/page.tsx` serta `app/admin/exam/[id]/results/page.tsx`.
+- Analisis kualitas butir soal sudah memakai `generateJsonWithFallback` (Groq/Gemini sesuai urutan konfigurasi), pemeriksaan admin tepercaya, dan same-origin. Output hanya berupa kesimpulan, kekuatan, hal yang perlu ditinjau, dan rekomendasi. Prompt melarang perubahan kunci otomatis; tidak ada penyimpanan perubahan soal dari endpoint ini.
+- Saran penilaian essay/uraian juga sudah memakai fallback provider yang sama. Jawaban kosong diberi rekomendasi nol melalui aturan lokal tanpa dikirim ke AI. Untuk jawaban terisi, AI hanya mengembalikan rekomendasi skor dan umpan balik.
+- UI menyatakan saran AI tidak langsung disimpan atau menetapkan nilai. Guru harus menekan tombol `Gunakan skor saran` secara eksplisit bila setuju; nilai tetap berada pada state penilaian guru sampai tindakan simpan manual. Penyimpanan nilai dilakukan melalui `teacher_score` dan perhitungan nilai akhir yang sudah ada.
+- Tidak ada perubahan kode pada area penilaian dalam audit ini. Integrasi multi-provider untuk analisis butir dan rekomendasi essay ternyata sudah tersedia; pekerjaan yang tersisa adalah QA akurasi, prompt, batas skor, dan konsistensi UI.
+- Hal yang perlu diperhatikan saat QA: route menetapkan skor minimum 1 untuk jawaban apa pun yang terisi pada essay dengan skor maksimal ≥3, termasuk jawaban yang dinilai tidak relevan (sesuai aturan prompt saat ini). Ini hanya rekomendasi AI, bukan skor yang otomatis tersimpan. Perlu dipastikan kebijakan ini memang dikehendaki guru sebelum mengubahnya.
+- Tidak mengubah algoritma nilai, nilai manual, data jawaban, kunci, XP, atau CBT. Sesi uji gabungan tetap ditunda sesuai arahan pengguna.
+
