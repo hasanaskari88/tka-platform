@@ -14,6 +14,7 @@ function HomePageContent() {
   const [exams, setExams] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [materials, setMaterials] = useState<any[]>([])
+  const [homePinOrder, setHomePinOrder] = useState({ cbt: {} as Record<string, number>, material: {} as Record<string, number>, announcement: {} as Record<string, number> })
   const [userProfile, setUserProfile] = useState<any>(null)
   const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([])
   const [globalStudentScores, setGlobalStudentScores] = useState<any[]>([])
@@ -25,7 +26,7 @@ function HomePageContent() {
     // FILTER MATERI
   const [materialSearch, setMaterialSearch] = useState('')
   const [selectedSubject, setSelectedSubject] = useState('Semua')
-  const [materialSort, setMaterialSort] = useState('Terbaru')
+  const [materialSort, setMaterialSort] = useState('Prioritas')
   const [materialPage, setMaterialPage] = useState(0)
   const MATERIALS_PER_PAGE = 3
   const [showMaterialFilters, setShowMaterialFilters] = useState(false)
@@ -34,12 +35,43 @@ function HomePageContent() {
   // FILTER UJIAN
   const [examSearch, setExamSearch] = useState('')
   const [selectedSubtest, setSelectedSubtest] = useState('Semua')
-  const [examSort, setExamSort] = useState('Terbaru')
+  const [examSort, setExamSort] = useState('Prioritas')
   const [examAccess, setExamAccess] = useState('Semua')
   
   const [selectedExam, setSelectedExam] = useState<any>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedArcadeMission, setSelectedArcadeMission] = useState(0)
+
+  useEffect(() => {
+    let active = true
+
+    const loadPinSurface = async (surface: string): Promise<Record<string, number>> => {
+      try {
+        const response = await fetch('/api/homepage-pins?surface=' + surface, { cache: 'no-store' })
+        if (!response.ok) return {}
+        const payload = await response.json()
+        return Object.fromEntries(
+          (Array.isArray(payload?.pins) ? payload.pins : []).map((pin: any) => [
+            String(pin.id),
+            Number(pin.sort_order),
+          ]),
+        )
+      } catch (error) {
+        console.warn('Prioritas beranda ' + surface + ' tidak tersedia:', error)
+        return {}
+      }
+    }
+
+    void Promise.all([
+      loadPinSurface('cbt'),
+      loadPinSurface('material'),
+      loadPinSurface('announcement'),
+    ]).then(([cbt, material, announcement]) => {
+      if (active) setHomePinOrder({ cbt, material, announcement })
+    })
+
+    return () => { active = false }
+  }, [])
 
   useEffect(() => {
     let isMounted = true
@@ -373,6 +405,15 @@ const filteredMaterials = useMemo(() => {
   }
 
   result.sort((a, b) => {
+    if (materialSort === 'Prioritas') {
+      const orderA = homePinOrder.material[String(a.id)]
+      const orderB = homePinOrder.material[String(b.id)]
+      if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+      if (orderA !== undefined) return -1
+      if (orderB !== undefined) return 1
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    }
+
     if (materialSort === 'Nama A-Z') {
       return (a.title || '').localeCompare(
         b.title || '', 'id'
@@ -395,7 +436,7 @@ const filteredMaterials = useMemo(() => {
   })
 
   return result
-}, [materials, selectedSubject, materialSearch, materialSort])
+}, [materials, selectedSubject, materialSearch, materialSort, homePinOrder.material])
 
 const totalMaterialPages = Math.max(1, Math.ceil(filteredMaterials.length / MATERIALS_PER_PAGE))
 const visibleMaterials = filteredMaterials.slice(
@@ -444,6 +485,15 @@ const filteredExams = useMemo(() => {
   }
 
   result.sort((a, b) => {
+    if (examSort === 'Prioritas') {
+      const orderA = homePinOrder.cbt[String(a.id)]
+      const orderB = homePinOrder.cbt[String(b.id)]
+      if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+      if (orderA !== undefined) return -1
+      if (orderB !== undefined) return 1
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    }
+
     if (examSort === 'Penulis A-Z') {
   const authorA = a.author?.full_name || 'Tim Penyusun'
   const authorB = b.author?.full_name || 'Tim Penyusun'
@@ -470,17 +520,47 @@ const filteredExams = useMemo(() => {
   })
 
   return result
-}, [exams, selectedSubtest, examAccess, examSearch, examSort])
+}, [exams, selectedSubtest, examAccess, examSearch, examSort, homePinOrder.cbt])
 
-  // Kelompokkan hasil ujian berdasarkan subtes yang tersedia.
+  const priorityExams = useMemo(() => {
+    if (examSort !== 'Prioritas') return []
+    return filteredExams
+      .filter((exam) => homePinOrder.cbt[String(exam.id)] !== undefined)
+      .sort((a, b) => homePinOrder.cbt[String(a.id)] - homePinOrder.cbt[String(b.id)])
+  }, [filteredExams, examSort, homePinOrder.cbt])
+
+  const examsForGrouping = useMemo(() => {
+    if (examSort !== 'Prioritas') return filteredExams
+    return filteredExams.filter((exam) => homePinOrder.cbt[String(exam.id)] === undefined)
+  }, [filteredExams, examSort, homePinOrder.cbt])
+
+  // Kelompokkan ujian reguler berdasarkan subtes; pin ditampilkan terpisah di atas.
   const groupedExams = useMemo(() => {
-    return filteredExams.reduce((groups: Record<string, any[]>, exam) => {
+    return examsForGrouping.reduce((groups: Record<string, any[]>, exam) => {
       const groupName = String(exam.subtest || 'UMUM').trim() || 'UMUM'
       if (!groups[groupName]) groups[groupName] = []
       groups[groupName].push(exam)
       return groups
     }, {})
-  }, [filteredExams])
+  }, [examsForGrouping])
+
+  const displayExamGroups = useMemo(() => {
+    const regularGroups = Object.entries(groupedExams).map(([subtest, group]) => ({ subtest, group }))
+    return priorityExams.length
+      ? [{ subtest: '__PRIORITY__', group: priorityExams }, ...regularGroups]
+      : regularGroups
+  }, [groupedExams, priorityExams])
+
+  const orderedAnnouncements = useMemo(() => {
+    return [...announcements].sort((a, b) => {
+      const orderA = homePinOrder.announcement[String(a.id)]
+      const orderB = homePinOrder.announcement[String(b.id)]
+      if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+      if (orderA !== undefined) return -1
+      if (orderB !== undefined) return 1
+      return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    })
+  }, [announcements, homePinOrder.announcement])
 
   // Gelar Arcade mengikuti peringkat XP global. Peringkat pertama selalu
   // mendapat Legenda Arena, berapa pun jumlah siswa; siswa dengan XP seri
@@ -954,7 +1034,7 @@ const filteredExams = useMemo(() => {
                   : 'grid-cols-1 md:grid-cols-2'
               }`}
             >
-              {announcements.map((ann) => (
+              {orderedAnnouncements.map((ann) => (
                 <article
                   key={ann.id}
                   className={`space-y-3 rounded-2xl border p-5 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${themeDetails.boxBg}`}
@@ -1046,6 +1126,7 @@ const filteredExams = useMemo(() => {
                     }}
                     className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-800"
                   >
+                    <option value="Prioritas">⭐ Prioritas</option>
                     <option value="Terbaru">Terbaru</option>
                     <option value="Terlama">Terlama</option>
                     <option value="Nama A-Z">Nama A–Z</option>
@@ -1228,6 +1309,7 @@ const filteredExams = useMemo(() => {
                       onChange={(e) => setExamSort(e.target.value)}
                       className="rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
                     >
+                      <option value="Prioritas">⭐ Prioritas</option>
                       <option value="Terbaru">Terbaru</option>
                       <option value="Terlama">Terlama</option>
                       <option value="Nama A-Z">Nama A–Z</option>
@@ -1244,7 +1326,7 @@ const filteredExams = useMemo(() => {
                     onClick={() => {
                       setExamSearch('')
                       setSelectedSubtest('Semua')
-                      setExamSort('Terbaru')
+                      setExamSort('Prioritas')
                       setExamAccess('Semua')
                     }}
                     className="text-[11px] font-bold underline underline-offset-2 opacity-80 hover:opacity-100"
@@ -1259,7 +1341,7 @@ const filteredExams = useMemo(() => {
 
           {filteredExams.length > 0 ? (
             <div className="space-y-4">
-              {Object.entries(groupedExams).map(([subtest, group]) => (
+              {displayExamGroups.map(({ subtest, group }) => (
                 <section
                   key={subtest}
                   className={`overflow-hidden rounded-2xl border-2 ${themeDetails.boxBg}`}
@@ -1267,7 +1349,7 @@ const filteredExams = useMemo(() => {
                   <div className="flex items-center justify-between gap-3 border-b border-current/10 px-4 py-3">
                     <div className="min-w-0">
                       <h3 className={`truncate text-sm font-black ${themeDetails.sectionTitle}`}>
-                        📘 {subtest}
+                        {subtest === '__PRIORITY__' ? '⭐ Ujian Prioritas' : '📘 ' + subtest}
                       </h3>
                       <p className={`mt-0.5 text-[11px] ${themeDetails.textMuted}`}>
                         {group.length} ujian tersedia

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, ClipboardList, Megaphone, Users, Gamepad2, FileText, Settings2, ChevronLeft, Menu, ExternalLink, BarChart3, Sparkles, Images, BookOpen } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, Megaphone, Users, Gamepad2, FileText, Settings2, ChevronLeft, Menu, ExternalLink, BarChart3, Sparkles, Images, BookOpen, Pin } from 'lucide-react'
 
 const menuItems = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard', group: 'UTAMA' },
@@ -15,6 +15,7 @@ const menuItems = [
   { href: '/admin/rekap-nilai', icon: BarChart3, label: 'Rekap Nilai', group: 'PENGELOLAAN' },
   { href: '/admin/raport', icon: FileText, label: 'Raport & Sertifikat', group: 'PENGELOLAAN' },
   { href: '/admin/konten', icon: Megaphone, label: 'Konten Website', group: 'PENGELOLAAN' },
+  { href: '/admin/pengaturan-beranda', icon: Pin, label: 'Pengaturan Beranda', group: 'PENGELOLAAN' },
   { href: '/admin/pengaturan-dokumen', icon: Settings2, label: 'Pengaturan Dokumen', group: 'PENGATURAN' },
   { href: '/admin/pusat-layanan', icon: Images, label: 'Layanan AI & Media', group: 'PENGATURAN' },
 ]

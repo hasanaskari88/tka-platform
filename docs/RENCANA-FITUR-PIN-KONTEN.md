@@ -1,9 +1,9 @@
 # Rancangan Induk: Pusat Pengaturan Beranda
 
-Status: **Rancangan teknis matang — menunggu persetujuan sebelum implementasi**
+Status: **Implementasi kode disiapkan — menunggu pemeriksaan build dan penerapan migration**
 Tanggal audit: 23 November 2026
 Repository: `hasanaskari88/tka-platform`
-Target kerja: branch `main` saja; tidak membuat branch/PR dan tidak menggunakan Preview.
+Target kerja: branch `main` saja; tidak membuat branch/PR dan tidak menggunakan Preview. Perubahan fitur disiapkan dalam satu commit.
 Tujuan rilis: menggabungkan perubahan aplikasi dalam satu rangkaian commit agar deployment produksi tidak berulang-ulang.
 
 > Dokumen ini menggantikan rancangan dua-tab sebelumnya. Belum ada kode aplikasi, migration, perubahan database, atau deployment yang dilakukan sebagai bagian dari rancangan ini.
@@ -717,3 +717,17 @@ Dokumen ini adalah rancangan teknis final untuk rilis pertama, sudah diaudit ula
 - belum ada deployment atau uji runtime.
 
 Implementasi hanya dimulai setelah rancangan kode, SQL migration, dan daftar file yang berubah disetujui secara eksplisit.
+
+
+## 12. Catatan implementasi dan verifikasi (23 November 2026)
+
+Kode fitur telah disiapkan pada branch `main` dalam satu commit, mencakup:
+- tabel metadata pin dan RPC penggantian urutan secara atomik;
+- API publik fail-open dan API admin dengan verifikasi `requireTrustedAdmin()`;
+- halaman admin empat tab dengan tombol naik/turun, tambah, lepas, dan simpan;
+- integrasi urutan prioritas pada beranda dan Practice;
+- tautan menu admin.
+
+Pemeriksaan build lokal belum dijalankan dari konektor GitHub. Hasil deployment Vercel dan penerapan migration harus diverifikasi setelah commit.
+
+Catatan kompatibilitas: halaman depan yang saat ini ada memfilter target ujian dengan nilai `CBT_ONLY` dan `BOTH`, sedangkan formulir admin bank soal menggunakan `EXAM_ONLY` dan `BOTH`. Implementasi pin mempertahankan filter yang sudah berjalan pada masing-masing halaman agar fitur ini tidak diam-diam mengubah kelayakan konten. Ketidakkonsistenan nilai tersebut perlu ditangani sebagai perbaikan terpisah.

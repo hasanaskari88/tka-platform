@@ -123,7 +123,26 @@ export default function PracticeHubPage() {
   const [isMissionSearchOpen, setIsMissionSearchOpen] = useState(false)
   const [missionType, setMissionType] = useState('ALL')
   const [missionSubject, setMissionSubject] = useState('ALL')
-  const [missionSort, setMissionSort] = useState('NEWEST')
+  const [missionSort, setMissionSort] = useState('PRIORITY')
+  const [practicePinOrder, setPracticePinOrder] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    let active = true
+
+    fetch('/api/homepage-pins?surface=practice', { cache: 'no-store' })
+      .then(async (response) => response.ok ? response.json() : { pins: [] })
+      .then((payload) => {
+        if (active) {
+          const pins = Array.isArray(payload?.pins) ? payload.pins : []
+          setPracticePinOrder(Object.fromEntries(
+            pins.map((pin: any) => [String(pin.id), Number(pin.sort_order)]),
+          ))
+        }
+      })
+      .catch((error) => console.warn('Prioritas Practice tidak tersedia:', error))
+
+    return () => { active = false }
+  }, [])
 
   const fetchLeaderboard = async (filterVal: string, currentProfile?: any) => {
     const supabase = createClient()
@@ -510,6 +529,14 @@ export default function PracticeHubPage() {
       return (!query || searchable.includes(query)) && (missionType === 'ALL' || type === missionType) && matchesSubject
     })
     .sort((a, b) => {
+      if (missionSort === 'PRIORITY') {
+        const orderA = practicePinOrder[String(a.id)]
+        const orderB = practicePinOrder[String(b.id)]
+        if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+        if (orderA !== undefined) return -1
+        if (orderB !== undefined) return 1
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      }
       if (missionSort === 'TITLE') return String(a.title || '').localeCompare(String(b.title || ''), 'id')
       if (missionSort === 'OLDEST') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
       return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
@@ -748,7 +775,7 @@ export default function PracticeHubPage() {
               <label className="min-w-[130px] flex-1 sm:flex-none">
                 <span className="sr-only">Urutkan aktivitas</span>
                 <select value={missionSort} onChange={(event) => setMissionSort(event.target.value)} className={`w-full rounded-xl border px-3 py-2.5 text-xs font-bold outline-none focus:ring-4 ${visual.filter}`}>
-                  <option value="NEWEST">🕒 Terbaru</option><option value="OLDEST">📅 Terlama</option><option value="TITLE">🔤 Nama A–Z</option>
+                  <option value="PRIORITY">⭐ Prioritas</option><option value="NEWEST">🕒 Terbaru</option><option value="OLDEST">📅 Terlama</option><option value="TITLE">🔤 Nama A–Z</option>
                 </select>
               </label>
             </div>
