@@ -162,7 +162,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
               </div>
             </>
           ) : (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-9 xl:grid-cols-12">
+            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
               {javaneseKeys.map((character, index) => (
                 <button key={character + index} type="button" title={character}
                   onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
@@ -194,7 +194,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
       ) : (
         <>
           <p className="mb-2 text-xs text-slate-500">Pilih huruf hijaiyah atau harakat. Harakat akan disisipkan setelah huruf yang dipilih.</p>
-          <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-9 xl:grid-cols-12">
             {arabicLetters.map((character, index) => (
               <button key={character + index} type="button" onMouseDown={(event) => event.preventDefault()}
                 onClick={() => insert(character, 'ar')}
