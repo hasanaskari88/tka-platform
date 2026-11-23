@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
+import { isSameOriginRequest } from '@/lib/security/request-origin'
 
 
 const UUID_PATTERN =
@@ -23,8 +24,7 @@ function jsonNoStore(body: unknown, status = 200) {
  */
 export async function POST(request: Request) {
   try {
-    const origin = request.headers.get('origin')
-    if (!origin || origin !== new URL(request.url).origin) {
+    if (!isSameOriginRequest(request)) {
       return jsonNoStore({ error: 'Permintaan lintas situs ditolak.' }, 403)
     }
 
