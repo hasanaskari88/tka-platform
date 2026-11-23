@@ -346,7 +346,7 @@ function AnalysisContent() {
       .eq('exam_id', examId)
       .order('created_at', { ascending: true })
     const { data: sessionData } = await supabase.from('exam_sessions').select('*').eq('exam_id', examId)
-    const { data: profileData } = await supabase.from('profiles').select('*')
+    const { data: profileData } = await supabase.from('profiles').select('id, full_name, username, class_code')
 
     const sessionIds = (sessionData || []).map((s) => s.id)
     const { data: answerData } =
