@@ -1,9 +1,9 @@
 
 /* FONT ARAB DAN AKSARA JAWA */
-/* FONT ARAB LOKAL */
+/* FONT ARAB LOKAL: TRANSLIT */
 @font-face {
-  font-family: 'Noto Arabic Local';
-  src: url('/fonts/arabic/NotoNaskhArabic-Regular.ttf') format('truetype');
+  font-family: 'Translit Arabic Local';
+  src: url('/fonts/arabic/translit.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -48,7 +48,7 @@ body {
 /* FONT KHUSUS ARAB */
 .font-arabic,
 [lang="ar"] {
-  font-family: "Noto Arabic Local", serif;
+  font-family: "Translit Arabic Local", serif;
   direction: rtl;
   text-align: right;
   line-height: 2;
