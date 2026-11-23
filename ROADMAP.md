@@ -809,3 +809,13 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Verifikasi statis setelah commit memastikan field statistik baru tersedia pada respons API dan digunakan pada kartu UI. Ini bukan pengganti build atau uji browser.
 - Deployment Vercel Production untuk commit UI terdeteksi dengan ID `dpl_Bsdn4cH5YPn3CFkXbS4w55LhnzNW`, branch `main`, target `production`; status terakhir saat catatan ini ditulis **QUEUED**. Status READY belum dikonfirmasi.
 - QA browser tetap ditunda untuk sesi gabungan sesuai arahan pengguna. Sesi tersebut perlu memastikan angka gambar tidak menambah token teks, statistik per provider tetap konsisten, dan tabel aktivitas menampilkan log FLUX dengan benar.
+
+
+### Konfirmasi akhir deployment statistik AI dan audit perbedaan branch — 23 November 2026
+
+- Status deployment Production `dpl_Bsdn4cH5YPn3CFkXbS4w55LhnzNW` untuk commit kode `87fa547a01b65eccbd9b25327b3e3823c3324155` telah dikonfirmasi **READY** melalui status deployment Vercel yang tampil pada sesi ini.
+- Deployment berada di project `grisan`, branch `main`, target `production`, URL `https://grisan-ggwl2vskn-heins14.vercel.app`. Alias branch-main `grisan-git-main-heins14.vercel.app` tersedia; domain utama Production tetap `https://grisan.vercel.app/` sesuai riwayat deployment sebelumnya.
+- Catatan deployment pada entri pemisahan statistik AI di atas diperbarui dari status sementara QUEUED/BUILDING menjadi READY. Log build menunjukkan kompilasi Next.js berhasil dan masuk tahap TypeScript; status READY berasal dari konfirmasi deployment Vercel.
+- Perbandingan GitHub `main` dengan `homepage-arcade-catalog` pada snapshot ini berstatus diverged (55 commit ahead, 487 behind), tetapi daftar file yang berbeda hanya `ROADMAP.md`. Tidak ditemukan perbedaan file aplikasi yang dapat dipromosikan/di-merge pada saat pemeriksaan ini. Karena itu tidak ada merge kode Preview yang dilakukan.
+- Tidak ada pengujian browser/runtime dalam pemeriksaan ini. QA fitur AI, pecahan, FLUX, ekspor DOCX, Quick Edit, dan alur terkait tetap dikumpulkan untuk sesi gabungan sesuai keputusan pengguna.
+- Sisa pekerjaan Production yang tercatat dan tidak aman dikerjakan tanpa QA/persetujuan terpisah: pengujian DOCX di Word/LibreOffice; QA fitur Bank Soal/Quick Edit/impor; serta audit dan rancangan RLS `announcements`/`study_materials`. RLS memerlukan persetujuan khusus dan rancangan policy yang sesuai; tidak ada perubahan database/security dilakukan pada sesi ini.
