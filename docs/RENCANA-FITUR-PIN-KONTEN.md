@@ -501,7 +501,7 @@ Tidak ada policy atau grant pada tabel yang sudah ada yang boleh diubah.
 | Pin mengubah token/jadwal/konfigurasi | Gangguan CBT | Tidak mengubah tabel exams; metadata terpisah |
 | Mesin CBT terdampak | Siswa gagal ujian | Tidak mengubah route pengerjaan/session/answers |
 | Mesin Practice terdampak | Progres/XP hilang | Tidak mengubah route pengerjaan/RPC/attempts |
-| Kategori berbeda kapitalisasi | Pin tidak cocok | Normalisasi key untuk pencocokan, label asli dipertahankan |
+| ID pin duplikat atau urutan bertabrakan | Urutan tidak stabil | Unique index per surface dan validasi array pada API |
 | Materi terpotong sebelum pin | Item prioritas tidak muncul di halaman pertama | Sort sebelum pagination |
 | Pengurutan manual rusak oleh update bersamaan | Nomor urut ganda/acak | Transaksi atomik dan lock per surface |
 | Query pin gagal | Beranda/Practice error | Fallback ke urutan lama |
