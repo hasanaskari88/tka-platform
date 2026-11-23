@@ -16,9 +16,9 @@ type TrustedAdminResult =
     }
 
 /**
- * Verifies the session against Supabase Auth and then checks a server-only
- * allowlist. Do not use profiles.role here: current database policies allow
- * profile-role changes and are awaiting a separately approved RLS fix.
+ * Memverifikasi sesi Supabase, lalu memeriksa role melalui service role.
+ * Ini aman karena perubahan profiles.role oleh pengguna biasa diblokir
+ * oleh trigger database prevent_profile_role_escalation.
  */
 export async function requireTrustedAdmin(): Promise<TrustedAdminResult> {
   const supabase = await createServerSupabaseClient()
@@ -32,27 +32,6 @@ export async function requireTrustedAdmin(): Promise<TrustedAdminResult> {
       authorized: false,
       status: 401,
       error: 'Silakan login terlebih dahulu.',
-    }
-  }
-
-  const allowedAdminIds = (process.env.ADMIN_USER_IDS || '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean)
-
-  if (allowedAdminIds.length === 0) {
-    return {
-      authorized: false,
-      status: 503,
-      error: 'Daftar admin tepercaya belum dikonfigurasi. Hubungi pengelola aplikasi.',
-    }
-  }
-
-  if (!allowedAdminIds.includes(user.id)) {
-    return {
-      authorized: false,
-      status: 403,
-      error: 'Akses ditolak. Akun ini tidak terdaftar sebagai admin tepercaya.',
     }
   }
 
@@ -73,6 +52,29 @@ export async function requireTrustedAdmin(): Promise<TrustedAdminResult> {
       persistSession: false,
     },
   })
+
+  const { data: profile, error: profileError } = await adminClient
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) {
+    console.error('Trusted admin role lookup failed:', profileError)
+    return {
+      authorized: false,
+      status: 503,
+      error: 'Status admin belum dapat diverifikasi. Silakan coba kembali.',
+    }
+  }
+
+  if (profile?.role !== 'admin') {
+    return {
+      authorized: false,
+      status: 403,
+      error: 'Akses ditolak. Akun ini tidak memiliki hak admin.',
+    }
+  }
 
   return {
     authorized: true,
