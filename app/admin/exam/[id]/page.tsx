@@ -2010,11 +2010,24 @@ function QuestionManagerContent() {
                           <div className="rounded-lg border border-slate-200 bg-white p-3">
                             <label className="mb-2 block text-xs font-bold text-slate-700">Gambar utama soal</label>
                             {quickEditData.image_url ? (
-                              <div className="mb-2 flex items-start gap-3">
-                                <img src={getGoogleDriveImageProxyUrl(quickEditData.image_url)} alt="Lampiran gambar soal" className="max-h-24 max-w-40 rounded border object-contain" />
-                                <button type="button" onClick={() => setQuickEditData((current: any) => ({ ...current, image_url: '' }))} className="text-xs font-bold text-rose-600">Hapus gambar</button>
+                              <div className="mb-2 space-y-2">
+                                <div className="flex items-start gap-3">
+                                  <img src={getGoogleDriveImageProxyUrl(quickEditData.image_url)} alt="Lampiran gambar soal" className="max-h-28 max-w-44 rounded border bg-white object-contain" onError={(e) => { e.currentTarget.style.opacity = '0.35' }} />
+                                  <div className="flex flex-wrap gap-2">
+                                    <button type="button" onClick={() => { void navigator.clipboard?.writeText(quickEditData.image_url).then(() => alert('URL gambar disalin.')).catch(() => alert('Tidak dapat menyalin otomatis. Salin URL dari kolom di bawah.')) }} className="text-xs font-bold text-cyan-700">Salin URL</button>
+                                    <a href={quickEditData.image_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-blue-700 underline">Buka URL</a>
+                                    <button type="button" onClick={() => setQuickEditData((current: any) => ({ ...current, image_url: '' }))} className="text-xs font-bold text-rose-600">Hapus gambar</button>
+                                  </div>
+                                </div>
+                                <input type="url" value={quickEditData.image_url} onChange={(e) => setQuickEditData((current: any) => ({ ...current, image_url: e.target.value }))} placeholder="Tempel URL gambar (https://…)" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" />
+                                <p className="text-[10px] text-slate-500">Jika pratinjau gagal, URL lama tetap tersimpan sampai Anda mengubahnya dan menekan Simpan.</p>
                               </div>
-                            ) : <p className="mb-2 text-[11px] text-slate-500">Belum ada gambar utama.</p>}
+                            ) : (
+                              <div className="mb-2 space-y-2">
+                                <p className="text-[11px] text-slate-500">Belum ada gambar utama.</p>
+                                <input type="url" value={quickEditData.image_url || ''} onChange={(e) => setQuickEditData((current: any) => ({ ...current, image_url: e.target.value }))} placeholder="Tempel URL gambar (https://…)" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800" />
+                              </div>
+                            )}
                             <label className="inline-flex cursor-pointer items-center rounded-lg bg-cyan-50 px-3 py-2 text-xs font-bold text-cyan-800 hover:bg-cyan-100">
                               {quickEditUploading === 'main' ? 'Mengunggah…' : quickEditData.image_url ? 'Ganti gambar' : 'Pilih gambar'}
                               <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" disabled={Boolean(quickEditUploading)} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuickEditImageUpload(file, 'main', (url) => setQuickEditData((current: any) => ({ ...current, image_url: url }))); e.currentTarget.value = '' }} />
@@ -2032,7 +2045,9 @@ function QuestionManagerContent() {
                                 <div className="text-xs font-bold text-slate-600">{quickEditData.question_type === 'true_false_matrix' ? 'Pernyataan ' : 'Pilihan '}{key}</div>
                                 <RichTextEditor showToolbar={false} content={label} onChange={(html) => setQuickEditData((current: any) => ({ ...current, options: current.options.map((item: any, itemIndex: number) => itemIndex === index ? (typeof item === 'string' ? html : { ...item, text: html }) : item) }))} minHeight={65} placeholder="Isi pilihan/pernyataan…" className="border-slate-300" />
                                 <div className="flex flex-wrap items-center gap-2">
-                                  {option.image_url && <img src={getGoogleDriveImageProxyUrl(option.image_url)} alt={`Lampiran ${key}`} className="max-h-20 max-w-32 rounded border object-contain" />}
+                                  {option.image_url && <img src={getGoogleDriveImageProxyUrl(option.image_url)} alt={`Lampiran ${key}`} className="max-h-20 max-w-32 rounded border object-contain" onError={(e) => { e.currentTarget.style.opacity = '0.35' }} />}
+                                  <input type="url" aria-label={`URL gambar ${key}`} value={option.image_url || ''} onChange={(e) => updateQuickEditOptionImage(index, e.target.value)} placeholder="Tempel URL gambar…" className="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] text-slate-800" />
+                                  {option.image_url && <button type="button" onClick={() => { void navigator.clipboard?.writeText(option.image_url).then(() => alert('URL gambar disalin.')).catch(() => alert('Salin URL melalui kolom gambar.')) }} className="text-[11px] font-bold text-cyan-700">Salin</button>}
                                   <label className="inline-flex cursor-pointer items-center rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] font-bold text-slate-700 hover:bg-slate-200">
                                     {quickEditUploading === ('option-' + index) ? 'Mengunggah…' : option.image_url ? 'Ganti gambar' : 'Tambah gambar'}
                                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" disabled={Boolean(quickEditUploading)} onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleQuickEditImageUpload(file, 'option-' + index, (url) => updateQuickEditOptionImage(index, url)); e.currentTarget.value = '' }} />
