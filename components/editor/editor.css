@@ -99,10 +99,13 @@
 
 .rich-text-editor .editor-content [lang='ar'],
 .rich-text-editor .editor-content .font-arabic {
-  font-family: 'Translit Arabic Local', serif;
+  font-family: 'Noto Naskh Arabic Local', 'Translit Arabic Local', serif;
   direction: rtl;
   text-align: right;
-  line-height: 2;
+  line-height: 2.2;
+  font-synthesis: none;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'mark' 1, 'mkmk' 1;
 }
 
 .rich-text-editor .editor-content [lang='jv'],
@@ -233,7 +236,7 @@
 /* Mode font Arab dan Aksara Jawa dari tombol cepat toolbar siswa */
 .rich-text-editor .editor-content [style*="Noto Arabic Local"],
 .rich-text-editor .editor-content [style*="Translit Arabic Local"] {
-  font-family: 'Translit Arabic Local', serif !important;
+  font-family: 'Noto Naskh Arabic Local', 'Translit Arabic Local', serif !important;
   direction: rtl;
   text-align: right;
   unicode-bidi: plaintext;
@@ -252,4 +255,33 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 0.32em;
   text-decoration-skip-ink: auto;
+}
+
+/* Keyboard Arab: ruang vertikal cukup untuk tanda diakritik/harakat. */
+.script-keyboard-letter,
+.script-keyboard-mark {
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.script-keyboard-letter {
+  min-height: 3.75rem;
+  line-height: 1.65;
+  padding-block: .55rem;
+}
+.script-keyboard-mark-preview {
+  display: inline-flex;
+  min-height: 2.7rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  line-height: 1.8;
+  white-space: nowrap;
+  font-weight: 600;
+  font-feature-settings: "kern" 1, "mark" 1, "mkmk" 1;
+}
+@media (max-width: 640px) {
+  .script-keyboard-letter { min-height: 3.9rem; font-size: 2rem; }
+  .script-keyboard-mark { min-height: 5rem; }
+  .script-keyboard-mark-preview { min-height: 3rem; font-size: 2.15rem; }
 }

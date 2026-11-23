@@ -1,9 +1,25 @@
 
 /* FONT ARAB DAN AKSARA JAWA */
 /* FONT ARAB LOKAL: TRANSLIT */
+/* Satu font Arab lokal untuk editor, keyboard, dan hasil soal. */
+@font-face {
+  font-family: 'Noto Naskh Arabic Local';
+  src: url('/fonts/arabic/NotoNaskhArabic-Regular1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* Alias agar konten lama tetap memakai font yang sama. */
 @font-face {
   font-family: 'Translit Arabic Local';
-  src: url('/fonts/arabic/translit.ttf') format('truetype');
+  src: url('/fonts/arabic/NotoNaskhArabic-Regular1.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Noto Arabic Local';
+  src: url('/fonts/arabic/NotoNaskhArabic-Regular1.ttf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -50,10 +66,13 @@ body {
 [lang="ar"],
 [style*="Noto Arabic Local"],
 [style*="Translit Arabic Local"] {
-  font-family: "Translit Arabic Local", serif !important;
+  font-family: "Noto Naskh Arabic Local", "Translit Arabic Local", serif !important;
   direction: rtl;
   text-align: right;
-  line-height: 2;
+  line-height: 2.2;
+  font-synthesis: none;
+  font-kerning: normal;
+  font-feature-settings: "kern" 1, "mark" 1, "mkmk" 1;
 }
 
 /* FONT AKSARA JAWA: SATU FONT LOKAL UNTUK SELURUH WEBSITE.

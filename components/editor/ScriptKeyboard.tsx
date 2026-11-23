@@ -24,7 +24,20 @@ const arabicLetters = [
   'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ',
   'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي', 'ة', 'ى', 'لا',
 ]
-const arabicMarks = ['َ', 'ِ', 'ُ', 'ْ', 'ّ', 'ً', 'ٍ', 'ٌ', 'ٰ', 'ٓ', 'ٔ', 'ٱ']
+const arabicMarks = [
+  { mark: 'َ', preview: 'بَ', name: 'Fathah' },
+  { mark: 'ِ', preview: 'بِ', name: 'Kasrah' },
+  { mark: 'ُ', preview: 'بُ', name: 'Dammah' },
+  { mark: 'ْ', preview: 'بْ', name: 'Sukun' },
+  { mark: 'ّ', preview: 'بّ', name: 'Syaddah' },
+  { mark: 'ً', preview: 'بً', name: 'Fathatain' },
+  { mark: 'ٍ', preview: 'بٍ', name: 'Kasratain' },
+  { mark: 'ٌ', preview: 'بٌ', name: 'Dammatain' },
+  { mark: 'ٰ', preview: 'بٰ', name: 'Alif khanjariyah' },
+  { mark: 'ٓ', preview: 'بٓ', name: 'Maddah' },
+  { mark: 'ٔ', preview: 'بٔ', name: 'Hamzah di atas' },
+  { mark: 'ٱ', preview: 'ٱ', name: 'Alif washal' },
+]
 
 // Konversi dasar berbasis suku kata terbuka. Untuk ejaan khusus, pasangan,
 // sandhangan, dan kata serapan, hasil tetap perlu diperiksa oleh guru.
@@ -90,7 +103,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
     if (lang === 'jv') {
       editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').insertContent(value).run()
     } else {
-      editor.chain().focus().setFontFamily('Noto Arabic Local').setTextAlign('right').insertContent(value).run()
+      editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').insertContent(value).run()
     }
   }
 
@@ -149,7 +162,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
               </div>
             </>
           ) : (
-            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-9 xl:grid-cols-12">
               {javaneseKeys.map((character, index) => (
                 <button key={character + index} type="button" title={character}
                   onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
@@ -185,21 +198,30 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
             {arabicLetters.map((character, index) => (
               <button key={character + index} type="button" onMouseDown={(event) => event.preventDefault()}
                 onClick={() => insert(character, 'ar')}
-                className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-amber-300 hover:bg-amber-50"
-                style={{ fontFamily: 'Noto Arabic Local' }} dir="rtl">
+                className="script-keyboard-letter min-h-14 rounded-xl border border-slate-200 bg-white text-3xl font-semibold text-slate-900 shadow-sm hover:border-amber-400 hover:bg-amber-50 active:scale-95"
+                style={{ fontFamily: 'Noto Naskh Arabic Local' }} dir="rtl">
                 {character}
               </button>
             ))}
           </div>
-          <div className="mt-2 grid grid-cols-6 gap-1 sm:grid-cols-12">
-            {arabicMarks.map((character, index) => (
-              <button key={character + index} type="button" title={character}
-                onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'ar')}
-                className="min-h-10 rounded-md border border-amber-100 bg-amber-50 text-xl text-slate-800 hover:bg-amber-100"
-                style={{ fontFamily: 'Noto Arabic Local' }} dir="rtl">
-                {character}
-              </button>
-            ))}
+          <div className="mt-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-bold text-slate-800">Harakat dan tanda baca</p>
+              <p className="text-xs text-slate-500">Contoh memakai huruf ب agar posisi tanda terlihat jelas</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+              {arabicMarks.map(({ mark, preview, name }) => (
+                <button key={mark} type="button" title={'Sisipkan ' + name}
+                  aria-label={'Sisipkan harakat ' + name}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => insert(mark, 'ar')}
+                  className="script-keyboard-mark flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2 py-2 text-slate-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95"
+                  style={{ fontFamily: 'Noto Naskh Arabic Local' }} dir="rtl">
+                  <span className="script-keyboard-mark-preview" aria-hidden="true">{preview}</span>
+                  <span dir="ltr" className="text-[11px] font-semibold leading-tight text-slate-700">{name}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </>
       )}
