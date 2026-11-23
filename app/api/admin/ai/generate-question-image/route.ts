@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireTrustedAdmin } from '@/lib/supabase/trusted-admin'
+import { isSameOriginRequest } from '@/lib/security/request-origin'
 import { recordAIUsage } from '@/lib/ai/provider'
 
 const IMAGE_MODEL = '@cf/black-forest-labs/flux-1-schnell'
@@ -27,8 +28,7 @@ export async function POST(request: Request) {
   let generationStartedAt: number | null = null
   let usageLogged = false
   try {
-    const origin = request.headers.get('origin')
-    if (!origin || origin !== new URL(request.url).origin) {
+    if (!isSameOriginRequest(request)) {
       return NextResponse.json({ error: 'Permintaan lintas situs ditolak.' }, { status: 403 })
     }
 
