@@ -9,7 +9,12 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const response = await fetch(new URL('/api/media/upload', request.url), {
       method: 'POST',
-      headers: { cookie: request.headers.get('cookie') || '' },
+      headers: {
+        cookie: request.headers.get('cookie') || '',
+        origin: request.headers.get('origin') || '',
+        referer: request.headers.get('referer') || '',
+        'sec-fetch-site': request.headers.get('sec-fetch-site') || '',
+      },
       body: formData,
       cache: 'no-store',
     })
