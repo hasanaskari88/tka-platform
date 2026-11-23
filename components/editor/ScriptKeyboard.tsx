@@ -194,13 +194,15 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
       ) : (
         <>
           <p className="mb-2 text-xs text-slate-500">Pilih huruf hijaiyah atau harakat. Harakat akan disisipkan setelah huruf yang dipilih.</p>
-          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-9 xl:grid-cols-12">
+          <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
             {arabicLetters.map((character, index) => (
-              <button key={character + index} type="button" onMouseDown={(event) => event.preventDefault()}
+              <button key={character + index} type="button" title={character}
+                aria-label={'Sisipkan huruf ' + character}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => insert(character, 'ar')}
-                className="script-keyboard-letter min-h-14 rounded-xl border border-slate-200 bg-white text-3xl font-semibold text-slate-900 shadow-sm hover:border-amber-400 hover:bg-amber-50 active:scale-95"
+                className="flex min-h-11 w-full items-center justify-center rounded-md border border-slate-200 bg-slate-50 px-1 py-0 text-center text-2xl font-normal leading-none text-slate-800 hover:border-amber-300 hover:bg-amber-50 active:scale-95"
                 style={{ fontFamily: 'Noto Naskh Arabic Local' }} dir="rtl">
-                {character}
+                <span className="inline-block text-center">{character}</span>
               </button>
             ))}
           </div>
@@ -209,16 +211,16 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
               <p className="text-sm font-bold text-slate-800">Harakat dan tanda baca</p>
               <p className="text-xs text-slate-500">Contoh memakai huruf ب agar posisi tanda terlihat jelas</p>
             </div>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
               {arabicMarks.map(({ mark, preview, name }) => (
                 <button key={mark} type="button" title={'Sisipkan ' + name}
                   aria-label={'Sisipkan harakat ' + name}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => insert(mark, 'ar')}
-                  className="script-keyboard-mark flex min-h-[76px] flex-col items-center justify-center gap-1 rounded-xl border border-amber-200 bg-amber-50 px-2 py-2 text-slate-900 shadow-sm transition hover:border-amber-400 hover:bg-amber-100 active:scale-95"
+                  className="flex min-h-11 w-full items-center justify-center overflow-visible rounded-md border border-amber-200 bg-amber-50 px-1 py-0 text-center text-slate-900 transition hover:border-amber-400 hover:bg-amber-100 active:scale-95"
                   style={{ fontFamily: 'Noto Naskh Arabic Local' }} dir="rtl">
-                  <span className="script-keyboard-mark-preview" aria-hidden="true">{preview}</span>
-                  <span dir="ltr" className="text-[11px] font-semibold leading-tight text-slate-700">{name}</span>
+                  <span className="inline-block whitespace-nowrap text-center text-[1.75rem] leading-[1.25]">{preview}</span>
+                  <span className="sr-only">{name}</span>
                 </button>
               ))}
             </div>
