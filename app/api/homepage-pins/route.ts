@@ -5,8 +5,6 @@ import {
 } from '@/lib/homepage-pins/server'
 import { HOMEPAGE_SURFACES, type HomepageSurface } from '@/lib/homepage-pins/types'
 
-export const dynamic = 'force-dynamic'
-
 export async function GET(request: Request) {
   const surface = new URL(request.url).searchParams.get('surface')
 
