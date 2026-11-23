@@ -74,6 +74,7 @@ CBT tidak boleh menerima paket `PRACTICE_ONLY`. Logika ini harus tetap persis se
 
 Pengerjaan CBT memiliki alur sesi dan jawaban tersendiri. File pengerjaan CBT tidak masuk daftar file implementasi fitur pin.
 
+
 ### 2.3 Practice
 
 Halaman daftar: `app/practice/page.tsx`.
@@ -82,25 +83,20 @@ Pengerjaan: `app/practice/[id]/page.tsx`.
 
 Practice membaca tabel `exams`, tetapi hanya memasukkan paket yang:
 - `is_published = true`;
-- `show_results !== false` sesuai aturan halaman saat ini;
+- `show_results !== false`;
 - `target_mode` kosong/default yang kompatibel, `PRACTICE_ONLY`, atau `BOTH`.
 
-Practice mengenali `activity_type`, antara lain:
-- `QUIZ`
-- `MAZE_GAME`
-- `MAZE_GAME_V2`
-- `FLASHCARD`
-- kemungkinan alias/tipe lain yang telah dinormalisasi di kode.
+Practice mengenali `activity_type` seperti `QUIZ`, `MAZE_GAME`, `MAZE_GAME_V2`, `FLASHCARD`, serta alias yang dinormalisasi oleh kode.
 
-Filter daftar Practice saat ini meliputi:
+Filter daftar saat ini:
 - pencarian;
-- tipe aktivitas (`missionType`);
-- subjek untuk daftar Quiz (`missionSubject`);
-- pilihan urutan (`missionSort`: judul, terlama, terbaru).
+- tipe aktivitas;
+- filter subjek yang hanya muncul untuk tipe Quiz;
+- urutan terbaru, terlama, atau nama A–Z.
 
-Practice juga memuat data riwayat/rekap untuk menghitung aktivitas dan progres. Fitur pin tidak boleh mengubah query, pemetaan, atau perhitungan tersebut.
+**Temuan tampilan yang mengunci desain:** daftar Practice saat ini adalah grid kartu aktivitas. `subtest` ditampilkan sebagai label pada kartu, bukan sebagai kelompok/section. Karena itu rilis pertama hanya mendukung pin aktivitas individual. Tidak ada pin kategori Practice dan tidak dibuat pengelompokan baru. Pengurutan prioritas hanya mengubah posisi kartu di grid setelah filter lama diterapkan.
 
-**Keputusan kategori Practice:** untuk tahap pertama, kategori prioritas Practice menggunakan nilai `exams.subtest` yang sudah ada sebagai label kelompok, tanpa menambahkan relasi baru. Filter subjek saat ini memang khusus ketika tipe yang dipilih adalah Quiz. Karena itu UI pusat harus menjelaskan bahwa prioritas kategori Practice mengelompokkan daftar aktivitas berdasarkan nilai subtest, sedangkan filter subjek yang ada tetap mengikuti perilaku lama. Sebelum implementasi, pastikan tampilan Practice benar-benar menampilkan/mengelompokkan kategori untuk semua tipe; jika tidak, kategori pin Practice dapat ditunda dan hanya pin item digunakan. Jangan menciptakan konsep kategori baru diam-diam.
+Riwayat, statistik, progres, dan perhitungan badge tetap diproses dengan kode yang ada. Fitur pin tidak boleh mengubah query atau perhitungan tersebut.
 
 ### 2.4 Materi
 
@@ -130,6 +126,7 @@ Keputusan:
 
 ---
 
+
 ## 3. Rancangan UX pusat admin
 
 Menu baru: **Admin → Pengaturan Beranda**.
@@ -138,200 +135,178 @@ Halaman memiliki empat tab:
 
 | Tab | Konten yang dapat diprioritaskan | Cakupan |
 |---|---|---|
-| Ujian | Subtes + paket ujian individual | Hanya daftar CBT |
-| Materi | Subject + materi individual | Hanya daftar materi |
-| Practice | Kategori subtest (jika cocok dengan UI) + aktivitas individual | Hanya `/practice` |
-| Pengumuman | Pengumuman individual | Hanya bagian pengumuman beranda |
+| Ujian (CBT) | Paket ujian individual | Daftar ujian di beranda |
+| Materi | Materi individual | Daftar materi di beranda |
+| Practice | Aktivitas individual | Grid aktivitas di `/practice` |
+| Pengumuman | Pengumuman individual | Daftar pengumuman di beranda |
 
-Di setiap tab:
+Setiap tab menyediakan:
 1. Area **Sedang diprioritaskan**.
-2. Daftar **Konten lainnya** dengan pencarian/filter.
+2. Area **Konten lainnya** dengan pencarian.
 3. Tombol pin/lepas pin.
-4. Tombol naik/turun untuk mengatur urutan (lebih sederhana dan aksesibel daripada drag-and-drop pada versi pertama).
-5. Tombol **Simpan perubahan** bila urutan diedit secara batch.
-6. Status loading, kosong, gagal memuat, dan berhasil menyimpan yang jelas.
-7. Konfirmasi ketika melepas pin atau ketika perubahan berpotensi mengubah urutan yang sudah diatur.
+4. Tombol naik/turun untuk mengatur urutan secara aksesibel.
+5. Tombol **Simpan perubahan** untuk menyimpan urutan sekaligus.
+6. Status loading, kosong, gagal memuat, dan berhasil menyimpan.
+7. Penanda untuk konten yang sudah tidak memenuhi syarat tampil, agar admin dapat melepas pin yang sudah tidak berlaku.
+
+**Rilis pertama hanya mendukung pin item individual.** Tidak ada pin kategori/subtes/subject. Ini disengaja agar fitur hanya mengatur urutan item dan tidak mengubah struktur pengelompokan atau filter yang telah dikenal pengguna.
 
 Batas UX:
-- Jangan menerapkan batas jumlah pin yang arbitrer pada versi pertama. Berikan indikator jumlah item yang dipin. Batas dapat ditambahkan kemudian jika performa atau desain beranda membutuhkannya.
-- Item yang dipin harus mudah ditemukan melalui filter pencarian.
-- Jangan menaruh editor urutan lengkap di WYSIWYG/editor soal atau editor isi materi.
-- Pintasan Pin/Lepas Pin di daftar Bank Soal, Practice, Materi, dan Pengumuman boleh ditambahkan setelah pusat stabil. Semua pintasan wajib memakai API dan sumber data yang sama.
-- Menu pusat harus bisa diakses hanya oleh admin sesuai pola layout admin yang sudah ada.
+- Tidak ada batas jumlah pin arbitrer pada versi pertama.
+- Pencarian harus dapat menemukan item yang sudah dipin.
+- Item yang tidak lagi eligible tetap dapat dikenali admin untuk dilepas pin, tetapi tidak dikirim ke tampilan publik.
+- Tidak ada drag-and-drop pada versi pertama; gunakan tombol naik/turun.
+- Tidak ada pintasan di halaman Bank Soal, Practice, atau Konten pada rilis pertama. Pusat Pengaturan Beranda menjadi satu-satunya pengelola pin.
+- Menu pusat mengikuti proteksi halaman admin yang ada, dan seluruh operasi tulis tetap diverifikasi ulang oleh server.
 
----
 
 ## 4. Aturan tampilan dan prioritas
 
-Setiap surface memiliki ruang urutannya sendiri. Satu item yang sama boleh memiliki pin CBT dan pin Practice secara independen karena kedua tampilan memakai record `exams` yang sama.
+Setiap surface mempunyai urutan pin yang independen. Satu record ujian `BOTH` dapat diprioritaskan secara terpisah untuk CBT dan Practice karena keduanya memiliki tampilan dan kebutuhan yang berbeda.
 
 ### 4.1 Ujian (CBT)
 
-1. Terapkan filter kelayakan CBT yang sudah ada, termasuk publikasi dan target mode.
-2. Terapkan pencarian dan filter yang dipilih pengguna.
-3. Item yang dipin individual muncul sebelum kelompok lain, sesuai `sort_order`.
-4. Konten dari subtes yang dipin mengikuti urutan subtes, lalu tanggal terbaru.
-5. Konten lain mengikuti urutan default saat ini (terbaru).
-6. Item yang dipin individual tidak boleh muncul dua kali di kelompok subtes.
-7. Filter subtes yang dipilih pengguna tetap membatasi hasil; pin tidak boleh membatalkan filter.
+1. Jalankan filter kelayakan CBT yang sekarang: ujian harus terpublikasi dan target mode bukan `PRACTICE_ONLY`.
+2. Terapkan pencarian, filter subtes, filter token, dan filter lain sesuai kode sekarang.
+3. Pada mode **Prioritas**, tampilkan paket yang dipin dalam section **Ujian Prioritas** di atas kelompok subtes, mengikuti urutan pin.
+4. Paket prioritas tidak boleh tampil dua kali di kelompok subtes reguler.
+5. Ujian yang tidak dipin tetap mengikuti urutan lama.
+6. Ketika pengguna memilih sort eksplisit selain Prioritas, pilihan pengguna dihormati dan pin tidak memaksakan urutan.
+7. Filter subtes dan pencarian tetap membatasi hasil; pin tidak boleh membatalkan filter.
 
-Catatan: jika halaman depan memakai pengelompokan visual berdasarkan subtes, paket individual yang dipin perlu ditempatkan di bagian **Paket Prioritas** di atas kelompok, agar benar-benar tampil lebih dahulu dan tidak merusak struktur kelompok.
+Section Ujian Prioritas hanya merupakan penyajian kartu yang sama di posisi lebih awal. Tidak ada perubahan ke paket, token, jadwal, konfigurasi, atau route pengerjaan CBT.
 
 ### 4.2 Materi
 
-1. Terapkan aturan publikasi/visibilitas materi yang sudah ada.
-2. Terapkan pencarian dan filter subject.
-3. Item pin individual lebih dahulu menurut urutan.
-4. Materi dalam subject yang dipin menyusul, dengan urutan terbaru di dalam kategori.
-5. Materi lain mengikuti urutan default saat ini.
-6. Terapkan urutan sebelum pagination tiga item per halaman.
-7. Hindari duplikasi antara pin individual dan kategori.
+1. Pertahankan aturan visibilitas materi saat ini. Berdasarkan RLS aktif, materi publik yang dapat dibaca harus berstatus `published`.
+2. Terapkan filter subject dan pencarian yang sekarang.
+3. Pada mode **Prioritas**, materi yang dipin tampil lebih dahulu menurut urutan pin.
+4. Materi yang tidak dipin mengikuti urutan lama.
+5. Urutan prioritas diterapkan sebelum pagination tiga item per halaman.
+6. Materi yang dipin tidak boleh muncul dua kali.
+7. Sort eksplisit Nama A–Z, Penulis A–Z, Terlama, atau Terbaru tetap dihormati.
 
 ### 4.3 Practice
 
-1. Terapkan filter kelayakan Practice yang sudah ada; jangan ubah `show_results`, `target_mode`, atau normalisasi `activity_type`.
-2. Terapkan pencarian, filter tipe, dan filter subjek sesuai perilaku saat ini.
-3. Pin item Practice disimpan terpisah dari pin CBT, walaupun menunjuk ke UUID `exams.id` yang sama.
-4. Kategori hanya diterapkan jika model daftar Practice menampilkan kelompok kategori yang sama. Jika halaman tetap berupa satu daftar campuran berdasarkan tipe aktivitas, kategori pin tidak boleh membuat struktur tampilan baru tanpa desain UI yang disetujui.
-5. Aktivitas individual yang dipin dapat berada di atas daftar sesuai urutan pin.
-6. Jenis aktivitas dan navigasi ke halaman pengerjaan tidak berubah.
+1. Pertahankan filter kelayakan Practice yang sekarang: `is_published`, `show_results !== false`, dan `target_mode` yang kompatibel.
+2. Terapkan pencarian, filter tipe, dan filter subjek persis seperti perilaku sekarang.
+3. Pada mode **Prioritas**, aktivitas yang dipin tampil di awal grid sesuai urutan pin.
+4. Aktivitas yang tidak dipin mengikuti urutan terbaru.
+5. Pilihan sort eksplisit Nama A–Z, Terlama, atau Terbaru tetap bekerja dan tidak ditimpa pin.
+6. Tidak ada pin kategori, section kategori, atau perubahan ke struktur grid.
+7. Satu ujian `BOTH` boleh memiliki urutan pin berbeda pada CBT dan Practice.
 
-**Aturan pilihan sort:** ketika pengguna memilih sort eksplisit `TITLE` atau `OLDEST`, pilihan eksplisit itu harus dihormati. Mode prioritas pin menjadi urutan default (atau pilihan sort bernama **Prioritas**) dan tidak diam-diam menimpa pilihan sort pengguna. Pada versi pertama, rekomendasi adalah menambahkan opsi sort **Prioritas** sebagai default, dengan opsi judul/terlama/terbaru tetap bekerja seperti sebelumnya.
+Pilihan sort **Prioritas** menjadi default daftar Practice pada rilis pertama. Pilihan sort lama tetap tersedia.
 
 ### 4.4 Pengumuman
 
-1. Hanya `is_active = true` yang dapat tampil.
-2. Pengumuman pin individual muncul lebih dahulu sesuai urutan manual.
+1. Hanya pengumuman dengan `is_active = true` yang dapat tampil.
+2. Pengumuman yang dipin tampil lebih dahulu mengikuti urutan pin.
 3. Pengumuman lain tetap terbaru lebih dahulu.
-4. Pin tidak mengubah status aktif atau konten.
-5. Jika tidak ada pengumuman pin, tampilan persis mengikuti urutan lama.
+4. Pengumuman nonaktif tidak pernah ditampilkan meskipun masih memiliki metadata pin.
+5. Pin tidak mengubah status aktif, isi, atau kategori pengumuman.
 
----
 
 ## 5. Arsitektur data yang direkomendasikan
 
 ### 5.1 Prinsip
 
-Gunakan tabel metadata prioritas terpisah; jangan menambahkan kolom pin ke `exams`, `study_materials`, atau `announcements`. Dengan demikian data operasional konten tidak tercampur dengan metadata tata letak.
+Gunakan satu tabel metadata terpisah bernama `homepage_content_pins`. Tabel ini hanya menyimpan urutan item yang diprioritaskan. Jangan menambahkan kolom pin ke `exams`, `study_materials`, atau `announcements`.
 
-Nama tabel usulan: `homepage_content_pins`.
-
-Skema konseptual yang lebih aman daripada satu `target_key` polimorfik:
+Skema final rilis pertama:
 
 | Kolom | Tipe usulan | Catatan |
 |---|---|---|
 | `id` | UUID PK | `gen_random_uuid()` |
 | `surface` | text/check | `cbt`, `practice`, `material`, `announcement` |
-| `scope` | text/check | `item` atau `category` |
-| `exam_id` | UUID nullable FK | Item CBT/Practice; `ON DELETE CASCADE` |
-| `material_id` | UUID nullable FK | Item materi; `ON DELETE CASCADE` |
-| `announcement_id` | UUID nullable FK | Item pengumuman; `ON DELETE CASCADE` |
-| `category_key` | text nullable | Kategori dinormalisasi untuk surface terkait |
+| `exam_id` | UUID nullable FK | Item CBT atau Practice |
+| `material_id` | UUID nullable FK | Item materi |
+| `announcement_id` | UUID nullable FK | Item pengumuman |
 | `sort_order` | integer | Angka kecil tampil lebih dahulu |
-| `created_at` | timestamptz | Audit dasar |
-| `updated_at` | timestamptz | Audit perubahan |
+| `created_at` | timestamptz | Waktu dibuat |
+| `updated_at` | timestamptz | Waktu perubahan |
 | `updated_by` | UUID nullable | Admin pelaku perubahan |
 
-Constraint yang harus dibuat pada migration:
-- `surface` hanya menerima empat nilai yang didukung.
-- `scope` hanya menerima `item` atau `category`.
-- Untuk `scope = item`, tepat satu FK konten harus terisi dan harus cocok dengan surface:
-  - `cbt` / `practice` → `exam_id`;
-  - `material` → `material_id`;
-  - `announcement` → `announcement_id`.
-- Untuk `scope = category`, semua FK konten harus NULL dan `category_key` wajib terisi.
-- Kategori hanya diizinkan pada `cbt`, `practice`, dan `material`; tidak untuk `announcement`.
-- Unique partial index untuk satu item per surface dan satu kategori per surface.
-- Index pada `(surface, scope, sort_order)`.
-- FK item memakai `ON DELETE CASCADE`, sehingga konten yang dihapus tidak meninggalkan pin yatim.
-- `sort_order` harus positif dan unik per surface/scope (gunakan unique partial index atau strategi pengurutan transaksional yang sesuai).
+Constraint dan index:
+- `surface` hanya menerima empat nilai resmi.
+- Setiap baris harus mengisi tepat satu FK item dan FK tersebut harus sesuai dengan surface.
+- `sort_order` harus positif.
+- Unique partial index pada pasangan `(surface, exam_id)`, `(surface, material_id)`, dan `(surface, announcement_id)`.
+- Unique index pada `(surface, sort_order)` agar urutan dalam satu surface tidak bertabrakan.
+- FK item memakai `ON DELETE CASCADE`.
+- Tidak ada `scope` atau `category_key` pada rilis pertama. Jika suatu saat dibutuhkan pengaturan kategori, desainnya dibahas sebagai pengembangan terpisah setelah struktur UI dan kebutuhannya jelas.
 
-Penting: ini rancangan, bukan SQL final. Sebelum migration, validasi dukungan constraint/indeks pada PostgreSQL dan pastikan tidak ada duplikasi data yang menghalangi constraint.
+Satu ujian `BOTH` dapat memiliki dua baris pin, satu untuk `cbt` dan satu untuk `practice`. Urutan kedua surface tidak saling memengaruhi.
 
-### 5.2 Kategori
+### 5.2 Kelayakan item dan pembersihan metadata
 
-Sumber kategori yang benar:
-- CBT: nilai teks `exams.subtest`; jangan menganggap foreign key ke `subtests.id`.
-- Practice: nilai teks `exams.subtest`, tetapi hanya dipakai bila sesuai dengan struktur UI Practice.
-- Materi: nilai teks `study_materials.subject`; jangan menganggap foreign key ke `subtests.id`.
-- Pengumuman: tidak ada kategori pin pada versi pertama.
+- CBT: `is_published = true` dan target mode kosong/default yang kompatibel, `CBT_ONLY`, atau `BOTH`.
+- Practice: `is_published = true`, `show_results !== false`, dan target mode kosong/default yang kompatibel, `PRACTICE_ONLY`, atau `BOTH`.
+- Materi: status publikasi harus mengikuti aturan RLS sekarang; policy publik yang aktif mensyaratkan `status = 'published'`.
+- Pengumuman: `is_active = true`.
 
-Normalisasi kategori untuk pencocokan:
-- trim spasi di awal/akhir;
-- normalisasi spasi berulang;
-- perbandingan tidak peka huruf besar/kecil;
-- simpan key stabil, dan tampilkan label asli yang diambil dari data konten.
-- Jangan mengganti nilai asli `subtest`/`subject` pada konten.
-- Jangan otomatis menggabungkan nama yang hanya tampak mirip tanpa tinjauan admin.
+Jika konten menjadi draft/nonaktif atau tidak lagi eligible, pin tidak boleh membuatnya tampil. Metadata pin boleh tetap tersimpan agar urutan tidak hilang ketika konten dipublikasikan kembali; admin harus melihat penanda **Tidak tersedia untuk publik** dan dapat melepas pin tersebut. Penghapusan konten akan membersihkan metadata melalui FK cascade.
 
-### 5.3 Mengapa bukan kolom di tabel konten?
+### 5.3 Mengapa metadata dipisah?
 
 - Satu paket `BOTH` perlu urutan CBT dan Practice yang berbeda.
-- Menambah satu `pin_order` pada `exams` tidak dapat mewakili dua surface.
-- Menambah beberapa kolom ke tabel konten memperluas perubahan pada tabel operasional yang sudah dipakai mesin pengerjaan.
-- Tabel metadata terpisah memudahkan penambahan surface lain di masa depan dan dapat dihapus/diubah tanpa menyentuh data konten.
+- Tidak ada perubahan pada tabel operasional konten.
+- Tidak ada risiko pin mengubah konfigurasi mesin pengerjaan.
+- Struktur dapat diperluas di masa depan tanpa menambahkan kolom pin ke tabel inti.
 
----
 
 ## 6. Keamanan dan akses
 
-Audit sebelumnya menemukan policy/grant luas pada beberapa tabel operasional. Temuan ini perlu dicatat sebagai pekerjaan keamanan terpisah, bukan diperbaiki diam-diam dalam migration fitur pin.
+Audit database menunjukkan tabel konten mempunyai aturan RLS masing-masing. Fitur ini tidak boleh mengubah policy/grant tabel konten yang sudah ada. Temuan policy luas pada tabel operasional juga tetap menjadi pekerjaan keamanan terpisah.
 
 **Larangan untuk scope fitur ini:**
-- Jangan mengubah RLS, policy, grant, trigger, atau function pada `exams`, `questions`, `exam_sessions`, tabel jawaban, atau tabel percobaan Practice.
+- Jangan mengubah RLS, policy, grant, trigger, atau function pada `exams`, `questions`, `exam_sessions`, tabel jawaban, tabel attempt Practice, atau tabel konten.
 - Jangan mengubah RPC `start_practice_attempt` / `finish_practice_attempt` atau fungsi XP.
 - Jangan mengubah `private.is_admin()` atau pola autentikasi admin yang sudah ada.
-- Jangan memperluas hak tulis anon/authenticated pada tabel pin.
+- Jangan memberi hak tulis kepada anon/authenticated pada tabel pin.
+- Jangan menaruh service-role key di browser.
 
 Rancangan keamanan:
-- RLS aktif pada `homepage_content_pins`.
-- Pengunjung/siswa hanya diberi hak SELECT yang diperlukan untuk membaca prioritas yang tidak sensitif.
-- INSERT/UPDATE/DELETE dibatasi untuk admin terverifikasi.
-- Jalur tulis utama melalui route handler server, menggunakan pemeriksaan admin server-side yang sudah dipakai proyek (setelah nama helper dan pola pemakaiannya diverifikasi ulang).
-- Server memvalidasi surface, scope, ID target, status konten, dan kelayakan target untuk surface sebelum menyimpan.
-- Jangan mempercayai `isAdmin`, role, atau ID pengguna dari payload browser.
-- Untuk operasi reorder, gunakan transaksi/RPC khusus yang mengunci daftar per surface, memvalidasi semua ID dan urutan, lalu menyimpan perubahan atomik. Jangan melakukan banyak update independen yang dapat meninggalkan urutan setengah tersimpan.
-- Jangan menggunakan service-role key di browser.
-- Endpoint harus memvalidasi origin/CSRF mengikuti helper keamanan proyek, serta autentikasi admin.
+- RLS diaktifkan pada `homepage_content_pins`.
+- Tidak dibuat policy SELECT/INSERT/UPDATE/DELETE untuk `anon` atau `authenticated`; tidak ada akses langsung dari browser ke tabel pin.
+- Hak minimum tabel diberikan hanya kepada role `service_role` yang digunakan server.
+- Endpoint publik `GET /api/homepage-pins?surface=...` membaca melalui service-role di server, memeriksa ulang kelayakan item pada tabel sumber, lalu hanya mengembalikan ID dan urutan item yang eligible. Endpoint tidak mengembalikan data privat.
+- Endpoint admin `GET/PUT /api/admin/homepage-pins` memanggil `requireTrustedAdmin()` dan memvalidasi same-origin sebelum operasi tulis.
+- Server memvalidasi surface, UUID, duplikasi ID, status publikasi/aktif, dan target mode.
+- Reorder disimpan atomik melalui satu RPC khusus yang hanya dapat dieksekusi `service_role`. Route memanggil RPC setelah admin terverifikasi; browser tidak dapat memanggil RPC tersebut.
+- RPC menggunakan `SECURITY DEFINER` dengan `search_path` yang dikunci, validasi input, dan grant EXECUTE minimum hanya untuk `service_role`.
+- Tidak ada perubahan policy/grant pada tabel ujian, soal, sesi, jawaban, materi, atau pengumuman.
 
-Catatan: hak SELECT publik harus diselaraskan dengan RLS konten yang sudah berlaku. Bila membaca pin publik menyingkap metadata yang tidak perlu, gunakan server-side read atau batasi kolom/permukaan sesuai kebijakan proyek.
+Dengan pendekatan ini, halaman publik tidak membutuhkan akses langsung ke tabel pin dan service-role key tetap berada di server.
 
----
 
 ## 7. Rancangan kode lengkap — struktur file
-
-Nama file berikut adalah usulan implementasi, belum dibuat.
 
 ### 7.1 File baru
 
 | File | Tanggung jawab |
 |---|---|
-| `app/admin/pengaturan-beranda/page.tsx` | UI pusat empat tab |
-| `components/admin/homepage-settings/HomepageSettings.tsx` | State tab, loading, error, refresh |
-| `components/admin/homepage-settings/PriorityList.tsx` | Daftar prioritas dan tombol naik/turun |
-| `components/admin/homepage-settings/ContentPicker.tsx` | Pencarian/filter item yang dapat dipin |
-| `components/admin/homepage-settings/PinStatus.tsx` | Label pin dan status simpan |
-| `lib/homepage-pins/types.ts` | Union type surface/scope dan DTO |
-| `lib/homepage-pins/normalize.ts` | Normalisasi key kategori dan helper sort murni |
-| `lib/homepage-pins/server.ts` | Baca/tulis metadata dari server; validasi target |
-| `app/api/admin/homepage-pins/route.ts` | GET konfigurasi admin dan PUT reorder/bulk save |
-| `app/api/admin/homepage-pins/item/route.ts` | POST pin/unpin satu item/kategori (opsional jika API tunggal tidak cukup) |
-| `supabase/migrations/<timestamp>_create_homepage_content_pins.sql` | Tabel, constraint, index, RLS, policy tabel baru saja |
-
-Rekomendasi API sederhana: satu route `/api/admin/homepage-pins` dengan GET dan PUT untuk konfigurasi per surface, serta PATCH untuk aksi pin/unpin jika lebih jelas. Hindari membuat banyak endpoint kecil tanpa kebutuhan.
+| `app/admin/pengaturan-beranda/page.tsx` | Halaman admin pusat empat tab |
+| `components/admin/homepage-settings/HomepageSettings.tsx` | State tab, loading, error, refresh, dan save |
+| `components/admin/homepage-settings/PriorityList.tsx` | Daftar pin dan tombol naik/turun |
+| `components/admin/homepage-settings/ContentPicker.tsx` | Pencarian dan pemilihan konten eligible |
+| `components/admin/homepage-settings/PinStatus.tsx` | Status tersedia/tidak tersedia dan status simpan |
+| `lib/homepage-pins/types.ts` | Tipe surface, record, dan DTO |
+| `lib/homepage-pins/normalize.ts` | Helper normalisasi ID dan pengurutan |
+| `lib/homepage-pins/server.ts` | Service-role client server, validasi target, pembacaan dan penyimpanan |
+| `app/api/homepage-pins/route.ts` | GET publik: hanya ID dan urutan pin yang eligible |
+| `app/api/admin/homepage-pins/route.ts` | GET/PUT admin dengan trusted-admin dan same-origin |
+| `supabase/migrations/<timestamp>_create_homepage_content_pins.sql` | Tabel metadata, index, RLS, function reorder, dan grant minimum |
 
 ### 7.2 File yang diintegrasikan
 
 | File | Perubahan terbatas |
 |---|---|
-| `app/page.tsx` | Memuat metadata prioritas dan mengurutkan daftar CBT, materi, pengumuman |
-| `app/practice/page.tsx` | Memuat metadata surface Practice dan mengurutkan daftar aktivitas |
+| `app/page.tsx` | Mengambil pin CBT, materi, pengumuman; mengurutkan tampilan tanpa mengubah query eligibility |
+| `app/practice/page.tsx` | Mengambil pin Practice dan mengurutkan grid setelah filter lama |
 | `components/admin/AdminSidebar.tsx` | Menambahkan menu Pengaturan Beranda |
-| `app/admin/bank-soal/page.tsx` | Opsional: pintasan pin CBT, tidak mengubah form paket |
-| `app/admin/practice/page.tsx` | Opsional: pintasan pin Practice, tidak mengubah editor aktivitas |
-| `app/admin/konten/page.tsx` | Opsional: pintasan pin materi/pengumuman, tidak mengubah isi editor |
 
-Untuk rilis pertama, saya merekomendasikan **pusat pengaturan saja**. Pintasan di tiga halaman pengelolaan dapat ditambahkan setelah alur pusat terbukti stabil. Ini mengurangi jumlah file yang berubah pada rilis awal dan mempermudah diagnosis.
+Rilis pertama tidak menambahkan pintasan pin ke halaman Bank Soal, Practice, atau Konten. Seluruh pengelolaan pin dilakukan dari pusat baru agar hanya ada satu sumber perubahan.
 
 ### 7.3 File yang dilarang berubah dalam scope fitur
 
@@ -343,15 +318,12 @@ Untuk rilis pertama, saya merekomendasikan **pusat pengaturan saja**. Pintasan d
 - RPC pengerjaan, penilaian, XP, badge, dan progres;
 - editor WYSIWYG soal/materi.
 
-Jika implementasi ternyata membutuhkan perubahan salah satu file tersebut, hentikan dan minta persetujuan baru beserta analisis dampaknya.
+Jika implementasi membutuhkan perubahan salah satu file tersebut, hentikan dan minta persetujuan baru beserta analisis dampaknya.
 
----
 
 ## 8. Kontrak tipe dan algoritma
 
 ### 8.1 Tipe domain
-
-Rancangan tipe TypeScript:
 
 ```ts
 export type HomepageSurface =
@@ -360,61 +332,34 @@ export type HomepageSurface =
   | 'material'
   | 'announcement'
 
-export type HomepagePinScope = 'item' | 'category'
-
 export type HomepagePin = {
   id: string
   surface: HomepageSurface
-  scope: HomepagePinScope
   exam_id: string | null
   material_id: string | null
   announcement_id: string | null
-  category_key: string | null
   sort_order: number
   updated_at: string
 }
 
 export type HomepagePinUpdate = {
   surface: HomepageSurface
-  scope: HomepagePinScope
-  itemIds?: string[]
-  categoryKeys?: string[]
+  itemIds: string[]
 }
 ```
 
-DTO UI sebaiknya menambahkan label dan ringkasan dari query konten, tetapi jangan menyimpan judul sebagai sumber kebenaran di tabel pin.
+DTO admin dapat menyertakan judul, deskripsi singkat, status eligible, dan label untuk picker. Data konten tetap bersumber dari tabel aslinya; judul tidak disimpan sebagai sumber kebenaran di tabel pin.
 
-### 8.2 Normalisasi kategori
+### 8.2 Algoritma pengurutan item
 
-```ts
-export function normalizeCategory(value: unknown): string {
-  return String(value ?? '')
-    .normalize('NFKC')
-    .trim()
-    .replace(/\\s+/g, ' ')
-    .toLocaleLowerCase('id-ID')
-}
-```
-
-Normalisasi hanya untuk membandingkan kategori. Jangan menulis hasil normalisasi kembali ke kolom konten.
-
-### 8.3 Algoritma pengurutan
-
-Buat helper murni yang tidak melakukan query dan tidak mengubah objek asli:
+Helper pengurutan harus murni, tidak melakukan query, dan tidak mengubah array asli.
 
 ```ts
-type SortableContent = {
-  id: string
-  created_at?: string | null
-  category?: string | null
-}
-
 type SortMode = 'PRIORITY' | 'NEWEST' | 'OLDEST' | 'TITLE'
 
-function applyHomepagePriority<T extends SortableContent>(
+function applyItemPriority<T extends { id: string; created_at?: string | null }>(
   rows: T[],
   itemOrder: Map<string, number>,
-  categoryOrder: Map<string, number>,
   mode: SortMode,
   getTitle: (row: T) => string
 ): T[] {
@@ -433,31 +378,11 @@ function applyHomepagePriority<T extends SortableContent>(
   }
 
   return copy.sort((a, b) => {
-    const aItem = itemOrder.get(a.id)
-    const bItem = itemOrder.get(b.id)
-    const aPinned = aItem !== undefined
-    const bPinned = bItem !== undefined
-
-    if (aPinned !== bPinned) return aPinned ? -1 : 1
-    if (aPinned && bPinned && aItem !== bItem) return aItem! - bItem!
-
-    const aCategory = normalizeCategory(a.category)
-    const bCategory = normalizeCategory(b.category)
-    const aCategoryOrder = categoryOrder.get(aCategory)
-    const bCategoryOrder = categoryOrder.get(bCategory)
-    const aCategoryPinned = aCategoryOrder !== undefined
-    const bCategoryPinned = bCategoryOrder !== undefined
-
-    if (aCategoryPinned !== bCategoryPinned) {
-      return aCategoryPinned ? -1 : 1
-    }
-    if (
-      aCategoryPinned &&
-      bCategoryPinned &&
-      aCategoryOrder !== bCategoryOrder
-    ) {
-      return aCategoryOrder! - bCategoryOrder!
-    }
+    const aOrder = itemOrder.get(a.id)
+    const bOrder = itemOrder.get(b.id)
+    if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder
+    if (aOrder !== undefined) return -1
+    if (bOrder !== undefined) return 1
 
     const dateDelta =
       new Date(b.created_at || 0).getTime() -
@@ -467,139 +392,105 @@ function applyHomepagePriority<T extends SortableContent>(
 }
 ```
 
-Catatan:
-- Fungsi di atas adalah rancangan algoritma, bukan kode siap tempel tanpa integrasi.
-- Untuk judul, gunakan judul aktual dari tiap tipe data.
-- Untuk CBT, filter target mode harus dijalankan sebelum helper.
-- Untuk Practice, filter target mode, `show_results`, tipe aktivitas, pencarian dan filter subject harus dijalankan sesuai urutan perilaku sekarang. Mode PRIORITY menjadi default baru; sort eksplisit TITLE/OLDEST/NEWEST tetap bekerja seperti sekarang.
-- Untuk materi, filter dan sort prioritas dijalankan sebelum pagination.
-- Untuk pengumuman, filter `is_active` dijalankan sebelum helper.
-- Jangan mengandalkan urutan hasil query pin dari database; map dibuat dari `sort_order` yang sudah divalidasi.
-- ID menjadi pemecah seri akhir agar urutan stabil.
+Aturan integrasi:
+- CBT: filter eligibility dan filter pengguna tetap dijalankan lebih dahulu. Pada mode PRIORITY, daftar pin dirender sebagai section Ujian Prioritas di atas kelompok subtes. Item yang dipin dikeluarkan dari kelompok reguler agar tidak duplikat. Mode sort eksplisit lama tetap berlaku.
+- Materi: filter subject/pencarian dan mode sort dipertahankan. PRIORITY diterapkan sebelum pagination tiga item.
+- Practice: filter tipe, pencarian, dan subjek tetap persis seperti sekarang. PRIORITY diterapkan ke grid sesudah filter; mode TITLE/OLDEST/NEWEST tetap bekerja.
+- Pengumuman: filter `is_active = true` dijalankan sebelum urutan pin.
+- Jika request metadata pin gagal, gunakan array pin kosong dan urutan lama.
+- ID menjadi pemecah seri agar urutan stabil.
 
-### 8.4 Kegagalan metadata pin
+### 8.3 Kegagalan metadata pin
 
-Buat helper pembaca yang mengembalikan daftar kosong jika query pin gagal, sambil mencatat error untuk observabilitas. Jangan melempar error pin ke boundary pemuatan konten utama.
+Pembacaan pin tidak boleh menjadi bagian yang dapat menggagalkan pemuatan konten utama. Gunakan request terpisah atau tangani error pin secara terisolasi. Bila API pin gagal, catat error untuk observabilitas, set pin kosong, dan lanjutkan dengan perilaku urutan lama.
 
-Pola konseptual:
-
-```ts
-const [contentResult, pinResult] = await Promise.all([
-  loadVisibleContent(),
-  loadHomepagePins(surface).catch(() => [])
-])
-
-const pins = Array.isArray(pinResult) ? pinResult : []
-const visibleContent = applyExistingVisibilityRules(contentResult)
-const orderedContent = applyHomepagePriority(
-  visibleContent,
-  buildItemOrder(pins),
-  buildCategoryOrder(pins),
-  'PRIORITY',
-  getContentTitle
-)
-```
-
-Jangan mengganti seluruh logika pemuatan halaman dengan contoh ringkas ini. Pertahankan error handling, auth/profile loading, dan filter yang sudah ada.
-
----
 
 ## 9. API dan penyimpanan urutan
 
-### 9.1 API yang disarankan
+### 9.1 API publik
+
+`GET /api/homepage-pins?surface=cbt`
+- Tidak memerlukan login.
+- Membaca tabel pin melalui service-role server-side.
+- Memvalidasi ulang kelayakan setiap item pada tabel sumber.
+- Mengembalikan hanya daftar `{ id, sort_order }` yang eligible.
+- Tidak mengembalikan data konten yang tidak diperlukan.
+- Gunakan `Cache-Control: no-store` pada rilis pertama agar perubahan admin segera terlihat.
+
+### 9.2 API admin
 
 `GET /api/admin/homepage-pins?surface=cbt`
-- Hanya admin.
-- Mengembalikan daftar pin dan daftar konten yang dapat dipilih untuk surface.
-- Pagination/search untuk picker bila jumlah konten besar.
+- Wajib admin tepercaya.
+- Mengembalikan daftar item eligible, daftar pin, serta item pinned yang tidak lagi eligible agar admin dapat melepas pin.
 
 `PUT /api/admin/homepage-pins`
-- Hanya admin.
-- Menerima satu surface dan daftar item/category dalam urutan final.
-- Validasi tidak ada ID duplikat.
-- Validasi semua target memang milik surface dan layak diprioritaskan.
+- Wajib admin tepercaya dan same-origin.
+- Menerima satu surface dan array `itemIds` dalam urutan final.
+- Memvalidasi UUID, ID duplikat, batas payload, surface, status publikasi/aktif, dan target mode.
 - Menyimpan seluruh urutan secara atomik.
 - Mengembalikan konfigurasi final yang tersimpan.
 
-Untuk tombol pintas di masa depan, gunakan endpoint yang sama melalui payload reorder/single-item yang tervalidasi. Jangan buat jalur database berbeda.
-
-### 9.2 Validasi server
-
-- Surface harus salah satu dari empat nilai resmi.
-- Scope harus cocok dengan surface.
-- ID harus UUID valid.
-- CBT hanya menerima exam yang published dan tidak `PRACTICE_ONLY`.
-- Practice hanya menerima exam yang published, memenuhi syarat Practice yang ada, dan bukan `CBT_ONLY`.
-- Materi harus memenuhi aturan tampil materi yang ada.
-- Pengumuman harus `is_active = true`.
-- Kategori harus benar-benar ada pada data yang eligible.
-- Batas payload dan jumlah ID perlu ditetapkan untuk mencegah request berlebihan.
-- Jangan mengubah publication/active/target_mode dari endpoint pin.
-
 ### 9.3 Reorder atomik
 
-Urutan tidak boleh disimpan dengan loop update browser-side. Rekomendasi:
-- endpoint server menerima array urutan final;
-- transaksi database/RPC khusus mengunci baris daftar surface terkait;
-- validasi dan tulis urutan dalam satu transaksi;
-- gunakan nomor urut rapat (1..N) setelah setiap save;
-- rollback seluruh operasi jika satu target tidak valid;
-- update `updated_at` dan `updated_by`.
+Jangan menyimpan urutan dengan loop update dari browser. Route admin memanggil satu RPC khusus yang:
+- menerima surface, array UUID final, dan `updated_by` dari server;
+- mengunci operasi untuk surface yang sama;
+- memastikan target sesuai dengan surface;
+- mengganti seluruh daftar urutan dalam satu transaksi;
+- menyimpan nomor urut rapat 1..N;
+- memperbarui `updated_at` dan `updated_by`;
+- rollback seluruh operasi jika satu target tidak valid.
 
-Jangan membuat RPC security-definer sebelum meninjau search_path, grant EXECUTE, dan validasi role. Pilih satu pola server-side yang konsisten dengan keamanan proyek.
+RPC hanya dapat dieksekusi oleh `service_role`. Route harus menjalankan `requireTrustedAdmin()` terlebih dahulu dan tidak pernah menerima `updated_by` dari payload browser.
 
----
 
 ## 10. Rencana migration
 
-Migration hanya membuat tabel baru dan policy untuk tabel baru. Migration tidak boleh memodifikasi tabel operasional yang telah ada.
+Migration hanya membuat tabel metadata pin, index, RLS, dan RPC reorder yang khusus untuk tabel baru. Migration tidak boleh memodifikasi tabel konten atau operasional yang sudah ada.
 
 Checklist migration:
-1. Pastikan nama tabel belum dipakai.
-2. Buat tabel dan CHECK constraints.
-3. Buat foreign key nullable dengan `ON DELETE CASCADE`.
-4. Buat unique partial indexes sesuai surface/scope.
-5. Buat index pencarian berdasarkan surface/scope/order.
-6. Aktifkan RLS.
-7. Buat policy SELECT sesuai kebutuhan tampilan publik.
-8. Batasi write; tidak ada policy publik `WITH CHECK (true)`.
-9. Berikan grant minimum.
-10. Pastikan tidak ada trigger/function yang menyentuh tabel ujian, soal, sesi, atau Practice.
-11. Uji rollback pada lingkungan pengujian database yang tersedia sebelum migration produksi. Jika tidak ada lingkungan terpisah, lakukan pemeriksaan SQL statis dan backup/restore plan; jangan menganggap Preview Vercel sebagai pengganti pengujian database.
+1. Pastikan nama tabel dan function belum digunakan.
+2. Buat tabel dengan tiga FK nullable dan constraint tepat satu target sesuai surface.
+3. Buat FK `ON DELETE CASCADE`.
+4. Buat unique partial indexes per surface/target dan unique `(surface, sort_order)`.
+5. Aktifkan RLS pada tabel pin.
+6. Jangan buat policy untuk `anon` atau `authenticated`; jangan beri grant langsung kepada keduanya.
+7. Berikan grant minimum pada `service_role`.
+8. Buat RPC reorder dengan `SECURITY DEFINER`, `search_path` terkunci, validasi, dan EXECUTE hanya untuk `service_role`.
+9. Pastikan tidak ada trigger/function/policy yang menyentuh tabel ujian, soal, sesi, jawaban, attempt, atau progres.
+10. Cocokkan migration dengan konvensi timestamp yang sudah dipakai repo dan daftar migration Supabase.
+11. Tinjau SQL statis sebelum menerapkan migration produksi. Tidak menggunakan Preview sebagai pengganti pengujian database.
 
-Migration harus idempoten sejauh pola migration proyek mengizinkan, tetapi jangan memakai `IF NOT EXISTS` untuk menyembunyikan konflik skema yang tidak dipahami.
+Tidak ada policy atau grant pada tabel yang sudah ada yang boleh diubah.
 
----
 
 ## 11. File-by-file implementation plan
 
-### Tahap A — domain dan server
-1. `lib/homepage-pins/types.ts`: tipe surface, scope, record, DTO.
-2. `lib/homepage-pins/normalize.ts`: normalisasi kategori dan helper urutan murni.
-3. `lib/homepage-pins/server.ts`: fungsi baca, validasi target, simpan atomik.
-4. `app/api/admin/homepage-pins/route.ts`: GET/PUT.
-5. Migration tabel metadata pin dan RLS baru.
+### Tahap A — fondasi server dan database
+1. Susun migration tabel metadata pin, RLS tertutup, index, dan RPC atomik.
+2. Buat tipe domain dan helper pengurutan murni.
+3. Buat server helper yang menggunakan service-role hanya di server.
+4. Buat GET publik yang hanya mengirim pin eligible.
+5. Buat GET/PUT admin dengan `requireTrustedAdmin()` dan same-origin validation.
 
 ### Tahap B — pusat admin
-6. `app/admin/pengaturan-beranda/page.tsx`.
-7. Komponen tab, picker, daftar prioritas, tombol naik/turun, pesan error/sukses.
-8. Tambahkan menu ke `components/admin/AdminSidebar.tsx`.
-9. Tidak menambah pintasan pada halaman pengelolaan lama di rilis pertama.
+6. Buat halaman `/admin/pengaturan-beranda` dengan empat tab.
+7. Buat picker konten, daftar prioritas, tombol naik/turun, status tersedia/tidak tersedia, dan simpan batch.
+8. Tambahkan menu pada `AdminSidebar.tsx`.
+9. Tidak menambahkan pintasan pada halaman pengelolaan lama.
 
 ### Tahap C — integrasi tampilan
-10. `app/page.tsx`: CBT, materi, pengumuman.
-11. `app/practice/page.tsx`: Practice.
-12. Pastikan sort mode prioritas tidak menghapus pilihan sort lama.
-13. Pastikan pagination dan filter berjalan setelah eligibility rules.
+10. Integrasikan pin CBT, materi, dan pengumuman ke `app/page.tsx`.
+11. Integrasikan pin Practice ke `app/practice/page.tsx`.
+12. Tambahkan pilihan sort PRIORITY tanpa menghapus sort lama.
+13. Pastikan semua filter dan pagination diterapkan pada urutan yang benar.
 
-### Tahap D — pintasan opsional (rilis berikutnya)
-14. `app/admin/bank-soal/page.tsx`.
-15. `app/admin/practice/page.tsx`.
-16. `app/admin/konten/page.tsx`.
-
-Tahap D sengaja tidak masuk rilis awal agar jumlah file dan risiko integrasi lebih kecil. Pusat admin tetap sudah dapat mengatur semua empat surface.
-
----
+### Tahap D — review sebelum rilis
+14. Tinjau diff seluruh file dan pastikan file mesin pengerjaan tidak berubah.
+15. Validasi migration, constraints, grants, RLS, dan RPC.
+16. Jalankan pemeriksaan statis/build yang tersedia sebelum commit.
+17. Terapkan migration yang disetujui, lalu commit kode fitur ke `main` dalam satu rangkaian perubahan.
+18. Periksa satu deployment produksi dan smoke test setelah persetujuan pengguna.
 
 ## 12. Matriks risiko dan mitigasi
 
@@ -639,13 +530,14 @@ Tahap D sengaja tidak masuk rilis awal agar jumlah file dan risiko integrasi leb
 - [ ] Semua activity_type/alias tetap dinormalisasi seperti sebelumnya.
 - [ ] Pin Practice tidak memengaruhi urutan CBT.
 - [ ] Sort TITLE/OLDEST/NEWEST tetap bekerja; PRIORITY menjadi pilihan default.
+- [ ] Pin hanya mengubah urutan kartu; tidak membuat kelompok subtes baru.
 - [ ] Filter tipe, pencarian dan filter subjek tetap bekerja.
 - [ ] Quiz, Maze, Maze V2, Flashcard dapat dimulai dan diselesaikan.
 - [ ] Progres, XP, streak, badge, attempt dan jawaban tetap utuh.
 
 ### Materi
 - [ ] Aturan status/visibilitas yang sekarang tidak berubah.
-- [ ] Pin item dan kategori tidak menampilkan duplikat.
+- [ ] Pin item tidak menampilkan duplikat.
 - [ ] Pencarian/filter subject tetap bekerja.
 - [ ] Pagination tiga item per halaman benar setelah prioritas.
 - [ ] Unpin kembali ke urutan default.
@@ -698,28 +590,30 @@ Audit sebelumnya mengidentifikasi policy/grant luas pada beberapa tabel, termasu
 
 ---
 
-## 16. Keputusan yang sudah ditetapkan dan yang masih terbuka
 
-### Sudah disepakati
+## 16. Keputusan yang sudah ditetapkan
+
 - Satu pusat admin bernama Pengaturan Beranda.
 - Empat tab: Ujian, Materi, Practice, Pengumuman.
-- CBT dan Practice memiliki prioritas yang terpisah walaupun memakai tabel `exams` yang sama.
-- Pin hanya metadata tampilan.
-- Mesin pengerjaan CBT dan Practice harus tetap tidak berubah.
-- Tidak menggunakan Preview atau branch lain.
+- Rilis pertama hanya pin item individual; tidak ada pin kategori.
+- CBT dan Practice memiliki prioritas terpisah walaupun memakai tabel `exams` yang sama.
+- Daftar CBT mempertahankan pengelompokan subtes yang ada; item prioritas ditampilkan lebih dahulu dalam section tersendiri.
+- Practice tetap berupa grid aktivitas yang ada; hanya urutan kartu yang berubah.
+- Materi dan pengumuman hanya berubah urutan itemnya.
+- Sort PRIORITY menjadi default baru pada daftar yang memiliki kontrol sort; sort lama tetap tersedia.
+- Pin hanya metadata tampilan; tidak mengubah status publikasi, status aktif, target mode, konfigurasi, atau mesin pengerjaan.
+- Tabel pin tidak dapat diakses langsung oleh anon/authenticated; baca publik melalui API server yang mengembalikan pin eligible saja.
+- Penulisan hanya melalui API admin setelah `requireTrustedAdmin()` dan validasi same-origin.
+- Reorder dilakukan atomik melalui RPC khusus service-role.
+- Tidak menggunakan Preview, branch lain, atau PR.
+- Pusat admin saja untuk rilis pertama; pintasan di halaman pengelolaan lama ditunda.
 - Mengutamakan satu rangkaian perubahan agar hemat deployment.
 
-### Perlu dikunci sebelum coding
-1. Apakah kategori pin Practice akan ditampilkan sebagai kelompok UI atau hanya item pin? Rekomendasi: hanya aktifkan kategori bila sesuai dengan struktur UI Practice yang nyata; jika tidak, rilis pertama item pin saja.
-2. Apakah pengumuman perlu pin item saja? Rekomendasi: ya.
-3. Apakah pilihan sort Practice `PRIORITY` dijadikan default baru dengan opsi lama tetap tersedia? Rekomendasi: ya.
-4. Apakah pusat admin saja cukup untuk rilis pertama tanpa tombol pintas di halaman pengelolaan lama? Rekomendasi: ya, demi mengurangi risiko dan file berubah.
-
----
+Tidak ada keputusan scope yang masih terbuka untuk rilis pertama. Pengembangan kategori, shortcut, atau perubahan layout lain harus menjadi pekerjaan terpisah.
 
 ## 17. Batas status dokumen
 
-Dokumen ini adalah rancangan teknis untuk ditinjau. Pada tahap ini:
+Dokumen ini adalah rancangan teknis final untuk rilis pertama dan menunggu persetujuan implementasi. Pada tahap ini:
 - belum ada file aplikasi yang diubah;
 - belum ada migration dibuat atau dijalankan;
 - belum ada policy/RLS/grant database yang diubah;
