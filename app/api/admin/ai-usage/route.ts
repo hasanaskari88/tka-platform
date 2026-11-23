@@ -14,15 +14,42 @@ export async function GET() {
     if (error) throw error
     const logs = data || []
     const summary = logs.reduce((acc, row) => {
-      acc.calls += row.status === 'success' ? 1 : 0
-      acc.failures += row.status === 'failed' ? 1 : 0
-      acc.tokens += Number(row.total_tokens || 0)
+      const isImage = row.task === 'question_image_generation'
+      const isSuccess = row.status === 'success'
+      const isFailure = row.status === 'failed'
+      const rowTokens = Number(row.total_tokens || 0)
+
+      // Pertahankan statistik agregat lama agar konsumen API yang sudah ada tetap kompatibel.
+      if (isSuccess) acc.calls += 1
+      if (isFailure) acc.failures += 1
+      acc.tokens += rowTokens
+
+      // Pisahkan penggunaan gambar dari AI teks. Endpoint gambar tidak menyediakan token.
+      if (isImage) {
+        if (isSuccess) acc.imageCalls += 1
+        if (isFailure) acc.imageFailures += 1
+      } else {
+        if (isSuccess) acc.textCalls += 1
+        if (isFailure) acc.textFailures += 1
+        acc.textTokens += rowTokens
+      }
+
       if (!acc.providers[row.provider]) acc.providers[row.provider] = { calls: 0, failures: 0, tokens: 0 }
-      if (row.status === 'success') acc.providers[row.provider].calls += 1
-      if (row.status === 'failed') acc.providers[row.provider].failures += 1
-      acc.providers[row.provider].tokens += Number(row.total_tokens || 0)
+      if (isSuccess) acc.providers[row.provider].calls += 1
+      if (isFailure) acc.providers[row.provider].failures += 1
+      acc.providers[row.provider].tokens += rowTokens
       return acc
-    }, { calls: 0, failures: 0, tokens: 0, providers: {} as Record<string, { calls: number; failures: number; tokens: number }> })
+    }, {
+      calls: 0,
+      failures: 0,
+      tokens: 0,
+      textCalls: 0,
+      textFailures: 0,
+      textTokens: 0,
+      imageCalls: 0,
+      imageFailures: 0,
+      providers: {} as Record<string, { calls: number; failures: number; tokens: number }>,
+    })
     return NextResponse.json({ summary, logs })
   } catch (error) {
     console.error('AI usage GET:', error)
