@@ -81,7 +81,7 @@ export async function getSurfaceSourceRows(
 export async function getPublicPinOrder(
   adminClient: any,
   surface: HomepageSurface,
-): Promise<Array<{ id: string; sort_order: number }>> {
+) {
   const { data: pins, error } = await adminClient
     .from('homepage_content_pins')
     .select('scope,category_key,exam_id,material_id,announcement_id,sort_order')

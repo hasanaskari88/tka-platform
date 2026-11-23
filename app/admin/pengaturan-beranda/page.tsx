@@ -218,9 +218,9 @@ export default function HomepageSettingsPage() {
                       </div>
                     </div>
                   </article>
-                )) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-xs text-slate-500">{!pinnedCategories.length && <>Belum ada konten yang diprioritaskan.</>}</div>
-                )}
+                )) : pinnedCategories.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-xs text-slate-500">Belum ada konten yang diprioritaskan.</div>
+                ) : null}
               </div>
 
               <div className="space-y-3">

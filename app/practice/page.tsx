@@ -540,7 +540,7 @@ export default function PracticeHubPage() {
         if (categoryA !== undefined && categoryB !== undefined && categoryA !== categoryB) return categoryA - categoryB
         if (categoryA !== undefined && categoryB === undefined) return -1
         if (categoryB !== undefined && categoryA === undefined) return 1
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()()
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
       }
       if (missionSort === 'TITLE') return String(a.title || '').localeCompare(String(b.title || ''), 'id')
       if (missionSort === 'OLDEST') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
