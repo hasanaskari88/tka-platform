@@ -63,7 +63,7 @@ function HomePageContent() {
             .order('created_at', { ascending: false }),
           supabase
             .from('announcements')
-            .select('*')
+            .select('id, full_name, username, class_code, avatar_url, xp, level, badges')
             .eq('is_active', true)
             .order('created_at', { ascending: false }),
           supabase
