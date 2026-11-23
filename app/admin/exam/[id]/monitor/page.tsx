@@ -72,7 +72,7 @@ function MonitorContent() {
       .order('created_at', { ascending: true })
 
     // 4. Fetch Data Profil Siswa
-    const { data: profileData } = await supabase.from('profiles').select('*')
+    const { data: profileData } = await supabase.from('profiles').select('id, full_name, username, class_code')
 
     setExam(examData)
     setQuestionsCount(qCount || 0)
