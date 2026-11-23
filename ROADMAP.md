@@ -818,4 +818,23 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Catatan deployment pada entri pemisahan statistik AI di atas diperbarui dari status sementara QUEUED/BUILDING menjadi READY. Log build menunjukkan kompilasi Next.js berhasil dan masuk tahap TypeScript; status READY berasal dari konfirmasi deployment Vercel.
 - Perbandingan GitHub `main` dengan `homepage-arcade-catalog` pada snapshot ini berstatus diverged (55 commit ahead, 487 behind), tetapi daftar file yang berbeda hanya `ROADMAP.md`. Tidak ditemukan perbedaan file aplikasi yang dapat dipromosikan/di-merge pada saat pemeriksaan ini. Karena itu tidak ada merge kode Preview yang dilakukan.
 - Tidak ada pengujian browser/runtime dalam pemeriksaan ini. QA fitur AI, pecahan, FLUX, ekspor DOCX, Quick Edit, dan alur terkait tetap dikumpulkan untuk sesi gabungan sesuai keputusan pengguna.
-- Sisa pekerjaan Production yang tercatat dan tidak aman dikerjakan tanpa QA/persetujuan terpisah: pengujian DOCX di Word/LibreOffice; QA fitur Bank Soal/Quick Edit/impor; serta audit dan rancangan RLS `announcements`/`study_materials`. RLS memerlukan persetujuan khusus dan rancangan policy yang sesuai; tidak ada perubahan database/security dilakukan pada sesi ini.
+- Sisa pekerjaan Production yang masih menunggu QA gabungan: pengujian DOCX di Word/LibreOffice; QA fitur Bank Soal/Quick Edit/impor; serta QA fitur AI, pecahan, FLUX, dan alur terkait. Audit dan penerapan RLS `announcements`/`study_materials` telah diselesaikan pada 23 November 2026 setelah persetujuan pengguna; lihat catatan terbaru di bawah.
+
+
+### Pengamanan RLS pengumuman dan materi belajar — 23 November 2026
+
+- Setelah persetujuan pengguna, perubahan database diterapkan langsung pada project Supabase Production `twjdguiihtettgfwpivg`; tidak membuat branch atau Preview.
+- Migration `secure_public_content_rls_keep_published_materials_readable` mengaktifkan RLS pada `announcements` dan `study_materials`, menghapus empat policy lama per tabel yang memberi akses publik untuk SELECT/INSERT/UPDATE/DELETE, lalu menggantinya dengan:
+  - `announcements`: anon/siswa hanya dapat membaca baris `is_active = true`; admin dapat membaca seluruh baris dan melakukan INSERT/UPDATE/DELETE.
+  - `study_materials`: anon/siswa hanya dapat membaca baris `status = 'published'`; admin dapat membaca seluruh baris dan melakukan INSERT/UPDATE/DELETE.
+- Migration `harden_content_rls_helpers_and_table_grants` memindahkan helper pemeriksaan admin ke schema `private`, menghapus akses RPC publik untuk helper tersebut dan fungsi trigger, serta mencabut grant tulis/TRUNCATE/TRIGGER/REFERENCES dari `anon` dan pengguna biasa. Hak SELECT publik dan hak tulis authenticated tetap diberikan sesuai RLS.
+- Proteksi tambahan pada `profiles`: policy UPDATE yang sebelumnya terlalu luas dihapus dan diganti dengan UPDATE hanya untuk profil sendiri. Trigger `protect_profile_role_changes` mencegah INSERT/UPDATE role selain `student` dari sesi non-`service_role`; perubahan role admin harus melalui layanan server tepercaya.
+- Verifikasi SQL pascamigrasi:
+  - RLS terkonfirmasi aktif pada `announcements`, `study_materials`, dan `profiles`.
+  - Simulasi peran anon dapat membaca 14/14 materi published dan 14/14 `file_url` yang tersimpan; seluruh 14 URL merupakan tautan Google Drive/Google Docs.
+  - Simulasi peran authenticated siswa menghasilkan `is_admin = false` dan tetap dapat membaca 14/14 materi serta 14/14 URL.
+  - Simulasi admin mengembalikan `is_admin = true`; percobaan INSERT admin pada kedua tabel dijalankan dalam transaksi yang di-ROLLBACK, sehingga tidak meninggalkan data uji.
+  - Tabel `announcements` saat audit memiliki 0 baris; karena itu belum ada pengumuman aktif yang dapat ditampilkan.
+  - Supabase Security Advisor tidak lagi melaporkan helper RLS baru sebagai SECURITY DEFINER RPC publik. Peringatan yang tersisa berasal dari fungsi/tabel lain di luar dua tabel konten ini dan memerlukan audit terpisah.
+- Batas verifikasi: akses baris dan URL diuji melalui simulasi role database; izin berbagi masing-masing file Google Drive (misalnya `Anyone with the link – Viewer`) tidak diubah dan tidak diverifikasi oleh migration ini. RLS tidak mengubah izin file pada Google Drive.
+- Tidak ada file kode aplikasi yang diubah dalam pekerjaan ini. QA browser Production untuk halaman beranda, pusat sumber belajar, halaman detail materi, dan CMS admin masih perlu dilakukan pada sesi QA gabungan.
