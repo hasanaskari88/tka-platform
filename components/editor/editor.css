@@ -244,3 +244,11 @@
   font-synthesis: weight;
   line-height: 2.2;
 }
+
+/* Garis bawah diberi jarak agar tidak bertabrakan dengan huruf Arab dan harakat. */
+.rich-text-editor .editor-content u {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.32em;
+  text-decoration-skip-ink: auto;
+}
