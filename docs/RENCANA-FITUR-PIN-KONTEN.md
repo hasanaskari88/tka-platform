@@ -611,9 +611,104 @@ Audit sebelumnya mengidentifikasi policy/grant luas pada beberapa tabel, termasu
 
 Tidak ada keputusan scope yang masih terbuka untuk rilis pertama. Pengembangan kategori, shortcut, atau perubahan layout lain harus menjadi pekerjaan terpisah.
 
+---
+
+## 18. Audit ulang kode aktual di `main` — pemeriksaan kesatuan sebelum implementasi
+
+Pemeriksaan ini dilakukan kembali setelah rancangan awal, dengan mengambil isi file terbaru langsung dari branch `main`. Tujuannya memastikan desain benar-benar cocok dengan komponen dan perilaku yang sudah berjalan.
+
+### 18.1 Beranda — `app/page.tsx`
+
+Temuan kode:
+- Beranda adalah Client Component (`'use client'`) dan mengambil data melalui `createClient()` dari `@/lib/supabase/client`.
+- Query utama dimuat dalam satu `Promise.all`: auth, ujian terpublikasi, pengumuman aktif, dan materi. Query materi tidak menambahkan filter status di sisi client; policy RLS publik yang saat ini aktif membatasi ke `status = 'published'`.
+- Pengumuman tidak memiliki kontrol pencarian/sortir di UI; hanya urutan array yang perlu diprioritaskan.
+- Materi memiliki pencarian, filter subject, sortir Terbaru/Terlama/Nama A–Z/Penulis A–Z, lalu pagination tiga item. Karena itu pin harus diterapkan setelah filter dan sebelum `slice()`.
+- Ujian memiliki filter subtes, akses token, pencarian, dan sortir Terbaru/Terlama/Nama A–Z/Penulis A–Z/Durasi terpendek/Durasi terpanjang.
+- Ujian kemudian dikelompokkan menurut subtes dan dirender sebagai kartu.
+
+Integrasi yang aman:
+- Jangan memasukkan fetch metadata pin ke dalam `Promise.all` data utama. Ambil metadata secara terpisah agar API pin lambat/gagal tidak menunda atau menggagalkan beranda.
+- Tambahkan state urutan pin dengan default kosong; saat endpoint berhasil, state diperbarui. Saat gagal, state kosong dan urutan lama tetap dipakai.
+- Tambahkan opsi sortir **Prioritas** pada kontrol ujian dan materi. Pertahankan semua opsi lama. Default awal diubah ke Prioritas sesuai keputusan fitur, tetapi fallback saat endpoint gagal harus identik dengan urutan Terbaru yang lama.
+- Saat sortir Prioritas aktif, buat daftar Ujian Prioritas dari hasil yang sudah lolos seluruh filter; keluarkan ID tersebut dari grup subtes reguler agar tidak muncul dua kali. Saat pengguna memilih sortir eksplisit lain, jangan pisahkan atau memaksakan pin.
+- Untuk materi, urutan prioritas diterapkan pada hasil yang sudah lolos filter dan sebelum pagination. Jangan mengubah total halaman, jumlah sumber, atau reset halaman yang sekarang.
+- Pengumuman cukup diurutkan berdasarkan daftar pin, lalu item non-pin berdasarkan tanggal terbaru.
+
+### 18.2 Practice — `app/practice/page.tsx`
+
+Temuan kode:
+- Halaman adalah Client Component.
+- Satu fungsi pemuatan memuat profil, riwayat attempt, sesi flashcard, daftar kelas, dan paket ujian.
+- Paket eligible disaring dengan `is_published = true`, `show_results !== false`, dan `target_mode` yang kompatibel.
+- Statistik aktivitas dan progres dihitung dari data ujian dan riwayat yang sama.
+- Daftar kartu menggunakan filter pencarian, tipe aktivitas, dan subject untuk Quiz; hasil akhirnya diurutkan dengan `missionSort` (NEWEST/OLDEST/TITLE) lalu langsung dirender sebagai grid.
+- Sort default saat ini NEWEST.
+
+Integrasi yang aman:
+- Jangan menyentuh query riwayat attempt, flashcard session, profil, XP, ranking, badge, atau statistik.
+- Ambil metadata pin Practice secara terpisah dari pemuatan statistik dan data utama; jangan jadikan endpoint pin sebagai syarat `setLoading(false)`.
+- Setelah filter yang sudah ada, terapkan urutan pin hanya saat sort PRIORITY. Sort TITLE/OLDEST/NEWEST tetap identik.
+- Tambahkan pilihan PRIORITY ke kontrol sort dan jadikan default awal. Saat metadata gagal, comparator harus kembali persis ke perilaku NEWEST.
+- Grid dan komponen kartu tidak perlu diganti; hanya urutan array yang masuk ke `map()` yang berubah.
+
+### 18.3 Pengumuman dan materi — kebijakan akses aktual
+
+Pemeriksaan policy Supabase menunjukkan:
+- `announcements_read_active_or_admin`: publik dapat membaca pengumuman aktif; admin juga dapat membaca yang nonaktif.
+- `study_materials_read_published_or_admin`: publik dapat membaca materi berstatus `published`; admin juga dapat membaca materi lain.
+- `exams` memiliki policy publik yang mengizinkan SELECT terpublikasi, serta policy ALL luas yang sudah ada. Policy luas tersebut adalah temuan keamanan terpisah dan tidak disentuh oleh fitur pin.
+
+Karena itu:
+- API publik hanya mengembalikan ID dan urutan pin yang sudah diverifikasi eligible; tidak mengirim data draft/nonaktif.
+- API admin boleh mengembalikan daftar konten nonpublik untuk keperluan pengelolaan, tetapi hanya setelah `requireTrustedAdmin()` lolos.
+- Jangan mengandalkan UI admin/layout sebagai pengaman endpoint. Otorisasi server wajib di setiap GET admin dan PUT.
+
+### 18.4 Helper keamanan yang sudah tersedia
+
+File yang sudah ada dan dapat digunakan:
+- `lib/supabase/trusted-admin.ts`: `requireTrustedAdmin()` memvalidasi sesi menggunakan `auth.getUser()`, lalu memverifikasi `profiles.role` melalui service-role client.
+- `lib/security/request-origin.ts`: `isSameOriginRequest(request)` memvalidasi Origin dan host yang diizinkan, termasuk host Vercel.
+- `lib/supabase/server.ts`: server client berbasis cookie.
+- `lib/supabase/admin.ts`: wrapper `requireAdmin()`, tetapi helper trusted-admin memberi akses `adminClient` dan `userId` yang diperlukan API fitur.
+
+Gunakan helper yang sudah ada; jangan membuat mekanisme admin kedua atau menyalin validasi origin berbeda.
+
+### 18.5 Koreksi penting rancangan SQL dan API
+
+1. **Function reorder wajib `SECURITY INVOKER`, bukan `SECURITY DEFINER`.** Service-role client server sudah memiliki hak untuk mengubah tabel metadata dan bypass RLS; fungsi tidak membutuhkan eskalasi privilege. Fungsi tetap harus memakai nama schema tabel yang eksplisit dan `search_path` kosong/terkunci.
+2. Revoke `EXECUTE` dari `PUBLIC`, `anon`, dan `authenticated`; grant hanya kepada `service_role`. Jangan mengandalkan default privilege function.
+3. Tabel baru mengaktifkan RLS tanpa policy publik/authenticated. Berikan grant tabel eksplisit hanya kepada `service_role` yang dipakai API server. Tidak ada grant SELECT ke anon/authenticated.
+4. Reorder memakai satu transaksi/RPC: validasi seluruh array dan eligibility di dalam fungsi, lock berdasarkan surface, hapus daftar surface tersebut, lalu insert urutan final 1..N. Jika satu ID invalid, exception membatalkan seluruh transaksi.
+5. API admin tetap memverifikasi admin dan same-origin sebelum memanggil RPC. Nilai `updated_by` berasal dari `auth.user.id` yang sudah diverifikasi, bukan body browser.
+6. API publik menggunakan service-role hanya di server dan mengembalikan pasangan ID/urutan yang eligible. Service-role key tidak boleh masuk ke bundle client.
+7. Karena Supabase mengubah default exposure Data API pada 30 Oktober 2026, migration harus memberikan hak minimum secara eksplisit kepada `service_role`; jangan memberi akses tabel/fungsi kepada `anon` atau `authenticated`. Lihat [pengumuman perubahan Data API](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically) dan [panduan fungsi database](https://supabase.com/docs/guides/database/functions).
+
+### 18.6 Catatan migration dan urutan kerja
+
+- Daftar migration database terakhir yang tercatat adalah `20261123031203_restrict_profiles_plain_password_column_access`.
+- Repository saat ini tidak memiliki `supabase/config.toml`. Folder migration memang ada, tetapi cara menghasilkan migration lokal yang konsisten belum dapat diverifikasi dari repository yang tersedia.
+- Jangan menjalankan SQL DDL langsung pada database produksi selama tahap penyusunan/review ini.
+- Sebelum membuat file migration final, pastikan lingkungan lokal Supabase CLI dan konfigurasi migration yang dipakai repo tersedia. Jika belum, siapkan file SQL final untuk ditinjau, tetapi jangan menerapkannya ke database.
+- Belum ada file aplikasi atau database yang diubah pada audit ulang ini.
+
+### 18.7 Urutan review implementasi terpadu
+
+Sebelum satu commit ke `main`, seluruh diff harus diperiksa sebagai satu kesatuan:
+1. migration dan privilege;
+2. server helper dan API publik/admin;
+3. tipe serta fungsi pengurutan murni;
+4. halaman admin empat tab;
+5. integrasi beranda dan Practice;
+6. sidebar;
+7. pemeriksaan TypeScript/ESLint/build;
+8. review diff final memastikan tidak ada file mesin CBT/Practice atau tabel operasional yang tersentuh.
+
+**Status audit ulang:** desain sudah disesuaikan dengan struktur kode aktual. Implementasi masih menunggu tahap penyusunan file dan review; tidak ada perubahan aplikasi, SQL produksi, atau deployment dari audit ini.
+
 ## 17. Batas status dokumen
 
-Dokumen ini adalah rancangan teknis final untuk rilis pertama dan menunggu persetujuan implementasi. Pada tahap ini:
+Dokumen ini adalah rancangan teknis final untuk rilis pertama, sudah diaudit ulang terhadap kode aktual, dan menunggu persetujuan implementasi. Pada tahap ini:
 - belum ada file aplikasi yang diubah;
 - belum ada migration dibuat atau dijalankan;
 - belum ada policy/RLS/grant database yang diubah;
