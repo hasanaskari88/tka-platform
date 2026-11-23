@@ -23,12 +23,8 @@ const buttonClass =
 const activeClass = 'border-blue-300 bg-blue-50 text-blue-700'
 
 const fontOptions = [
-  { label: 'Default', value: '' },
-  { label: 'Arial', value: 'Arial' },
-  { label: 'Georgia', value: 'Georgia' },
-  { label: 'Times New Roman', value: 'Times New Roman' },
-  { label: 'Verdana', value: 'Verdana' },
-  { label: 'Arab · Noto Naskh', value: 'Noto Naskh Arabic Local' },
+  { label: 'Font utama website · Plus Jakarta Sans', value: '' },
+  { label: 'Arab · Noto Naskh Arabic', value: 'Noto Naskh Arabic Local' },
   { label: 'Aksara Jawa · Nyk Ngayogyan Jejeg', value: 'Nyk Ngayogyan Jejeg' },
 ]
 
