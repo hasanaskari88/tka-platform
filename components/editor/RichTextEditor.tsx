@@ -6,6 +6,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
 
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
 import Color from '@tiptap/extension-color'
 import FontFamily from '@tiptap/extension-font-family'
@@ -897,6 +898,7 @@ export default function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ underline: false }),
+      Underline,
 
       TextStyle,
       FontSize,
