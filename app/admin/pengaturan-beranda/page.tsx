@@ -11,7 +11,8 @@ type Item = {
   created_at: string | null
   eligible: boolean
 }
-type SurfaceData = { items: Item[]; pinnedIds: string[] }
+type Category = { key: string; label: string; count: number }
+type SurfaceData = { items: Item[]; pinnedIds: string[]; categories: Category[]; pinnedCategoryKeys: string[] }
 
 const tabs: Array<{ id: Surface; label: string; description: string }> = [
   { id: 'cbt', label: 'Ujian (CBT)', description: 'Urutan ujian pada halaman depan.' },
@@ -20,7 +21,7 @@ const tabs: Array<{ id: Surface; label: string; description: string }> = [
   { id: 'announcement', label: 'Pengumuman', description: 'Urutan informasi sekolah pada halaman depan.' },
 ]
 
-const emptyData: SurfaceData = { items: [], pinnedIds: [] }
+const emptyData: SurfaceData = { items: [], pinnedIds: [], categories: [], pinnedCategoryKeys: [] }
 
 export default function HomepageSettingsPage() {
   const [activeSurface, setActiveSurface] = useState<Surface>('cbt')
@@ -36,6 +37,8 @@ export default function HomepageSettingsPage() {
   const [savedBySurface, setSavedBySurface] = useState<Record<Surface, string[]>>({
     cbt: [], material: [], practice: [], announcement: [],
   })
+  const [draftCategories, setDraftCategories] = useState<Record<Surface, string[]>>({ cbt: [], material: [], practice: [], announcement: [] })
+  const [savedCategories, setSavedCategories] = useState<Record<Surface, string[]>>({ cbt: [], material: [], practice: [], announcement: [] })
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
@@ -57,10 +60,14 @@ export default function HomepageSettingsPage() {
       const nextData: SurfaceData = {
         items: Array.isArray(payload?.items) ? payload.items : [],
         pinnedIds: Array.isArray(payload?.pinnedIds) ? payload.pinnedIds : [],
+        categories: Array.isArray(payload?.categories) ? payload.categories : [],
+        pinnedCategoryKeys: Array.isArray(payload?.pinnedCategoryKeys) ? payload.pinnedCategoryKeys : [],
       }
       setDataBySurface((old) => ({ ...old, [surface]: nextData }))
       setDraftBySurface((old) => ({ ...old, [surface]: [...nextData.pinnedIds] }))
       setSavedBySurface((old) => ({ ...old, [surface]: [...nextData.pinnedIds] }))
+      setDraftCategories((old) => ({ ...old, [surface]: [...nextData.pinnedCategoryKeys] }))
+      setSavedCategories((old) => ({ ...old, [surface]: [...nextData.pinnedCategoryKeys] }))
     } catch (loadError: any) {
       setError(loadError?.message || 'Pengaturan gagal dimuat.')
     } finally {
@@ -74,6 +81,11 @@ export default function HomepageSettingsPage() {
   const data = dataBySurface[activeSurface]
   const pinnedIds = draftBySurface[activeSurface]
   const pinnedSet = useMemo(() => new Set(pinnedIds), [pinnedIds])
+  const categoryKeys = draftCategories[activeSurface]
+  const categorySet = useMemo(() => new Set(categoryKeys), [categoryKeys])
+  const categoryByKey = useMemo(() => new Map<string, Category>(data.categories.map((category) => [category.key, category] as [string, Category])), [data.categories])
+  const pinnedCategories = categoryKeys.map((key) => categoryByKey.get(key)).filter(Boolean) as Category[]
+  const searchableCategories = data.categories.filter((category) => !categorySet.has(category.key) && (category.label + ' ' + category.key).toLowerCase().includes(search.trim().toLowerCase()))
   const itemById = useMemo(() => new Map<string, Item>(data.items.map((item) => [item.id, item] as [string, Item])), [data.items])
   const pinnedItems = pinnedIds.map((id) => itemById.get(id)).filter(Boolean) as Item[]
   const searchableItems = data.items.filter((item) =>
@@ -81,13 +93,17 @@ export default function HomepageSettingsPage() {
     !pinnedSet.has(item.id) &&
     (item.title + ' ' + item.meta + ' ' + (item.description || '')).toLowerCase().includes(search.trim().toLowerCase())
   )
-  const isDirty = JSON.stringify(pinnedIds) !== JSON.stringify(savedBySurface[activeSurface])
+  const isDirty = JSON.stringify(pinnedIds) !== JSON.stringify(savedBySurface[activeSurface]) || JSON.stringify(categoryKeys) !== JSON.stringify(savedCategories[activeSurface])
 
   const changePinnedIds = (nextIds: string[]) => {
     setDraftBySurface((old) => ({ ...old, [activeSurface]: nextIds }))
     setMessage('')
     setError('')
   }
+  const changeCategoryKeys = (nextKeys: string[]) => { setDraftCategories((old) => ({ ...old, [activeSurface]: nextKeys })); setMessage(''); setError('') }
+  const moveCategory = (index: number, direction: -1 | 1) => { const target = index + direction; if (target < 0 || target >= categoryKeys.length) return; const next = [...categoryKeys]; const [moved] = next.splice(index, 1); next.splice(target, 0, moved); changeCategoryKeys(next) }
+  const addCategory = (key: string) => { if (!categorySet.has(key)) changeCategoryKeys([...categoryKeys, key]) }
+  const removeCategory = (key: string) => changeCategoryKeys(categoryKeys.filter((value) => value !== key))
   const addPin = (id: string) => {
     if (!pinnedSet.has(id)) changePinnedIds([...pinnedIds, id])
   }
@@ -109,7 +125,7 @@ export default function HomepageSettingsPage() {
       const response = await fetch('/api/admin/homepage-pins', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ surface: activeSurface, itemIds: pinnedIds }),
+        body: JSON.stringify({ surface: activeSurface, itemIds: pinnedIds, categoryKeys }),
       })
       const payload = await response.json().catch(() => null)
       if (!response.ok) throw new Error(payload?.error || 'Urutan prioritas gagal disimpan.')
@@ -117,6 +133,9 @@ export default function HomepageSettingsPage() {
       const confirmedIds = Array.isArray(payload?.pinnedIds) ? payload.pinnedIds : pinnedIds
       setDraftBySurface((old) => ({ ...old, [activeSurface]: [...confirmedIds] }))
       setSavedBySurface((old) => ({ ...old, [activeSurface]: [...confirmedIds] }))
+      const confirmedCategories = Array.isArray(payload?.pinnedCategoryKeys) ? payload.pinnedCategoryKeys : categoryKeys
+      setDraftCategories((old) => ({ ...old, [activeSurface]: [...confirmedCategories] }))
+      setSavedCategories((old) => ({ ...old, [activeSurface]: [...confirmedCategories] }))
       setMessage('Urutan prioritas berhasil disimpan.')
     } catch (saveError: any) {
       setError(saveError?.message || 'Urutan prioritas gagal disimpan.')
@@ -179,8 +198,10 @@ export default function HomepageSettingsPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-black text-slate-800">⭐ Sedang diprioritaskan</h3>
-                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">{pinnedIds.length} item</span>
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-700">{pinnedIds.length} item • {categoryKeys.length} kategori</span>
                 </div>
+                <p className="pt-2 text-[10px] font-black uppercase tracking-wide text-amber-700">Kategori subtes (setelah pin judul)</p>
+                {(activeSurface === 'cbt' || activeSurface === 'practice') && pinnedCategories.map((category, index) => <article key={'category-' + category.key} className="rounded-xl border border-amber-200 bg-amber-50 p-3"><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><p className="text-sm font-black text-amber-900">📚 {category.label}</p><p className="mt-1 text-xs text-amber-800">{category.count} konten tersedia</p></div><div className="flex shrink-0 flex-col gap-1"><button type="button" onClick={() => moveCategory(index, -1)} disabled={index === 0} className="rounded-lg border bg-white px-2 py-1 text-xs disabled:opacity-30">↑</button><button type="button" onClick={() => moveCategory(index, 1)} disabled={index === pinnedCategories.length - 1} className="rounded-lg border bg-white px-2 py-1 text-xs disabled:opacity-30">↓</button><button type="button" onClick={() => removeCategory(category.key)} className="rounded-lg border border-rose-100 bg-white px-2 py-1 text-[10px] font-bold text-rose-600">Lepas</button></div></div></article>)}
                 {pinnedItems.length ? pinnedItems.map((item, index) => (
                   <article key={item.id} className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
                     <div className="flex items-start gap-3">
@@ -198,7 +219,7 @@ export default function HomepageSettingsPage() {
                     </div>
                   </article>
                 )) : (
-                  <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-xs text-slate-500">Belum ada konten yang diprioritaskan.</div>
+                  <div className="rounded-xl border border-dashed border-slate-300 px-4 py-10 text-center text-xs text-slate-500">{!pinnedCategories.length && <>Belum ada konten yang diprioritaskan.</>}</div>
                 )}
               </div>
 
@@ -211,6 +232,7 @@ export default function HomepageSettingsPage() {
                   placeholder="Cari judul atau kategori..."
                   className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-indigo-400"
                 />
+                {(activeSurface === 'cbt' || activeSurface === 'practice') && searchableCategories.length > 0 && <div className="space-y-2 rounded-xl border border-amber-100 bg-amber-50/60 p-3"><p className="text-xs font-black text-amber-900">Kategori subtes</p>{searchableCategories.map((category) => <div key={category.key} className="flex items-center gap-2 rounded-lg bg-white p-2"><div className="min-w-0 flex-1"><p className="text-xs font-bold text-slate-800">📚 {category.label}</p><p className="text-[10px] text-slate-500">{category.count} konten tersedia</p></div><button type="button" onClick={() => addCategory(category.key)} className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white">+ Prioritaskan</button></div>)}</div>}
                 <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1">
                   {searchableItems.map((item) => (
                     <article key={item.id} className="flex items-center gap-3 rounded-xl border border-slate-100 p-3">
@@ -229,7 +251,7 @@ export default function HomepageSettingsPage() {
           )}
 
           <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-slate-500">Perubahan belum aktif sampai tombol simpan ditekan. Urutan setiap tab berdiri sendiri.</p>
+            <p className="text-xs text-slate-500">Prioritas item tampil paling atas, disusul kategori subtes. Perubahan aktif setelah disimpan; CBT dan Practice berdiri sendiri.</p>
             <button
               type="button"
               onClick={() => void save()}

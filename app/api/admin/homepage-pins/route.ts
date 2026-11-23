@@ -66,6 +66,7 @@ export async function PUT(request: Request) {
 
   const surface = body?.surface
   const itemIds = body?.itemIds
+  const categoryKeys = body?.categoryKeys ?? []
 
   if (!surface || !HOMEPAGE_SURFACES.includes(surface as HomepageSurface)) {
     return jsonError('Permukaan konten tidak valid.', 400)
@@ -76,6 +77,9 @@ export async function PUT(request: Request) {
   if (!itemIds.every((id: unknown) => typeof id === 'string' && UUID_PATTERN.test(id))) {
     return jsonError('Ada ID konten yang tidak valid.', 400)
   }
+  if (!Array.isArray(categoryKeys) || categoryKeys.length > 200 || !categoryKeys.every((key: unknown) => typeof key === 'string' && key.trim().length > 0 && key.length <= 160)) return jsonError('Daftar kategori prioritas tidak valid.', 400)
+  if (surface !== 'cbt' && surface !== 'practice' && categoryKeys.length > 0) return jsonError('Kategori hanya dapat diprioritaskan pada CBT dan Practice.', 400)
+  if (new Set(categoryKeys.map((key: string) => key.trim().toLocaleLowerCase('id'))).size !== categoryKeys.length) return jsonError('Kategori prioritas tidak boleh duplikat.', 400)
   if (new Set(itemIds).size !== itemIds.length) {
     return jsonError('Daftar prioritas tidak boleh berisi ID duplikat.', 400)
   }
@@ -86,13 +90,13 @@ export async function PUT(request: Request) {
   try {
     const { data: currentPins, error: currentPinsError } = await adminClient
       .from('homepage_content_pins')
-      .select('exam_id,material_id,announcement_id')
+      .select('scope,category_key,exam_id,material_id,announcement_id')
       .eq('surface', typedSurface)
 
     if (currentPinsError) throw currentPinsError
 
     const currentPinnedIds = new Set(
-      (currentPins || []).map((pin: any) => {
+      (currentPins || []).filter((pin: any) => (pin.scope || 'item') === 'item').map((pin: any) => {
         if (typedSurface === 'cbt' || typedSurface === 'practice') return String(pin.exam_id || '')
         if (typedSurface === 'material') return String(pin.material_id || '')
         return String(pin.announcement_id || '')
@@ -117,16 +121,16 @@ export async function PUT(request: Request) {
       }
     }
 
-    const { error: saveError } = await adminClient.rpc('replace_homepage_content_pins', {
-      p_surface: typedSurface,
-      p_item_ids: itemIds,
-      p_updated_by: authorization.auth.userId,
-    })
+    const allSurfaceRows = await getSurfaceSourceRows(adminClient, typedSurface)
+    const eligibleCategoryKeys = new Set(allSurfaceRows.filter((row: any) => isSurfaceItemEligible(typedSurface, row)).map((row: any) => (String(row.subtest || '').trim() || 'UMUM').toLocaleLowerCase('id')))
+    const existingCategoryKeys = new Set((currentPins || []).filter((pin: any) => pin.scope === 'category').map((pin: any) => String(pin.category_key || '').toLocaleLowerCase('id')))
+    if (categoryKeys.some((key: string) => !eligibleCategoryKeys.has(key.trim().toLocaleLowerCase('id')) && !existingCategoryKeys.has(key.trim().toLocaleLowerCase('id')))) return jsonError('Ada kategori yang tidak lagi tersedia.', 400)
+    const { error: saveError } = await adminClient.rpc('replace_homepage_content_priorities', { p_surface: typedSurface, p_item_ids: itemIds, p_category_keys: categoryKeys, p_updated_by: authorization.auth.userId })
 
     if (saveError) throw saveError
 
     return NextResponse.json(
-      { ok: true, surface: typedSurface, pinnedIds: itemIds },
+      { ok: true, surface: typedSurface, pinnedIds: itemIds, pinnedCategoryKeys: categoryKeys },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     )
   } catch (error) {

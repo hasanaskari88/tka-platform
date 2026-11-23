@@ -84,14 +84,15 @@ export async function getPublicPinOrder(
 ): Promise<Array<{ id: string; sort_order: number }>> {
   const { data: pins, error } = await adminClient
     .from('homepage_content_pins')
-    .select('exam_id,material_id,announcement_id,sort_order')
+    .select('scope,category_key,exam_id,material_id,announcement_id,sort_order')
     .eq('surface', surface)
     .order('sort_order', { ascending: true })
 
   if (error) throw error
   if (!pins?.length) return []
 
-  const ids = pins.map((pin: any) => getItemId(surface, pin)).filter(Boolean)
+  const itemPins = pins.filter((pin: any) => (pin.scope || 'item') === 'item')
+  const ids = itemPins.map((pin: any) => getItemId(surface, pin)).filter(Boolean)
   const rows = await getSurfaceSourceRows(adminClient, surface, ids)
   const eligibleIds = new Set(
     rows
@@ -99,12 +100,9 @@ export async function getPublicPinOrder(
       .map((row: any) => String(row.id)),
   )
 
-  return pins
-    .map((pin: any) => ({
-      id: getItemId(surface, pin),
-      sort_order: Number(pin.sort_order),
-    }))
-    .filter((pin: any) => eligibleIds.has(pin.id))
+  const publicItems = itemPins.map((pin: any) => ({ scope: 'item', id: getItemId(surface, pin), sort_order: Number(pin.sort_order) })).filter((pin: any) => eligibleIds.has(pin.id))
+  const publicCategories = (surface === 'cbt' || surface === 'practice' ? pins : []).filter((pin: any) => pin.scope === 'category' && String(pin.category_key || '').trim()).map((pin: any) => ({ scope: 'category', category_key: String(pin.category_key), sort_order: Number(pin.sort_order) }))
+  return [...publicItems, ...publicCategories]
 }
 
 export async function getAdminSurfaceData(
@@ -114,7 +112,7 @@ export async function getAdminSurfaceData(
   const [pinsResult, rows] = await Promise.all([
     adminClient
       .from('homepage_content_pins')
-      .select('exam_id,material_id,announcement_id,sort_order')
+      .select('scope,category_key,exam_id,material_id,announcement_id,sort_order')
       .eq('surface', surface)
       .order('sort_order', { ascending: true }),
     getSurfaceSourceRows(adminClient, surface),
@@ -122,9 +120,9 @@ export async function getAdminSurfaceData(
 
   if (pinsResult.error) throw pinsResult.error
 
-  const pinnedIds = (pinsResult.data || [])
-    .map((pin: any) => getItemId(surface, pin))
-    .filter(Boolean)
+  const allPins = pinsResult.data || []
+  const pinnedIds = allPins.filter((pin: any) => (pin.scope || 'item') === 'item').map((pin: any) => getItemId(surface, pin)).filter(Boolean)
+  const pinnedCategoryKeys = allPins.filter((pin: any) => pin.scope === 'category').map((pin: any) => String(pin.category_key || '')).filter(Boolean)
 
   const items = rows.map((row: any) => {
     let meta = ''
@@ -145,5 +143,12 @@ export async function getAdminSurfaceData(
     }
   })
 
-  return { surface, items, pinnedIds }
+  const categoryMap = new Map<string, { key: string; label: string; count: number }>()
+  if (surface === 'cbt' || surface === 'practice') rows.filter((row: any) => isSurfaceItemEligible(surface, row)).forEach((row: any) => {
+    const label = String(row.subtest || '').trim() || 'UMUM'; const key = label.toLocaleLowerCase('id'); const existing = categoryMap.get(key)
+    if (existing) existing.count += 1; else categoryMap.set(key, { key, label, count: 1 })
+  })
+  const categories = Array.from(categoryMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'id'))
+  for (const key of pinnedCategoryKeys) if (!categoryMap.has(key)) categories.push({ key, label: key, count: 0 })
+  return { surface, items, pinnedIds, categories, pinnedCategoryKeys }
 }

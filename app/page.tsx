@@ -14,7 +14,7 @@ function HomePageContent() {
   const [exams, setExams] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [materials, setMaterials] = useState<any[]>([])
-  const [homePinOrder, setHomePinOrder] = useState({ cbt: {} as Record<string, number>, material: {} as Record<string, number>, announcement: {} as Record<string, number> })
+  const [homePinOrder, setHomePinOrder] = useState({ cbt: {} as Record<string, number>, cbtCategories: {} as Record<string, number>, material: {} as Record<string, number>, announcement: {} as Record<string, number> })
   const [userProfile, setUserProfile] = useState<any>(null)
   const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([])
   const [globalStudentScores, setGlobalStudentScores] = useState<any[]>([])
@@ -45,20 +45,16 @@ function HomePageContent() {
   useEffect(() => {
     let active = true
 
-    const loadPinSurface = async (surface: string): Promise<Record<string, number>> => {
+    const loadPinSurface = async (surface: string): Promise<{ items: Record<string, number>; categories: Record<string, number> }> => {
       try {
         const response = await fetch('/api/homepage-pins?surface=' + surface, { cache: 'no-store' })
-        if (!response.ok) return {}
+        if (!response.ok) return { items: {}, categories: {} }
         const payload = await response.json()
-        return Object.fromEntries(
-          (Array.isArray(payload?.pins) ? payload.pins : []).map((pin: any) => [
-            String(pin.id),
-            Number(pin.sort_order),
-          ]),
-        )
+        const pins = Array.isArray(payload?.pins) ? payload.pins : []
+        return { items: Object.fromEntries(pins.filter((pin: any) => (pin.scope || 'item') === 'item').map((pin: any) => [String(pin.id), Number(pin.sort_order)])), categories: Object.fromEntries(pins.filter((pin: any) => pin.scope === 'category').map((pin: any) => [String(pin.category_key), Number(pin.sort_order)])) }
       } catch (error) {
         console.warn('Prioritas beranda ' + surface + ' tidak tersedia:', error)
-        return {}
+        return { items: {}, categories: {} }
       }
     }
 
@@ -67,7 +63,7 @@ function HomePageContent() {
       loadPinSurface('material'),
       loadPinSurface('announcement'),
     ]).then(([cbt, material, announcement]) => {
-      if (active) setHomePinOrder({ cbt, material, announcement })
+      if (active) setHomePinOrder({ cbt: cbt.items, cbtCategories: cbt.categories, material: material.items, announcement: announcement.items })
     })
 
     return () => { active = false }
@@ -546,10 +542,10 @@ const filteredExams = useMemo(() => {
 
   const displayExamGroups = useMemo(() => {
     const regularGroups = Object.entries(groupedExams).map(([subtest, group]) => ({ subtest, group }))
-    return priorityExams.length
-      ? [{ subtest: '__PRIORITY__', group: priorityExams }, ...regularGroups]
-      : regularGroups
-  }, [groupedExams, priorityExams])
+    const categoryGroups = examSort === 'Prioritas' ? regularGroups.filter(({ subtest }) => homePinOrder.cbtCategories[String(subtest).toLocaleLowerCase('id')] !== undefined).sort((a, b) => homePinOrder.cbtCategories[String(a.subtest).toLocaleLowerCase('id')] - homePinOrder.cbtCategories[String(b.subtest).toLocaleLowerCase('id')]) : []
+    const prioritizedNames = new Set(categoryGroups.map((entry) => entry.subtest))
+    return [...(priorityExams.length ? [{ subtest: '__PRIORITY__', group: priorityExams }] : []), ...categoryGroups, ...regularGroups.filter((entry) => !prioritizedNames.has(entry.subtest))]
+  }, [groupedExams, priorityExams, homePinOrder.cbtCategories, examSort])
 
   const orderedAnnouncements = useMemo(() => {
     return [...announcements].sort((a, b) => {
@@ -1349,7 +1345,7 @@ const filteredExams = useMemo(() => {
                   <div className="flex items-center justify-between gap-3 border-b border-current/10 px-4 py-3">
                     <div className="min-w-0">
                       <h3 className={`truncate text-sm font-black ${themeDetails.sectionTitle}`}>
-                        {subtest === '__PRIORITY__' ? '⭐ Ujian Prioritas' : '📘 ' + subtest}
+                        {subtest === '__PRIORITY__' ? '⭐ Ujian Prioritas' : (examSort === 'Prioritas' && homePinOrder.cbtCategories[String(subtest).toLocaleLowerCase('id')] !== undefined ? '📌 Subtes Prioritas • ' : '📘 ') + subtest}
                       </h3>
                       <p className={`mt-0.5 text-[11px] ${themeDetails.textMuted}`}>
                         {group.length} ujian tersedia

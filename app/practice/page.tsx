@@ -125,6 +125,7 @@ export default function PracticeHubPage() {
   const [missionSubject, setMissionSubject] = useState('ALL')
   const [missionSort, setMissionSort] = useState('PRIORITY')
   const [practicePinOrder, setPracticePinOrder] = useState<Record<string, number>>({})
+  const [practiceCategoryOrder, setPracticeCategoryOrder] = useState<Record<string, number>>({})
 
   useEffect(() => {
     let active = true
@@ -134,9 +135,8 @@ export default function PracticeHubPage() {
       .then((payload) => {
         if (active) {
           const pins = Array.isArray(payload?.pins) ? payload.pins : []
-          setPracticePinOrder(Object.fromEntries(
-            pins.map((pin: any) => [String(pin.id), Number(pin.sort_order)]),
-          ))
+          setPracticePinOrder(Object.fromEntries(pins.filter((pin: any) => (pin.scope || 'item') === 'item').map((pin: any) => [String(pin.id), Number(pin.sort_order)])))
+          setPracticeCategoryOrder(Object.fromEntries(pins.filter((pin: any) => pin.scope === 'category').map((pin: any) => [String(pin.category_key), Number(pin.sort_order)])))
         }
       })
       .catch((error) => console.warn('Prioritas Practice tidak tersedia:', error))
@@ -535,7 +535,12 @@ export default function PracticeHubPage() {
         if (orderA !== undefined && orderB !== undefined) return orderA - orderB
         if (orderA !== undefined) return -1
         if (orderB !== undefined) return 1
-        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+        const categoryA = practiceCategoryOrder[(String(a.subtest || '').trim() || 'UMUM').toLocaleLowerCase('id')]
+        const categoryB = practiceCategoryOrder[(String(b.subtest || '').trim() || 'UMUM').toLocaleLowerCase('id')]
+        if (categoryA !== undefined && categoryB !== undefined && categoryA !== categoryB) return categoryA - categoryB
+        if (categoryA !== undefined && categoryB === undefined) return -1
+        if (categoryB !== undefined && categoryA === undefined) return 1
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()()
       }
       if (missionSort === 'TITLE') return String(a.title || '').localeCompare(String(b.title || ''), 'id')
       if (missionSort === 'OLDEST') return new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
