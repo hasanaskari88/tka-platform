@@ -28,7 +28,7 @@ const fontOptions = [
   { label: 'Georgia', value: 'Georgia' },
   { label: 'Times New Roman', value: 'Times New Roman' },
   { label: 'Verdana', value: 'Verdana' },
-  { label: 'Font Arab', value: 'Noto Arabic Local' },
+  { label: 'Font Arab', value: 'Translit Arabic Local' },
   { label: 'Aksara Jawa · Nyk Ngayogyan Jejeg', value: 'Nyk Ngayogyan Jejeg' },
 ]
 
@@ -141,7 +141,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().setFontFamily('Noto Arabic Local').setTextAlign('right').run()}>عربي</button>
+            onClick={() => editor.chain().focus().setFontFamily('Translit Arabic Local').setTextAlign('right').run()}>عربي</button>
           <button type="button" title="Mode Aksara Jawa" aria-label="Mode Aksara Jawa"
             className="h-9 shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
             onMouseDown={(e) => e.preventDefault()}
