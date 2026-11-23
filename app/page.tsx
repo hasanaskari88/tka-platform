@@ -63,7 +63,7 @@ function HomePageContent() {
             .order('created_at', { ascending: false }),
           supabase
             .from('announcements')
-            .select('id, full_name, username, class_code, avatar_url, xp, level, badges')
+            .select('*')
             .eq('is_active', true)
             .order('created_at', { ascending: false }),
           supabase
@@ -79,7 +79,7 @@ function HomePageContent() {
         if (user) {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
-            .select('*')
+            .select('id, full_name, username, class_code, avatar_url, xp, level, badges')
             .eq('id', user.id)
             .maybeSingle()
 
