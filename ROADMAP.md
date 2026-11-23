@@ -871,3 +871,7 @@ Catatan ini melengkapi arsip generator materi pada bagian sebelumnya. Tidak memb
 - Tombol cepat Arab dan pilihan font toolbar diperbarui menggunakan `Translit Arabic Local`.
 - Aturan editor dan global untuk Aksara Jawa dipastikan memakai satu keluarga font lokal `Nyk Ngayogyan Jejeg` dari `public/fonts/javanese/nyk%20Ngayogyan%20Jejeg.ttf`. Pemetaan kompatibilitas dipertahankan untuk konten lama yang masih menyimpan nama font sebelumnya.
 - Perubahan kode dilakukan langsung pada branch `main`. Pengujian visual browser belum dilakukan; perlu dicek setelah deployment, terutama bentuk huruf Arab/harakat pada font Translit serta keseragaman aksara Jawa di editor, pratinjau, dan hasil soal.
+
+
+- Status deployment untuk perubahan font: seluruh perubahan kode berada di `main`, dengan commit kode terakhir `77970d2cc7085d1775e4ee1ffbe40a1b68fd31f0`. Deployment Production terbaru yang dibuat otomatis berasal dari commit sebelumnya, sehingga belum memuat koreksi font paling akhir.
+- Upaya membuat deployment Production untuk commit terakhir ditolak Vercel dengan HTTP 402 `api-deployments-free-per-day` (batas lebih dari 100 deployment per hari; Vercel meminta menunggu 24 jam). Tidak ada perubahan pengaturan billing/plan yang dilakukan. Setelah kuota tersedia, deploy ulang `main` ke Production; jangan gunakan Preview.
