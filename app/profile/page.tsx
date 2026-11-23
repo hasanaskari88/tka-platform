@@ -66,7 +66,7 @@ export default function ProfilePage() {
         // Ambil data profil dari tabel 'profiles'
         const { data: profile } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, full_name, username, class_code, avatar_url, xp, level')
           .eq('id', user.id)
           .maybeSingle()
 
