@@ -116,7 +116,7 @@ function HistoryContent() {
 
     const { data: profileData } = await supabase
       .from('profiles')
-      .select('*')
+      .select('id, full_name, username, class_code')
       .eq('id', user.id)
       .single()
 
