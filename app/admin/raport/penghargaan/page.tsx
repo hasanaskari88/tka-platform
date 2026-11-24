@@ -11,6 +11,14 @@ type Score = { user_id: string; exam_id: string; score: number; date: string }
 type RankedStudent = Student & { average: number; displayAverage: number; globalRank: number; classRank: number; packageCount: number }
 
 const field = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800'
+
+const awardThemes = [
+  { id: 'candy', name: 'Candy Celebration', description: 'Pink, kuning, biru, dan ungu pastel', swatches: ['#f9a8d4', '#fde68a', '#93c5fd', '#c4b5fd'] },
+  { id: 'rainbow', name: 'Rainbow Achievement', description: 'Pelangi cerah penuh semangat', swatches: ['#fb7185', '#fbbf24', '#34d399', '#60a5fa'] },
+  { id: 'sunny', name: 'Sunny Smile', description: 'Kuning hangat, oranye, dan biru langit', swatches: ['#facc15', '#fb923c', '#7dd3fc', '#fed7aa'] },
+  { id: 'mint', name: 'Mint & Peach', description: 'Mint segar, peach, dan krem', swatches: ['#6ee7b7', '#fdba9a', '#fef3c7', '#a7f3d0'] },
+  { id: 'sky', name: 'Blue Sky Dream', description: 'Biru langit, turquoise, dan coral', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
+] as const
 const rankLabel = (rank: number) => rank === 1 ? 'Juara 1' : rank === 2 ? 'Juara 2' : rank === 3 ? 'Juara 3' : `Peringkat ${rank}`
 
 const feedbackTemplates: { band: 'high' | 'middle' | 'developing'; appreciation: string; note: string }[] = [
@@ -64,6 +72,7 @@ export default function AwardPage() {
   const [issuePlace, setIssuePlace] = useState('Getasan')
   const [leaderboardLimit, setLeaderboardLimit] = useState<'3' | '5'>('3')
   const [leaderboardScope, setLeaderboardScope] = useState<'both' | 'class' | 'global'>('both')
+  const [awardTheme, setAwardTheme] = useState<(typeof awardThemes)[number]['id']>('candy')
 
   useEffect(() => {
     let alive = true
@@ -228,8 +237,29 @@ export default function AwardPage() {
     window.setTimeout(cleanup, 1500)
   }
 
-  return <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8">
+  return <main className={`award-theme-${awardTheme} min-h-screen bg-slate-50 px-4 py-6 md:px-8`}>
     <style>{`@page{size:A4 landscape;margin:9mm}
+
+.award-theme-candy .award-page,.award-theme-candy .leaderboard-sheet{background:radial-gradient(circle at 8% 8%,#fce7f3 0,transparent 24%),radial-gradient(circle at 92% 90%,#dbeafe 0,transparent 25%),linear-gradient(135deg,#fff7fb,#fffbea 55%,#f0f9ff)!important;border-color:#ec4899!important}
+.award-theme-candy .award-page h1,.award-theme-candy .award-page h2,.award-theme-candy .award-page h3,.award-theme-candy .leaderboard-sheet h1{color:#7e22ce!important}
+.award-theme-candy .award-page .rounded-xl{border-color:#f9a8d4!important}
+.award-theme-rainbow .award-page,.award-theme-rainbow .leaderboard-sheet{background:linear-gradient(120deg,#fff1f2,#fffbeb 34%,#ecfdf5 68%,#eff6ff)!important;border-color:#8b5cf6!important}
+.award-theme-rainbow .award-page h1,.award-theme-rainbow .award-page h2,.award-theme-rainbow .award-page h3,.award-theme-rainbow .leaderboard-sheet h1{color:#6d28d9!important}
+.award-theme-rainbow .award-page .rounded-xl{border-color:#a78bfa!important}
+.award-theme-sunny .award-page,.award-theme-sunny .leaderboard-sheet{background:radial-gradient(circle at 50% 0,#fef08a 0,transparent 35%),linear-gradient(135deg,#fff7ed,#fffbeb 55%,#eff6ff)!important;border-color:#f97316!important}
+.award-theme-sunny .award-page h1,.award-theme-sunny .award-page h2,.award-theme-sunny .award-page h3,.award-theme-sunny .leaderboard-sheet h1{color:#c2410c!important}
+.award-theme-sunny .award-page .rounded-xl{border-color:#fdba74!important}
+.award-theme-mint .award-page,.award-theme-mint .leaderboard-sheet{background:radial-gradient(circle at 8% 10%,#d1fae5 0,transparent 30%),linear-gradient(135deg,#f0fdfa,#fff7ed 58%,#fffbeb)!important;border-color:#10b981!important}
+.award-theme-mint .award-page h1,.award-theme-mint .award-page h2,.award-theme-mint .award-page h3,.award-theme-mint .leaderboard-sheet h1{color:#047857!important}
+.award-theme-mint .award-page .rounded-xl{border-color:#6ee7b7!important}
+.award-theme-sky .award-page,.award-theme-sky .leaderboard-sheet{background:radial-gradient(circle at 90% 8%,#cffafe 0,transparent 32%),linear-gradient(135deg,#eff6ff,#ecfeff 52%,#fff1f2)!important;border-color:#0ea5e9!important}
+.award-theme-sky .award-page h1,.award-theme-sky .award-page h2,.award-theme-sky .award-page h3,.award-theme-sky .leaderboard-sheet h1{color:#0369a1!important}
+.award-theme-sky .award-page .rounded-xl{border-color:#7dd3fc!important}
+.award-theme-candy .leaderboard-sheet thead tr{background:#fce7f3!important}
+.award-theme-rainbow .leaderboard-sheet thead tr{background:#ede9fe!important}
+.award-theme-sunny .leaderboard-sheet thead tr{background:#fef3c7!important}
+.award-theme-mint .leaderboard-sheet thead tr{background:#d1fae5!important}
+.award-theme-sky .leaderboard-sheet thead tr{background:#cffafe!important}
 @media print{
  html,body{margin:0!important;background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
  body *{visibility:hidden!important}
@@ -256,6 +286,20 @@ export default function AwardPage() {
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[.18em] text-amber-200">SD Negeri Getasan · Apresiasi Prestasi</p><h2 className="mt-1 text-2xl font-black">Setiap usaha layak diapresiasi</h2><p className="mt-1 text-sm text-slate-200">Peringkat dihitung dari nilai ujian terbaik setiap siswa pada seluruh paket yang dipilih.</p></div><div className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-right"><p className="text-xs text-amber-100">Peserta memenuhi syarat</p><b className="text-3xl">{ranked.length}</b></div></div>
       </section>
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+
+      <section className="rounded-2xl border border-pink-200 bg-gradient-to-r from-pink-50 via-yellow-50 to-sky-50 p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><h2 className="font-black text-slate-900">🎨 Pilih tema warna apresiasi</h2><p className="mt-1 text-xs text-slate-600">Tema akan diterapkan pada sertifikat dan leaderboard, termasuk hasil cetaknya.</p></div>
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-pink-700">Pratinjau warna langsung</span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {awardThemes.map(theme => <button key={theme.id} type="button" onClick={() => setAwardTheme(theme.id)} aria-pressed={awardTheme === theme.id} className={`rounded-xl border-2 p-3 text-left transition ${awardTheme === theme.id ? 'border-pink-500 bg-white shadow-md ring-2 ring-pink-200' : 'border-white bg-white/70 hover:border-pink-200'}`}>
+            <span className="mb-2 flex h-7 overflow-hidden rounded-lg">{theme.swatches.map((color, index) => <span key={index} className="flex-1" style={{ backgroundColor: color }}/>)}</span>
+            <span className="block text-xs font-black text-slate-800">{theme.name}</span><span className="mt-1 block text-[10px] leading-4 text-slate-500">{theme.description}</span>
+            <span className={`mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-bold ${awardTheme === theme.id ? 'bg-pink-100 text-pink-700' : 'bg-slate-100 text-slate-500'}`}>{awardTheme === theme.id ? '✓ Dipilih' : 'Pilih tema'}</span>
+          </button>)}
+        </div>
+      </section>
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <h2 className="font-black text-slate-900">1. Pilih paket / subtes</h2>
