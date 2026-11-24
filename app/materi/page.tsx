@@ -10,27 +10,31 @@ const PAGE_SIZE = 10
 
 export default function MateriCatalogPage() {
   const [materials, setMaterials] = useState<any[]>([])
+  const [pinOrder, setPinOrder] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [subject, setSubject] = useState('Semua')
-  const [sort, setSort] = useState('Terbaru')
+  const [sort, setSort] = useState('Prioritas')
   const [page, setPage] = useState(1)
 
   useEffect(() => {
     let active = true
     async function loadMaterials() {
       const supabase = createClient()
-      const { data, error } = await supabase
-        .from('study_materials')
-        .select('*, author:profiles!study_materials_created_by_fkey(full_name)')
-        .eq('status', 'published')
-        .order('created_at', { ascending: false })
-
+      const [materialsResult, pinsResponse] = await Promise.all([
+        supabase.from('study_materials').select('*, author:profiles!study_materials_created_by_fkey(full_name)').eq('status', 'published').order('created_at', { ascending: false }),
+        fetch('/api/homepage-pins?surface=material', { cache: 'no-store' }).catch(() => null),
+      ])
       if (!active) return
-      if (error) {
-        console.error('Gagal memuat katalog sumber belajar:', error)
-      } else {
-        setMaterials(data || [])
+      if (materialsResult.error) console.error('Gagal memuat katalog sumber belajar:', materialsResult.error)
+      else setMaterials(materialsResult.data || [])
+      if (pinsResponse?.ok) {
+        const payload = await pinsResponse.json().catch(() => null)
+        const nextOrder: Record<string, number> = {}
+        for (const pin of Array.isArray(payload?.pins) ? payload.pins : []) {
+          if (pin?.scope === 'item' && typeof pin.id === 'string') nextOrder[pin.id] = Number(pin.sort_order) || 0
+        }
+        if (active) setPinOrder(nextOrder)
       }
       setLoading(false)
     }
@@ -55,6 +59,13 @@ export default function MateriCatalogPage() {
     })
 
     result.sort((a, b) => {
+      if (sort === 'Prioritas') {
+        const orderA = pinOrder[a.id]
+        const orderB = pinOrder[b.id]
+        if (orderA !== undefined && orderB !== undefined) return orderA - orderB
+        if (orderA !== undefined) return -1
+        if (orderB !== undefined) return 1
+      }
       if (sort === 'Nama A-Z') return (a.title || '').localeCompare(b.title || '', 'id')
       if (sort === 'Nama Z-A') return (b.title || '').localeCompare(a.title || '', 'id')
       if (sort === 'Penulis A-Z') {
@@ -67,7 +78,7 @@ export default function MateriCatalogPage() {
       return sort === 'Terlama' ? dateA - dateB : dateB - dateA
     })
     return result
-  }, [materials, search, subject, sort])
+  }, [materials, search, subject, sort, pinOrder])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const visibleMaterials = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -113,6 +124,7 @@ export default function MateriCatalogPage() {
               {subjects.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
             <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Urutkan sumber belajar" className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 outline-none focus:border-amber-400">
+              <option value="Prioritas">⭐ Prioritas Beranda</option>
               <option value="Terbaru">Terbaru</option>
               <option value="Terlama">Terlama</option>
               <option value="Nama A-Z">Nama A–Z</option>
@@ -149,7 +161,7 @@ export default function MateriCatalogPage() {
               <div className="text-4xl">🔎</div>
               <h3 className="mt-3 text-sm font-black">Sumber belajar belum ditemukan</h3>
               <p className="mt-1 text-xs text-slate-500">Coba ubah kata kunci atau mata pelajaran.</p>
-              <button type="button" onClick={() => { setSearch(''); setSubject('Semua'); setSort('Terbaru') }} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white">Reset pencarian</button>
+              <button type="button" onClick={() => { setSearch(''); setSubject('Semua'); setSort('Prioritas') }} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white">Reset pencarian</button>
             </div>
           )}
 
