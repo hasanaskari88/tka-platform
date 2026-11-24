@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import DocumentVisualSettingsPanel, { useDocumentVisualSettings } from '@/components/admin/DocumentVisualSettings'
+import { getDocumentVisualStyle } from '@/components/admin/document-visual-system'
 
 type Student = { id: string; full_name: string | null; username: string | null; class_code: string | null }
 type Exam = { id: string; title: string; subtest: string | null; target_mode: string | null; activity_type: string | null }
@@ -265,7 +266,7 @@ export default function AwardPage() {
 .pattern-batik-mega-mendung{background-image:repeating-radial-gradient(ellipse at 50% 100%,transparent 0 6px,rgba(37,99,120,.65) 7px 8px,transparent 9px 13px);background-size:52px 28px}
 .pattern-batik-parang{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(120,80,35,.65) 6.5px 7.5px,transparent 8px 14px);background-size:28px 28px}
 .pattern-modern-geometric{background-image:radial-gradient(circle at center,transparent 0 8px,rgba(71,85,105,.65) 8.5px 9.5px,transparent 10px),linear-gradient(45deg,transparent 49%,rgba(71,85,105,.4) 50%,transparent 51%);background-size:28px 28px,18px 18px}
-.award-page > :not(.document-watermark){position:relative;z-index:2}\n.award-page .certificate-inner{position:relative;z-index:2;min-height:164mm;border:2px solid rgba(30,64,120,.28);border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.20);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
+.award-page > :not(.document-watermark){position:relative;z-index:2}\n.award-page .certificate-inner{position:relative;z-index:2;min-height:164mm;border:2px solid var(--doc-border,rgba(30,64,120,.28));border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.62);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
 .award-page .certificate-inner>*{min-width:0;max-width:100%}
 .award-page .certificate-packages{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;overflow-wrap:anywhere;word-break:break-word}
 .award-page .certificate-package{display:inline-block;max-width:100%;border:1px solid rgba(217,119,6,.28);border-radius:999px;background:rgba(255,255,255,.82);padding:4px 9px;font-size:10px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
@@ -283,7 +284,13 @@ export default function AwardPage() {
 .award-page .certificate-ribbon{display:inline-flex;align-items:center;gap:8px;border-radius:9999px;background:linear-gradient(90deg,#fb7185,#f97316);padding:7px 18px;color:white;font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 4px 10px rgba(249,115,22,.18)}
 .award-page .certificate-student{display:inline-block;border-bottom:3px dotted #f59e0b;padding:0 24px 7px;color:#312e81}
 .award-page .certificate-stat{border:1.5px solid #f5c66a;border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(255,247,214,.88));padding:10px 18px;box-shadow:0 3px 9px rgba(146,64,14,.07)}
-.award-page .certificate-footer{border-top:1px dashed rgba(180,83,9,.35);padding-top:10px}
+.award-page .certificate-footer{border-top:1px dashed var(--doc-gold);padding-top:10px}
+.award-page .text-indigo-950,.award-page .text-indigo-900,.award-page .text-indigo-800{color:var(--doc-accent)!important}
+.award-page .text-amber-700,.award-page .text-amber-800,.award-page .text-amber-900{color:var(--doc-gold)!important}
+.award-page .border-pink-200,.award-page .border-amber-200{border-color:var(--doc-border)!important}
+.award-page .certificate-ribbon{background:linear-gradient(90deg,var(--doc-accent),var(--doc-gold))}
+.award-page .certificate-student{color:var(--doc-accent)}
+.award-page .certificate-stat{border-color:var(--doc-border)}
 .award-theme-candy .award-page .certificate-inner{border-color:#f9a8d4}
 .award-theme-rainbow .award-page .certificate-inner{border-color:#a78bfa}
 .award-theme-sunny .award-page .certificate-inner{border-color:#fdba74}
@@ -381,7 +388,7 @@ export default function AwardPage() {
         <p className="mt-8 text-center text-xs italic text-slate-600">Terus belajar, bertumbuh, dan saling menginspirasi.</p>
       </div>
     </section>
-    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={visual.preset.patternEnabled ? visual.preset.pattern : undefined} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} style={{ '--pattern-opacity': visual.preset.patternOpacity / 100 } as React.CSSProperties} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={visual.preset.patternEnabled ? visual.preset.pattern : undefined} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} style={getDocumentVisualStyle(visual.preset)} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
   <div className="pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
   <div className="pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
   {visual.preset.watermark.enabled && <img src="/logo-sd-getasan.png" alt="" aria-hidden="true" className="document-watermark" style={{ width: `${visual.preset.watermark.size}%`, opacity: visual.preset.watermark.opacity }} />}
