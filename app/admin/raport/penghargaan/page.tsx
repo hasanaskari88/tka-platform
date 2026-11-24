@@ -260,6 +260,27 @@ export default function AwardPage() {
 .award-theme-sunny .leaderboard-sheet thead tr{background:#fef3c7!important}
 .award-theme-mint .leaderboard-sheet thead tr{background:#d1fae5!important}
 .award-theme-sky .leaderboard-sheet thead tr{background:#cffafe!important}
+
+.award-page{isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12)}
+.award-page .certificate-inner{position:relative;z-index:1;min-height:100%;border:2px solid rgba(217,119,6,.5);border-radius:12px;padding:18px;background:rgba(255,255,255,.48)}
+.award-page .certificate-corner{position:absolute;z-index:2;font-size:26px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.08))}
+.award-page .certificate-medal{display:flex;height:76px;width:76px;align-items:center;justify-content:center;border:5px double #f59e0b;border-radius:9999px;background:linear-gradient(145deg,#fff7ad,#fbbf24,#fff0a6);font-size:38px;box-shadow:0 5px 14px rgba(180,83,9,.18)}
+.award-page .certificate-ribbon{display:inline-flex;align-items:center;gap:8px;border-radius:9999px;background:linear-gradient(90deg,#fb7185,#f97316);padding:7px 18px;color:white;font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 4px 10px rgba(249,115,22,.18)}
+.award-page .certificate-student{display:inline-block;border-bottom:3px dotted #f59e0b;padding:0 24px 7px;color:#312e81}
+.award-page .certificate-stat{border:1.5px solid #f5c66a;border-radius:16px;background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(255,247,214,.88));padding:10px 18px;box-shadow:0 3px 9px rgba(146,64,14,.07)}
+.award-page .certificate-footer{border-top:1px dashed rgba(180,83,9,.35);padding-top:10px}
+.award-theme-candy .award-page .certificate-inner{border-color:#f9a8d4}
+.award-theme-rainbow .award-page .certificate-inner{border-color:#a78bfa}
+.award-theme-sunny .award-page .certificate-inner{border-color:#fdba74}
+.award-theme-mint .award-page .certificate-inner{border-color:#6ee7b7}
+.award-theme-sky .award-page .certificate-inner{border-color:#7dd3fc}
+@media print{
+ .award-page{box-shadow:none!important}
+ .award-page .certificate-inner{padding:12px!important}
+ .award-page .certificate-medal{height:66px;width:66px}
+ .award-page .certificate-corner{font-size:22px}
+}
+
 @media print{
  html,body{margin:0!important;background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
  body *{visibility:hidden!important}
@@ -345,7 +366,32 @@ export default function AwardPage() {
         <p className="mt-8 text-center text-xs italic text-slate-600">Terus belajar, bertumbuh, dan saling menginspirasi.</p>
       </div>
     </section>
-    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} className="award-page relative mx-auto overflow-hidden border-[3px] border-amber-700 bg-[#fffdf7] p-8 text-slate-900"><div className="pointer-events-none absolute inset-2 border border-amber-300"/><div className="pointer-events-none absolute inset-4 border border-amber-100"/><div className="relative flex items-center justify-center gap-4 border-b-2 border-double border-amber-700 pb-4"><img src="/logo-sd-getasan.png" className="h-20 w-20 object-contain" alt="Logo sekolah"/><div className="text-center"><p className="text-xs font-bold uppercase tracking-widest">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-xs">Tahun Pelajaran {schoolYear} · {period}</p></div></div><div className="relative py-5 text-center"><p className="text-xs font-black uppercase tracking-[.3em] text-amber-800">Penghargaan Prestasi Akademik</p><h1 className="mt-2 font-serif text-4xl font-bold tracking-wide text-indigo-950">SERTIFIKAT PENGHARGAAN</h1><p className="mt-3 text-sm text-slate-600">Diberikan dengan bangga kepada</p><h3 className="mt-2 text-3xl font-black text-indigo-950">{student.full_name || student.username}</h3><p className="mt-1 text-sm text-slate-600">Kelas {student.class_code || '—'}</p></div><div className={`relative mx-auto grid max-w-3xl gap-4 ${leaderboardScope === 'both' ? 'grid-cols-3' : 'grid-cols-2'}`}><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Rata-rata</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.displayAverage}</p></div>{(leaderboardScope === 'both' || leaderboardScope === 'global') && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Global</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.globalRank}</p></div>}{(leaderboardScope === 'both' || leaderboardScope === 'class') && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Kelas</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.classRank}</p></div>}</div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-amber-200 bg-white/80 p-3 text-center"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">Paket / Subtes yang dinilai</p><p className="mt-1 text-xs">{selectedPackages.map(e => `${e.title} · ${e.subtest || 'Umum'}`).join(' | ')}</p></div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-center"><p className="text-xs font-black uppercase tracking-widest text-indigo-800">Apresiasi</p><p className="mt-1 text-sm font-semibold">{appreciationFor(student)}</p><p className="mt-3 text-xs font-black uppercase tracking-widest text-indigo-800">Catatan khusus</p><p className="mt-1 text-sm">{noteFor(student)}</p></div><p className="relative mt-4 text-center font-serif text-lg italic text-indigo-900">“Terus belajar, bertumbuh, dan menjadi inspirasi bagi sesama.”</p>{signatureBlock(student)}</article>)}</div></section>}
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} className="award-page relative mx-auto overflow-hidden rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
+  <div className="pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
+  <div className="pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
+  <span className="certificate-corner left-5 top-5">🌟</span><span className="certificate-corner right-5 top-5">🌟</span>
+  <span className="certificate-corner bottom-5 left-5">✨</span><span className="certificate-corner bottom-5 right-5">✨</span>
+  <div className="certificate-inner">
+    <div className="relative flex items-center justify-center gap-4 border-b-2 border-double border-amber-400 pb-3">
+      <div className="rounded-2xl border-2 border-white bg-white/90 p-2 shadow-sm"><img src="/logo-sd-getasan.png" className="h-16 w-16 object-contain" alt="Logo sekolah"/></div>
+      <div className="text-center"><p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-800">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-[10px] font-semibold text-slate-600">Tahun Pelajaran {schoolYear} · {period}</p></div>
+      <div className="absolute right-1 top-1 hidden sm:block"><span className="text-3xl">🎈</span></div>
+    </div>
+    <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3 py-4 text-center">
+      <div className="justify-self-center"><div className="certificate-medal">🏆</div><p className="mt-1 text-[9px] font-black uppercase tracking-widest text-amber-800">Prestasi</p></div>
+      <div className="min-w-0"><span className="certificate-ribbon">✦ Penghargaan Prestasi Akademik ✦</span><h1 className="mt-3 font-serif text-3xl font-black tracking-wide text-indigo-950 md:text-4xl">SERTIFIKAT</h1><p className="text-sm font-black tracking-[.22em] text-amber-700">PENGHARGAAN</p><p className="mt-2 text-xs text-slate-600">Dengan bangga diberikan kepada</p><h3 className="certificate-student mt-2 text-2xl font-black md:text-3xl">{student.full_name || student.username}</h3><p className="mt-1 text-xs font-semibold text-slate-600">Siswa Kelas {student.class_code || '—'}</p></div>
+      <div className="justify-self-center"><div className="certificate-medal">🥇</div><p className="mt-1 text-[9px] font-black uppercase tracking-widest text-amber-800">Hebat!</p></div>
+    </div>
+    <div className={`relative mx-auto grid max-w-3xl gap-3 ${leaderboardScope === 'both' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      <div className="certificate-stat text-center"><p className="text-[10px] font-black uppercase tracking-wider text-amber-900">Rata-rata nilai</p><p className="mt-1 text-2xl font-black text-indigo-950">{student.displayAverage}</p></div>
+      {(leaderboardScope === 'both' || leaderboardScope === 'global') && <div className="certificate-stat text-center"><p className="text-[10px] font-black uppercase tracking-wider text-amber-900">Peringkat global</p><p className="mt-1 text-2xl font-black text-indigo-950">#{student.globalRank}</p></div>}
+      {(leaderboardScope === 'both' || leaderboardScope === 'class') && <div className="certificate-stat text-center"><p className="text-[10px] font-black uppercase tracking-wider text-amber-900">Peringkat kelas</p><p className="mt-1 text-2xl font-black text-indigo-950">#{student.classRank}</p></div>}
+    </div>
+    <div className="relative mx-auto mt-3 max-w-4xl rounded-xl border border-amber-200 bg-white/75 px-3 py-2 text-center"><p className="text-[9px] font-black uppercase tracking-widest text-amber-800">Paket / Subtes yang dinilai</p><p className="mt-1 text-[10px] font-medium">{selectedPackages.map(e => `${e.title} · ${e.subtest || 'Umum'}`).join(' | ')}</p></div>
+    <div className="relative mx-auto mt-3 max-w-4xl rounded-xl border border-pink-200 bg-gradient-to-r from-pink-50 via-amber-50 to-sky-50 px-4 py-3 text-center"><p className="text-[10px] font-black uppercase tracking-[.16em] text-indigo-800">💖 Apresiasi untukmu 💖</p><p className="mt-1 text-xs font-bold text-slate-800">{appreciationFor(student)}</p><p className="mt-2 text-[9px] font-black uppercase tracking-widest text-indigo-800">Catatan penyemangat</p><p className="mt-1 text-[10px] text-slate-700">{noteFor(student)}</p></div>
+    <div className="certificate-footer relative mt-3 grid grid-cols-[1fr_auto] items-end gap-4"><p className="text-left font-serif text-xs italic text-indigo-900">“Terus belajar, bertumbuh, dan bersinar!” 🌈</p><div className="min-w-[48%]">{signatureBlock(student)}</div></div>
+  </div>
+</article>)}</div></section>}
   </main>
 }
 
