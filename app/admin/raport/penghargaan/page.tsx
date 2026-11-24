@@ -39,6 +39,8 @@ export default function AwardPage() {
   const [customAppreciation, setCustomAppreciation] = useState('')
   const [customNote, setCustomNote] = useState('')
   const [issuePlace, setIssuePlace] = useState('Getasan')
+  const [leaderboardLimit, setLeaderboardLimit] = useState<'3' | '5'>('3')
+  const [leaderboardScope, setLeaderboardScope] = useState<'both' | 'class' | 'global'>('both')
 
   useEffect(() => {
     let alive = true
@@ -154,8 +156,8 @@ export default function AwardPage() {
   }, [students, scores, selectedExamIds])
 
   const chosenClass = classChoice === 'ALL' ? (classes[0] || '') : classChoice
-  const globalTop = ranked.filter(s => s.globalRank <= 3).sort((a, b) => a.globalRank - b.globalRank || (a.full_name || '').localeCompare(b.full_name || '', 'id'))
-  const classTop = ranked.filter(s => s.class_code === chosenClass && s.classRank <= 3).sort((a, b) => a.classRank - b.classRank || (a.full_name || '').localeCompare(b.full_name || '', 'id'))
+  const globalTop = ranked.filter(s => s.globalRank <= Number(leaderboardLimit)).sort((a, b) => a.globalRank - b.globalRank || (a.full_name || '').localeCompare(b.full_name || '', 'id'))
+  const classTop = ranked.filter(s => s.class_code === chosenClass && s.classRank <= Number(leaderboardLimit)).sort((a, b) => a.classRank - b.classRank || (a.full_name || '').localeCompare(b.full_name || '', 'id'))
   const filteredRanked = ranked.filter(s => (classChoice === 'ALL' || s.class_code === classChoice) && (!search || (s.full_name || '').toLowerCase().includes(search.toLowerCase()) || (s.username || '').toLowerCase().includes(search.toLowerCase())))
   const selectedStudents = ranked.filter(s => selectedStudentIds.includes(s.id))
   const selectedPackages = selectedExamIds.map(id => examMap.get(id)).filter(Boolean) as Exam[]
@@ -219,10 +221,10 @@ export default function AwardPage() {
         </div>
         <div className="space-y-4">
           <section className="rounded-2xl border bg-white p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-black text-slate-900">2. Leaderboard Top 3</h2><select value={classChoice} onChange={e => setClassChoice(e.target.value)} className={field + ' max-w-[190px]'}><option value="ALL">Semua kelas (pilih kelas podium)</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-            {!selectedExamIds.length ? <p className="mt-4 rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Pilih paket terlebih dahulu untuk menghitung peringkat.</p> : <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Podium title="Peringkat Global" rankType="global" students={globalTop}/>
-              <Podium title={`Peringkat Kelas ${chosenClass || '—'}`} rankType="class" students={classTop}/>
+            <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-black text-slate-900">2. Pengaturan Leaderboard</h2><div className="flex flex-wrap gap-2"><select aria-label="Jumlah peringkat leaderboard" value={leaderboardLimit} onChange={e => setLeaderboardLimit(e.target.value as '3' | '5')} className={field + ' max-w-[130px]'}><option value="3">3 Besar</option><option value="5">5 Besar</option></select><select aria-label="Jenis peringkat leaderboard" value={leaderboardScope} onChange={e => setLeaderboardScope(e.target.value as 'both' | 'class' | 'global')} className={field + ' max-w-[190px]'}><option value="both">Global & kelas</option><option value="class">Peringkat kelas saja</option><option value="global">Peringkat global saja</option></select>{(leaderboardScope === 'both' || leaderboardScope === 'class') && <select aria-label="Pilih kelas leaderboard" value={classChoice} onChange={e => setClassChoice(e.target.value)} className={field + ' max-w-[190px]'}><option value="ALL">Semua kelas (pilih kelas)</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>}</div></div>
+            {!selectedExamIds.length ? <p className="mt-4 rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Pilih paket terlebih dahulu untuk menghitung peringkat.</p> : <div className={leaderboardScope === 'both' ? "mt-4 grid gap-4 md:grid-cols-2" : "mt-4 grid gap-4"}>
+              {(leaderboardScope === 'both' || leaderboardScope === 'global') && <Podium title={`Peringkat Global · Top ${leaderboardLimit}`} rankType="global" students={globalTop}/>}
+              {(leaderboardScope === 'both' || leaderboardScope === 'class') && <Podium title={`Peringkat Kelas ${chosenClass || '—'} · Top ${leaderboardLimit}`} rankType="class" students={classTop}/>}
             </div>}
             <p className="mt-3 text-[11px] text-slate-500">Peringkat seri menggunakan sistem kompetisi (1, 1, 3). Siswa dengan nilai tidak lengkap tidak masuk peringkat.</p>
           </section>
