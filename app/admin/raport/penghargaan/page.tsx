@@ -253,7 +253,7 @@ export default function AwardPage() {
 
 .award-page{position:relative;isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:hidden}
 .document-watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;max-height:78%;object-fit:contain;z-index:1;pointer-events:none;filter:grayscale(.08);mix-blend-mode:multiply}
-@media print{.document-watermark{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+@media print{.document-watermark,.award-page::before{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
 .award-page::before{content:"";position:absolute;inset:9px;border-radius:16px;pointer-events:none;z-index:0;opacity:var(--pattern-opacity,.12);background-repeat:repeat;background-position:center;mix-blend-mode:multiply}
 .award-page[data-pattern="cartoon3d-dot"]::before{background-image:url('/patterns/titik-ceria.svg');background-size:52px 52px}
 .award-page[data-pattern="cartoon3d-stars"]::before{background-image:url('/patterns/bintang-ceria.svg');background-size:76px 76px}
@@ -270,6 +270,7 @@ export default function AwardPage() {
 .award-page > :not(.document-watermark){position:relative;z-index:2}
 .award-page .certificate-inner{position:relative;z-index:2;min-height:164mm;border:2px solid var(--doc-border,rgba(30,64,120,.28));border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.62);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
 .award-page .certificate-inner>*{min-width:0;max-width:100%}
+.award-page .award-frame-decoration{position:absolute;z-index:2}
 .award-page .certificate-packages{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;overflow-wrap:anywhere;word-break:break-word}
 .award-page .certificate-package{display:inline-block;max-width:100%;border:1px solid rgba(217,119,6,.28);border-radius:999px;background:rgba(255,255,255,.82);padding:4px 9px;font-size:10px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
 .award-page .certificate-copy{overflow-wrap:anywhere;word-break:break-word;line-height:1.45}
@@ -391,8 +392,8 @@ export default function AwardPage() {
       </div>
     </section>
     {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={visual.preset.patternEnabled ? visual.preset.pattern : undefined} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} style={getDocumentVisualStyle(visual.preset)} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
-  <div className="pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
-  <div className="pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
+  <div className="award-frame-decoration pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
+  <div className="award-frame-decoration pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
   {visual.preset.watermark.enabled && <img src="/logo-sd-getasan.png" alt="" aria-hidden="true" className="document-watermark" style={{ width: `${visual.preset.watermark.size}%`, opacity: visual.preset.watermark.opacity }} />}
   <span className="certificate-corner left-5 top-5">🌟</span><span className="certificate-corner right-5 top-5">🌟</span>
   <span className="certificate-corner bottom-5 left-5">✨</span><span className="certificate-corner bottom-5 right-5">✨</span>
