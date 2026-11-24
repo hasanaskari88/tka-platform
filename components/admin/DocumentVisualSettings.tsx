@@ -118,7 +118,7 @@ export function useDocumentVisualSettings(documentKey: DocumentKey) {
         [documentKey]: {
           ...old.documents[documentKey],
           useGlobal,
-          overrides: old.documents[documentKey].overrides || old.defaults,
+          overrides: useGlobal ? old.documents[documentKey].overrides : { ...old.defaults, watermark: { ...old.defaults.watermark } },
         },
       },
     }))
@@ -200,7 +200,6 @@ export default function DocumentVisualSettingsPanel({
   documentKey, title, settings, preset, useGlobal, loading, saving, message,
   updateDefaults, updateActivePreset, setUseGlobal, save,
 }: {
-  documentKey: DocumentKey
   title: string
   settings: DocumentVisualSettings
   preset: VisualPreset
