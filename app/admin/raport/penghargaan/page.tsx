@@ -251,10 +251,10 @@ export default function AwardPage() {
 .award-theme-sky .leaderboard-sheet thead tr{background:#cffafe!important}
 
 .award-page{position:relative;isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:hidden}
-.document-watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;max-height:78%;object-fit:contain;z-index:0;pointer-events:none;filter:grayscale(.08);mix-blend-mode:multiply}
+.document-watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;max-height:78%;object-fit:contain;z-index:1;pointer-events:none;filter:grayscale(.08);mix-blend-mode:multiply}
 @media print{.document-watermark{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
 .award-page::before{content:"";position:absolute;inset:9px;border-radius:16px;pointer-events:none;z-index:0;opacity:var(--pattern-opacity,.12);background-repeat:repeat;background-position:center;mix-blend-mode:multiply}
-.award-page[data-pattern="cartoon3d-dot"]::before{background-image:url('/patterns/titik-ceria.svg');background-size:48px 48px}
+.award-page[data-pattern="cartoon3d-dot"]::before{background-image:url('/patterns/titik-ceria.svg');background-size:52px 52px}\n.award-page[data-pattern="cartoon3d-stars"]::before{background-image:url('/patterns/bintang-ceria.svg');background-size:76px 76px}
 .award-page[data-pattern="batik-kawung"]::before{background-image:url('/patterns/kawung.svg');background-size:60px 60px}
 .award-page[data-pattern="batik-mega-mendung"]::before{background-image:url('/patterns/mega-mendung.svg');background-size:90px 50px}
 .award-page[data-pattern="batik-parang"]::before{background-image:url('/patterns/parang.svg');background-size:72px 72px}
@@ -265,7 +265,7 @@ export default function AwardPage() {
 .pattern-batik-mega-mendung{background-image:repeating-radial-gradient(ellipse at 50% 100%,transparent 0 6px,rgba(37,99,120,.65) 7px 8px,transparent 9px 13px);background-size:52px 28px}
 .pattern-batik-parang{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(120,80,35,.65) 6.5px 7.5px,transparent 8px 14px);background-size:28px 28px}
 .pattern-modern-geometric{background-image:radial-gradient(circle at center,transparent 0 8px,rgba(71,85,105,.65) 8.5px 9.5px,transparent 10px),linear-gradient(45deg,transparent 49%,rgba(71,85,105,.4) 50%,transparent 51%);background-size:28px 28px,18px 18px}
-.award-page .certificate-inner{position:relative;z-index:1;min-height:164mm;border:2px solid rgba(217,119,6,.5);border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.58);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
+.award-page > :not(.document-watermark){position:relative;z-index:2}\n.award-page .certificate-inner{position:relative;z-index:2;min-height:164mm;border:2px solid rgba(30,64,120,.28);border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.20);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
 .award-page .certificate-inner>*{min-width:0;max-width:100%}
 .award-page .certificate-packages{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;overflow-wrap:anywhere;word-break:break-word}
 .award-page .certificate-package{display:inline-block;max-width:100%;border:1px solid rgba(217,119,6,.28);border-radius:999px;background:rgba(255,255,255,.82);padding:4px 9px;font-size:10px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}

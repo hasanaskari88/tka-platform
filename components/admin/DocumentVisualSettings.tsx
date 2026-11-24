@@ -54,7 +54,7 @@ export const documentThemeOptions = [
   { id: 'sky', name: 'Blue Sky Dream', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
 ]
 export const documentPatternOptions = [
-  { id: 'cartoon3d-dot', name: 'Titik Ceria' },
+  { id: 'cartoon3d-dot', name: '3D Cartoon · Titik Ceria' },\n  { id: 'cartoon3d-stars', name: '3D Cartoon · Bintang Ceria' }, 
   { id: 'batik-kawung', name: 'Batik Kawung' },
   { id: 'batik-mega-mendung', name: 'Batik Mega Mendung' },
   { id: 'batik-parang', name: 'Batik Parang' },
@@ -202,8 +202,8 @@ function PresetFields({ value, onChange, title }: { value: VisualPreset; onChang
         {value.watermark.enabled && (
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="text-xs text-slate-600">Intensitas watermark: <b>{Math.round(value.watermark.opacity * 100)}%</b>
-              <input type="range" min="12" max="32" step="2" value={Math.round(value.watermark.opacity * 100)} onChange={e => onChange({ watermark: { ...value.watermark, opacity: Number(e.target.value) / 100 } })} className="mt-2 w-full" />
-              <span className="text-[10px] text-slate-400">Bawaan 20% · dapat dinaikkan sampai 32%</span>
+              <input type="range" min="8" max="40" step="2" value={Math.round(value.watermark.opacity * 100)} onChange={e => onChange({ watermark: { ...value.watermark, opacity: Number(e.target.value) / 100 } })} className="mt-2 w-full" />
+              <span className="text-[10px] text-slate-400">Bawaan 20% · dapat diatur 8–40%</span>
             </label>
             <label className="text-xs text-slate-600">Ukuran watermark: <b>{value.watermark.size}%</b>
               <input type="range" min="45" max="75" step="5" value={value.watermark.size} onChange={e => onChange({ watermark: { ...value.watermark, size: Number(e.target.value) } })} className="mt-2 w-full" />
