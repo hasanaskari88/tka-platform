@@ -242,31 +242,35 @@ export default function AdminDashboardPage() {
   return <div className="min-h-screen bg-slate-50">
     <div className="mx-auto max-w-[1500px] space-y-5 px-4 py-5 md:px-7 md:py-7">
     <header className="overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
-      <div className="bg-gradient-to-r from-indigo-800 via-indigo-700 to-sky-700 px-5 py-5 text-white md:px-7 md:py-6">
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+      <div className="bg-gradient-to-r from-indigo-800 via-indigo-700 to-sky-700 px-4 py-4 text-white md:px-6 md:py-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-white/40 md:h-14 md:w-14"><img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-full w-full object-contain" /></div>
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-white/40 md:h-12 md:w-12"><img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-full w-full object-contain" /></div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-100 md:text-[11px]">SD Negeri Getasan · Admin Center</p>
-              <p className="mt-1 text-xs font-semibold text-sky-100">Selamat datang,</p>
-              <h1 className="truncate text-xl font-black md:text-2xl">{teacherProfile.full_name||'Bapak/Ibu Guru'}</h1>
-              <p className="mt-1 text-xs text-indigo-100 md:text-sm">Selamat bekerja. Semua kebutuhan pengelolaan pembelajaran tersedia dalam satu tempat.</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-indigo-100 md:text-[10px]">SD Negeri Getasan · Admin Center</p>
+              <p className="mt-1 text-[11px] font-semibold text-sky-100">Selamat datang,</p>
+              <h1 className="truncate text-lg font-extrabold leading-tight md:text-xl">{teacherProfile.full_name||'Bapak/Ibu Guru'}</h1>
+              <p className="mt-1 max-w-xl text-[11px] leading-relaxed text-indigo-100 md:text-xs">Kelola pembelajaran, pantau aktivitas siswa, dan tindak lanjuti penilaian.</p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3 lg:justify-end">
-            <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-3 py-2.5 shadow-sm backdrop-blur-sm">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/70 bg-white/20 text-2xl shadow-inner">{teacherProfile.avatar_url||<UserRound size={22}/>}</div>
-              <div className="min-w-0"><div className="flex items-center gap-1.5"><ShieldCheck size={13} className="text-emerald-200"/><span className="text-[10px] font-black uppercase tracking-wider text-emerald-100">{teacherProfile.role==='admin'?'Administrator':'Guru'}</span></div><p className="max-w-[190px] truncate text-xs font-bold text-white">{teacherProfile.full_name||'Profil belum dilengkapi'}</p><span className="text-[10px] text-indigo-100">Profil akun aktif</span></div>
+          <div className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-white/20 bg-white/10 p-2.5 shadow-sm sm:justify-start">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/75 bg-white/20 text-2xl shadow-inner">{teacherProfile.avatar_url||<UserRound size={21}/>}</div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1"><ShieldCheck size={12} className="shrink-0 text-emerald-200"/><span className="text-[9px] font-black uppercase tracking-wider text-emerald-100">{teacherProfile.role==='admin'?'Administrator':'Guru'}</span></div>
+                <p className="max-w-[150px] truncate text-[10px] font-semibold text-white">{teacherProfile.email||'Akun aktif'}</p>
+                <span className="text-[9px] text-indigo-100">Profil akun</span>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Link href="/profile" className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/25"><UserRound size={14}/> Ubah Profil</Link>
-              <button type="button" onClick={handleAdminLogout} disabled={loggingOut} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2.5 text-xs font-bold text-indigo-800 shadow-sm transition hover:bg-indigo-50 disabled:opacity-60"><LogOut size={14}/>{loggingOut?'Keluar...':'Logout'}</button>
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <Link href="/profile" className="inline-flex min-w-[112px] items-center justify-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-2.5 py-2 text-[10px] font-bold text-white transition hover:bg-white/25"><UserRound size={12}/> Ubah Profil</Link>
+              <button type="button" onClick={handleAdminLogout} disabled={loggingOut} className="inline-flex min-w-[112px] items-center justify-center gap-1.5 rounded-lg bg-white px-2.5 py-2 text-[10px] font-bold text-indigo-800 shadow-sm transition hover:bg-indigo-50 disabled:opacity-60"><LogOut size={12}/>{loggingOut?'Keluar...':'Logout'}</button>
             </div>
           </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-white/15 pt-4">
-          <div><span className="inline-flex items-center rounded-full border border-sky-200/30 bg-sky-200/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-50">Ruang Kerja Guru</span><p className="mt-2 text-xs text-indigo-100">Pantau aktivitas siswa, tindak lanjuti penilaian, dan kelola seluruh konten pembelajaran.</p></div>
-          <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/90">{teacherProfile.email||'Akun terverifikasi'}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/15 pt-3">
+          <span className="inline-flex items-center rounded-full border border-sky-200/30 bg-sky-200/15 px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-[0.14em] text-sky-50">Ruang Kerja Guru</span>
+          <p className="text-[10px] leading-relaxed text-indigo-100 md:text-[11px]">Satu tempat untuk mengelola soal, materi, peserta, dan hasil belajar.</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-5 md:p-4">
