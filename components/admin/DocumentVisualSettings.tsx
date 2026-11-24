@@ -149,7 +149,7 @@ function PresetFields({ value, onChange, title }: { value: VisualPreset; onChang
         {(['leftLogo', 'rightLogo'] as const).map((key) => (
           <label key={key} className="text-xs font-bold text-slate-700">
             {key === 'leftLogo' ? 'Logo kop sebelah kiri' : 'Logo kop sebelah kanan'}
-            <select value={value[key]} onChange={e => onChange({ [key]: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
+            <select value={value[key]} onChange={e => onChange(key === 'leftLogo' ? { leftLogo: e.target.value } : { rightLogo: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal">
               {documentLogoOptions.map(logo => <option key={logo.value} value={logo.value}>{logo.label}</option>)}
             </select>
           </label>
