@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import DocumentVisualSettingsPanel, { useDocumentVisualSettings } from '@/components/admin/DocumentVisualSettings'
 
 type Student = { id: string; full_name: string | null; username: string | null; class_code: string | null }
 type Exam = { id: string; title: string; subtest: string | null; target_mode: string | null; activity_type: string | null }
@@ -12,29 +13,6 @@ type RankedStudent = Student & { average: number; displayAverage: number; global
 
 const field = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800'
 
-const awardThemes = [
-  { id: 'candy', name: 'Candy Celebration', description: 'Pink, kuning, biru, dan ungu pastel', swatches: ['#f9a8d4', '#fde68a', '#93c5fd', '#c4b5fd'] },
-  { id: 'rainbow', name: 'Rainbow Achievement', description: 'Pelangi cerah penuh semangat', swatches: ['#fb7185', '#fbbf24', '#34d399', '#60a5fa'] },
-  { id: 'sunny', name: 'Sunny Smile', description: 'Kuning hangat, oranye, dan biru langit', swatches: ['#facc15', '#fb923c', '#7dd3fc', '#fed7aa'] },
-  { id: 'mint', name: 'Mint & Peach', description: 'Mint segar, peach, dan krem', swatches: ['#6ee7b7', '#fdba9a', '#fef3c7', '#a7f3d0'] },
-  { id: 'sky', name: 'Blue Sky Dream', description: 'Biru langit, turquoise, dan coral', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
-] as const
-
-const certificateLogoOptions = [
-  { value: 'none', label: 'Tanpa logo' },
-  { value: '/Logo-kab-smg.png', label: 'Logo Kabupaten Semarang' },
-  { value: '/logo-sd-getasan.png', label: 'Logo SD Negeri Getasan' },
-  { value: '/logo-sd-getasan2.png', label: 'Logo SD Getasan alternatif' },
-  { value: '/logo-tka.png', label: 'Logo TKA' },
-] as const
-
-const awardPatterns = [
-  { id: 'cartoon3d-dot', name: '3D Cartoon Dot', description: 'Titik-titik kecil dan cahaya pastel lembut' },
-  { id: 'batik-kawung', name: 'Batik Kawung', description: 'Ornamen kawung geometris yang tipis' },
-  { id: 'batik-mega-mendung', name: 'Batik Mega Mendung', description: 'Lengkung awan halus di latar' },
-  { id: 'batik-parang', name: 'Batik Parang', description: 'Garis diagonal batik yang ringan' },
-  { id: 'modern-geometric', name: 'Modern Geometric', description: 'Lingkaran dan garis geometris minimalis' },
-] as const
 const rankLabel = (rank: number) => rank === 1 ? 'Juara 1' : rank === 2 ? 'Juara 2' : rank === 3 ? 'Juara 3' : `Peringkat ${rank}`
 
 const feedbackTemplates: { band: 'high' | 'middle' | 'developing'; appreciation: string; note: string }[] = [
@@ -61,6 +39,7 @@ const feedbackTemplates: { band: 'high' | 'middle' | 'developing'; appreciation:
 ]
 
 export default function AwardPage() {
+  const visual = useDocumentVisualSettings('award')
   const [students, setStudents] = useState<Student[]>([])
   const [exams, setExams] = useState<Exam[]>([])
   const [scores, setScores] = useState<Score[]>([])
@@ -88,10 +67,6 @@ export default function AwardPage() {
   const [issuePlace, setIssuePlace] = useState('Getasan')
   const [leaderboardLimit, setLeaderboardLimit] = useState<'3' | '5'>('3')
   const [leaderboardScope, setLeaderboardScope] = useState<'both' | 'class' | 'global'>('both')
-  const [awardTheme, setAwardTheme] = useState<(typeof awardThemes)[number]['id']>('candy')
-  const [awardPattern, setAwardPattern] = useState<(typeof awardPatterns)[number]['id']>('cartoon3d-dot')
-  const [leftCertificateLogo, setLeftCertificateLogo] = useState('/logo-sd-getasan.png')
-  const [rightCertificateLogo, setRightCertificateLogo] = useState('none')
 
   useEffect(() => {
     let alive = true
@@ -256,7 +231,7 @@ export default function AwardPage() {
     window.setTimeout(cleanup, 1500)
   }
 
-  return <main className={`award-theme-${awardTheme} min-h-screen bg-slate-50 px-4 py-6 md:px-8`}>
+  return <main className={`award-theme-${visual.preset.theme} min-h-screen bg-slate-50 px-4 py-6 md:px-8`}>
     <style>{`@page{size:A4 landscape;margin:7mm}
 
 .award-theme-candy .award-page,.award-theme-candy .leaderboard-sheet{background:radial-gradient(circle at 8% 8%,#fce7f3 0,transparent 24%),radial-gradient(circle at 92% 90%,#dbeafe 0,transparent 25%),linear-gradient(135deg,#fff7fb,#fffbea 55%,#f0f9ff)!important;border-color:#ec4899!important}
@@ -280,7 +255,9 @@ export default function AwardPage() {
 .award-theme-mint .leaderboard-sheet thead tr{background:#d1fae5!important}
 .award-theme-sky .leaderboard-sheet thead tr{background:#cffafe!important}
 
-.award-page{position:relative;isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:visible}
+.award-page{position:relative;isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:hidden}
+.document-watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;max-height:78%;object-fit:contain;z-index:0;pointer-events:none;filter:grayscale(.08);mix-blend-mode:multiply}
+@media print{.document-watermark{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
 .award-page::before{content:"";position:absolute;inset:9px;border-radius:16px;pointer-events:none;z-index:0;opacity:.22;background-repeat:repeat;mix-blend-mode:multiply}
 .award-page[data-pattern="cartoon3d-dot"]::before{opacity:.62;background-image:radial-gradient(circle,rgba(180,83,9,.22) 1px,transparent 1.6px),radial-gradient(ellipse at 8% 8%,rgba(251,191,36,.16),transparent 38%),radial-gradient(ellipse at 92% 90%,rgba(96,165,250,.13),transparent 40%);background-size:18px 18px,100% 100%,100% 100%}
 .award-page[data-pattern="batik-kawung"]::before{opacity:.18;background-image:radial-gradient(ellipse 13px 20px at 50% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 0% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 100% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 50% 0%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 50% 100%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%);background-size:54px 54px}
@@ -351,56 +328,20 @@ export default function AwardPage() {
       </section>
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
-      <section className="rounded-2xl border border-pink-200 bg-gradient-to-r from-pink-50 via-yellow-50 to-sky-50 p-4 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><h2 className="font-black text-slate-900">🎨 Pilih tema warna apresiasi</h2><p className="mt-1 text-xs text-slate-600">Tema akan diterapkan pada sertifikat dan leaderboard, termasuk hasil cetaknya.</p></div>
-          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-pink-700">Pratinjau warna langsung</span>
-        </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          {awardThemes.map(theme => <button key={theme.id} type="button" onClick={() => setAwardTheme(theme.id)} aria-pressed={awardTheme === theme.id} className={`rounded-xl border-2 p-3 text-left transition ${awardTheme === theme.id ? 'border-pink-500 bg-white shadow-md ring-2 ring-pink-200' : 'border-white bg-white/70 hover:border-pink-200'}`}>
-            <span className="mb-2 flex h-7 overflow-hidden rounded-lg">{theme.swatches.map((color, index) => <span key={index} className="flex-1" style={{ backgroundColor: color }}/>)}</span>
-            <span className="block text-xs font-black text-slate-800">{theme.name}</span><span className="mt-1 block text-[10px] leading-4 text-slate-500">{theme.description}</span>
-            <span className={`mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-bold ${awardTheme === theme.id ? 'bg-pink-100 text-pink-700' : 'bg-slate-100 text-slate-500'}`}>{awardTheme === theme.id ? '✓ Dipilih' : 'Pilih tema'}</span>
-          </button>)}
-        </div>
-      </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div><h2 className="font-black text-slate-900">🏛️ Atur logo kop sertifikat</h2><p className="mt-1 text-xs text-slate-500">Pilih logo kiri dan kanan secara terpisah. Pengaturan ini hanya memengaruhi sertifikat, bukan leaderboard.</p></div>
-          <Link href="/admin/raport/penghargaan/inventaris-logo" className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Lihat inventaris logo ↗</Link>
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-bold text-slate-700">Logo sebelah kiri
-            <select value={leftCertificateLogo} onChange={e => setLeftCertificateLogo(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
-              {certificateLogoOptions.map(logo => <option key={logo.value} value={logo.value}>{logo.label}</option>)}
-            </select>
-          </label>
-          <label className="text-xs font-bold text-slate-700">Logo sebelah kanan
-            <select value={rightCertificateLogo} onChange={e => setRightCertificateLogo(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
-              {certificateLogoOptions.map(logo => <option key={logo.value} value={logo.value}>{logo.label}</option>)}
-            </select>
-          </label>
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
-          {[{ label: 'Kiri', src: leftCertificateLogo }, { label: 'Kanan', src: rightCertificateLogo }].map(item => <div key={item.label} className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-2">
-            <span className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</span>
-            {item.src !== 'none' ? <img src={item.src} alt={`Logo ${item.label}`} className="h-16 w-16 object-contain" /> : <span className="text-xs text-slate-400">Kosong</span>}
-          </div>)}
-        </div>
-      </section>
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div><h2 className="font-black text-slate-900">🪷 Pilih motif latar sertifikat</h2><p className="mt-1 text-xs text-slate-500">Motif dapat dipadukan bebas dengan tema warna. Motif hanya diterapkan pada sertifikat, bukan leaderboard.</p></div>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600">5 pilihan motif</span>
-        </div>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-          {awardPatterns.map(pattern => <button key={pattern.id} type="button" onClick={() => setAwardPattern(pattern.id)} aria-pressed={awardPattern === pattern.id} className={`rounded-xl border-2 p-3 text-left transition ${awardPattern === pattern.id ? 'border-indigo-500 bg-indigo-50/60 shadow-sm ring-2 ring-indigo-100' : 'border-slate-200 bg-slate-50 hover:border-indigo-200'}`}>
-            <span className={`award-pattern-swatch pattern-${pattern.id} mb-2 block h-10 overflow-hidden rounded-lg border border-slate-200 bg-amber-50`} aria-hidden="true"/>
-            <span className="block text-xs font-black text-slate-800">{pattern.name}</span><span className="mt-1 block text-[10px] leading-4 text-slate-500">{pattern.description}</span>
-            <span className={`mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-bold ${awardPattern === pattern.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{awardPattern === pattern.id ? '✓ Dipilih' : 'Pilih motif'}</span>
-          </button>)}
-        </div>
-      </section>
+      <DocumentVisualSettingsPanel
+        documentKey="award"
+        title="Penghargaan"
+        settings={visual.settings}
+        preset={visual.preset}
+        useGlobal={visual.useGlobal}
+        loading={visual.loading}
+        saving={visual.saving}
+        message={visual.message}
+        updateDefaults={visual.updateDefaults}
+        updateActivePreset={visual.updateActivePreset}
+        setUseGlobal={visual.setUseGlobal}
+        save={visual.save}
+      />
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <h2 className="font-black text-slate-900">1. Pilih paket / subtes</h2>
@@ -446,14 +387,15 @@ export default function AwardPage() {
         <p className="mt-8 text-center text-xs italic text-slate-600">Terus belajar, bertumbuh, dan saling menginspirasi.</p>
       </div>
     </section>
-    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={awardPattern} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={visual.preset.pattern} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
   <div className="pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
   <div className="pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
+  {visual.preset.watermark.enabled && <img src="/logo-sd-getasan.png" alt="" aria-hidden="true" className="document-watermark" style={{ width: `${visual.preset.watermark.size}%`, opacity: visual.preset.watermark.opacity }} />}
   <span className="certificate-corner left-5 top-5">🌟</span><span className="certificate-corner right-5 top-5">🌟</span>
   <span className="certificate-corner bottom-5 left-5">✨</span><span className="certificate-corner bottom-5 right-5">✨</span>
   <div className="certificate-inner">
     <div className="relative grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-3 border-b-2 border-double border-amber-400 pb-3 text-center sm:grid-cols-[76px_minmax(0,1fr)_76px]">
-      <div className="flex min-h-16 items-center justify-center">{leftCertificateLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={leftCertificateLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kiri kop sertifikat"/></div>}</div>
+      <div className="flex min-h-16 items-center justify-center">{visual.preset.leftLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={visual.preset.leftLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kiri kop sertifikat"/></div>}</div>
       <div className="min-w-0 text-center leading-tight">
         <p className="text-[9px] font-bold uppercase tracking-wide text-slate-700">PEMERINTAH KABUPATEN SEMARANG</p>
         <p className="mt-0.5 text-[9px] font-bold uppercase text-slate-700">DINAS PENDIDIKAN KEBUDAYAAN KEPEMUDAAN DAN OLAH RAGA</p>
@@ -461,7 +403,7 @@ export default function AwardPage() {
         <h2 className="mt-1 text-[15px] font-black uppercase tracking-wide text-indigo-950">UPTD SPF SEKOLAH DASAR NEGERI GETASAN</h2>
         <p className="mt-1 text-[7.5px] font-medium uppercase tracking-wide text-slate-600">ALAMAT: JALAN P. DIPONEGORO KM 6 DESA GETASAN KEC. GETASAN 50774</p>
       </div>
-      <div className="flex min-h-16 items-center justify-center">{rightCertificateLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={rightCertificateLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kanan kop sertifikat"/></div>}</div>
+      <div className="flex min-h-16 items-center justify-center">{visual.preset.rightLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={visual.preset.rightLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kanan kop sertifikat"/></div>}</div>
     </div>
     <div className="relative grid grid-cols-[minmax(56px,1fr)_minmax(0,3fr)_minmax(56px,1fr)] items-center gap-2 py-2 text-center">
       <div className="justify-self-center"><div className="certificate-medal">🏆</div><p className="mt-1 text-[9px] font-black uppercase tracking-widest text-amber-800">Prestasi</p></div>
