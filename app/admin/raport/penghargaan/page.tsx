@@ -13,6 +13,29 @@ type RankedStudent = Student & { average: number; displayAverage: number; global
 const field = 'w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800'
 const rankLabel = (rank: number) => rank === 1 ? 'Juara 1' : rank === 2 ? 'Juara 2' : rank === 3 ? 'Juara 3' : `Peringkat ${rank}`
 
+const feedbackTemplates: { band: 'high' | 'middle' | 'developing'; appreciation: string; note: string }[] = [
+  { band: 'high', appreciation: 'Prestasi yang sangat membanggakan! Ketekunan dan semangat belajarmu terlihat dari hasil yang diraih.', note: 'Pertahankan rasa ingin tahu dan terus tantang dirimu untuk mempelajari hal-hal baru.' },
+  { band: 'high', appreciation: 'Hebat sekali! Kerja kerasmu membuahkan hasil yang istimewa.', note: 'Terus kembangkan kemampuanmu dan jadikan keberhasilan ini sebagai motivasi untuk tumbuh.' },
+  { band: 'high', appreciation: 'Selamat atas pencapaian luar biasa ini. Kamu telah menunjukkan kesungguhan dalam belajar.', note: 'Jaga kebiasaan belajar yang baik dan tetap rendah hati saat meraih prestasi.' },
+  { band: 'high', appreciation: 'Hasil belajarmu sangat mengesankan. Teruslah menjadi pembelajar yang tekun dan berani mencoba.', note: 'Perluas pengetahuan, pertahankan disiplin, dan gunakan kemampuanmu untuk hal-hal positif.' },
+  { band: 'high', appreciation: 'Usaha terbaikmu terlihat nyata dalam prestasi ini. Kami bangga dengan pencapaianmu.', note: 'Jangan cepat puas; terus asah potensi dan pertahankan semangat berbagi dengan teman.' },
+  { band: 'high', appreciation: 'Luar biasa! Kamu telah memperlihatkan penguasaan materi dan tanggung jawab belajar yang kuat.', note: 'Terus pelihara konsistensi dan beranilah menghadapi tantangan pembelajaran berikutnya.' },
+  { band: 'high', appreciation: 'Selamat, pencapaianmu patut diapresiasi. Semangat dan ketekunanmu menjadi contoh yang baik.', note: 'Pertahankan prestasi dengan belajar teratur, teliti, dan tetap menikmati prosesnya.' },
+  { band: 'middle', appreciation: 'Kerja bagus! Usaha belajarmu mulai terlihat melalui hasil yang membanggakan.', note: 'Pertahankan kebiasaan positif dan berikan perhatian lebih pada materi yang belum dikuasai.' },
+  { band: 'middle', appreciation: 'Selamat atas perkembangan belajarmu. Teruslah berusaha karena kemampuan tumbuh melalui latihan.', note: 'Biasakan mengulang pelajaran dan bertanya ketika menemukan hal yang belum dipahami.' },
+  { band: 'middle', appreciation: 'Kamu sudah menunjukkan usaha yang baik. Terus tingkatkan semangat dan rasa percaya dirimu.', note: 'Latihan yang teratur dan ketelitian saat mengerjakan soal akan membantumu meraih hasil lebih baik.' },
+  { band: 'middle', appreciation: 'Pencapaian ini layak dirayakan. Terima kasih sudah belajar dengan sungguh-sungguh.', note: 'Terus perkuat materi yang sudah dipelajari dan jangan ragu mencoba soal yang lebih menantang.' },
+  { band: 'middle', appreciation: 'Bagus! Ada kemajuan yang patut disyukuri dari proses belajarmu.', note: 'Buat jadwal belajar sederhana dan gunakan waktu latihan untuk memperbaiki bagian yang masih sulit.' },
+  { band: 'middle', appreciation: 'Usahamu membawa hasil yang positif. Terus tumbuhkan semangat untuk menjadi lebih baik.', note: 'Jaga konsistensi, tingkatkan ketelitian, dan manfaatkan masukan guru sebagai bekal belajar.' },
+  { band: 'middle', appreciation: 'Selamat atas hasil yang telah kamu capai. Setiap langkah belajar memiliki arti.', note: 'Terus berlatih secara bertahap agar pemahamanmu semakin kuat dan merata.' },
+  { band: 'developing', appreciation: 'Terima kasih sudah terus berusaha. Keberanian untuk belajar dan mencoba adalah hal yang berharga.', note: 'Fokuslah pada satu materi dalam satu waktu, berlatih sedikit demi sedikit, dan jangan takut bertanya.' },
+  { band: 'developing', appreciation: 'Kamu tetap hebat karena mau belajar dan berproses. Terus semangat, ya!', note: 'Ulangi kembali materi dasar bersama guru atau keluarga agar pemahamanmu semakin kuat.' },
+  { band: 'developing', appreciation: 'Setiap usaha adalah langkah maju. Kami menghargai semangatmu untuk terus mencoba.', note: 'Mulailah dengan latihan singkat secara rutin dan rayakan setiap kemajuan kecil yang kamu capai.' },
+  { band: 'developing', appreciation: 'Jangan menyerah! Kesungguhan untuk memperbaiki diri jauh lebih penting daripada hasil sesaat.', note: 'Kenali soal yang masih terasa sulit, lalu pelajari kembali secara perlahan dengan pendampingan.' },
+  { band: 'developing', appreciation: 'Terus bertumbuh dan percaya pada kemampuan diri. Kamu selalu punya kesempatan untuk berkembang.', note: 'Tingkatkan latihan secara bertahap, perhatikan penjelasan guru, dan coba kembali dengan lebih teliti.' },
+  { band: 'developing', appreciation: 'Kami bangga atas keberanianmu menyelesaikan proses belajar. Teruslah melangkah dengan optimis.', note: 'Bangun kebiasaan belajar yang teratur; sedikit kemajuan setiap hari akan membawa perubahan baik.' },
+]
+
 export default function AwardPage() {
   const [students, setStudents] = useState<Student[]>([])
   const [exams, setExams] = useState<Exam[]>([])
@@ -165,8 +188,20 @@ export default function AwardPage() {
   const principalOptions = signatories.filter(s => s.position === 'principal')
   const teacherOptions = signatories.filter(s => s.position === 'class_teacher')
   const principal = principalOptions.find(p => p.id === principalId) || principalOptions[0]
-  const appreciationFor = (average: number) => customFeedback && customAppreciation.trim() ? customAppreciation : average >= 90 ? 'Luar biasa! Terus pertahankan semangat belajar dan rasa ingin tahu yang tinggi.' : average >= 70 ? 'Hebat! Usaha dan ketekunan dalam belajar sudah menunjukkan hasil yang baik.' : 'Terima kasih sudah berusaha. Terus berlatih sedikit demi sedikit; setiap kemajuan patut dibanggakan.'
-  const noteFor = (average: number) => customFeedback && customNote.trim() ? customNote : average >= 90 ? 'Ananda menunjukkan penguasaan materi yang sangat baik. Terus kembangkan kemampuan dan kebiasaan belajar mandiri.' : average >= 70 ? 'Pertahankan konsistensi dan perdalam materi yang masih perlu dikuatkan.' : 'Ananda sedang dalam proses menguatkan pemahaman. Pendampingan dan latihan bertahap akan membantu kemajuan berikutnya.'
+  const feedbackByStudent = useMemo(() => {
+    const counters = { high: 0, middle: 0, developing: 0 }
+    const result = new Map<string, { appreciation: string; note: string }>()
+    for (const student of selectedStudents) {
+      const band = student.average >= 90 ? 'high' : student.average >= 70 ? 'middle' : 'developing'
+      const options = feedbackTemplates.filter(item => item.band === band)
+      const item = options[counters[band] % options.length]
+      counters[band] += 1
+      result.set(student.id, item)
+    }
+    return result
+  }, [selectedStudents])
+  const appreciationFor = (student: RankedStudent) => customFeedback && customAppreciation.trim() ? customAppreciation : feedbackByStudent.get(student.id)?.appreciation || ''
+  const noteFor = (student: RankedStudent) => customFeedback && customNote.trim() ? customNote : feedbackByStudent.get(student.id)?.note || ''
   const signatureBlock = (student: RankedStudent) => {
     const teacher = teacherOptions.find(t => t.id === teacherId) || teacherOptions.find(t => t.class_code === student.class_code)
     const showTeacher = signatoryType === 'both' || signatoryType === 'teacher_only'
@@ -181,8 +216,16 @@ export default function AwardPage() {
     setSelectedStudentIds([])
   }
   const printAwards = () => {
+    document.body.classList.remove('print-leaderboard')
     setPreviewOpen(true)
     window.setTimeout(() => window.print(), 350)
+  }
+  const printLeaderboard = () => {
+    const cleanup = () => document.body.classList.remove('print-leaderboard')
+    document.body.classList.add('print-leaderboard')
+    window.addEventListener('afterprint', cleanup, { once: true })
+    window.print()
+    window.setTimeout(cleanup, 1500)
   }
 
   return <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8">
@@ -190,11 +233,14 @@ export default function AwardPage() {
 @media print{
  html,body{margin:0!important;background:#fff!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
  body *{visibility:hidden!important}
- #award-print-area,#award-print-area *{visibility:visible!important}
- #award-print-area{position:absolute!important;left:0!important;top:0!important;width:277mm!important}
+ body:not(.print-leaderboard) #award-print-area,body:not(.print-leaderboard) #award-print-area *{visibility:visible!important}
+ body.print-leaderboard #leaderboard-print-area,body.print-leaderboard #leaderboard-print-area *{visibility:visible!important}
+ body:not(.print-leaderboard) #award-print-area{position:absolute!important;left:0!important;top:0!important;width:277mm!important}
+ body.print-leaderboard #leaderboard-print-area{position:absolute!important;left:0!important;top:0!important;width:277mm!important}
  .no-print{display:none!important}
  .award-page{width:277mm!important;height:190mm!important;min-height:190mm!important;break-after:page;page-break-after:always;margin:0!important;box-sizing:border-box!important}
  .award-page:last-child{break-after:auto;page-break-after:auto}
+ .leaderboard-sheet{width:277mm!important;min-height:190mm!important;break-after:page;page-break-after:always;margin:0!important;box-sizing:border-box!important;padding:12mm!important}
 }
 `}</style>
     <div className="no-print mx-auto max-w-7xl space-y-5">
@@ -226,7 +272,7 @@ export default function AwardPage() {
               {(leaderboardScope === 'both' || leaderboardScope === 'global') && <Podium title={`Peringkat Global · Top ${leaderboardLimit}`} rankType="global" students={globalTop}/>}
               {(leaderboardScope === 'both' || leaderboardScope === 'class') && <Podium title={`Peringkat Kelas ${chosenClass || '—'} · Top ${leaderboardLimit}`} rankType="class" students={classTop}/>}
             </div>}
-            <p className="mt-3 text-[11px] text-slate-500">Peringkat seri menggunakan sistem kompetisi (1, 1, 3). Siswa dengan nilai tidak lengkap tidak masuk peringkat.</p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2"><p className="text-[11px] text-slate-500">Peringkat seri menggunakan sistem kompetisi (1, 1, 3). Siswa dengan nilai tidak lengkap tidak masuk peringkat.</p><button disabled={!selectedExamIds.length || (leaderboardScope === 'class' && !chosenClass)} onClick={printLeaderboard} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:opacity-40">🖨️ Cetak Leaderboard</button></div>
           </section>
           <section className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-black text-slate-900">3. Pilih penerima sertifikat</h2><span className="text-xs text-slate-500">{selectedStudentIds.length} dipilih dari {ranked.length} siswa memenuhi syarat</span></div>
@@ -240,7 +286,22 @@ export default function AwardPage() {
       <section className="rounded-2xl border bg-white p-4 shadow-sm space-y-4"><div><h2 className="font-black text-slate-900">4. Pengaturan sertifikat penghargaan</h2><p className="mt-1 text-xs text-slate-500">Pengaturan ini akan tampil pada pratinjau dan hasil cetak.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={issuePlace} onChange={e => setIssuePlace(e.target.value)} className={field}/></label><label className="text-xs font-semibold text-slate-600">Tanda tangan<select value={signatoryType} onChange={e => setSignatoryType(e.target.value as any)} className={field}><option value="both">Guru / Wali Kelas dan Kepala Sekolah</option><option value="principal_only">Hanya Kepala Sekolah</option><option value="teacher_only">Hanya Guru / Wali Kelas</option></select></label>{(signatoryType === 'both' || signatoryType === 'principal_only') && <label className="text-xs font-semibold text-slate-600">Kepala sekolah<select value={principalId} onChange={e => setPrincipalId(e.target.value)} className={field}><option value="">Pilih kepala sekolah</option>{principalOptions.map(p => <option key={p.id} value={p.id}>{p.full_name} · {p.nip || 'Tanpa NIP'}</option>)}</select></label>}{(signatoryType === 'both' || signatoryType === 'teacher_only') && <label className="text-xs font-semibold text-slate-600">Guru / Wali Kelas<select value={teacherId} onChange={e => setTeacherId(e.target.value)} className={field}><option value="">Otomatis sesuai kelas siswa</option>{teacherOptions.map(t => <option key={t.id} value={t.id}>{t.full_name} · {t.class_code || 'Semua kelas'}</option>)}</select></label>}</div><div className="rounded-xl border p-3"><label className="flex items-center gap-2 text-sm font-bold text-slate-800"><input type="checkbox" checked={customFeedback} onChange={e => setCustomFeedback(e.target.checked)}/> Gunakan apresiasi dan catatan khusus untuk semua penerima</label>{customFeedback && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Kalimat apresiasi<textarea value={customAppreciation} onChange={e => setCustomAppreciation(e.target.value)} placeholder="Contoh: Selamat atas prestasi dan kerja kerasmu!" className={field} rows={3}/></label><label className="text-xs font-semibold text-slate-600">Catatan khusus<textarea value={customNote} onChange={e => setCustomNote(e.target.value)} placeholder="Contoh: Terus kembangkan kemampuan dan semangat belajarmu." className={field} rows={3}/></label></div>}<p className="mt-2 text-[11px] text-slate-500">Jika tidak diaktifkan, kalimat apresiasi dan catatan dibuat otomatis berdasarkan rata-rata nilai.</p></div><div className="flex flex-wrap justify-end gap-2"><button disabled={!selectedStudents.length || !selectedExamIds.length} onClick={() => setPreviewOpen(true)} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-40">👁️ Pratinjau Sertifikat ({selectedStudents.length})</button><button disabled={!selectedStudents.length || !selectedExamIds.length} onClick={printAwards} className="rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white disabled:opacity-40">🖨️ Cetak / Simpan PDF</button></div></section>
       <section className="rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">Aturan perhitungan</h2><div className="mt-3 grid gap-3 text-xs text-slate-600 md:grid-cols-3"><div className="rounded-xl bg-slate-50 p-3"><b className="text-slate-800">Sumber nilai</b><p className="mt-1">Ujian selesai, memakai nilai_override jika tersedia; jika tidak, nilai ujian.</p></div><div className="rounded-xl bg-slate-50 p-3"><b className="text-slate-800">Kelengkapan</b><p className="mt-1">Peserta harus mempunyai nilai untuk setiap paket yang dipilih.</p></div><div className="rounded-xl bg-slate-50 p-3"><b className="text-slate-800">Nilai seri</b><p className="mt-1">Nilai asli dipakai menentukan seri; tampilan rata-rata dibulatkan ke bilangan bulat.</p></div></div></section>
     </div>
-    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} className="award-page relative mx-auto overflow-hidden border-[3px] border-amber-700 bg-[#fffdf7] p-8 text-slate-900"><div className="pointer-events-none absolute inset-2 border border-amber-300"/><div className="pointer-events-none absolute inset-4 border border-amber-100"/><div className="relative flex items-center justify-center gap-4 border-b-2 border-double border-amber-700 pb-4"><img src="/logo-sd-getasan.png" className="h-20 w-20 object-contain" alt="Logo sekolah"/><div className="text-center"><p className="text-xs font-bold uppercase tracking-widest">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-xs">Tahun Pelajaran {schoolYear} · {period}</p></div></div><div className="relative py-5 text-center"><p className="text-xs font-black uppercase tracking-[.3em] text-amber-800">Penghargaan Prestasi Akademik</p><h1 className="mt-2 font-serif text-4xl font-bold tracking-wide text-indigo-950">SERTIFIKAT PENGHARGAAN</h1><p className="mt-3 text-sm text-slate-600">Diberikan dengan bangga kepada</p><h3 className="mt-2 text-3xl font-black text-indigo-950">{student.full_name || student.username}</h3><p className="mt-1 text-sm text-slate-600">Kelas {student.class_code || '—'}</p></div><div className="relative mx-auto grid max-w-3xl grid-cols-3 gap-4"><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Rata-rata</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.displayAverage}</p></div><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Global</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.globalRank}</p></div><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Kelas</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.classRank}</p></div></div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-amber-200 bg-white/80 p-3 text-center"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">Paket / Subtes yang dinilai</p><p className="mt-1 text-xs">{selectedPackages.map(e => `${e.title} · ${e.subtest || 'Umum'}`).join(' | ')}</p></div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-center"><p className="text-xs font-black uppercase tracking-widest text-indigo-800">Apresiasi</p><p className="mt-1 text-sm font-semibold">{appreciationFor(student.average)}</p><p className="mt-3 text-xs font-black uppercase tracking-widest text-indigo-800">Catatan khusus</p><p className="mt-1 text-sm">{noteFor(student.average)}</p></div><p className="relative mt-4 text-center font-serif text-lg italic text-indigo-900">“Terus belajar, bertumbuh, dan menjadi inspirasi bagi sesama.”</p>{signatureBlock(student)}</article>)}</div></section>}
+    <section id="leaderboard-print-area" className="pointer-events-none fixed left-[-10000px] top-0 w-[277mm] bg-white text-slate-900">
+      <div className="leaderboard-sheet border-4 border-amber-700 bg-[#fffdf7]">
+        <div className="border-b-2 border-double border-amber-700 pb-4 text-center">
+          <p className="text-xs font-bold uppercase tracking-widest">SD Negeri Getasan · Tahun Pelajaran {schoolYear}</p>
+          <h1 className="mt-2 text-3xl font-black text-indigo-950">LEADERBOARD PRESTASI</h1>
+          <p className="mt-1 text-sm">{period} · {selectedPackages.map(e => e.title).join(' · ')}</p>
+          <p className="mt-1 text-sm font-bold">Tampilan: {leaderboardLimit} Besar · {leaderboardScope === 'both' ? 'Global & Kelas' : leaderboardScope === 'global' ? 'Peringkat Global' : 'Peringkat Kelas'}</p>
+        </div>
+        <div className={leaderboardScope === 'both' ? "mt-6 grid grid-cols-2 gap-6" : "mt-6 grid grid-cols-1 gap-6"}>
+          {(leaderboardScope === 'both' || leaderboardScope === 'global') && <div><h2 className="mb-3 text-center text-xl font-black">Peringkat Global · Top {leaderboardLimit}</h2><PrintRankList students={globalTop} rankType="global"/></div>}
+          {(leaderboardScope === 'both' || leaderboardScope === 'class') && <div><h2 className="mb-3 text-center text-xl font-black">Peringkat Kelas {chosenClass || '—'} · Top {leaderboardLimit}</h2><PrintRankList students={classTop} rankType="class"/></div>}
+        </div>
+        <p className="mt-8 text-center text-xs italic text-slate-600">Terus belajar, bertumbuh, dan saling menginspirasi.</p>
+      </div>
+    </section>
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} className="award-page relative mx-auto overflow-hidden border-[3px] border-amber-700 bg-[#fffdf7] p-8 text-slate-900"><div className="pointer-events-none absolute inset-2 border border-amber-300"/><div className="pointer-events-none absolute inset-4 border border-amber-100"/><div className="relative flex items-center justify-center gap-4 border-b-2 border-double border-amber-700 pb-4"><img src="/logo-sd-getasan.png" className="h-20 w-20 object-contain" alt="Logo sekolah"/><div className="text-center"><p className="text-xs font-bold uppercase tracking-widest">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-xs">Tahun Pelajaran {schoolYear} · {period}</p></div></div><div className="relative py-5 text-center"><p className="text-xs font-black uppercase tracking-[.3em] text-amber-800">Penghargaan Prestasi Akademik</p><h1 className="mt-2 font-serif text-4xl font-bold tracking-wide text-indigo-950">SERTIFIKAT PENGHARGAAN</h1><p className="mt-3 text-sm text-slate-600">Diberikan dengan bangga kepada</p><h3 className="mt-2 text-3xl font-black text-indigo-950">{student.full_name || student.username}</h3><p className="mt-1 text-sm text-slate-600">Kelas {student.class_code || '—'}</p></div><div className={`relative mx-auto grid max-w-3xl gap-4 ${leaderboardScope === 'both' ? 'grid-cols-3' : 'grid-cols-2'}`}><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Rata-rata</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.displayAverage}</p></div>{(leaderboardScope === 'both' || leaderboardScope === 'global') && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Global</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.globalRank}</p></div>}{(leaderboardScope === 'both' || leaderboardScope === 'class') && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Kelas</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.classRank}</p></div>}</div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-amber-200 bg-white/80 p-3 text-center"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">Paket / Subtes yang dinilai</p><p className="mt-1 text-xs">{selectedPackages.map(e => `${e.title} · ${e.subtest || 'Umum'}`).join(' | ')}</p></div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-center"><p className="text-xs font-black uppercase tracking-widest text-indigo-800">Apresiasi</p><p className="mt-1 text-sm font-semibold">{appreciationFor(student)}</p><p className="mt-3 text-xs font-black uppercase tracking-widest text-indigo-800">Catatan khusus</p><p className="mt-1 text-sm">{noteFor(student)}</p></div><p className="relative mt-4 text-center font-serif text-lg italic text-indigo-900">“Terus belajar, bertumbuh, dan menjadi inspirasi bagi sesama.”</p>{signatureBlock(student)}</article>)}</div></section>}
   </main>
 }
 
@@ -251,4 +312,11 @@ function Podium({ title, rankType, students }: { title: string; rankType: 'globa
     const color = colors[Math.min(Math.max(rank, 1), 3) - 1]
     return <div key={s.id} className={`flex items-center gap-3 rounded-xl border p-3 ${color}`}><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-amber-800 shadow-sm">#{rank}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{s.full_name || s.username || 'Siswa'}</p><p className="text-[11px] text-slate-500">Kelas {s.class_code || '—'}</p></div><b className="text-lg text-slate-900">{s.displayAverage}</b></div>
   })}{!students.length && <p className="rounded-lg bg-slate-50 p-4 text-center text-xs text-slate-400">Belum ada peserta yang memenuhi syarat.</p>}</div></div>
+}
+
+function PrintRankList({ students, rankType }: { students: RankedStudent[]; rankType: 'global' | 'class' }) {
+  return <table className="w-full border-collapse text-sm">
+    <thead><tr className="bg-amber-100"><th className="border border-amber-300 p-3">Peringkat</th><th className="border border-amber-300 p-3 text-left">Nama siswa</th><th className="border border-amber-300 p-3">Kelas</th><th className="border border-amber-300 p-3">Rata-rata</th></tr></thead>
+    <tbody>{students.map(student => <tr key={student.id}><td className="border border-amber-200 p-3 text-center font-black">#{rankType === 'global' ? student.globalRank : student.classRank}</td><td className="border border-amber-200 p-3 font-semibold">{student.full_name || student.username || 'Siswa'}</td><td className="border border-amber-200 p-3 text-center">{student.class_code || '—'}</td><td className="border border-amber-200 p-3 text-center font-black">{student.displayAverage}</td></tr>)}</tbody>
+  </table>
 }
