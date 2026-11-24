@@ -3,6 +3,14 @@ import Link from 'next/link'
 
 const logoAssets = [
   {
+    file: 'Logo-kab-smg.png',
+    title: 'Logo Kabupaten Semarang',
+    role: 'Logo kabupaten yang baru diunggah; tersedia sebagai pilihan logo kop',
+    size: '±443 KB',
+    status: 'Logo baru',
+    href: '/Logo-kab-smg.png',
+  },
+  {
     file: 'logo-sd-getasan.png',
     title: 'Logo SD Negeri Getasan',
     role: 'Logo yang saat ini dipakai pada sertifikat penghargaan',
@@ -46,13 +54,13 @@ export default function LogoInventoryPage() {
 
         <header className="mt-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[.18em] text-indigo-600">Inventaris aset visual</p>
-          <h1 className="mt-2 text-2xl font-black text-slate-900 md:text-3xl">Inventaris Logo Sekolah & Platform</h1>
+          <h1 className="mt-2 text-2xl font-black text-slate-900 md:text-3xl">Inventaris Logo Sekolah, Kabupaten & Platform</h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Daftar ini menampilkan berkas logo yang ditemukan di folder public proyek. Gunakan pratinjau untuk membandingkan bentuk, warna, tulisan, dan kejernihan sebelum menentukan susunan kop sertifikat.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-indigo-50 p-3"><p className="text-2xl font-black text-indigo-800">4</p><p className="text-xs font-semibold text-indigo-700">Berkas logo ditemukan</p></div>
-            <div className="rounded-xl bg-emerald-50 p-3"><p className="text-2xl font-black text-emerald-800">3</p><p className="text-xs font-semibold text-emerald-700">Berkas logo unik berdasarkan SHA</p></div>
+            <div className="rounded-xl bg-indigo-50 p-3"><p className="text-2xl font-black text-indigo-800">5</p><p className="text-xs font-semibold text-indigo-700">Berkas logo ditemukan</p></div>
+            <div className="rounded-xl bg-emerald-50 p-3"><p className="text-2xl font-black text-emerald-800">4</p><p className="text-xs font-semibold text-emerald-700">Berkas logo unik berdasarkan SHA</p></div>
             <div className="rounded-xl bg-amber-50 p-3"><p className="text-2xl font-black text-amber-800">1</p><p className="text-xs font-semibold text-amber-700">Salinan identik</p></div>
           </div>
         </header>
@@ -80,6 +88,7 @@ export default function LogoInventoryPage() {
         <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <h2 className="font-black text-amber-950">Catatan pemeriksaan berkas</h2>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-900">
+            <li><strong>Logo-kab-smg.png</strong> adalah logo Kabupaten Semarang yang baru diunggah dan sudah masuk daftar inventaris.</li>
             <li><strong>logo-sd-getasan.png</strong> dan <strong>logo-sd.png</strong> memiliki SHA GitHub yang sama, sehingga keduanya identik secara byte.</li>
             <li><strong>logo-sd-getasan2.png</strong> memiliki SHA berbeda; jangan dianggap versi yang lebih baik sebelum dibandingkan secara visual.</li>
             <li><strong>logo-tka.png</strong> adalah aset berbeda dan perlu dipastikan apakah memang dimaksudkan sebagai identitas pendamping sekolah.</li>
