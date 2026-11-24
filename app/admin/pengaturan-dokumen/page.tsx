@@ -7,6 +7,10 @@ import { createClient } from '@/lib/supabase/client'
 type Settings = {
   school_name: string; school_address: string; teacher_name: string; teacher_nip: string
   principal_name: string; principal_nip: string; issue_place: string; kkm: number
+  academic_year: string
+  learning_period: 'Semester Ganjil' | 'Semester Genap' | 'Akhir Jenjang SD'
+  report_orientation: 'portrait' | 'landscape'
+  certificate_orientation: 'portrait' | 'landscape'
 }
 type Signatory = {
   id: string; full_name: string; position: 'class_teacher' | 'principal'
@@ -17,6 +21,8 @@ const defaults: Settings = {
   school_address: 'Jl. P. Diponegoro Km 6, Desa Getasan, Kab. Semarang',
   teacher_name: '', teacher_nip: '', principal_name: '', principal_nip: '',
   issue_place: 'Getasan', kkm: 70,
+  academic_year: '2026/2027', learning_period: 'Semester Ganjil',
+  report_orientation: 'portrait', certificate_orientation: 'landscape',
 }
 const fieldClass = 'mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900'
 export default function DocumentSettingsPage() {
@@ -92,6 +98,35 @@ export default function DocumentSettingsPage() {
       </form>
       <div className="mt-5 overflow-x-auto"><table className="w-full min-w-[620px] text-left text-xs"><thead><tr className="border-b bg-slate-50 text-slate-500"><th className="p-3">Nama</th><th className="p-3">Jabatan</th><th className="p-3">Kelas</th><th className="p-3">NIP</th><th className="p-3">Aksi</th></tr></thead><tbody>{signatories.map(item=><tr key={item.id} className="border-b border-slate-100"><td className="p-3 font-bold text-slate-800">{item.full_name}</td><td className="p-3">{item.position==='principal'?'Kepala Sekolah':'Mengampu di Kelas'}</td><td className="p-3">{item.class_code || '—'}</td><td className="p-3">{item.nip || '—'}</td><td className="p-3"><div className="flex gap-2"><button onClick={()=>editSignatory(item)} className="font-bold text-indigo-600">Edit</button><button onClick={()=>deleteSignatory(item)} className="font-bold text-rose-600">Hapus</button></div></td></tr>)}{!signatories.length && <tr><td colSpan={5} className="p-6 text-center text-slate-400">{loading?'Memuat daftar...':'Belum ada data guru/kepala sekolah.'}</td></tr>}</tbody></table></div>
     </section>
-    <form onSubmit={saveSettings} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><section><h2 className="font-black text-slate-900">Identitas Sekolah</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Nama sekolah<input required value={settings.school_name} onChange={e=>setSettings(v=>({...v,school_name:e.target.value}))} className={fieldClass}/></label><label className="text-xs font-semibold text-slate-600">Alamat sekolah<input value={settings.school_address} onChange={e=>setSettings(v=>({...v,school_address:e.target.value}))} className={fieldClass}/></label><label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={settings.issue_place} onChange={e=>setSettings(v=>({...v,issue_place:e.target.value}))} className={fieldClass}/></label><label className="text-xs font-semibold text-slate-600">KKM<input type="number" min="0" max="100" value={settings.kkm} onChange={e=>setSettings(v=>({...v,kkm:Number(e.target.value)}))} className={fieldClass}/></label></div></section><div className="flex justify-end border-t pt-4"><button disabled={saving || loading} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40">{saving?'Menyimpan...':'Simpan Identitas Sekolah'}</button></div></form>
+    <form onSubmit={saveSettings} className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><section><h2 className="font-black text-slate-900">Identitas Sekolah</h2><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Nama sekolah<input required value={settings.school_name} onChange={e=>setSettings(v=>({...v,school_name:e.target.value}))} className={fieldClass}/></label><label className="text-xs font-semibold text-slate-600">Alamat sekolah<input value={settings.school_address} onChange={e=>setSettings(v=>({...v,school_address:e.target.value}))} className={fieldClass}/></label><label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={settings.issue_place} onChange={e=>setSettings(v=>({...v,issue_place:e.target.value}))} className={fieldClass}/></label><label className="text-xs font-semibold text-slate-600">KKM<input type="number" min="0" max="100" value={settings.kkm} onChange={e=>setSettings(v=>({...v,kkm:Number(e.target.value)}))} className={fieldClass}/></label></div></section>
+    <section className="border-t pt-5">
+      <h2 className="font-black text-slate-900">Periode dan Tata Letak Dokumen</h2>
+      <p className="mt-1 text-xs text-slate-500">Pengaturan ini akan digunakan saat mencetak raport maupun sertifikat.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-xs font-semibold text-slate-600">Tahun pelajaran
+          <input required maxLength={20} value={settings.academic_year} onChange={e=>setSettings(v=>({...v,academic_year:e.target.value}))} placeholder="Contoh: 2026/2027" className={fieldClass}/>
+        </label>
+        <label className="text-xs font-semibold text-slate-600">Periode pembelajaran
+          <select value={settings.learning_period} onChange={e=>setSettings(v=>({...v,learning_period:e.target.value as Settings['learning_period']}))} className={fieldClass}>
+            <option value="Semester Ganjil">Semester Ganjil</option>
+            <option value="Semester Genap">Semester Genap</option>
+            <option value="Akhir Jenjang SD">Akhir Jenjang SD</option>
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-600">Orientasi raport
+          <select value={settings.report_orientation} onChange={e=>setSettings(v=>({...v,report_orientation:e.target.value as Settings['report_orientation']}))} className={fieldClass}>
+            <option value="portrait">A4 Tegak (Portrait)</option>
+            <option value="landscape">A4 Mendatar (Landscape)</option>
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-600">Orientasi sertifikat
+          <select value={settings.certificate_orientation} onChange={e=>setSettings(v=>({...v,certificate_orientation:e.target.value as Settings['certificate_orientation']}))} className={fieldClass}>
+            <option value="landscape">A4 Mendatar (Landscape)</option>
+            <option value="portrait">A4 Tegak (Portrait)</option>
+          </select>
+        </label>
+      </div>
+    </section>
+    <div className="flex justify-end border-t pt-4"><button disabled={saving || loading} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40">{saving?'Menyimpan...':'Simpan Identitas Sekolah'}</button></div></form>
   </div></main>
 }
