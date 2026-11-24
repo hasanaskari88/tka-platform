@@ -152,6 +152,23 @@ export default function AdminReportPage(){
 #print-area .certificate-panel{border:2px solid #b58b36!important;outline:1px solid #e7d5a5;outline-offset:4px;background:linear-gradient(145deg,#f8f4e8,#fff 55%,#f8f4e8)!important}
 #print-area .print-certificate header{border-color:#b58b36!important}
 #print-area .print-certificate .certificate-name{color:#172554!important;letter-spacing:.04em}
+#print-area .print-certificate{border:2px solid #b58b36!important;padding:8mm!important;background:#fffdf8!important}
+#print-area .print-certificate:before{inset:3mm!important;border:1px solid #d9c18b!important}
+#print-area .print-certificate:after{content:"";left:3mm;right:auto;top:3mm;width:18mm;height:18mm;border-left:2px solid #b58b36;border-top:2px solid #b58b36;font-size:0}
+#print-area .print-certificate header{gap:5mm!important;padding-bottom:4mm!important}
+#print-area .print-certificate header img{width:25mm!important;height:25mm!important}
+#print-area .print-certificate header p{font-size:10px!important;line-height:1.45!important}
+#print-area .print-certificate header h2{font-size:17px!important}
+#print-area .print-certificate header+div{padding-top:4mm!important;padding-bottom:3mm!important}
+#print-area .print-certificate header+div h3{font-size:30px!important;letter-spacing:.06em!important;color:#172554!important}
+#print-area .print-certificate .certificate-panel{border:1px solid #d8bd7a!important;outline:none!important;background:#fffefa!important;padding:6mm 10mm!important}
+#print-area .print-certificate .certificate-name{font-size:36px!important;line-height:1.15!important;letter-spacing:.035em!important}
+#print-area .print-certificate .certificate-panel>div{max-width:100%!important;margin-top:4mm!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:3mm!important}
+#print-area .print-certificate .certificate-panel>div>div{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:4mm!important;border:1px solid #e7dfcc!important;border-radius:8px!important;padding:3mm 4mm!important;background:#fff!important;font-size:11px!important}
+#print-area .print-certificate .certificate-panel>div>div span{flex:1!important;text-align:left!important}
+#print-area .print-certificate .certificate-panel>div>div b{white-space:nowrap!important;color:#172554!important;font-size:13px!important}
+#print-area .print-certificate .mt-10{margin-top:6mm!important;font-size:10px!important}
+#print-area .print-certificate .mt-10 .h-20{height:14mm!important}
 `}</style>
   <div className="no-print mx-auto max-w-7xl space-y-5">
    <header className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-widest text-indigo-600">Administrasi Sekolah</p><h1 className="mt-1 text-3xl font-black text-slate-900">Raport & Sertifikat</h1><p className="mt-1 text-sm text-slate-500">Cetak per siswa atau kolektif, menggunakan nilai terbaik setiap paket soal.</p></div><Link href="/admin" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-700">← Kembali ke Dashboard Admin</Link></header>
