@@ -19,6 +19,14 @@ const awardThemes = [
   { id: 'mint', name: 'Mint & Peach', description: 'Mint segar, peach, dan krem', swatches: ['#6ee7b7', '#fdba9a', '#fef3c7', '#a7f3d0'] },
   { id: 'sky', name: 'Blue Sky Dream', description: 'Biru langit, turquoise, dan coral', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
 ] as const
+
+const awardPatterns = [
+  { id: 'cartoon3d-dot', name: '3D Cartoon Dot', description: 'Titik-titik kecil dan cahaya pastel lembut' },
+  { id: 'batik-kawung', name: 'Batik Kawung', description: 'Ornamen kawung geometris yang tipis' },
+  { id: 'batik-mega-mendung', name: 'Batik Mega Mendung', description: 'Lengkung awan halus di latar' },
+  { id: 'batik-parang', name: 'Batik Parang', description: 'Garis diagonal batik yang ringan' },
+  { id: 'modern-geometric', name: 'Modern Geometric', description: 'Lingkaran dan garis geometris minimalis' },
+] as const
 const rankLabel = (rank: number) => rank === 1 ? 'Juara 1' : rank === 2 ? 'Juara 2' : rank === 3 ? 'Juara 3' : `Peringkat ${rank}`
 
 const feedbackTemplates: { band: 'high' | 'middle' | 'developing'; appreciation: string; note: string }[] = [
@@ -73,6 +81,7 @@ export default function AwardPage() {
   const [leaderboardLimit, setLeaderboardLimit] = useState<'3' | '5'>('3')
   const [leaderboardScope, setLeaderboardScope] = useState<'both' | 'class' | 'global'>('both')
   const [awardTheme, setAwardTheme] = useState<(typeof awardThemes)[number]['id']>('candy')
+  const [awardPattern, setAwardPattern] = useState<(typeof awardPatterns)[number]['id']>('cartoon3d-dot')
 
   useEffect(() => {
     let alive = true
@@ -261,7 +270,19 @@ export default function AwardPage() {
 .award-theme-mint .leaderboard-sheet thead tr{background:#d1fae5!important}
 .award-theme-sky .leaderboard-sheet thead tr{background:#cffafe!important}
 
-.award-page{isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:visible}
+.award-page{position:relative;isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:visible}
+.award-page::before{content:"";position:absolute;inset:9px;border-radius:16px;pointer-events:none;z-index:0;opacity:.22;background-repeat:repeat;mix-blend-mode:multiply}
+.award-page[data-pattern="cartoon3d-dot"]::before{opacity:.62;background-image:radial-gradient(circle,rgba(180,83,9,.22) 1px,transparent 1.6px),radial-gradient(ellipse at 8% 8%,rgba(251,191,36,.16),transparent 38%),radial-gradient(ellipse at 92% 90%,rgba(96,165,250,.13),transparent 40%);background-size:18px 18px,100% 100%,100% 100%}
+.award-page[data-pattern="batik-kawung"]::before{opacity:.18;background-image:radial-gradient(ellipse 13px 20px at 50% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 0% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 100% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 50% 0%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 50% 100%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%);background-size:54px 54px}
+.award-page[data-pattern="batik-mega-mendung"]::before{opacity:.17;background-image:repeating-radial-gradient(ellipse at 50% 100%,transparent 0 12px,rgba(37,99,120,.72) 13px 14px,transparent 15px 23px);background-size:104px 58px}
+.award-page[data-pattern="batik-parang"]::before{opacity:.16;background-image:repeating-linear-gradient(135deg,transparent 0 12px,rgba(120,80,35,.75) 12.5px 13.5px,transparent 14px 25px),repeating-linear-gradient(45deg,transparent 0 24px,rgba(120,80,35,.48) 24.5px 25.5px,transparent 26px 50px);background-size:52px 52px}
+.award-page[data-pattern="modern-geometric"]::before{opacity:.2;background-image:radial-gradient(circle at center,transparent 0 18px,rgba(71,85,105,.6) 18.5px 19.5px,transparent 20px),linear-gradient(45deg,transparent 49.5%,rgba(71,85,105,.45) 50%,transparent 50.5%);background-size:74px 74px,42px 42px}
+.award-pattern-swatch{background-repeat:repeat;background-size:18px 18px}
+.pattern-cartoon3d-dot{background-image:radial-gradient(circle,rgba(180,83,9,.38) 1px,transparent 1.5px),radial-gradient(ellipse at 20% 20%,rgba(251,191,36,.32),transparent 55%)}
+.pattern-batik-kawung{background-image:radial-gradient(ellipse 8px 12px at 50% 50%,transparent 55%,rgba(120,80,35,.7) 60%,transparent 68%);background-size:28px 28px}
+.pattern-batik-mega-mendung{background-image:repeating-radial-gradient(ellipse at 50% 100%,transparent 0 6px,rgba(37,99,120,.65) 7px 8px,transparent 9px 13px);background-size:52px 28px}
+.pattern-batik-parang{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(120,80,35,.65) 6.5px 7.5px,transparent 8px 14px);background-size:28px 28px}
+.pattern-modern-geometric{background-image:radial-gradient(circle at center,transparent 0 8px,rgba(71,85,105,.65) 8.5px 9.5px,transparent 10px),linear-gradient(45deg,transparent 49%,rgba(71,85,105,.4) 50%,transparent 51%);background-size:28px 28px,18px 18px}
 .award-page .certificate-inner{position:relative;z-index:1;min-height:164mm;border:2px solid rgba(217,119,6,.5);border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.58);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
 .award-page .certificate-inner>*{min-width:0;max-width:100%}
 .award-page .certificate-packages{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;overflow-wrap:anywhere;word-break:break-word}
@@ -333,6 +354,19 @@ export default function AwardPage() {
           </button>)}
         </div>
       </section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div><h2 className="font-black text-slate-900">🪷 Pilih motif latar sertifikat</h2><p className="mt-1 text-xs text-slate-500">Motif dapat dipadukan bebas dengan tema warna. Motif hanya diterapkan pada sertifikat, bukan leaderboard.</p></div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600">5 pilihan motif</span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          {awardPatterns.map(pattern => <button key={pattern.id} type="button" onClick={() => setAwardPattern(pattern.id)} aria-pressed={awardPattern === pattern.id} className={`rounded-xl border-2 p-3 text-left transition ${awardPattern === pattern.id ? 'border-indigo-500 bg-indigo-50/60 shadow-sm ring-2 ring-indigo-100' : 'border-slate-200 bg-slate-50 hover:border-indigo-200'}`}>
+            <span className={`award-pattern-swatch pattern-${pattern.id} mb-2 block h-10 overflow-hidden rounded-lg border border-slate-200 bg-amber-50`} aria-hidden="true"/>
+            <span className="block text-xs font-black text-slate-800">{pattern.name}</span><span className="mt-1 block text-[10px] leading-4 text-slate-500">{pattern.description}</span>
+            <span className={`mt-2 inline-block rounded-full px-2 py-1 text-[10px] font-bold ${awardPattern === pattern.id ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{awardPattern === pattern.id ? '✓ Dipilih' : 'Pilih motif'}</span>
+          </button>)}
+        </div>
+      </section>
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <h2 className="font-black text-slate-900">1. Pilih paket / subtes</h2>
@@ -378,7 +412,7 @@ export default function AwardPage() {
         <p className="mt-8 text-center text-xs italic text-slate-600">Terus belajar, bertumbuh, dan saling menginspirasi.</p>
       </div>
     </section>
-    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={awardPattern} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
   <div className="pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
   <div className="pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
   <span className="certificate-corner left-5 top-5">🌟</span><span className="certificate-corner right-5 top-5">🌟</span>
