@@ -267,7 +267,6 @@ export default function AwardPage() {
 .pattern-batik-mega-mendung{background-image:repeating-radial-gradient(ellipse at 50% 100%,transparent 0 6px,rgba(37,99,120,.65) 7px 8px,transparent 9px 13px);background-size:52px 28px}
 .pattern-batik-parang{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgba(120,80,35,.65) 6.5px 7.5px,transparent 8px 14px);background-size:28px 28px}
 .pattern-modern-geometric{background-image:radial-gradient(circle at center,transparent 0 8px,rgba(71,85,105,.65) 8.5px 9.5px,transparent 10px),linear-gradient(45deg,transparent 49%,rgba(71,85,105,.4) 50%,transparent 51%);background-size:28px 28px,18px 18px}
-.award-page > :not(.document-watermark){position:relative;z-index:2}
 .award-page .certificate-inner{position:relative;z-index:2;min-height:164mm;border:2px solid var(--doc-border,rgba(30,64,120,.28));border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.62);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
 .award-page .certificate-inner>*{min-width:0;max-width:100%}
 .award-page .award-frame-decoration{position:absolute;z-index:2}
