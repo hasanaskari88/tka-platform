@@ -16,7 +16,7 @@ type SurfaceData = { items: Item[]; pinnedIds: string[]; categories: Category[];
 
 const tabs: Array<{ id: Surface; label: string; description: string }> = [
   { id: 'cbt', label: 'Ujian (CBT)', description: 'Urutan ujian pada halaman depan.' },
-  { id: 'material', label: 'Materi', description: 'Urutan materi belajar pada halaman depan.' },
+  { id: 'material', label: 'Materi', description: 'Urutan materi belajar pada halaman depan dan katalog /materi.' },
   { id: 'practice', label: 'Practice', description: 'Urutan kartu aktivitas di halaman latihan.' },
   { id: 'announcement', label: 'Pengumuman', description: 'Urutan informasi sekolah pada halaman depan.' },
 ]
@@ -251,7 +251,7 @@ export default function HomepageSettingsPage() {
           )}
 
           <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-slate-500">Prioritas item tampil paling atas, disusul kategori subtes. Perubahan aktif setelah disimpan; CBT dan Practice berdiri sendiri.</p>
+            <p className="text-xs text-slate-500">Prioritas materi akan tampil lebih dahulu di Beranda dan katalog /materi. Pengaturan urutan materi tetap terpisah dari isi dan status publikasi.</p>
             <button
               type="button"
               onClick={() => void save()}
