@@ -329,7 +329,6 @@ export default function AwardPage() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}
 
       <DocumentVisualSettingsPanel
-        documentKey="award"
         title="Penghargaan"
         settings={visual.settings}
         preset={visual.preset}
