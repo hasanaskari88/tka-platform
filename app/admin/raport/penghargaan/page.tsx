@@ -90,8 +90,8 @@ export default function AwardPage() {
   const [leaderboardScope, setLeaderboardScope] = useState<'both' | 'class' | 'global'>('both')
   const [awardTheme, setAwardTheme] = useState<(typeof awardThemes)[number]['id']>('candy')
   const [awardPattern, setAwardPattern] = useState<(typeof awardPatterns)[number]['id']>('cartoon3d-dot')
-  const [leftCertificateLogo, setLeftCertificateLogo] = useState('/Logo-kab-smg.png')
-  const [rightCertificateLogo, setRightCertificateLogo] = useState('/logo-sd-getasan.png')
+  const [leftCertificateLogo, setLeftCertificateLogo] = useState('/logo-sd-getasan.png')
+  const [rightCertificateLogo, setRightCertificateLogo] = useState('none')
 
   useEffect(() => {
     let alive = true
@@ -454,7 +454,13 @@ export default function AwardPage() {
   <div className="certificate-inner">
     <div className="relative grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-3 border-b-2 border-double border-amber-400 pb-3 text-center sm:grid-cols-[76px_minmax(0,1fr)_76px]">
       <div className="flex min-h-16 items-center justify-center">{leftCertificateLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={leftCertificateLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kiri kop sertifikat"/></div>}</div>
-      <div className="min-w-0 text-center"><p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-800">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-[10px] font-semibold text-slate-600">Tahun Pelajaran {schoolYear} · {period}</p></div>
+      <div className="min-w-0 text-center leading-tight">
+        <p className="text-[9px] font-bold uppercase tracking-wide text-slate-700">PEMERINTAH KABUPATEN SEMARANG</p>
+        <p className="mt-0.5 text-[9px] font-bold uppercase text-slate-700">DINAS PENDIDIKAN KEBUDAYAAN KEPEMUDAAN DAN OLAH RAGA</p>
+        <p className="mt-0.5 text-[9px] font-bold uppercase text-slate-700">KORWIL BIDDIK KECAMATAN GETASAN</p>
+        <h2 className="mt-1 text-[15px] font-black uppercase tracking-wide text-indigo-950">UPTD SPF SEKOLAH DASAR NEGERI GETASAN</h2>
+        <p className="mt-1 text-[7.5px] font-medium uppercase tracking-wide text-slate-600">ALAMAT: JALAN P. DIPONEGORO KM 6 DESA GETASAN KEC. GETASAN 50774</p>
+      </div>
       <div className="flex min-h-16 items-center justify-center">{rightCertificateLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={rightCertificateLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kanan kop sertifikat"/></div>}</div>
     </div>
     <div className="relative grid grid-cols-[minmax(56px,1fr)_minmax(0,3fr)_minmax(56px,1fr)] items-center gap-2 py-2 text-center">
