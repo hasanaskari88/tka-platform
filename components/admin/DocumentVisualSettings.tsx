@@ -197,7 +197,7 @@ function PresetFields({ value, onChange, title }: { value: VisualPreset; onChang
 }
 
 export default function DocumentVisualSettingsPanel({
-  documentKey, title, settings, preset, useGlobal, loading, saving, message,
+  title, settings, preset, useGlobal, loading, saving, message,
   updateDefaults, updateActivePreset, setUseGlobal, save,
 }: {
   title: string
