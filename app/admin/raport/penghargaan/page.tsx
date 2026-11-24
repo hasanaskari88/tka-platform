@@ -262,7 +262,7 @@ export default function AwardPage() {
 .award-theme-sky .leaderboard-sheet thead tr{background:#cffafe!important}
 
 .award-page{isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:visible}
-.award-page .certificate-inner{position:relative;z-index:1;min-height:190mm;border:2px solid rgba(217,119,6,.5);border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.58);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
+.award-page .certificate-inner{position:relative;z-index:1;min-height:164mm;border:2px solid rgba(217,119,6,.5);border-radius:12px;padding:clamp(10px,1.5vw,18px);background:rgba(255,255,255,.58);display:flex;flex-direction:column;gap:clamp(7px,1vh,12px)}
 .award-page .certificate-inner>*{min-width:0;max-width:100%}
 .award-page .certificate-packages{display:flex;flex-wrap:wrap;justify-content:center;gap:5px;overflow-wrap:anywhere;word-break:break-word}
 .award-page .certificate-package{display:inline-block;max-width:100%;border:1px solid rgba(217,119,6,.28);border-radius:999px;background:rgba(255,255,255,.82);padding:4px 9px;font-size:10px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
@@ -288,7 +288,7 @@ export default function AwardPage() {
 .award-theme-sky .award-page .certificate-inner{border-color:#7dd3fc}
 @media print{
  .award-page{box-shadow:none!important;break-inside:avoid!important;page-break-inside:avoid!important;overflow:visible!important}
- .award-page .certificate-inner{padding:8mm!important;min-height:174mm!important}
+ .award-page .certificate-inner{padding:6mm!important;min-height:164mm!important}
  .award-page .certificate-medal{height:58px;width:58px}
  .award-page .certificate-corner{font-size:20px}
 }
