@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { DOCUMENT_PATTERN_REGISTRY } from '@/components/admin/document-visual-system'
 
 export type DocumentKey = 'report' | 'certificate' | 'award'
 export type VisualPreset = {
@@ -53,14 +54,10 @@ export const documentThemeOptions = [
   { id: 'mint', name: 'Mint & Peach', swatches: ['#6ee7b7', '#fdba9a', '#fef3c7', '#a7f3d0'] },
   { id: 'sky', name: 'Blue Sky Dream', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
 ]
-export const documentPatternOptions = [
-  { id: 'cartoon3d-dot', name: '3D Cartoon · Titik Ceria' },
-  { id: 'cartoon3d-stars', name: '3D Cartoon · Bintang Ceria' }, 
-  { id: 'batik-kawung', name: 'Batik Kawung' },
-  { id: 'batik-mega-mendung', name: 'Batik Mega Mendung' },
-  { id: 'batik-parang', name: 'Batik Parang' },
-  { id: 'modern-geometric', name: 'Modern Geometric' },
-]
+export const documentPatternOptions = Object.entries(DOCUMENT_PATTERN_REGISTRY).map(([id, pattern]) => ({
+  id,
+  name: pattern.label,
+}))
 
 function normalizeSettings(value: any): DocumentVisualSettings {
   const defaults = { ...DEFAULT_PRESET, ...(value?.defaults || {}), themeEnabled: value?.defaults?.themeEnabled === true, patternEnabled: value?.defaults?.patternEnabled === true, patternOpacity: Math.min(40, Math.max(0, Number(value?.defaults?.patternOpacity ?? DEFAULT_PRESET.patternOpacity))), watermark: { ...DEFAULT_PRESET.watermark, ...(value?.defaults?.watermark || {}) } }
