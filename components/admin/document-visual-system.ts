@@ -17,13 +17,13 @@ export const DOCUMENT_THEME_TOKENS: Record<string, {
   sky: { accent: '#0369a1', accentSoft: '#f0f9ff', ink: '#0c4a6e', gold: '#b58b36', paper: '#fbfdff', border: '#bae6fd' },
 }
 
-export const DOCUMENT_PATTERN_REGISTRY: Record<string, { asset: string; tile: string }> = {
-  'cartoon3d-dot': { asset: '/patterns/titik-ceria.svg', tile: '52px 52px' },
-  'cartoon3d-stars': { asset: '/patterns/bintang-ceria.svg', tile: '76px 76px' },
-  'batik-kawung': { asset: '/patterns/kawung.svg', tile: '60px 60px' },
-  'batik-mega-mendung': { asset: '/patterns/mega-mendung.svg', tile: '90px 50px' },
-  'batik-parang': { asset: '/patterns/parang.svg', tile: '72px 72px' },
-  'modern-geometric': { asset: '/patterns/geometric.svg', tile: '56px 56px' },
+export const DOCUMENT_PATTERN_REGISTRY: Record<string, { label: string; asset: string; tile: string }> = {
+  'cartoon3d-dot': { label: '3D Cartoon · Titik Ceria', asset: '/patterns/titik-ceria.svg', tile: '52px 52px' },
+  'cartoon3d-stars': { label: '3D Cartoon · Bintang Ceria', asset: '/patterns/bintang-ceria.svg', tile: '76px 76px' },
+  'batik-kawung': { label: 'Batik Kawung', asset: '/patterns/kawung.svg', tile: '60px 60px' },
+  'batik-mega-mendung': { label: 'Batik Mega Mendung', asset: '/patterns/mega-mendung.svg', tile: '90px 50px' },
+  'batik-parang': { label: 'Batik Parang', asset: '/patterns/parang.svg', tile: '72px 72px' },
+  'modern-geometric': { label: 'Modern Geometric', asset: '/patterns/geometric.svg', tile: '56px 56px' },
 }
 
 export function getDocumentVisualStyle(preset: VisualPreset): CSSProperties {
