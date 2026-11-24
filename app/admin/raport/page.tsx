@@ -217,7 +217,8 @@ export default function AdminReportPage(){
   {previewOpen&&<section className="mx-auto mt-6 max-w-5xl rounded-xl border bg-white p-5 shadow-sm"><div className="no-print mb-4 flex justify-end"><button onClick={()=>setPreviewOpen(false)} className="rounded-lg bg-slate-200 px-4 py-2 text-xs font-bold">Tutup Pratinjau</button></div><div id="print-area" className="space-y-10 text-slate-900"><style>{`.document-watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;max-height:78%;object-fit:contain;z-index:0;pointer-events:none;filter:grayscale(.08);mix-blend-mode:multiply}
 .print-student{isolation:isolate}
 .document-pattern-layer{position:absolute;inset:4mm;pointer-events:none;z-index:0;opacity:var(--pattern-opacity,.12);background-repeat:repeat;background-position:center;mix-blend-mode:multiply}
-.print-student>*:not(.document-watermark):not(.print-top-band){position:relative;z-index:1}
+.print-student>*:not(.document-watermark):not(.print-top-band):not(.document-pattern-layer){position:relative;z-index:1}
+.print-student>.document-pattern-layer{position:absolute;z-index:0}
 .print-student>.document-watermark{position:absolute;z-index:0}
 .print-student>.print-top-band{position:absolute;z-index:2}
 .document-pattern-layer[data-pattern="cartoon3d-dot"]{background-image:url('/patterns/titik-ceria.svg');background-size:48px 48px}
