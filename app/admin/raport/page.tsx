@@ -228,7 +228,8 @@ export default function AdminReportPage(){
 #print-area .print-student .certificate-panel{background:rgba(255,255,255,.62)!important;border-color:var(--doc-border)!important}
 #print-area .print-student .certificate-average{border-color:var(--doc-gold)!important}
 #print-area .print-student .certificate-average b{color:var(--doc-ink)!important}
-.document-pattern-layer[data-pattern="cartoon3d-dot"]{background-image:url('/patterns/titik-ceria.svg');background-size:52px 52px}\n.document-pattern-layer[data-pattern="cartoon3d-stars"]{background-image:url('/patterns/bintang-ceria.svg');background-size:76px 76px}
+.document-pattern-layer[data-pattern="cartoon3d-dot"]{background-image:url('/patterns/titik-ceria.svg');background-size:52px 52px}
+.document-pattern-layer[data-pattern="cartoon3d-stars"]{background-image:url('/patterns/bintang-ceria.svg');background-size:76px 76px}
 .document-pattern-layer[data-pattern="batik-kawung"]{background-image:url('/patterns/kawung.svg');background-size:60px 60px}
 .document-pattern-layer[data-pattern="batik-mega-mendung"]{background-image:url('/patterns/mega-mendung.svg');background-size:90px 50px}
 .document-pattern-layer[data-pattern="batik-parang"]{background-image:url('/patterns/parang.svg');background-size:72px 72px}
