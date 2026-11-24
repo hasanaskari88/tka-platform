@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 
 type Student = { id: string; full_name: string | null; username: string | null; class_code: string | null }
-type Exam = { id: string; title: string; subtest: string }
+type Exam = { id: string; title: string; subtest: string | null; target_mode: string | null; activity_type: string | null }
+type Signatory = { id: string; full_name: string; position: 'class_teacher' | 'principal'; class_code: string | null; nip: string | null }
 type Score = { user_id: string; exam_id: string; score: number; date: string }
 type RankedStudent = Student & { average: number; displayAverage: number; globalRank: number; classRank: number; packageCount: number }
 
@@ -26,17 +27,31 @@ export default function AwardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [printing, setPrinting] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [categoryFilter, setCategoryFilter] = useState('ALL')
+  const [activityFilter, setActivityFilter] = useState('ALL')
+  const [subtestFilter, setSubtestFilter] = useState('ALL')
+  const [packageSearch, setPackageSearch] = useState('')
+  const [signatories, setSignatories] = useState<Signatory[]>([])
+  const [signatoryType, setSignatoryType] = useState<'both' | 'principal_only' | 'teacher_only'>('both')
+  const [principalId, setPrincipalId] = useState('')
+  const [teacherId, setTeacherId] = useState('')
+  const [customFeedback, setCustomFeedback] = useState(false)
+  const [customAppreciation, setCustomAppreciation] = useState('')
+  const [customNote, setCustomNote] = useState('')
+  const [issuePlace, setIssuePlace] = useState('Getasan')
 
   useEffect(() => {
     let alive = true
     async function load() {
       const db = createClient()
       try {
-        const [p, e, s, doc] = await Promise.all([
+        const [p, e, s, doc, people] = await Promise.all([
           db.from('profiles').select('id,full_name,username,class_code').eq('role', 'student').order('full_name'),
-          db.from('exams').select('id,title,subtest'),
+          db.from('exams').select('id,title,subtest,target_mode,activity_type'),
           db.from('exam_sessions').select('id,user_id,exam_id,score,score_override,completed_at,submitted_at,created_at').eq('status', 'completed').not('user_id', 'is', null).order('completed_at', { ascending: false }),
           db.rpc('get_school_document_settings'),
+          db.from('teacher_signatories').select('id,full_name,position,class_code,nip').eq('is_active', true),
         ])
         if (p.error) throw p.error
         if (e.error) throw e.error
@@ -44,6 +59,10 @@ export default function AwardPage() {
         if (!alive) return
         setStudents((p.data || []) as Student[])
         setExams((e.data || []) as Exam[])
+        if (people.error) setError('Data penandatangan belum dapat dimuat. Periksa tabel teacher_signatories di Supabase.')
+        setSignatories((people.data || []) as Signatory[])
+        setPrincipalId((people.data || []).find((x: any) => x.position === 'principal')?.id || '')
+        if (doc.data?.issue_place) setIssuePlace(doc.data.issue_place)
         const best = new Map<string, Score>()
         for (const row of s.data || []) {
           if (row.score_override == null && row.score == null) continue
@@ -75,8 +94,11 @@ export default function AwardPage() {
   const examMap = useMemo(() => new Map(exams.map(e => [e.id, e])), [exams])
   const availableExams = useMemo(() => {
     const ids = new Set(scores.map(s => s.exam_id))
-    return exams.filter(e => ids.has(e.id)).sort((a, b) => a.subtest.localeCompare(b.subtest, 'id') || a.title.localeCompare(b.title, 'id'))
+    return exams.filter(e => ids.has(e.id)).sort((a, b) => (a.subtest || 'Umum').localeCompare(b.subtest || 'Umum', 'id') || a.title.localeCompare(b.title, 'id'))
   }, [exams, scores])
+  const subtests = useMemo(() => [...new Set(availableExams.map(e => e.subtest || 'Umum'))].sort((a, b) => a.localeCompare(b, 'id')), [availableExams])
+  const activityTypes = useMemo(() => [...new Set(availableExams.map(e => e.activity_type || 'QUIZ'))].sort(), [availableExams])
+  const filteredExams = availableExams.filter(e => (categoryFilter === 'ALL' || (e.target_mode || 'BOTH') === categoryFilter) && (activityFilter === 'ALL' || (e.activity_type || 'QUIZ') === activityFilter) && (subtestFilter === 'ALL' || (e.subtest || 'Umum') === subtestFilter) && (!packageSearch.trim() || e.title.toLowerCase().includes(packageSearch.trim().toLowerCase())))
 
   const ranked = useMemo(() => {
     if (!selectedExamIds.length) return [] as RankedStudent[]
@@ -134,13 +156,28 @@ export default function AwardPage() {
   const selectedStudents = ranked.filter(s => selectedStudentIds.includes(s.id))
   const selectedPackages = selectedExamIds.map(id => examMap.get(id)).filter(Boolean) as Exam[]
   const dateText = new Date(issueDate + 'T00:00:00').toLocaleDateString('id-ID', { dateStyle: 'long' })
+  const principalOptions = signatories.filter(s => s.position === 'principal')
+  const teacherOptions = signatories.filter(s => s.position === 'class_teacher')
+  const principal = principalOptions.find(p => p.id === principalId) || principalOptions[0]
+  const appreciationFor = (average: number) => customFeedback && customAppreciation.trim() ? customAppreciation : average >= 90 ? 'Luar biasa! Terus pertahankan semangat belajar dan rasa ingin tahu yang tinggi.' : average >= 70 ? 'Hebat! Usaha dan ketekunan dalam belajar sudah menunjukkan hasil yang baik.' : 'Terima kasih sudah berusaha. Terus berlatih sedikit demi sedikit; setiap kemajuan patut dibanggakan.'
+  const noteFor = (average: number) => customFeedback && customNote.trim() ? customNote : average >= 90 ? 'Ananda menunjukkan penguasaan materi yang sangat baik. Terus kembangkan kemampuan dan kebiasaan belajar mandiri.' : average >= 70 ? 'Pertahankan konsistensi dan perdalam materi yang masih perlu dikuatkan.' : 'Ananda sedang dalam proses menguatkan pemahaman. Pendampingan dan latihan bertahap akan membantu kemajuan berikutnya.'
+  const signatureBlock = (student: RankedStudent) => {
+    const teacher = teacherOptions.find(t => t.id === teacherId) || teacherOptions.find(t => t.class_code === student.class_code)
+    const showTeacher = signatoryType === 'both' || signatoryType === 'teacher_only'
+    const showPrincipal = signatoryType === 'both' || signatoryType === 'principal_only'
+    return <div className={`relative mt-5 grid gap-5 text-center text-xs ${showPrincipal && showTeacher ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      {showPrincipal && <div><p>Mengetahui,</p><p>Kepala Sekolah</p><div className="h-14"/><p className="font-bold underline">{principal?.full_name || '....................................'}</p><p>NIP. {principal?.nip || '-'}</p></div>}
+      {showTeacher && <div><p>{issuePlace}, {dateText}</p><p>Guru / Wali Kelas {student.class_code || ''}</p><div className="h-14"/><p className="font-bold underline">{teacher?.full_name || '....................................'}</p><p>NIP. {teacher?.nip || '-'}</p></div>}
+    </div>
+  }
   const toggleExam = (id: string) => {
     setSelectedExamIds(old => old.includes(id) ? old.filter(x => x !== id) : [...old, id])
     setSelectedStudentIds([])
   }
   const printAwards = () => {
     setPrinting(true)
-    window.setTimeout(() => window.print(), 250)
+    setPreviewOpen(true)
+    window.setTimeout(() => window.print(), 350)
   }
 
   return <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8">
@@ -172,8 +209,9 @@ export default function AwardPage() {
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <h2 className="font-black text-slate-900">1. Pilih paket / subtes</h2>
           <p className="mt-1 text-xs text-slate-500">Hanya sesi ujian berstatus selesai yang digunakan. Pilih satu atau beberapa paket.</p>
-          <div className="mt-3 flex flex-wrap gap-2"><button onClick={() => { setSelectedExamIds(availableExams.map(e => e.id)); setSelectedStudentIds([]) }} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Pilih semua paket</button><button onClick={() => { setSelectedExamIds([]); setSelectedStudentIds([]) }} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Kosongkan</button></div>
-          <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto">{availableExams.map(exam => <label key={exam.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-100 p-3 hover:bg-amber-50"><input type="checkbox" className="mt-1" checked={selectedExamIds.includes(exam.id)} onChange={() => toggleExam(exam.id)}/><span><b className="block text-sm text-slate-800">{exam.title}</b><span className="text-xs text-slate-500">{exam.subtest}</span></span></label>)}{!availableExams.length && <p className="p-6 text-center text-sm text-slate-400">{loading ? 'Memuat data ujian...' : 'Belum ada data ujian selesai.'}</p>}</div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Kategori paket<select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className={field}><option value="ALL">Semua kategori</option><option value="BOTH">Ujian & Latihan</option><option value="EXAM_ONLY">Ujian saja</option><option value="PRACTICE_ONLY">Latihan saja</option></select></label><label className="text-xs font-semibold text-slate-600">Jenis aktivitas<select value={activityFilter} onChange={e => setActivityFilter(e.target.value)} className={field}><option value="ALL">Semua aktivitas</option>{activityTypes.map(type => <option key={type} value={type}>{type === 'QUIZ' ? 'Kuis' : type === 'FLASHCARD' ? 'Flashcard' : type === 'MAZE_GAME' ? 'Maze Game' : type}</option>)}</select></label><label className="text-xs font-semibold text-slate-600">Subtes<select value={subtestFilter} onChange={e => setSubtestFilter(e.target.value)} className={field}><option value="ALL">Semua subtes</option>{subtests.map(subtest => <option key={subtest} value={subtest}>{subtest}</option>)}</select></label><label className="text-xs font-semibold text-slate-600">Cari nama paket<input value={packageSearch} onChange={e => setPackageSearch(e.target.value)} placeholder="Ketik nama paket..." className={field}/></label></div>
+          <div className="mt-3 flex flex-wrap gap-2"><button onClick={() => { setSelectedExamIds(old => [...new Set([...old, ...filteredExams.map(e => e.id)])]); setSelectedStudentIds([]) }} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Pilih semua paket</button><button onClick={() => { setSelectedExamIds([]); setSelectedStudentIds([]) }} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Kosongkan</button></div>
+          <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto">{filteredExams.map(exam => <label key={exam.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-100 p-3 hover:bg-amber-50"><input type="checkbox" className="mt-1" checked={selectedExamIds.includes(exam.id)} onChange={() => toggleExam(exam.id)}/><span><b className="block text-sm text-slate-800">{exam.title}</b><span className="text-xs text-slate-500">{exam.subtest || 'Umum'} · {(exam.target_mode || 'BOTH') === 'EXAM_ONLY' ? 'Ujian saja' : (exam.target_mode || 'BOTH') === 'PRACTICE_ONLY' ? 'Latihan saja' : 'Ujian & Latihan'} · {exam.activity_type || 'QUIZ'}</span></span></label>)}{!filteredExams.length && <p className="p-6 text-center text-sm text-slate-400">{loading ? 'Memuat data ujian...' : 'Tidak ada paket pada filter ini.'}</p>}</div>
           <p className="mt-3 text-xs text-slate-500">{selectedExamIds.length} paket dipilih · {selectedPackages.map(e => e.title).join(', ') || 'Belum dipilih'}</p>
         </div>
         <div className="space-y-4">
@@ -195,17 +233,10 @@ export default function AwardPage() {
           </section>
         </div>
       </section>
+      <section className="rounded-2xl border bg-white p-4 shadow-sm space-y-4"><div><h2 className="font-black text-slate-900">4. Pengaturan sertifikat penghargaan</h2><p className="mt-1 text-xs text-slate-500">Pengaturan ini akan tampil pada pratinjau dan hasil cetak.</p></div><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Tempat terbit<input value={issuePlace} onChange={e => setIssuePlace(e.target.value)} className={field}/></label><label className="text-xs font-semibold text-slate-600">Tanda tangan<select value={signatoryType} onChange={e => setSignatoryType(e.target.value as any)} className={field}><option value="both">Guru / Wali Kelas dan Kepala Sekolah</option><option value="principal_only">Hanya Kepala Sekolah</option><option value="teacher_only">Hanya Guru / Wali Kelas</option></select></label>{(signatoryType === 'both' || signatoryType === 'principal_only') && <label className="text-xs font-semibold text-slate-600">Kepala sekolah<select value={principalId} onChange={e => setPrincipalId(e.target.value)} className={field}><option value="">Pilih kepala sekolah</option>{principalOptions.map(p => <option key={p.id} value={p.id}>{p.full_name} · {p.nip || 'Tanpa NIP'}</option>)}</select></label>}{(signatoryType === 'both' || signatoryType === 'teacher_only') && <label className="text-xs font-semibold text-slate-600">Guru / Wali Kelas<select value={teacherId} onChange={e => setTeacherId(e.target.value)} className={field}><option value="">Otomatis sesuai kelas siswa</option>{teacherOptions.map(t => <option key={t.id} value={t.id}>{t.full_name} · {t.class_code || 'Semua kelas'}</option>)}</select></label>}</div><div className="rounded-xl border p-3"><label className="flex items-center gap-2 text-sm font-bold text-slate-800"><input type="checkbox" checked={customFeedback} onChange={e => setCustomFeedback(e.target.checked)}/> Gunakan apresiasi dan catatan khusus untuk semua penerima</label>{customFeedback && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Kalimat apresiasi<textarea value={customAppreciation} onChange={e => setCustomAppreciation(e.target.value)} placeholder="Contoh: Selamat atas prestasi dan kerja kerasmu!" className={field} rows={3}/></label><label className="text-xs font-semibold text-slate-600">Catatan khusus<textarea value={customNote} onChange={e => setCustomNote(e.target.value)} placeholder="Contoh: Terus kembangkan kemampuan dan semangat belajarmu." className={field} rows={3}/></label></div>}<p className="mt-2 text-[11px] text-slate-500">Jika tidak diaktifkan, kalimat apresiasi dan catatan dibuat otomatis berdasarkan rata-rata nilai.</p></div><div className="flex flex-wrap justify-end gap-2"><button disabled={!selectedStudents.length || !selectedExamIds.length} onClick={() => setPreviewOpen(true)} className="rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white disabled:opacity-40">👁️ Pratinjau Sertifikat ({selectedStudents.length})</button><button disabled={!selectedStudents.length || !selectedExamIds.length} onClick={printAwards} className="rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white disabled:opacity-40">🖨️ Cetak / Simpan PDF</button></div></section>
       <section className="rounded-2xl border bg-white p-4 shadow-sm"><h2 className="font-black text-slate-900">Aturan perhitungan</h2><div className="mt-3 grid gap-3 text-xs text-slate-600 md:grid-cols-3"><div className="rounded-xl bg-slate-50 p-3"><b className="text-slate-800">Sumber nilai</b><p className="mt-1">Ujian selesai, memakai nilai_override jika tersedia; jika tidak, nilai ujian.</p></div><div className="rounded-xl bg-slate-50 p-3"><b className="text-slate-800">Kelengkapan</b><p className="mt-1">Peserta harus mempunyai nilai untuk setiap paket yang dipilih.</p></div><div className="rounded-xl bg-slate-50 p-3"><b className="text-slate-800">Nilai seri</b><p className="mt-1">Nilai asli dipakai menentukan seri; tampilan rata-rata dibulatkan ke bilangan bulat.</p></div></div></section>
     </div>
-    {printing && <section id="award-print-area" className="hidden print:block"><div className="space-y-0">{selectedStudents.map(student => <article key={student.id} className="award-page relative overflow-hidden border-[3px] border-amber-700 bg-[#fffdf7] p-8 text-slate-900">
-      <div className="pointer-events-none absolute inset-2 border border-amber-300"/><div className="pointer-events-none absolute inset-4 border border-amber-100"/>
-      <div className="relative flex items-center justify-center gap-4 border-b-2 border-double border-amber-700 pb-4"><img src="/logo-sd-getasan.png" className="h-20 w-20 object-contain" alt="Logo sekolah"/><div className="text-center"><p className="text-xs font-bold uppercase tracking-widest">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-xs">Tahun Pelajaran {schoolYear} · {period}</p></div></div>
-      <div className="relative py-5 text-center"><p className="text-xs font-black uppercase tracking-[.3em] text-amber-800">Penghargaan Prestasi Akademik</p><h1 className="mt-2 font-serif text-4xl font-bold tracking-wide text-indigo-950">SERTIFIKAT PENGHARGAAN</h1><p className="mt-3 text-sm text-slate-600">Diberikan dengan bangga kepada</p><h3 className="mt-2 text-3xl font-black text-indigo-950">{student.full_name || student.username}</h3><p className="mt-1 text-sm text-slate-600">Kelas {student.class_code || '—'}</p></div>
-      <div className="relative mx-auto grid max-w-3xl grid-cols-3 gap-4"><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Rata-rata</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.displayAverage}</p></div><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Global</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.globalRank}</p></div><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Kelas</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.classRank}</p></div></div>
-      <div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-amber-200 bg-white/80 p-3 text-center"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">Paket / Subtes yang dinilai</p><p className="mt-1 text-xs">{selectedPackages.map(e => `${e.title} · ${e.subtest}`).join('  |  ')}</p></div>
-      <p className="relative mt-4 text-center font-serif text-lg italic text-indigo-900">“Terus belajar, bertumbuh, dan menjadi inspirasi bagi sesama.”</p>
-      <div className="relative mt-5 flex justify-between px-12 text-center text-xs"><div><p>Mengetahui,</p><p>Kepala Sekolah</p><div className="h-14"/><p className="font-bold underline">....................................</p></div><div><p>Getasan, {dateText}</p><p>Guru / Wali Kelas</p><div className="h-14"/><p className="font-bold underline">....................................</p></div></div>
-    </article>)}</div></section>}
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} className="award-page relative mx-auto overflow-hidden border-[3px] border-amber-700 bg-[#fffdf7] p-8 text-slate-900"><div className="pointer-events-none absolute inset-2 border border-amber-300"/><div className="pointer-events-none absolute inset-4 border border-amber-100"/><div className="relative flex items-center justify-center gap-4 border-b-2 border-double border-amber-700 pb-4"><img src="/logo-sd-getasan.png" className="h-20 w-20 object-contain" alt="Logo sekolah"/><div className="text-center"><p className="text-xs font-bold uppercase tracking-widest">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-xs">Tahun Pelajaran {schoolYear} · {period}</p></div></div><div className="relative py-5 text-center"><p className="text-xs font-black uppercase tracking-[.3em] text-amber-800">Penghargaan Prestasi Akademik</p><h1 className="mt-2 font-serif text-4xl font-bold tracking-wide text-indigo-950">SERTIFIKAT PENGHARGAAN</h1><p className="mt-3 text-sm text-slate-600">Diberikan dengan bangga kepada</p><h3 className="mt-2 text-3xl font-black text-indigo-950">{student.full_name || student.username}</h3><p className="mt-1 text-sm text-slate-600">Kelas {student.class_code || '—'}</p></div><div className="relative mx-auto grid max-w-3xl grid-cols-3 gap-4"><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Rata-rata</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.displayAverage}</p></div><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Global</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.globalRank}</p></div><div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-center"><p className="text-xs font-bold uppercase text-amber-900">Peringkat Kelas</p><p className="mt-1 text-3xl font-black text-indigo-950">{student.classRank}</p></div></div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-amber-200 bg-white/80 p-3 text-center"><p className="text-xs font-bold uppercase tracking-wider text-amber-800">Paket / Subtes yang dinilai</p><p className="mt-1 text-xs">{selectedPackages.map(e => `${e.title} · ${e.subtest || 'Umum'}`).join(' | ')}</p></div><div className="relative mx-auto mt-4 max-w-4xl rounded-xl border border-indigo-100 bg-indigo-50/70 p-4 text-center"><p className="text-xs font-black uppercase tracking-widest text-indigo-800">Apresiasi</p><p className="mt-1 text-sm font-semibold">{appreciationFor(student.average)}</p><p className="mt-3 text-xs font-black uppercase tracking-widest text-indigo-800">Catatan khusus</p><p className="mt-1 text-sm">{noteFor(student.average)}</p></div><p className="relative mt-4 text-center font-serif text-lg italic text-indigo-900">“Terus belajar, bertumbuh, dan menjadi inspirasi bagi sesama.”</p>{signatureBlock(student)}</article>)}</div></section>}
   </main>
 }
 
