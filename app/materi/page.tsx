@@ -146,35 +146,36 @@ export default function MateriCatalogPage() {
                   <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-2xl ${styles.icon}`}>{['📕', '📘', '📗', '📙', '📚'][((page - 1) * PAGE_SIZE + index) % 5]}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-black text-slate-900">{item.title || 'Tanpa judul'}</h3>
-                      <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-bold text-indigo-700">{item.subject || 'Umum'}</span>
+                      <h3 className="text-sm font-black">{item.title || 'Tanpa judul'}</h3>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${styles.subject}`}>{item.subject || 'Umum'}</span>
+                      {pinOrder[item.id] !== undefined && <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-900">⭐ Prioritas</span>}
                     </div>
                     <p className={`mt-1 text-[11px] font-semibold ${styles.muted}`}>✍️ {item.author_display_name || item.author?.full_name || 'Tim Penyusun'}</p>
                     {item.description && <div className={`mt-2 line-clamp-2 text-xs leading-relaxed ${styles.muted}`}><MathRenderer content={item.description} /></div>}
                   </div>
                   {item.content_html ? (
-                    <Link href={'/materi/' + item.id} className="shrink-0 rounded-xl border-2 border-slate-900 bg-amber-300 px-3 py-2 text-[11px] font-black text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition hover:-translate-y-0.5">Baca Materi ↗</Link>
+                    <Link href={'/materi/' + item.id} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Baca Materi ↗</Link>
                   ) : item.file_url ? (
-                    <a href={item.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-xl border-2 border-slate-900 bg-amber-300 px-3 py-2 text-[11px] font-black text-slate-900 shadow-[2px_2px_0px_0px_rgba(15,23,42,1)] transition hover:-translate-y-0.5">Buka ↗</a>
+                    <a href={item.file_url} target="_blank" rel="noopener noreferrer" className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Buka ↗</a>
                   ) : <span className="shrink-0 text-[10px] font-semibold text-slate-400">Belum tersedia</span>}
                 </article>
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border-2 border-dashed border-slate-200 px-4 py-14 text-center">
+            <div className="rounded-2xl border border-dashed border-current/20 px-4 py-14 text-center">
               <div className="text-4xl">🔎</div>
               <h3 className="mt-3 text-sm font-black">Sumber belajar belum ditemukan</h3>
-              <p className="mt-1 text-xs text-slate-500">Coba ubah kata kunci atau mata pelajaran.</p>
-              <button type="button" onClick={() => { setSearch(''); setSubject('Semua'); setSort('Prioritas') }} className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white">Reset pencarian</button>
+              <p className={`mt-1 text-xs ${styles.muted}`}>Coba ubah kata kunci atau mata pelajaran.</p>
+              <button type="button" onClick={() => { setSearch(''); setSubject('Semua'); setSort('Prioritas') }} className={`mt-4 rounded-xl px-4 py-2 text-xs font-bold ${styles.button}`}>Reset pencarian</button>
             </div>
           )}
 
           {!loading && filtered.length > PAGE_SIZE && (
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-              <p className="text-xs font-semibold text-slate-500">Halaman {page} dari {totalPages}</p>
+              <p className={`text-xs font-semibold ${styles.muted}`}>Halaman {page} dari {totalPages}</p>
               <div className="flex items-center gap-2">
                 <button type="button" disabled={page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))} className="rounded-lg border-2 border-slate-200 px-3 py-2 text-xs font-bold disabled:cursor-not-allowed disabled:opacity-40">← Sebelumnya</button>
-                <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className="rounded-lg border-2 border-slate-900 bg-amber-300 px-3 py-2 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40">Berikutnya →</button>
+                <button type="button" disabled={page >= totalPages} onClick={() => setPage((current) => Math.min(totalPages, current + 1))} className={`rounded-lg px-3 py-2 text-xs font-black disabled:cursor-not-allowed disabled:opacity-40 ${styles.button}`}>Berikutnya →</button>
               </div>
             </div>
           )}
