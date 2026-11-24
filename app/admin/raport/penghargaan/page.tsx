@@ -84,7 +84,8 @@ export default function AwardPage() {
     const eligible = students.flatMap(student => {
       const values = selectedExamIds.map(id => scoreMap.get(`${student.id}:${id}`))
       if (values.some(value => value === undefined)) return []
-      const average = values.reduce((sum, value) => sum + Number(value), 0) / values.length
+      const rawAverage = values.reduce((sum, value) => sum + Number(value), 0) / values.length
+      const average = Math.round(rawAverage * 1000000) / 1000000
       return [{ ...student, average, displayAverage: Math.round(average), globalRank: 0, classRank: 0, packageCount: values.length }]
     })
     const globalSorted = [...eligible].sort((a, b) => b.average - a.average || (a.full_name || '').localeCompare(b.full_name || '', 'id'))
