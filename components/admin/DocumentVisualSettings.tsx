@@ -8,7 +8,10 @@ export type VisualPreset = {
   leftLogo: string
   rightLogo: string
   theme: string
+  themeEnabled: boolean
   pattern: string
+  patternEnabled: boolean
+  patternOpacity: number
   watermark: { enabled: boolean; opacity: number; size: number }
 }
 export type DocumentVisualSettings = {
@@ -20,7 +23,10 @@ const DEFAULT_PRESET: VisualPreset = {
   leftLogo: '/logo-sd-getasan.png',
   rightLogo: 'none',
   theme: 'candy',
+  themeEnabled: false,
   pattern: 'cartoon3d-dot',
+  patternEnabled: false,
+  patternOpacity: 12,
   watermark: { enabled: true, opacity: 0.20, size: 60 },
 }
 const DEFAULT_SETTINGS: DocumentVisualSettings = {
@@ -48,7 +54,7 @@ export const documentThemeOptions = [
   { id: 'sky', name: 'Blue Sky Dream', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
 ]
 export const documentPatternOptions = [
-  { id: 'cartoon3d-dot', name: '3D Cartoon Dot' },
+  { id: 'cartoon3d-dot', name: 'Titik Ceria' },
   { id: 'batik-kawung', name: 'Batik Kawung' },
   { id: 'batik-mega-mendung', name: 'Batik Mega Mendung' },
   { id: 'batik-parang', name: 'Batik Parang' },
@@ -56,11 +62,11 @@ export const documentPatternOptions = [
 ]
 
 function normalizeSettings(value: any): DocumentVisualSettings {
-  const defaults = { ...DEFAULT_PRESET, ...(value?.defaults || {}), watermark: { ...DEFAULT_PRESET.watermark, ...(value?.defaults?.watermark || {}) } }
+  const defaults = { ...DEFAULT_PRESET, ...(value?.defaults || {}), themeEnabled: value?.defaults?.themeEnabled === true, patternEnabled: value?.defaults?.patternEnabled === true, patternOpacity: Math.min(40, Math.max(0, Number(value?.defaults?.patternOpacity ?? DEFAULT_PRESET.patternOpacity))), watermark: { ...DEFAULT_PRESET.watermark, ...(value?.defaults?.watermark || {}) } }
   const documents = {} as DocumentVisualSettings['documents']
   for (const key of ['report', 'certificate', 'award'] as DocumentKey[]) {
     const saved = value?.documents?.[key] || {}
-    const overrides = { ...defaults, ...(saved.overrides || {}), watermark: { ...defaults.watermark, ...(saved.overrides?.watermark || {}) } }
+    const overrides = { ...defaults, ...(saved.overrides || {}), themeEnabled: saved.overrides?.themeEnabled === true, patternEnabled: saved.overrides?.patternEnabled === true, patternOpacity: Math.min(40, Math.max(0, Number(saved.overrides?.patternOpacity ?? defaults.patternOpacity))), watermark: { ...defaults.watermark, ...(saved.overrides?.watermark || {}) } }
     documents[key] = { useGlobal: saved.useGlobal !== false, overrides }
   }
   return { defaults, documents }
@@ -155,24 +161,38 @@ function PresetFields({ value, onChange, title }: { value: VisualPreset; onChang
           </label>
         ))}
       </div>
-      <div>
-        <p className="mb-2 text-xs font-bold text-slate-700">Tema warna</p>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <label className="flex items-center gap-2 text-xs font-bold text-slate-800">
+          <input type="checkbox" checked={value.themeEnabled} onChange={e => onChange({ themeEnabled: e.target.checked })} />
+          Gunakan tema warna
+        </label>
+        <p className="mt-1 text-[10px] text-slate-500">Jika tidak dicentang, warna asli bawaan dokumen akan digunakan.</p>
+        {value.themeEnabled && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           {documentThemeOptions.map(theme => (
             <button key={theme.id} type="button" onClick={() => onChange({ theme: theme.id })} aria-pressed={value.theme === theme.id} className={`rounded-lg border-2 p-2 text-left ${value.theme === theme.id ? 'border-indigo-500 bg-white' : 'border-slate-200 bg-white/70'}`}>
               <span className="mb-1 flex h-4 overflow-hidden rounded">{theme.swatches.map((color, index) => <span key={index} className="flex-1" style={{ backgroundColor: color }} />)}</span>
               <span className="text-[10px] font-bold text-slate-700">{theme.name}</span>
             </button>
           ))}
-        </div>
+        </div>}
       </div>
-      <div>
-        <p className="mb-2 text-xs font-bold text-slate-700">Motif latar</p>
-        <div className="flex flex-wrap gap-2">
-          {documentPatternOptions.map(pattern => (
-            <button key={pattern.id} type="button" onClick={() => onChange({ pattern: pattern.id })} aria-pressed={value.pattern === pattern.id} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${value.pattern === pattern.id ? 'border-indigo-500 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-600'}`}>{pattern.name}</button>
-          ))}
-        </div>
+      <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <label className="flex items-center gap-2 text-xs font-bold text-slate-800">
+          <input type="checkbox" checked={value.patternEnabled} onChange={e => onChange({ patternEnabled: e.target.checked })} />
+          Gunakan motif latar
+        </label>
+        <p className="mt-1 text-[10px] text-slate-500">Motif akan menjadi ornamen lembut di belakang isi dokumen.</p>
+        {value.patternEnabled && <>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {documentPatternOptions.map(pattern => (
+              <button key={pattern.id} type="button" onClick={() => onChange({ pattern: pattern.id })} aria-pressed={value.pattern === pattern.id} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${value.pattern === pattern.id ? 'border-indigo-500 bg-indigo-50 text-indigo-800' : 'border-slate-200 bg-white text-slate-600'}`}>{pattern.name}</button>
+            ))}
+          </div>
+          <label className="mt-3 block text-xs text-slate-600">Transparansi motif: <b>{value.patternOpacity}%</b>
+            <input type="range" min="0" max="40" step="1" value={value.patternOpacity} onChange={e => onChange({ patternOpacity: Number(e.target.value) })} className="mt-2 w-full" />
+            <span className="text-[10px] text-slate-400">0% tidak terlihat · 12% lembut · 40% paling kuat</span>
+          </label>
+        </>}
       </div>
       <div className="rounded-lg border border-slate-200 bg-white p-3">
         <label className="flex items-center gap-2 text-xs font-bold text-slate-800">
@@ -228,7 +248,7 @@ export default function DocumentVisualSettingsPanel({
       <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
         <label className="flex items-start gap-2 text-sm font-bold text-amber-950">
           <input type="checkbox" checked={useGlobal} onChange={e => setUseGlobal(e.target.checked)} className="mt-1" />
-          <span>Gunakan pengaturan umum untuk {title}<small className="mt-1 block font-normal text-amber-800">Jika dimatikan, dokumen ini mempunyai logo, tema, motif, dan watermark sendiri.</small></span>
+          <span>Gunakan pengaturan umum untuk {title}<small className="mt-1 block font-normal text-amber-800">Jika dimatikan, dokumen ini mempunyai logo, tema, motif, transparansi, dan watermark sendiri.</small></span>
         </label>
       </div>
       {!useGlobal && <div className="mt-3"><PresetFields value={preset} onChange={updateActivePreset} title={`Pengaturan khusus · ${title}`} /></div>}
