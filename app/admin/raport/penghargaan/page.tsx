@@ -82,11 +82,28 @@ export default function AwardPage() {
     if (!selectedExamIds.length) return [] as RankedStudent[]
     const scoreMap = new Map(scores.map(s => [`${s.user_id}:${s.exam_id}`, s.score]))
     const eligible = students.flatMap(student => {
-      const values = selectedExamIds.map(id => scoreMap.get(`${student.id}:${id}`))
-      if (values.some(value => value === undefined)) return []
-      const rawAverage = values.reduce((sum, value) => sum + Number(value), 0) / values.length
+      const numericValues: number[] = []
+
+      for (const examId of selectedExamIds) {
+        const value = scoreMap.get(`${student.id}:${examId}`)
+        if (typeof value !== 'number' || !Number.isFinite(value)) return []
+        numericValues.push(value)
+      }
+
+      if (!numericValues.length) return []
+
+      const rawAverage =
+        numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
       const average = Math.round(rawAverage * 1000000) / 1000000
-      return [{ ...student, average, displayAverage: Math.round(average), globalRank: 0, classRank: 0, packageCount: values.length }]
+
+      return [{
+        ...student,
+        average,
+        displayAverage: Math.round(average),
+        globalRank: 0,
+        classRank: 0,
+        packageCount: numericValues.length,
+      }]
     })
     const globalSorted = [...eligible].sort((a, b) => b.average - a.average || (a.full_name || '').localeCompare(b.full_name || '', 'id'))
     const globalRanks = new Map<string, number>()
@@ -163,8 +180,8 @@ export default function AwardPage() {
           <section className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-black text-slate-900">2. Leaderboard Top 3</h2><select value={classChoice} onChange={e => setClassChoice(e.target.value)} className={field + ' max-w-[190px]'}><option value="ALL">Semua kelas (pilih kelas podium)</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
             {!selectedExamIds.length ? <p className="mt-4 rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Pilih paket terlebih dahulu untuk menghitung peringkat.</p> : <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <Podium title="Peringkat Global" students={globalTop}/>
-              <Podium title={`Peringkat Kelas ${chosenClass || '—'}`} students={classTop}/>
+              <Podium title="Peringkat Global" rankType="global" students={globalTop}/>
+              <Podium title={`Peringkat Kelas ${chosenClass || '—'}`} rankType="class" students={classTop}/>
             </div>}
             <p className="mt-3 text-[11px] text-slate-500">Peringkat seri menggunakan sistem kompetisi (1, 1, 3). Siswa dengan nilai tidak lengkap tidak masuk peringkat.</p>
           </section>
@@ -192,7 +209,11 @@ export default function AwardPage() {
   </main>
 }
 
-function Podium({ title, students }: { title: string; students: RankedStudent[] }) {
+function Podium({ title, rankType, students }: { title: string; rankType: 'global' | 'class'; students: RankedStudent[] }) {
   const colors = ['border-amber-300 bg-amber-50', 'border-slate-300 bg-slate-50', 'border-orange-300 bg-orange-50']
-  return <div className="rounded-xl border border-slate-100 p-3"><h3 className="text-sm font-black text-slate-800">{title}</h3><div className="mt-3 space-y-2">{students.map(s => <div key={s.id} className={`flex items-center gap-3 rounded-xl border p-3 ${colors[Math.min(s.globalRank, 3) - 1] || colors[2]}`}><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-amber-800 shadow-sm">#{title.includes('Kelas') ? s.classRank : s.globalRank}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{s.full_name || s.username || 'Siswa'}</p><p className="text-[11px] text-slate-500">Kelas {s.class_code || '—'}</p></div><b className="text-lg text-slate-900">{s.displayAverage}</b></div>)}{!students.length && <p className="rounded-lg bg-slate-50 p-4 text-center text-xs text-slate-400">Belum ada peserta yang memenuhi syarat.</p>}</div></div>
+  return <div className="rounded-xl border border-slate-100 p-3"><h3 className="text-sm font-black text-slate-800">{title}</h3><div className="mt-3 space-y-2">{students.map(s => {
+    const rank = rankType === 'class' ? s.classRank : s.globalRank
+    const color = colors[Math.min(Math.max(rank, 1), 3) - 1]
+    return <div key={s.id} className={`flex items-center gap-3 rounded-xl border p-3 ${color}`}><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sm font-black text-amber-800 shadow-sm">#{rank}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{s.full_name || s.username || 'Siswa'}</p><p className="text-[11px] text-slate-500">Kelas {s.class_code || '—'}</p></div><b className="text-lg text-slate-900">{s.displayAverage}</b></div>
+  })}{!students.length && <p className="rounded-lg bg-slate-50 p-4 text-center text-xs text-slate-400">Belum ada peserta yang memenuhi syarat.</p>}</div></div>
 }
