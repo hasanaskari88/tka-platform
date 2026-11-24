@@ -54,7 +54,8 @@ export const documentThemeOptions = [
   { id: 'sky', name: 'Blue Sky Dream', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
 ]
 export const documentPatternOptions = [
-  { id: 'cartoon3d-dot', name: '3D Cartoon · Titik Ceria' },\n  { id: 'cartoon3d-stars', name: '3D Cartoon · Bintang Ceria' }, 
+  { id: 'cartoon3d-dot', name: '3D Cartoon · Titik Ceria' },
+  { id: 'cartoon3d-stars', name: '3D Cartoon · Bintang Ceria' }, 
   { id: 'batik-kawung', name: 'Batik Kawung' },
   { id: 'batik-mega-mendung', name: 'Batik Mega Mendung' },
   { id: 'batik-parang', name: 'Batik Parang' },
