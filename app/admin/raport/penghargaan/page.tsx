@@ -46,7 +46,8 @@ export default function AwardPage() {
         setExams((e.data || []) as Exam[])
         const best = new Map<string, Score>()
         for (const row of s.data || []) {
-          const score = Number(row.score_override ?? row.score ?? 0)
+          if (row.score_override == null && row.score == null) continue
+          const score = Number(row.score_override ?? row.score)
           if (!Number.isFinite(score)) continue
           const key = `${row.user_id}:${row.exam_id}`
           const date = row.completed_at || row.submitted_at || row.created_at || ''
@@ -153,7 +154,7 @@ export default function AwardPage() {
         <div className="rounded-2xl border bg-white p-4 shadow-sm">
           <h2 className="font-black text-slate-900">1. Pilih paket / subtes</h2>
           <p className="mt-1 text-xs text-slate-500">Hanya sesi ujian berstatus selesai yang digunakan. Pilih satu atau beberapa paket.</p>
-          <div className="mt-3 flex flex-wrap gap-2"><button onClick={() => setSelectedExamIds(availableExams.map(e => e.id))} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Pilih semua paket</button><button onClick={() => { setSelectedExamIds([]); setSelectedStudentIds([]) }} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Kosongkan</button></div>
+          <div className="mt-3 flex flex-wrap gap-2"><button onClick={() => { setSelectedExamIds(availableExams.map(e => e.id)); setSelectedStudentIds([]) }} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Pilih semua paket</button><button onClick={() => { setSelectedExamIds([]); setSelectedStudentIds([]) }} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700">Kosongkan</button></div>
           <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto">{availableExams.map(exam => <label key={exam.id} className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-100 p-3 hover:bg-amber-50"><input type="checkbox" className="mt-1" checked={selectedExamIds.includes(exam.id)} onChange={() => toggleExam(exam.id)}/><span><b className="block text-sm text-slate-800">{exam.title}</b><span className="text-xs text-slate-500">{exam.subtest}</span></span></label>)}{!availableExams.length && <p className="p-6 text-center text-sm text-slate-400">{loading ? 'Memuat data ujian...' : 'Belum ada data ujian selesai.'}</p>}</div>
           <p className="mt-3 text-xs text-slate-500">{selectedExamIds.length} paket dipilih · {selectedPackages.map(e => e.title).join(', ') || 'Belum dipilih'}</p>
         </div>
