@@ -55,21 +55,21 @@ function PublishedMaterialContent() {
         {loading ? (
           <div className={`rounded-2xl border p-10 text-center text-sm ${styles.panel} ${styles.muted}`}>Memuat materi...</div>
         ) : error ? (
-          <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center text-sm text-amber-800">{error}</div>
+          <div role="alert" className={`rounded-2xl border p-8 text-center text-sm ${styles.panel}`}>{error}</div>
         ) : material ? (
           <article className={`overflow-hidden rounded-3xl border ${styles.panel}`}>
             <header className={`border-b border-current/10 p-5 sm:p-8 ${styles.hero}`}>
-              <span className="inline-flex rounded-full border-2 border-slate-900 bg-white/80 px-3 py-1 text-[10px] font-black uppercase tracking-wide">{material.subject || 'Materi belajar'}</span>
+              <span className={`inline-flex rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-wide ${styles.heroBadge}`}>{material.subject || 'Materi belajar'}</span>
               <h1 className="mt-3 text-2xl font-black leading-tight sm:text-3xl">{material.title}</h1>
               {material.description && <p className={`mt-3 max-w-3xl text-sm leading-relaxed ${styles.heroText}`}>{material.description}</p>}
               <p className={`mt-4 text-xs font-semibold ${styles.heroText}`}>✍️ {material.author_display_name || 'Tim Penyusun'}</p>
             </header>
             <div className="p-5 sm:p-8">
               {material.content_html ? (
-                <MathRenderer content={material.content_html} className="material-content max-w-none text-sm leading-8 text-slate-800 sm:text-base" />
+                <MathRenderer content={material.content_html} className="material-content max-w-none text-sm leading-8 sm:text-base" />
               ) : material.file_url ? (
                 <a href={material.file_url} target="_blank" rel="noopener noreferrer" className={`inline-flex rounded-xl px-4 py-3 text-sm font-black ${styles.button}`}>Buka berkas materi ↗</a>
-              ) : <p className="text-sm text-slate-500">Isi materi belum tersedia.</p>}
+              ) : <p className={`text-sm ${styles.muted}`}>Isi materi belum tersedia.</p>}
             </div>
           </article>
         ) : null}
@@ -80,7 +80,7 @@ function PublishedMaterialContent() {
 
 export default function PublishedMaterialPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50 p-10 text-center text-sm text-slate-500">Memuat materi...</div>}>
+    <Suspense fallback={<div className="min-h-screen p-10 text-center text-sm">Memuat materi...</div>}>
       <PublishedMaterialContent />
     </Suspense>
   )
