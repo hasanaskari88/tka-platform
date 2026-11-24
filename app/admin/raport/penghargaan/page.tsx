@@ -45,12 +45,14 @@ export default function AwardPage() {
     async function load() {
       const db = createClient()
       try {
-        const [p, e, s, doc, people] = await Promise.all([
+        const { data: { user } } = await db.auth.getUser()
+        const [p, e, s, doc, people, currentProfile] = await Promise.all([
           db.from('profiles').select('id,full_name,username,class_code').eq('role', 'student').order('full_name'),
           db.from('exams').select('id,title,subtest,target_mode,activity_type'),
           db.from('exam_sessions').select('id,user_id,exam_id,score,score_override,completed_at,submitted_at,created_at').eq('status', 'completed').not('user_id', 'is', null).order('completed_at', { ascending: false }),
           db.rpc('get_school_document_settings'),
           db.from('teacher_signatories').select('id,full_name,position,class_code,nip').eq('is_active', true),
+          user ? db.from('profiles').select('class_code').eq('id', user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
         ])
         if (p.error) throw p.error
         if (e.error) throw e.error
@@ -58,6 +60,9 @@ export default function AwardPage() {
         if (!alive) return
         setStudents((p.data || []) as Student[])
         setExams((e.data || []) as Exam[])
+        // Filter kelas hanya sebagai preferensi tampilan awal, bukan pembatas data/akses.
+        const assignedClass = currentProfile.data?.class_code
+        if (assignedClass) setClassChoice(assignedClass)
         if (people.error) setError('Data penandatangan belum dapat dimuat. Periksa tabel teacher_signatories di Supabase.')
         setSignatories((people.data || []) as Signatory[])
         setPrincipalId((people.data || []).find((x: any) => x.position === 'principal')?.id || '')
