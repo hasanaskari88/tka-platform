@@ -26,7 +26,6 @@ export default function AwardPage() {
   const [period, setPeriod] = useState('Semester Ganjil')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [printing, setPrinting] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [categoryFilter, setCategoryFilter] = useState('ALL')
   const [activityFilter, setActivityFilter] = useState('ALL')
@@ -175,7 +174,6 @@ export default function AwardPage() {
     setSelectedStudentIds([])
   }
   const printAwards = () => {
-    setPrinting(true)
     setPreviewOpen(true)
     window.setTimeout(() => window.print(), 350)
   }
@@ -229,7 +227,6 @@ export default function AwardPage() {
             <div className="mt-3 flex flex-wrap gap-2"><button disabled={!ranked.length} onClick={() => setSelectedStudentIds(filteredRanked.map(s => s.id))} className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700 disabled:opacity-40">Pilih semua hasil filter</button><button onClick={() => setSelectedStudentIds([])} className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold">Kosongkan</button></div>
             <div className="mt-3 max-h-[300px] overflow-auto rounded-xl border"><table className="w-full min-w-[520px] text-left text-xs"><thead className="sticky top-0 bg-slate-100 text-slate-600"><tr><th className="p-3">Pilih</th><th className="p-3">Nama</th><th className="p-3">Kelas</th><th className="p-3 text-right">Rata-rata</th><th className="p-3 text-right">Global</th><th className="p-3 text-right">Kelas</th></tr></thead><tbody className="divide-y">{filteredRanked.map(s => <tr key={s.id}><td className="p-3"><input type="checkbox" checked={selectedStudentIds.includes(s.id)} onChange={() => setSelectedStudentIds(old => old.includes(s.id) ? old.filter(id => id !== s.id) : [...old, s.id])}/></td><td className="p-3 font-semibold">{s.full_name || s.username || 'Siswa'}</td><td className="p-3">{s.class_code || '—'}</td><td className="p-3 text-right font-black">{s.displayAverage}</td><td className="p-3 text-right">{s.globalRank}</td><td className="p-3 text-right">{s.classRank}</td></tr>)}{!filteredRanked.length && <tr><td colSpan={6} className="p-6 text-center text-slate-400">Belum ada siswa yang memenuhi syarat.</td></tr>}</tbody></table></div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold text-slate-600">Tanggal sertifikat<input type="date" value={issueDate} onChange={e => setIssueDate(e.target.value)} className={field}/></label><div className="text-xs text-slate-500"><b>Tahun pelajaran:</b> {schoolYear}<br/><b>Periode:</b> {period}<br/><b>Syarat:</b> wajib memiliki nilai semua paket terpilih.</div></div>
-            <button disabled={!selectedStudents.length || !selectedExamIds.length} onClick={printAwards} className="mt-4 w-full rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-amber-700 disabled:opacity-40">Cetak Sertifikat Penghargaan ({selectedStudents.length} siswa)</button>
           </section>
         </div>
       </section>
