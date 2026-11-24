@@ -20,6 +20,14 @@ const awardThemes = [
   { id: 'sky', name: 'Blue Sky Dream', description: 'Biru langit, turquoise, dan coral', swatches: ['#7dd3fc', '#5eead4', '#fb7185', '#fde68a'] },
 ] as const
 
+const certificateLogoOptions = [
+  { value: 'none', label: 'Tanpa logo' },
+  { value: '/Logo-kab-smg.png', label: 'Logo Kabupaten Semarang' },
+  { value: '/logo-sd-getasan.png', label: 'Logo SD Negeri Getasan' },
+  { value: '/logo-sd-getasan2.png', label: 'Logo SD Getasan alternatif' },
+  { value: '/logo-tka.png', label: 'Logo TKA' },
+] as const
+
 const awardPatterns = [
   { id: 'cartoon3d-dot', name: '3D Cartoon Dot', description: 'Titik-titik kecil dan cahaya pastel lembut' },
   { id: 'batik-kawung', name: 'Batik Kawung', description: 'Ornamen kawung geometris yang tipis' },
@@ -82,6 +90,8 @@ export default function AwardPage() {
   const [leaderboardScope, setLeaderboardScope] = useState<'both' | 'class' | 'global'>('both')
   const [awardTheme, setAwardTheme] = useState<(typeof awardThemes)[number]['id']>('candy')
   const [awardPattern, setAwardPattern] = useState<(typeof awardPatterns)[number]['id']>('cartoon3d-dot')
+  const [leftCertificateLogo, setLeftCertificateLogo] = useState('/Logo-kab-smg.png')
+  const [rightCertificateLogo, setRightCertificateLogo] = useState('/logo-sd-getasan.png')
 
   useEffect(() => {
     let alive = true
@@ -356,6 +366,30 @@ export default function AwardPage() {
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
+          <div><h2 className="font-black text-slate-900">🏛️ Atur logo kop sertifikat</h2><p className="mt-1 text-xs text-slate-500">Pilih logo kiri dan kanan secara terpisah. Pengaturan ini hanya memengaruhi sertifikat, bukan leaderboard.</p></div>
+          <Link href="/admin/raport/penghargaan/inventaris-logo" className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-700">Lihat inventaris logo ↗</Link>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-bold text-slate-700">Logo sebelah kiri
+            <select value={leftCertificateLogo} onChange={e => setLeftCertificateLogo(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
+              {certificateLogoOptions.map(logo => <option key={logo.value} value={logo.value}>{logo.label}</option>)}
+            </select>
+          </label>
+          <label className="text-xs font-bold text-slate-700">Logo sebelah kanan
+            <select value={rightCertificateLogo} onChange={e => setRightCertificateLogo(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800">
+              {certificateLogoOptions.map(logo => <option key={logo.value} value={logo.value}>{logo.label}</option>)}
+            </select>
+          </label>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3">
+          {[{ label: 'Kiri', src: leftCertificateLogo }, { label: 'Kanan', src: rightCertificateLogo }].map(item => <div key={item.label} className="flex min-h-24 flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white p-2">
+            <span className="mb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</span>
+            {item.src !== 'none' ? <img src={item.src} alt={`Logo ${item.label}`} className="h-16 w-16 object-contain" /> : <span className="text-xs text-slate-400">Kosong</span>}
+          </div>)}
+        </div>
+      </section>
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div><h2 className="font-black text-slate-900">🪷 Pilih motif latar sertifikat</h2><p className="mt-1 text-xs text-slate-500">Motif dapat dipadukan bebas dengan tema warna. Motif hanya diterapkan pada sertifikat, bukan leaderboard.</p></div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-bold text-slate-600">5 pilihan motif</span>
         </div>
@@ -418,10 +452,10 @@ export default function AwardPage() {
   <span className="certificate-corner left-5 top-5">🌟</span><span className="certificate-corner right-5 top-5">🌟</span>
   <span className="certificate-corner bottom-5 left-5">✨</span><span className="certificate-corner bottom-5 right-5">✨</span>
   <div className="certificate-inner">
-    <div className="relative flex flex-wrap items-center justify-center gap-3 border-b-2 border-double border-amber-400 pb-3 text-center">
-      <div className="rounded-2xl border-2 border-white bg-white/90 p-2 shadow-sm"><img src="/logo-sd-getasan.png" className="h-16 w-16 object-contain" alt="Logo sekolah"/></div>
-      <div className="min-w-0 flex-1 text-center"><p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-800">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-[10px] font-semibold text-slate-600">Tahun Pelajaran {schoolYear} · {period}</p></div>
-      <div className="absolute right-1 top-1 hidden sm:block"><span className="text-3xl">🎈</span></div>
+    <div className="relative grid grid-cols-[64px_minmax(0,1fr)_64px] items-center gap-3 border-b-2 border-double border-amber-400 pb-3 text-center sm:grid-cols-[76px_minmax(0,1fr)_76px]">
+      <div className="flex min-h-16 items-center justify-center">{leftCertificateLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={leftCertificateLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kiri kop sertifikat"/></div>}</div>
+      <div className="min-w-0 text-center"><p className="text-[10px] font-black uppercase tracking-[.18em] text-amber-800">Pemerintah Kabupaten Semarang · Dinas Pendidikan</p><h2 className="mt-1 text-xl font-black uppercase text-indigo-950">SD Negeri Getasan</h2><p className="text-[10px] font-semibold text-slate-600">Tahun Pelajaran {schoolYear} · {period}</p></div>
+      <div className="flex min-h-16 items-center justify-center">{rightCertificateLogo !== 'none' && <div className="rounded-xl border border-white bg-white/90 p-1.5 shadow-sm"><img src={rightCertificateLogo} className="h-14 w-14 object-contain sm:h-16 sm:w-16" alt="Logo kanan kop sertifikat"/></div>}</div>
     </div>
     <div className="relative grid grid-cols-[minmax(56px,1fr)_minmax(0,3fr)_minmax(56px,1fr)] items-center gap-2 py-2 text-center">
       <div className="justify-self-center"><div className="certificate-medal">🏆</div><p className="mt-1 text-[9px] font-black uppercase tracking-widest text-amber-800">Prestasi</p></div>
