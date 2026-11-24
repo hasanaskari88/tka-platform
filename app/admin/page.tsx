@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Users, ClipboardList, BookOpen, Megaphone, FileText, BarChart3, GraduationCap, Dumbbell, Trophy, ClipboardCheck, ArrowUpRight, Layers3, Newspaper } from 'lucide-react'
+import { Users, ClipboardList, BookOpen, Megaphone, FileText, BarChart3, GraduationCap, Dumbbell, Trophy, ClipboardCheck, ArrowUpRight, Layers3, Newspaper, LogOut, UserRound, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 type Student = { id:string; full_name:string|null; username:string|null; class_code:string|null; xp:number; level:number; practiceXp:number; practiceAttempts:number; practiceBest:number; examCount:number; examAverage:number }
@@ -10,6 +10,8 @@ type ExamMeta = { id:string; title:string; subtest:string|null; target_mode:stri
 
 export default function AdminDashboardPage() {
   const [students,setStudents]=useState<Student[]>([])
+  const [teacherProfile,setTeacherProfile]=useState<{full_name:string|null;role:string|null;avatar_url:string|null;email:string|null}>({full_name:null,role:null,avatar_url:null,email:null})
+  const [loggingOut,setLoggingOut]=useState(false)
   const [practiceRows,setPracticeRows]=useState<any[]>([])
   const [examRows,setExamRows]=useState<any[]>([])
   const [examMeta,setExamMeta]=useState<ExamMeta[]>([])
@@ -19,6 +21,8 @@ export default function AdminDashboardPage() {
   const [pendingWork,setPendingWork]=useState<any[]>([])
   const [pendingFilter,setPendingFilter]=useState<'ALL'|'UNFINISHED'|'UNGRADED'>('ALL')
   const [pendingOpen,setPendingOpen]=useState(false)
+  const [pendingPage,setPendingPage]=useState(1)
+  const pendingPageSize=6
   const [pendingSort,setPendingSort]=useState<'priority'|'student'|'class'|'title'>('priority')
   const [liveOpen,setLiveOpen]=useState(false)
   const [classFilter,setClassFilter]=useState('ALL')
@@ -47,6 +51,11 @@ export default function AdminDashboardPage() {
     async function load(){
       const db=createClient()
       try{
+        const {data:{user:currentUser}}=await db.auth.getUser()
+        if(currentUser){
+          const {data:currentProfile}=await db.from('profiles').select('full_name,role,avatar_url').eq('id',currentUser.id).maybeSingle()
+          if(active)setTeacherProfile({full_name:currentProfile?.full_name||null,role:currentProfile?.role||null,avatar_url:currentProfile?.avatar_url||null,email:currentUser.email||null})
+        }
         const [p,pr,ex,em,ec,qc,qmeta,mc,ac]=await Promise.all([
           db.from('profiles').select('id,full_name,username,class_code,role,xp,level').eq('role','student').order('full_name'),
           // select * keeps the dashboard compatible before/after the staged credited_xp migration
@@ -180,6 +189,11 @@ export default function AdminDashboardPage() {
   const completedPractice=practiceRows.filter(r=>r.status==='completed').length,completedExams=examRows.filter(r=>r.status==='completed').length
 
   const filteredPendingWork=pendingWork.filter(item=>pendingFilter==='ALL'||(pendingFilter==='UNFINISHED'?item.unfinished:item.ungradedEssayCount>0)).sort((a,b)=>pendingSort==='student'?a.studentName.localeCompare(b.studentName,'id'):pendingSort==='class'?a.classCode.localeCompare(b.classCode,'id'):pendingSort==='title'?a.examTitle.localeCompare(b.examTitle,'id'):(Number(b.ungradedEssayCount>0)-Number(a.ungradedEssayCount>0))||String(b.startTime).localeCompare(String(a.startTime)))
+  const pendingPageCount=Math.max(1,Math.ceil(filteredPendingWork.length/pendingPageSize))
+  const currentPendingPage=Math.min(pendingPage,pendingPageCount)
+  const visiblePendingWork=filteredPendingWork.slice((currentPendingPage-1)*pendingPageSize,currentPendingPage*pendingPageSize)
+  const hasPendingActions=pendingWork.length>0
+  const handleAdminLogout=async()=>{setLoggingOut(true);const db=createClient();await db.auth.signOut();window.location.href='/login'}
   const liveMonitorSummaries=examRows.reduce((groups:any[],session:any)=>{
     if(!['ongoing','paused'].includes(session.status))return groups
     let group=groups.find(item=>item.examId===session.exam_id)
@@ -228,13 +242,31 @@ export default function AdminDashboardPage() {
   return <div className="min-h-screen bg-slate-50">
     <div className="mx-auto max-w-[1500px] space-y-5 px-4 py-5 md:px-7 md:py-7">
     <header className="overflow-hidden rounded-2xl border border-indigo-100 bg-white shadow-sm">
-      <div className="bg-gradient-to-r from-indigo-700 via-indigo-600 to-sky-600 px-5 py-6 text-white md:px-7">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-indigo-800 via-indigo-700 to-sky-700 px-5 py-5 text-white md:px-7 md:py-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-white/40 md:h-16 md:w-16"><img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-full w-full object-contain" /></div>
-            <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-100 md:text-[11px]">SD Negeri Getasan · Admin Center</p><h1 className="mt-0.5 text-xl font-black md:text-3xl">Dashboard Pengelola</h1><p className="mt-1 max-w-2xl text-xs text-indigo-100 md:text-sm">Selamat bekerja. Kelola soal, dampingi peserta, dan tuntaskan penilaian dari satu tempat.</p></div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white p-1.5 shadow-sm ring-1 ring-white/40 md:h-14 md:w-14"><img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-full w-full object-contain" /></div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-100 md:text-[11px]">SD Negeri Getasan · Admin Center</p>
+              <p className="mt-1 text-xs font-semibold text-sky-100">Selamat datang,</p>
+              <h1 className="truncate text-xl font-black md:text-2xl">{teacherProfile.full_name||'Bapak/Ibu Guru'}</h1>
+              <p className="mt-1 text-xs text-indigo-100 md:text-sm">Selamat bekerja. Semua kebutuhan pengelolaan pembelajaran tersedia dalam satu tempat.</p>
+            </div>
           </div>
-          <span className="hidden rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs font-semibold sm:inline-flex">Ruang kerja guru</span>
+          <div className="flex flex-wrap items-center gap-3 lg:justify-end">
+            <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/20 bg-white/10 px-3 py-2.5 shadow-sm backdrop-blur-sm">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 border-white/70 bg-white/20 text-2xl shadow-inner">{teacherProfile.avatar_url||<UserRound size={22}/>}</div>
+              <div className="min-w-0"><div className="flex items-center gap-1.5"><ShieldCheck size={13} className="text-emerald-200"/><span className="text-[10px] font-black uppercase tracking-wider text-emerald-100">{teacherProfile.role==='admin'?'Administrator':'Guru'}</span></div><p className="max-w-[190px] truncate text-xs font-bold text-white">{teacherProfile.full_name||'Profil belum dilengkapi'}</p><span className="text-[10px] text-indigo-100">Profil akun aktif</span></div>
+            </div>
+            <div className="flex gap-2">
+              <Link href="/profile" className="inline-flex items-center gap-1.5 rounded-xl border border-white/30 bg-white/15 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/25"><UserRound size={14}/> Ubah Profil</Link>
+              <button type="button" onClick={handleAdminLogout} disabled={loggingOut} className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2.5 text-xs font-bold text-indigo-800 shadow-sm transition hover:bg-indigo-50 disabled:opacity-60"><LogOut size={14}/>{loggingOut?'Keluar...':'Logout'}</button>
+            </div>
+          </div>
+        </div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-white/15 pt-4">
+          <div><span className="inline-flex items-center rounded-full border border-sky-200/30 bg-sky-200/15 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-sky-50">Ruang Kerja Guru</span><p className="mt-2 text-xs text-indigo-100">Pantau aktivitas siswa, tindak lanjuti penilaian, dan kelola seluruh konten pembelajaran.</p></div>
+          <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-semibold text-white/90">{teacherProfile.email||'Akun terverifikasi'}</span>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-5 md:p-4">
@@ -246,25 +278,25 @@ export default function AdminDashboardPage() {
       </div>
     </header>
     {warning&&<div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{warning}</div>}
-    <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm md:p-5">
+    <section className={`rounded-2xl border p-3 shadow-sm transition-colors md:p-4 ${hasPendingActions?'border-rose-300 bg-rose-50/90 shadow-rose-100':'border-emerald-200 bg-emerald-50/80 shadow-emerald-100'}`}>
       <button type="button" onClick={()=>setPendingOpen(v=>!v)} aria-expanded={pendingOpen} className="flex w-full items-center justify-between gap-3 text-left">
-        <span><span className="block text-lg font-black text-slate-900">Perlu Ditindaklanjuti</span><span className="block text-xs text-slate-600">Sesi macet/waktu habis dan essay yang menunggu penilaian.</span></span>
-        <span className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">{pendingWork.length} item</span><span className="text-lg text-slate-500">{pendingOpen?'▲':'▼'}</span></span>
+        <span><span className={`flex items-center gap-2 text-base font-black ${hasPendingActions?'text-rose-900':'text-emerald-900'}`}>{hasPendingActions?<AlertCircle size={18}/>:<CheckCircle2 size={18}/>}Perlu Ditindaklanjuti</span><span className={`mt-1 block text-[11px] ${hasPendingActions?'text-rose-700':'text-emerald-700'}`}>{hasPendingActions?'Ada pekerjaan yang memerlukan perhatian. Periksa sesi dan penilaian berikut.':'Semua tertangani. Tidak ada sesi tertunda atau essay yang menunggu penilaian.'}</span></span>
+        <span className="flex shrink-0 items-center gap-2"><span className={`rounded-full px-3 py-1 text-xs font-black ${hasPendingActions?'bg-rose-600 text-white':'bg-emerald-100 text-emerald-800'}`}>{pendingWork.length} item</span><span className={`text-lg ${hasPendingActions?'text-rose-600':'text-emerald-600'}`}>{pendingOpen?'▲':'▼'}</span></span>
       </button>
       {pendingOpen&&<div className="mt-4">
       <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex flex-wrap gap-2">
-        {([{value:'ALL',label:'Semua',count:pendingWork.length},{value:'UNFINISHED',label:'Sesi belum selesai',count:pendingWork.filter(item=>item.unfinished).length},{value:'UNGRADED',label:'Essay belum dinilai',count:pendingWork.filter(item=>item.ungradedEssayCount>0).length}] as const).map(option=><button key={option.value} type="button" onClick={()=>setPendingFilter(option.value)} className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${pendingFilter===option.value?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'}`}>{option.label} <span className={pendingFilter===option.value?'text-indigo-100':'text-slate-400'}>({option.count})</span></button>)}
+        {([{value:'ALL',label:'Semua',count:pendingWork.length},{value:'UNFINISHED',label:'Sesi belum selesai',count:pendingWork.filter(item=>item.unfinished).length},{value:'UNGRADED',label:'Essay belum dinilai',count:pendingWork.filter(item=>item.ungradedEssayCount>0).length}] as const).map(option=><button key={option.value} type="button" onClick={()=>{setPendingFilter(option.value);setPendingPage(1)}} className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${pendingFilter===option.value?'border-indigo-600 bg-indigo-600 text-white':'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'}`}>{option.label} <span className={pendingFilter===option.value?'text-indigo-100':'text-slate-400'}>({option.count})</span></button>)}
       </div><label className="flex items-center gap-2 text-[11px] font-semibold text-slate-600">Urutkan <select value={pendingSort} onChange={e=>setPendingSort(e.target.value as any)} className="rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs"><option value="priority">Prioritas tindakan</option><option value="student">Nama siswa A–Z</option><option value="class">Kelas</option><option value="title">Nama paket</option></select></label></div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {filteredPendingWork.slice(0,8).map(item=><article key={item.id} className="rounded-xl border border-amber-100 bg-white p-3">
-          <div className="flex flex-wrap items-center justify-between gap-2"><b className="text-sm text-slate-800">{item.studentName}</b><span className="text-[10px] font-bold text-slate-500">{item.classCode}</span></div>
-          <p className="mt-1 text-xs text-slate-600">{item.examTitle}</p>
-          <div className="mt-2 flex flex-wrap gap-2">{item.unfinished&&<span className={`rounded-md px-2 py-1 text-[10px] font-bold ${item.isExpired?'bg-rose-100 text-rose-800':'bg-orange-100 text-orange-800'}`}>{item.isExpired?'Waktu Habis — perlu submit manual':`Sesi ${item.status}`}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div>
-          <div className="mt-3 flex flex-wrap gap-2">{item.unfinished&&<Link href={'/admin/exam/'+item.examId+'/monitor?sessionId='+item.id} className="rounded-lg bg-indigo-600 px-3 py-2 text-[11px] font-bold text-white hover:bg-indigo-700">{item.isExpired?'Buka untuk Submit Manual →':'Pantau Sesi →'}</Link>}{item.ungradedEssayCount>0&&<Link href={'/admin/exam/'+item.examId+'/results?sessionId='+item.id+'&tab=grading'} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-700 hover:bg-rose-100">Nilai Essay Peserta Ini →</Link>}</div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        {visiblePendingWork.map(item=><article key={item.id} className={`rounded-lg border bg-white p-2.5 shadow-sm ${item.ungradedEssayCount>0?'border-rose-200':'border-slate-200'}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2"><b className="min-w-0 truncate text-xs font-extrabold text-slate-800">{item.studentName}</b><span className="shrink-0 text-[9px] font-bold text-slate-500">{item.classCode}</span></div>
+          <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-600">{item.examTitle}</p>
+          <div className="mt-2 flex flex-wrap gap-1.5">{item.unfinished&&<span className={`rounded-md px-2 py-1 text-[10px] font-bold ${item.isExpired?'bg-rose-100 text-rose-800':'bg-orange-100 text-orange-800'}`}>{item.isExpired?'Waktu Habis — perlu submit manual':`Sesi ${item.status}`}</span>}{item.ungradedEssayCount>0&&<span className="rounded-md bg-rose-100 px-2 py-1 text-[10px] font-bold text-rose-800">{item.ungradedEssayCount} essay belum dinilai</span>}</div>
+          <div className="mt-2 flex flex-wrap gap-1.5">{item.unfinished&&<Link href={'/admin/exam/'+item.examId+'/monitor?sessionId='+item.id} className="rounded-md bg-indigo-600 px-2.5 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-700">{item.isExpired?'Submit Manual →':'Pantau Sesi →'}</Link>}{item.ungradedEssayCount>0&&<Link href={'/admin/exam/'+item.examId+'/results?sessionId='+item.id+'&tab=grading'} className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[10px] font-bold text-rose-700 hover:bg-rose-100">Nilai Essay →</Link>}</div>
         </article>)}
-        {!loading&&!filteredPendingWork.length&&<p className="rounded-xl border border-dashed border-amber-200 bg-white/70 p-5 text-center text-xs text-slate-500 md:col-span-2">{pendingWork.length?'Tidak ada item pada kategori ini.':'Tidak ada sesi tertunda atau essay yang menunggu penilaian.'}</p>}
+        {!loading&&!filteredPendingWork.length&&<p className="rounded-xl border border-dashed border-emerald-200 bg-white/80 p-5 text-center text-xs text-emerald-800 sm:col-span-2 xl:col-span-3">{pendingWork.length?'Tidak ada item pada kategori ini.':'Tidak ada sesi tertunda atau essay yang menunggu penilaian.'}</p>}
       </div>
-      {filteredPendingWork.length>8&&<p className="mt-2 text-right text-[10px] text-slate-500">Menampilkan 8 dari {filteredPendingWork.length} item pada kategori ini.</p>}
+      {filteredPendingWork.length>0&&<div className="mt-3 flex flex-col justify-between gap-2 border-t border-black/5 pt-3 text-[10px] text-slate-600 sm:flex-row sm:items-center"><span>Menampilkan {(currentPendingPage-1)*pendingPageSize+1}–{Math.min(currentPendingPage*pendingPageSize,filteredPendingWork.length)} dari {filteredPendingWork.length} item · Halaman {currentPendingPage}/{pendingPageCount}</span><div className="flex items-center gap-1.5"><button type="button" disabled={currentPendingPage<=1} onClick={()=>setPendingPage(p=>Math.max(1,p-1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 disabled:opacity-40">Sebelumnya</button><button type="button" disabled={currentPendingPage>=pendingPageCount} onClick={()=>setPendingPage(p=>Math.min(pendingPageCount,p+1))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 disabled:opacity-40">Berikutnya</button></div></div>}
       </div>}
     </section>
     <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm md:p-5">
