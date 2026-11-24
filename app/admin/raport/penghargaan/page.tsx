@@ -231,24 +231,19 @@ export default function AwardPage() {
     window.setTimeout(cleanup, 1500)
   }
 
-  return <main className={`award-theme-${visual.preset.theme} min-h-screen bg-slate-50 px-4 py-6 md:px-8`}>
+  return <main className={`${visual.preset.themeEnabled ? `award-theme-${visual.preset.theme}` : ''} min-h-screen bg-slate-50 px-4 py-6 md:px-8`}>
     <style>{`@page{size:A4 landscape;margin:7mm}
 
 .award-theme-candy .award-page,.award-theme-candy .leaderboard-sheet{background:radial-gradient(circle at 8% 8%,#fce7f3 0,transparent 24%),radial-gradient(circle at 92% 90%,#dbeafe 0,transparent 25%),linear-gradient(135deg,#fff7fb,#fffbea 55%,#f0f9ff)!important;border-color:#ec4899!important}
 .award-theme-candy .award-page h1,.award-theme-candy .award-page h2,.award-theme-candy .award-page h3,.award-theme-candy .leaderboard-sheet h1{color:#7e22ce!important}
-.award-theme-candy .award-page .rounded-xl{border-color:#f9a8d4!important}
 .award-theme-rainbow .award-page,.award-theme-rainbow .leaderboard-sheet{background:linear-gradient(120deg,#fff1f2,#fffbeb 34%,#ecfdf5 68%,#eff6ff)!important;border-color:#8b5cf6!important}
 .award-theme-rainbow .award-page h1,.award-theme-rainbow .award-page h2,.award-theme-rainbow .award-page h3,.award-theme-rainbow .leaderboard-sheet h1{color:#6d28d9!important}
-.award-theme-rainbow .award-page .rounded-xl{border-color:#a78bfa!important}
 .award-theme-sunny .award-page,.award-theme-sunny .leaderboard-sheet{background:radial-gradient(circle at 50% 0,#fef08a 0,transparent 35%),linear-gradient(135deg,#fff7ed,#fffbeb 55%,#eff6ff)!important;border-color:#f97316!important}
 .award-theme-sunny .award-page h1,.award-theme-sunny .award-page h2,.award-theme-sunny .award-page h3,.award-theme-sunny .leaderboard-sheet h1{color:#c2410c!important}
-.award-theme-sunny .award-page .rounded-xl{border-color:#fdba74!important}
 .award-theme-mint .award-page,.award-theme-mint .leaderboard-sheet{background:radial-gradient(circle at 8% 10%,#d1fae5 0,transparent 30%),linear-gradient(135deg,#f0fdfa,#fff7ed 58%,#fffbeb)!important;border-color:#10b981!important}
 .award-theme-mint .award-page h1,.award-theme-mint .award-page h2,.award-theme-mint .award-page h3,.award-theme-mint .leaderboard-sheet h1{color:#047857!important}
-.award-theme-mint .award-page .rounded-xl{border-color:#6ee7b7!important}
 .award-theme-sky .award-page,.award-theme-sky .leaderboard-sheet{background:radial-gradient(circle at 90% 8%,#cffafe 0,transparent 32%),linear-gradient(135deg,#eff6ff,#ecfeff 52%,#fff1f2)!important;border-color:#0ea5e9!important}
 .award-theme-sky .award-page h1,.award-theme-sky .award-page h2,.award-theme-sky .award-page h3,.award-theme-sky .leaderboard-sheet h1{color:#0369a1!important}
-.award-theme-sky .award-page .rounded-xl{border-color:#7dd3fc!important}
 .award-theme-candy .leaderboard-sheet thead tr{background:#fce7f3!important}
 .award-theme-rainbow .leaderboard-sheet thead tr{background:#ede9fe!important}
 .award-theme-sunny .leaderboard-sheet thead tr{background:#fef3c7!important}
@@ -258,12 +253,12 @@ export default function AwardPage() {
 .award-page{position:relative;isolation:isolate;min-height:190mm;box-shadow:0 12px 35px rgba(30,41,59,.12);overflow:hidden}
 .document-watermark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);height:auto;max-height:78%;object-fit:contain;z-index:0;pointer-events:none;filter:grayscale(.08);mix-blend-mode:multiply}
 @media print{.document-watermark{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
-.award-page::before{content:"";position:absolute;inset:9px;border-radius:16px;pointer-events:none;z-index:0;opacity:.22;background-repeat:repeat;mix-blend-mode:multiply}
-.award-page[data-pattern="cartoon3d-dot"]::before{opacity:.62;background-image:radial-gradient(circle,rgba(180,83,9,.22) 1px,transparent 1.6px),radial-gradient(ellipse at 8% 8%,rgba(251,191,36,.16),transparent 38%),radial-gradient(ellipse at 92% 90%,rgba(96,165,250,.13),transparent 40%);background-size:18px 18px,100% 100%,100% 100%}
-.award-page[data-pattern="batik-kawung"]::before{opacity:.18;background-image:radial-gradient(ellipse 13px 20px at 50% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 0% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 100% 50%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 50% 0%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%),radial-gradient(ellipse 13px 20px at 50% 100%,transparent 57%,rgba(120,80,35,.75) 60%,transparent 66%);background-size:54px 54px}
-.award-page[data-pattern="batik-mega-mendung"]::before{opacity:.17;background-image:repeating-radial-gradient(ellipse at 50% 100%,transparent 0 12px,rgba(37,99,120,.72) 13px 14px,transparent 15px 23px);background-size:104px 58px}
-.award-page[data-pattern="batik-parang"]::before{opacity:.16;background-image:repeating-linear-gradient(135deg,transparent 0 12px,rgba(120,80,35,.75) 12.5px 13.5px,transparent 14px 25px),repeating-linear-gradient(45deg,transparent 0 24px,rgba(120,80,35,.48) 24.5px 25.5px,transparent 26px 50px);background-size:52px 52px}
-.award-page[data-pattern="modern-geometric"]::before{opacity:.2;background-image:radial-gradient(circle at center,transparent 0 18px,rgba(71,85,105,.6) 18.5px 19.5px,transparent 20px),linear-gradient(45deg,transparent 49.5%,rgba(71,85,105,.45) 50%,transparent 50.5%);background-size:74px 74px,42px 42px}
+.award-page::before{content:"";position:absolute;inset:9px;border-radius:16px;pointer-events:none;z-index:0;opacity:var(--pattern-opacity,.12);background-repeat:repeat;background-position:center;mix-blend-mode:multiply}
+.award-page[data-pattern="cartoon3d-dot"]::before{background-image:url('/patterns/titik-ceria.svg');background-size:48px 48px}
+.award-page[data-pattern="batik-kawung"]::before{background-image:url('/patterns/kawung.svg');background-size:60px 60px}
+.award-page[data-pattern="batik-mega-mendung"]::before{background-image:url('/patterns/mega-mendung.svg');background-size:90px 50px}
+.award-page[data-pattern="batik-parang"]::before{background-image:url('/patterns/parang.svg');background-size:72px 72px}
+.award-page[data-pattern="modern-geometric"]::before{background-image:url('/patterns/geometric.svg');background-size:56px 56px}
 .award-pattern-swatch{background-repeat:repeat;background-size:18px 18px}
 .pattern-cartoon3d-dot{background-image:radial-gradient(circle,rgba(180,83,9,.38) 1px,transparent 1.5px),radial-gradient(ellipse at 20% 20%,rgba(251,191,36,.32),transparent 55%)}
 .pattern-batik-kawung{background-image:radial-gradient(ellipse 8px 12px at 50% 50%,transparent 55%,rgba(120,80,35,.7) 60%,transparent 68%);background-size:28px 28px}
@@ -386,7 +381,7 @@ export default function AwardPage() {
         <p className="mt-8 text-center text-xs italic text-slate-600">Terus belajar, bertumbuh, dan saling menginspirasi.</p>
       </div>
     </section>
-    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={visual.preset.pattern} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
+    {previewOpen && <section className="mx-auto mt-6 max-w-6xl rounded-2xl border bg-white p-4 shadow-sm"><div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-slate-900">Pratinjau sertifikat penghargaan</h2><p className="text-xs text-slate-500">Periksa nama, peringkat, apresiasi, dan penandatangan sebelum mencetak.</p></div><button onClick={() => setPreviewOpen(false)} className="rounded-lg bg-slate-100 px-4 py-2 text-xs font-bold">Tutup pratinjau</button></div><div id="award-print-area" className="space-y-8">{selectedStudents.map(student => <article key={student.id} data-pattern={visual.preset.patternEnabled ? visual.preset.pattern : undefined} data-density={selectedPackages.length > 6 || (customAppreciation.length + customNote.length) > 260 ? 'compact' : 'regular'} style={{ '--pattern-opacity': visual.preset.patternOpacity / 100 } as React.CSSProperties} className="award-page relative mx-auto rounded-[24px] border-[5px] border-double border-amber-500 bg-[#fffdf7] p-3 text-slate-900 md:p-5">
   <div className="pointer-events-none absolute inset-1 rounded-[20px] border-2 border-amber-200"/>
   <div className="pointer-events-none absolute inset-3 rounded-[16px] border border-dashed border-amber-300"/>
   {visual.preset.watermark.enabled && <img src="/logo-sd-getasan.png" alt="" aria-hidden="true" className="document-watermark" style={{ width: `${visual.preset.watermark.size}%`, opacity: visual.preset.watermark.opacity }} />}
