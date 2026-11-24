@@ -245,7 +245,7 @@ export default function AdminDashboardPage() {
       <div className="bg-gradient-to-r from-indigo-800 via-indigo-700 to-sky-700 px-4 py-4 text-white md:px-6 md:py-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-white/40 md:h-12 md:w-12"><img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-full w-full object-contain" /></div>
+            <div className="flex h-[68px] w-[68px] shrink-0 items-center justify-center bg-transparent md:h-[76px] md:w-[76px]"><img src="/logo-sd-getasan.png" alt="Logo SD Negeri Getasan" className="h-full w-full object-contain" style={{filter:"drop-shadow(0 0 1.5px rgba(255,255,255,1)) drop-shadow(0 0 3px rgba(255,255,255,.9)) drop-shadow(0 1px 5px rgba(15,23,42,.18))"}} /></div>
             <div className="min-w-0">
               <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-indigo-100 md:text-[10px]">SD Negeri Getasan · Admin Center</p>
               <p className="mt-1 text-[11px] font-semibold text-sky-100">Selamat datang,</p>
