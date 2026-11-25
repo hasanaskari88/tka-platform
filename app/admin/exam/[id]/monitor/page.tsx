@@ -205,14 +205,18 @@ function MonitorContent() {
     try {
       if (action === 'pause') {
         const sessionIds = targetSessions.map((session) => session.id)
-        const { error } = await supabase
+        const { data: pausedRows, error } = await supabase
           .from('exam_sessions')
           .update({ status: 'paused', paused_at: new Date().toISOString() })
           .eq('exam_id', examId)
           .eq('status', 'ongoing')
           .in('id', sessionIds)
+          .select('id')
 
         if (error) throw error
+        if ((pausedRows || []).length !== sessionIds.length) {
+          throw new Error(`Hanya ${(pausedRows || []).length} dari ${sessionIds.length} sesi yang berhasil dipause. Sebagian status sesi mungkin sudah berubah.`)
+        }
       } else {
         const now = Date.now()
         const results = await Promise.all(targetSessions.map((session) => {
@@ -228,10 +232,11 @@ function MonitorContent() {
             .eq('exam_id', examId)
             .eq('id', session.id)
             .eq('status', 'paused')
+            .select('id')
         }))
-        const failed = results.filter((result) => result.error)
+        const failed = results.filter((result) => result.error || !result.data?.length)
         if (failed.length > 0) {
-          throw new Error(`${failed.length} dari ${targetSessions.length} sesi gagal dilanjutkan. ${failed[0].error?.message || ''}`)
+          throw new Error(`${failed.length} dari ${targetSessions.length} sesi gagal dilanjutkan. ${failed[0].error?.message || 'Sebagian status sesi mungkin sudah berubah.'}`)
         }
       }
 
