@@ -374,6 +374,9 @@ function QuestionManagerContent() {
   const [sortBy, setSortBy] = useState<string>('created_asc')
   const [filterType, setFilterType] = useState<string>('ALL')
   const [orderSavingId, setOrderSavingId] = useState<string | null>(null)
+  const [questionTypeOrder, setQuestionTypeOrder] = useState<string[]>([
+    'multiple_choice', 'complex_multiple_choice', 'true_false_matrix', 'essay',
+  ])
 
   // State Form Soal
   const [questionType, setQuestionType] = useState<
@@ -441,6 +444,14 @@ function QuestionManagerContent() {
 
     if (examData) setExam(examData)
     if (questionData) setQuestions(questionData)
+
+    const { data: typeOrderData, error: typeOrderError } = await supabase.rpc('get_cbt_question_type_order')
+    if (!typeOrderError && Array.isArray(typeOrderData)) {
+      setQuestionTypeOrder(typeOrderData.map((item: any) => String(item.question_type)))
+    } else if (typeOrderError) {
+      console.error('Gagal memuat urutan jenis soal global:', typeOrderError)
+    }
+
     setLoading(false)
   }
 
@@ -609,18 +620,21 @@ function QuestionManagerContent() {
   }
 
   const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
-    if (sortBy !== 'manual' || filterType !== 'ALL' || orderSavingId) return
+    if (sortBy !== 'manual' || orderSavingId) return
 
     setOrderSavingId(questionId)
-    const { error } = await createClient().rpc('move_question_order', {
-      p_exam_id: examId,
-      p_question_id: questionId,
-      p_direction: direction,
-    })
+    try {
+      const { error } = await createClient().rpc('move_question_order', {
+        p_exam_id: examId,
+        p_question_id: questionId,
+        p_direction: direction,
+      })
 
-    if (error) alert(`Gagal mengubah urutan soal: ${error.message}`)
-    else await loadData()
-    setOrderSavingId(null)
+      if (error) alert(`Gagal mengubah urutan soal: ${error.message}`)
+      else await loadData()
+    } finally {
+      setOrderSavingId(null)
+    }
   }
 
   // LOGIKA FILTERING & SORTING DAFTAR SOAL
@@ -632,6 +646,18 @@ function QuestionManagerContent() {
     })
     .sort((a, b) => {
       if (sortBy === 'manual') {
+        const typeA = a.question_type || 'multiple_choice'
+        const typeB = b.question_type || 'multiple_choice'
+        const typeIndexA = questionTypeOrder.indexOf(typeA)
+        const typeIndexB = questionTypeOrder.indexOf(typeB)
+        const rankA = typeIndexA < 0 ? Number.MAX_SAFE_INTEGER : typeIndexA
+        const rankB = typeIndexB < 0 ? Number.MAX_SAFE_INTEGER : typeIndexB
+        if (rankA !== rankB) return rankA - rankB
+
+        const scoreA = Number(a.max_score ?? 1)
+        const scoreB = Number(b.max_score ?? 1)
+        if (scoreA !== scoreB) return scoreA - scoreB
+
         const orderA = Number(a.sort_order) || Number.MAX_SAFE_INTEGER
         const orderB = Number(b.sort_order) || Number.MAX_SAFE_INTEGER
         return orderA - orderB || new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
@@ -1982,12 +2008,6 @@ function QuestionManagerContent() {
               </div>
             </div>
 
-            {sortBy === 'manual' && filterType !== 'ALL' && (
-              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Untuk mengubah urutan, pilih filter <strong>Semua Tipe</strong> agar urutan bank tidak terpecah berdasarkan tipe soal.
-              </p>
-            )}
-
             {/* DAFTAR KARTU SOAL AKTIF DENGAN CHECKLIST */}
             {filteredAndSortedQuestions.length > 0 ? (
               filteredAndSortedQuestions.map((q, idx) => {
@@ -2028,12 +2048,19 @@ function QuestionManagerContent() {
                       </div>
 
                       <div className="flex flex-wrap items-center justify-end gap-2">
-                        {sortBy === 'manual' && filterType === 'ALL' && (
-                          <>
-                            <button type="button" onClick={() => handleMoveQuestion(q.id, 'up')} disabled={idx === 0 || Boolean(orderSavingId)} title="Naikkan satu posisi" className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">{orderSavingId === q.id ? '…' : '↑'}</button>
-                            <button type="button" onClick={() => handleMoveQuestion(q.id, 'down')} disabled={idx === filteredAndSortedQuestions.length - 1 || Boolean(orderSavingId)} title="Turunkan satu posisi" className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">{orderSavingId === q.id ? '…' : '↓'}</button>
-                          </>
-                        )}
+                        {sortBy === 'manual' && (() => {
+                          const sameGroup = (item: any) =>
+                            (item.question_type || 'multiple_choice') === qType &&
+                            Number(item.max_score ?? 1) === Number(q.max_score ?? 1)
+                          const previousIndex = filteredAndSortedQuestions.findIndex((item, index) => index < idx && sameGroup(item))
+                          const nextIndex = filteredAndSortedQuestions.findIndex((item, index) => index > idx && sameGroup(item))
+                          return (
+                            <>
+                              <button type="button" onClick={() => handleMoveQuestion(q.id, 'up')} disabled={previousIndex < 0 || Boolean(orderSavingId)} title="Naikkan dalam kelompok jenis dan bobot yang sama" className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">{orderSavingId === q.id ? '…' : '↑'}</button>
+                              <button type="button" onClick={() => handleMoveQuestion(q.id, 'down')} disabled={nextIndex < 0 || Boolean(orderSavingId)} title="Turunkan dalam kelompok jenis dan bobot yang sama" className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed">{orderSavingId === q.id ? '…' : '↓'}</button>
+                            </>
+                          )
+                        })()}
                         <button type="button" onClick={() => handleOpenQuickEdit(q)} disabled={Boolean(inlineQuickEditId)} className="text-xs text-cyan-700 hover:text-cyan-900 font-bold bg-cyan-50 px-3 py-1 rounded-lg border border-cyan-200">⚡ Quick Edit</button>
                         <button type="button" onClick={() => handleDuplicateQuestion(q)} className="text-xs text-emerald-700 hover:text-emerald-900 font-bold bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-200">⧉ Duplikasi</button>
                         <button

@@ -47,6 +47,13 @@ function BankSoalManagementContent() {
   const [editingSubtestId, setEditingSubtestId] = useState<string | null>(null)
   const [editingSubtestName, setEditingSubtestName] = useState('')
 
+  // Pengaturan urutan jenis soal CBT berlaku global untuk semua paket ujian.
+  const [isQuestionTypeOrderModalOpen, setIsQuestionTypeOrderModalOpen] = useState(false)
+  const [questionTypeOrder, setQuestionTypeOrder] = useState<any[]>([])
+  const [questionTypeOrderDraft, setQuestionTypeOrderDraft] = useState<string[]>([])
+  const [loadingQuestionTypeOrder, setLoadingQuestionTypeOrder] = useState(false)
+  const [savingQuestionTypeOrder, setSavingQuestionTypeOrder] = useState(false)
+
   // 📢 State Modal Kelola Pengumuman & Materi
   const [isCMSModalOpen, setIsCMSModalOpen] = useState(false)
   const [cmsTab, setCmsTab] = useState<'announcement' | 'material'>('announcement')
@@ -138,6 +145,56 @@ function BankSoalManagementContent() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const getQuestionTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      multiple_choice: 'Pilihan Ganda (PG)',
+      complex_multiple_choice: 'Pilihan Ganda Kompleks (PGK)',
+      true_false_matrix: 'Matriks Benar/Salah',
+      essay: 'Essay / Uraian',
+    }
+    return labels[type] || type.replace(/[_-]+/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase())
+  }
+
+  const openQuestionTypeOrderModal = async () => {
+    setIsQuestionTypeOrderModalOpen(true)
+    setLoadingQuestionTypeOrder(true)
+    const { data, error } = await createClient().rpc('get_cbt_question_type_order')
+    if (error) {
+      alert(`Gagal memuat urutan jenis soal: ${error.message}`)
+      setQuestionTypeOrder([])
+      setQuestionTypeOrderDraft([])
+    } else {
+      const rows = Array.isArray(data) ? data : []
+      setQuestionTypeOrder(rows)
+      setQuestionTypeOrderDraft(rows.map((item: any) => String(item.question_type)))
+    }
+    setLoadingQuestionTypeOrder(false)
+  }
+
+  const moveQuestionTypeDraft = (index: number, direction: 'up' | 'down') => {
+    setQuestionTypeOrderDraft((current) => {
+      const target = direction === 'up' ? index - 1 : index + 1
+      if (target < 0 || target >= current.length) return current
+      const next = [...current]
+      ;[next[index], next[target]] = [next[target], next[index]]
+      return next
+    })
+  }
+
+  const saveQuestionTypeOrder = async () => {
+    setSavingQuestionTypeOrder(true)
+    const { error } = await createClient().rpc('save_cbt_question_type_order', {
+      p_question_types: questionTypeOrderDraft,
+    })
+    if (error) {
+      alert(`Gagal menyimpan urutan jenis soal: ${error.message}`)
+    } else {
+      alert('Urutan jenis soal global berhasil disimpan.')
+      setIsQuestionTypeOrderModalOpen(false)
+    }
+    setSavingQuestionTypeOrder(false)
+  }
 
   const formatJakartaDateTimeInput = (value: string) => {
     if (!value) return ''
@@ -663,6 +720,14 @@ const handleQuickExamAuthorSave = async (examId: string) => {
             >
               <span>⚙️</span>
               <span>Kelola Dropdown Subtes</span>
+            </button>
+            <button
+              type="button"
+              onClick={openQuestionTypeOrderModal}
+              className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
+            >
+              <span>↕️</span>
+              <span>Atur Urutan Jenis Soal</span>
             </button>
             <Link
               href="/admin/users"
@@ -1931,6 +1996,48 @@ const handleQuickExamAuthorSave = async (examId: string) => {
               >
                 Tutup Modal
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PENGATURAN URUTAN JENIS SOAL CBT GLOBAL */}
+      {isQuestionTypeOrderModalOpen && (
+        <div className="fixed inset-0 z-[70] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between gap-3 border-b pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-800">↕️ Atur Urutan Jenis Soal</h3>
+                <p className="mt-1 text-xs text-slate-500">Urutan ini berlaku untuk semua paket CBT. Jenis yang belum tersedia akan ditambahkan otomatis di bagian bawah.</p>
+              </div>
+              <button type="button" onClick={() => setIsQuestionTypeOrderModalOpen(false)} className="text-slate-400 hover:text-slate-700 font-bold">✕</button>
+            </div>
+
+            {loadingQuestionTypeOrder ? (
+              <p className="py-8 text-center text-sm text-slate-500">Memuat jenis soal…</p>
+            ) : questionTypeOrderDraft.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-500">Belum ada jenis soal CBT yang dapat diatur.</p>
+            ) : (
+              <div className="max-h-[55vh] overflow-y-auto space-y-2">
+                {questionTypeOrderDraft.map((type, index) => (
+                  <div key={type} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <span className="w-7 text-center text-sm font-bold text-slate-500">{index + 1}.</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-800">{getQuestionTypeLabel(type)}</p>
+                      <p className="text-[10px] text-slate-400 font-mono">{type}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button type="button" onClick={() => moveQuestionTypeDraft(index, 'up')} disabled={index === 0} title="Naik" className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-700 disabled:opacity-30">↑</button>
+                      <button type="button" onClick={() => moveQuestionTypeDraft(index, 'down')} disabled={index === questionTypeOrderDraft.length - 1} title="Turun" className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-bold text-slate-700 disabled:opacity-30">↓</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 border-t pt-3">
+              <button type="button" onClick={() => setIsQuestionTypeOrderModalOpen(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-600">Batal</button>
+              <button type="button" onClick={saveQuestionTypeOrder} disabled={loadingQuestionTypeOrder || savingQuestionTypeOrder || questionTypeOrderDraft.length === 0} className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-bold text-white hover:bg-violet-700 disabled:opacity-50">{savingQuestionTypeOrder ? 'Menyimpan…' : 'Simpan Urutan'}</button>
             </div>
           </div>
         </div>
