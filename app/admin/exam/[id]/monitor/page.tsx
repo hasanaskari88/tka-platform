@@ -29,6 +29,7 @@ function MonitorContent() {
   const [filterClass, setFilterClass] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true)
+  const [bulkActionLoading, setBulkActionLoading] = useState<'pause' | 'resume' | null>(null)
 
   // Ticker State untuk memperbarui timer live setiap detik
   const [now, setNow] = useState<number>(Date.now())
@@ -176,6 +177,72 @@ function MonitorContent() {
     }
 
     await fetchData()
+  }
+
+  // ⏸️▶️ KENDALI MASSAL SESUAI FILTER KELAS
+  const handleBulkSessionAction = async (action: 'pause' | 'resume') => {
+    const targetStatus = action === 'pause' ? 'ongoing' : 'paused'
+    const targetSessions = sessions.filter((session) => {
+      const studentClass = profileMap.get(session.user_id)?.class_code || '-'
+      const matchesClass = filterClass === 'ALL' || studentClass === filterClass
+      return matchesClass && session.status === targetStatus
+    })
+
+    if (targetSessions.length === 0) {
+      alert(action === 'pause'
+        ? 'Tidak ada siswa yang sedang mengerjakan pada cakupan kelas ini.'
+        : 'Tidak ada siswa yang sedang pause pada cakupan kelas ini.')
+      return
+    }
+
+    const scopeLabel = filterClass === 'ALL' ? 'SEMUA KELAS' : `KELAS ${filterClass}`
+    const actionLabel = action === 'pause' ? 'PAUSE' : 'LANJUTKAN'
+    if (!confirm(`${actionLabel} ${targetSessions.length} sesi ujian di ${scopeLabel}?\n\nSesi yang sudah selesai tidak akan diubah.`)) return
+
+    setBulkActionLoading(action)
+    const supabase = createClient()
+
+    try {
+      if (action === 'pause') {
+        const sessionIds = targetSessions.map((session) => session.id)
+        const { error } = await supabase
+          .from('exam_sessions')
+          .update({ status: 'paused', paused_at: new Date().toISOString() })
+          .eq('exam_id', examId)
+          .eq('status', 'ongoing')
+          .in('id', sessionIds)
+
+        if (error) throw error
+      } else {
+        const now = Date.now()
+        const results = await Promise.all(targetSessions.map((session) => {
+          const pausedAtMs = session.paused_at ? new Date(session.paused_at).getTime() : now
+          const pauseSeconds = Math.max(0, Math.floor((now - pausedAtMs) / 1000))
+          return supabase
+            .from('exam_sessions')
+            .update({
+              status: 'ongoing',
+              paused_at: null,
+              paused_duration_seconds: (Number(session.paused_duration_seconds) || 0) + pauseSeconds,
+            })
+            .eq('exam_id', examId)
+            .eq('id', session.id)
+            .eq('status', 'paused')
+        }))
+        const failed = results.filter((result) => result.error)
+        if (failed.length > 0) {
+          throw new Error(`${failed.length} dari ${targetSessions.length} sesi gagal dilanjutkan. ${failed[0].error?.message || ''}`)
+        }
+      }
+
+      await fetchData()
+      alert(`${targetSessions.length} sesi di ${scopeLabel} berhasil ${action === 'pause' ? 'dipause' : 'dilanjutkan'}.`)
+    } catch (error: any) {
+      alert(`Gagal menjalankan ${actionLabel.toLowerCase()} massal: ${error.message || 'Kesalahan tidak diketahui'}`)
+      await fetchData()
+    } finally {
+      setBulkActionLoading(null)
+    }
   }
 
   // ▶️ AKSI 2: RESUME SESI UJIAN (Lanjutkan Pengerjaan Siswa)
@@ -604,6 +671,30 @@ function MonitorContent() {
                 </option>
               ))}
             </select>
+
+            {viewMode === 'live' && (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
+                <span className="w-full text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:w-auto">
+                  Kendali {filterClass === 'ALL' ? 'Semua Kelas' : `Kelas ${filterClass}`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleBulkSessionAction('pause')}
+                  disabled={bulkActionLoading !== null}
+                  className="rounded-lg bg-amber-500 px-3 py-2 text-xs font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bulkActionLoading === 'pause' ? 'Memproses...' : '⏸ Pause All'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleBulkSessionAction('resume')}
+                  disabled={bulkActionLoading !== null}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {bulkActionLoading === 'resume' ? 'Memproses...' : '▶ Lanjutkan All'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
