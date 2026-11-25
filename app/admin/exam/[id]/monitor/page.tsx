@@ -131,16 +131,10 @@ function MonitorContent() {
     new Set(sessions.map((s) => profileMap.get(s.user_id)?.class_code || '-'))
   ).filter(Boolean)
 
-  // Helper Hitung Benar Eksak / Estimasi
+  // Jumlah benar hanya ditampilkan jika data evaluasi eksak tersedia.
   const getDisplayCorrect = (s: any) => {
-    if (!s) return 0
-    if (s.total_correct !== null && s.total_correct !== undefined && Number(s.total_correct) > 0) {
-      return Number(s.total_correct)
-    }
-    if (s.score !== null && s.score !== undefined && questionsCount > 0) {
-      return Math.round((Number(s.score) / 100) * questionsCount)
-    }
-    return 0
+    if (!s || s.total_correct === null || s.total_correct === undefined) return null
+    return Number(s.total_correct)
   }
 
   // Hitung Sisa Waktu Pengerjaan Siswa
@@ -505,7 +499,7 @@ function MonitorContent() {
 
   const avgBestScore =
     completedScores.length > 0 ? completedScores.reduce((a, b) => a + b, 0) / completedScores.length : 0
-  const passCount = completedScores.filter((sc) => sc >= 75).length
+  const passCount = completedScores.filter((sc) => sc >= 70).length
   const passRate = completedScores.length > 0 ? Math.round((passCount / completedScores.length) * 100) : 0
 
   // EXPORT EXCEL
@@ -513,7 +507,7 @@ function MonitorContent() {
     if (bestFilteredList.length === 0) return alert('Tidak ada data siswa untuk di-export.')
 
     const exportRows = bestFilteredList.map((item, idx) => {
-      const isPassed = item.bestScore !== null && item.bestScore >= 75
+      const isPassed = item.bestScore !== null && item.bestScore >= 70
       return {
         No: idx + 1,
         'Nama Lengkap': item.student.full_name,
@@ -521,12 +515,12 @@ function MonitorContent() {
         Kelas: item.student.class_code || '-',
         'Jumlah Percobaan': `${item.attemptsCount}x`,
         'Nilai Pertama (First)': item.firstScore !== null ? item.firstScore : '-',
-        'Benar Pertama': item.firstScore !== null ? `${item.firstCorrect}/${questionsCount}` : '-',
+        'Benar Pertama': item.firstScore !== null ? `${item.firstCorrect ?? '-'}/${questionsCount}` : '-',
         'Nilai Terakhir (Last)': item.lastScore !== null ? item.lastScore : '-',
-        'Benar Terakhir': item.lastScore !== null ? `${item.lastCorrect}/${questionsCount}` : '-',
+        'Benar Terakhir': item.lastScore !== null ? `${item.lastCorrect ?? '-'}/${questionsCount}` : '-',
         'Nilai Terbaik (Best)': item.bestScore !== null ? item.bestScore : '-',
-        'Benar Terbaik': item.bestScore !== null ? `${item.bestCorrect}/${questionsCount}` : '-',
-        'Status KKM (≥75)': isPassed ? 'TUNTAS' : 'BELUM TUNTAS',
+        'Benar Terbaik': item.bestScore !== null ? `${item.bestCorrect ?? '-'}/${questionsCount}` : '-',
+        'Status KKM (≥70)': isPassed ? 'TUNTAS' : 'BELUM TUNTAS',
       }
     })
 
@@ -639,7 +633,7 @@ function MonitorContent() {
           </div>
 
           <div className="bg-white p-4 rounded-xl border border-teal-200 shadow-sm bg-teal-50/20">
-            <span className="text-[10px] font-bold text-teal-700 uppercase block">Ketuntasan KKM (≥75)</span>
+            <span className="text-[10px] font-bold text-teal-700 uppercase block">Ketuntasan KKM (≥70)</span>
             <span className="text-2xl font-black text-teal-600 mt-1 block">
               {passRate}% <span className="text-xs font-normal text-teal-500">({passCount})</span>
             </span>
@@ -814,7 +808,7 @@ function MonitorContent() {
                               <span className="font-black text-indigo-600 text-sm">
                                 {s.score}{' '}
                                 <span className="text-[11px] font-bold text-emerald-600">
-                                  ({correctCount} Benar)
+                                  ({correctCount ?? '—'} Benar)
                                 </span>
                               </span>
                             ) : (
@@ -911,13 +905,13 @@ function MonitorContent() {
                     <th className="p-3 text-center bg-amber-50/50">1st Attempt (Pertama)</th>
                     <th className="p-3 text-center bg-sky-50/50">Last Attempt (Terakhir)</th>
                     <th className="p-3 text-center bg-indigo-50/50">Best Score (Terbaik)</th>
-                    <th className="p-3 text-center">Status KKM (≥75)</th>
+                    <th className="p-3 text-center">Status KKM (≥70)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {bestFilteredList.length > 0 ? (
                     bestFilteredList.map((item, idx) => {
-                      const isPassed = item.bestScore !== null && item.bestScore >= 75
+                      const isPassed = item.bestScore !== null && item.bestScore >= 70
                       return (
                         <tr key={item.userId} className="hover:bg-slate-50/80 transition-colors">
                           <td className="p-3 text-center font-bold text-slate-700">{idx + 1}</td>
@@ -938,7 +932,7 @@ function MonitorContent() {
                               <span className="font-bold text-amber-900">
                                 {item.firstScore}{' '}
                                 <span className="text-[10px] font-normal text-amber-700">
-                                  ({item.firstCorrect} Benar)
+                                  ({item.firstCorrect ?? '—'} Benar)
                                 </span>
                               </span>
                             ) : (
@@ -950,7 +944,7 @@ function MonitorContent() {
                               <span className="font-bold text-sky-900">
                                 {item.lastScore}{' '}
                                 <span className="text-[10px] font-normal text-sky-700">
-                                  ({item.lastCorrect} Benar)
+                                  ({item.lastCorrect ?? '—'} Benar)
                                 </span>
                               </span>
                             ) : (
@@ -962,7 +956,7 @@ function MonitorContent() {
                               <span className="font-black text-indigo-700 text-sm">
                                 {item.bestScore}{' '}
                                 <span className="text-[11px] font-bold text-emerald-600">
-                                  ({item.bestCorrect} Benar)
+                                  ({item.bestCorrect ?? '—'} Benar)
                                 </span>
                               </span>
                             ) : (

@@ -511,7 +511,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
             const autoPoints = (Number(evalRes.ratio) || 0) * qMaxScore
             autoPointsEarned += autoPoints
             totalPointsEarned += autoPoints
-            if (evalRes.isCorrect || evalRes.ratio >= 0.5) correctCount += 1
+            if (evalRes.isCorrect) correctCount += 1
           }
         })
       }
