@@ -1177,7 +1177,7 @@ const handleSaveAllQuestionScores = async () => {
         : `kelas ${filterClass}`
 
   const confirmSave = window.confirm(
-    `Simpan nilai soal ini untuk ${sortedSessions.length} peserta pada ${gradingScopeLabel}?`
+    `Simpan nilai dan pengaturan bonus soal ini untuk ${bonusScopeSessions.length} peserta pada ${gradingScopeLabel}?\n\nBonus diterapkan kepada semua peserta dalam cakupan kelas, termasuk yang belum menjawab jika rekaman jawabannya tersedia.`
   )
 
   if (!confirmSave) return
@@ -1187,7 +1187,7 @@ const handleSaveAllQuestionScores = async () => {
   const supabase = createClient()
 
   try {
-    for (const session of sortedSessions) {
+    for (const session of bonusScopeSessions) {
       const answer = (session.rawAnswers || []).find(
         (ans: any) =>
           String(ans.question_id) === String(currentQuestion.id)
@@ -1209,8 +1209,6 @@ const handleSaveAllQuestionScores = async () => {
             : String(rawAnswer).trim() !== ''
         )
 
-      if (!hasAnswer) continue
-
       const scoreKey = `${session.id}_${currentQuestion.id}`
 
       const manualScore =
@@ -1228,10 +1226,16 @@ const handleSaveAllQuestionScores = async () => {
       )
       const applyQuestionBonus = questionBonuses[scoreKey] ?? (Number(answer.teacher_bonus) > 0)
 
-      // 1. Simpan nilai essay pada tabel answers
+      // Simpan bonus untuk semua rekaman jawaban dalam cakupan kelas.
+      // Nilai manual hanya diperbarui jika siswa benar-benar mengisi jawaban.
+      const answerUpdate: Record<string, number> = {
+        teacher_bonus: applyQuestionBonus ? 1 : 0,
+      }
+      if (hasAnswer) answerUpdate.teacher_score = safeScore
+
       const { error: answerError } = await supabase
         .from('answers')
-        .update({ teacher_score: safeScore, teacher_bonus: applyQuestionBonus ? 1 : 0 })
+        .update(answerUpdate)
         .eq('session_id', session.id)
         .eq('question_id', currentQuestion.id)
 
@@ -1246,9 +1250,7 @@ const handleSaveAllQuestionScores = async () => {
             String(ans.question_id) === String(q.id)
         )
 
-        if (
-          String(q.id) === String(currentQuestion.id)
-        ) {
+        if (String(q.id) === String(currentQuestion.id) && hasAnswer) {
           currentEssayScores[q.id] = safeScore
         } else if (
           savedAnswer?.teacher_score !== null &&
@@ -1398,6 +1400,14 @@ const handleSaveAllQuestionScores = async () => {
   })
 
   const uniqueClasses = Array.from(new Set(sessions.map((s) => s.class_code)))
+
+  // Cakupan bonus mengikuti pilihan kelas saja, tidak terpengaruh pencarian nama atau filter status.
+  const bonusScopeSessions = sessions.filter((session) =>
+    filterClass === 'ALL' ||
+    (filterClass === 'ASSIGNED'
+      ? assignedClassCodes.includes(session.class_code)
+      : session.class_code === filterClass)
+  )
 
   const sortedSessions = [...filteredSessions].sort((a, b) => {
     let valA: any = a.earned_score
@@ -2418,14 +2428,53 @@ const handleSaveAllQuestionScores = async () => {
                         </p>
                       </div>
 
+                      <div className="border-b border-slate-200 bg-amber-50 p-4">
+                        <label className="flex cursor-pointer items-start gap-3">
+                          <input
+                            type="checkbox"
+                            checked={
+                              bonusScopeSessions.length > 0 &&
+                              bonusScopeSessions.every((session) => {
+                                const answer = (session.rawAnswers || []).find(
+                                  (ans: any) => String(ans.question_id) === String(essayQuestions[gradingQuestionIndex]?.id)
+                                )
+                                const key = `${session.id}_${essayQuestions[gradingQuestionIndex]?.id}`
+                                return questionBonuses[key] ?? (Number(answer?.teacher_bonus) > 0)
+                              })
+                            }
+                            onChange={(e) => {
+                              const enabled = e.target.checked
+                              const questionId = essayQuestions[gradingQuestionIndex]?.id
+                              if (!questionId) return
+                              setQuestionBonuses((prev) => {
+                                const next = { ...prev }
+                                bonusScopeSessions.forEach((session) => {
+                                  next[`${session.id}_${questionId}`] = enabled
+                                })
+                                return next
+                              })
+                              setQuestionGradingHasChanges(true)
+                            }}
+                            disabled={bonusScopeSessions.length === 0 || isSavingQuestionScores}
+                            className="mt-0.5 h-5 w-5 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                          />
+                          <span>
+                            <span className="block text-sm font-bold text-amber-900">
+                              🎁 Terapkan bonus +1 poin untuk semua peserta pada soal ini
+                            </span>
+                            <span className="mt-1 block text-xs text-amber-800">
+                              Cakupan: {gradingScopeLabel} · {bonusScopeSessions.length} peserta. Tidak terpengaruh pencarian nama atau filter status.
+                            </span>
+                          </span>
+                        </label>
+                      </div>
+
                       <div className="divide-y divide-slate-200">
                         {getQuestionGradingData().map((item, idx) => {
                           const scoreKey = `${item.sessionId}_${essayQuestions[gradingQuestionIndex].id}`
 
                           const currentScore =
                             questionScores[scoreKey] ?? item.score ?? 0
-                          const currentBonus = questionBonuses[scoreKey] ?? item.teacherBonus
-
                           return (
                             <div
                               key={item.sessionId}
@@ -2504,19 +2553,7 @@ const handleSaveAllQuestionScores = async () => {
                                   </span>
                                 </div>
 
-                                <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-800">
-                                  <input
-                                    type="checkbox"
-                                    checked={currentBonus}
-                                    disabled={!item.hasAnswer}
-                                    onChange={(e) => {
-                                      setQuestionBonuses((prev) => ({ ...prev, [scoreKey]: e.target.checked }))
-                                      setQuestionGradingHasChanges(true)
-                                    }}
-                                    className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
-                                  />
-                                  🎁 Tambah bonus +1 poin
-                                </label>
+
                               </div>
                             </div>
                           )
