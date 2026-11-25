@@ -293,7 +293,7 @@ function MonitorContent() {
     const studentName = profileMap.get(session.user_id)?.full_name || 'Siswa'
     if (session.force_submit_state === 'requested') { alert('Perintah pengumpulan untuk siswa ini sudah berjalan.'); return }
     if (!confirm(`Kirim permintaan pengumpulan kepada ${studentName}? Siswa memiliki waktu maksimal 5 menit. Jika tidak merespons, server akan menutup sesi dengan jawaban terakhir yang tersimpan.`)) return
-    const now = new Date()
+    const now = new Date(Date.now() + serverClockOffsetRef.current)
     const { error } = await createClient().from('exam_sessions').update({ force_submit_requested_at: now.toISOString(), force_submit_deadline_at: new Date(now.getTime() + 300000).toISOString(), force_submit_request_id: crypto.randomUUID(), force_submit_state: 'requested' }).eq('id', session.id).in('status', ['ongoing', 'paused'])
     if (error) alert(`Gagal mengirim perintah: ${error.message}`); else await fetchData()
   }
@@ -309,7 +309,7 @@ function MonitorContent() {
     if (!confirm(`Kirim Force Submit ke ${targets.length} sesi? Siswa mendapat waktu maksimal 5 menit.`)) return
     setBulkActionLoading('force-submit')
     try {
-      const supabase = createClient(), requestedAt = new Date().toISOString(), deadlineAt = new Date(Date.now() + 300000).toISOString()
+      const supabase = createClient(), serverNow = Date.now() + serverClockOffsetRef.current, requestedAt = new Date(serverNow).toISOString(), deadlineAt = new Date(serverNow + 300000).toISOString()
       for (let offset = 0; offset < targets.length; offset += 50) {
         const ids = targets.slice(offset, offset + 50).map((x) => x.id)
         const { error } = await supabase.from('exam_sessions').update({ force_submit_requested_at: requestedAt, force_submit_deadline_at: deadlineAt, force_submit_request_id: crypto.randomUUID(), force_submit_state: 'requested' }).in('id', ids).in('status', forceSubmitScope === 'all' ? ['ongoing', 'paused'] : ['ongoing'])

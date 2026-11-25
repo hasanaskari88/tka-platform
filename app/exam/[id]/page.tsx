@@ -696,7 +696,7 @@ function ExamEngineContent() {
 
   useEffect(() => {
     if (!forceSubmitDeadline) return
-    const tick = () => setForceSubmitSeconds(Math.max(0, Math.ceil((new Date(forceSubmitDeadline).getTime() - Date.now()) / 1000)))
+    const tick = () => setForceSubmitSeconds(Math.max(0, Math.ceil((new Date(forceSubmitDeadline).getTime() - (Date.now() + serverClockOffsetRef.current)) / 1000)))
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
