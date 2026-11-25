@@ -39,59 +39,85 @@ const arabicMarks = [
   { mark: 'ٱ', preview: 'ٱ', name: 'Alif washal' },
 ]
 
-// Konversi dasar berbasis suku kata terbuka. Untuk ejaan khusus, pasangan,
-// sandhangan, dan kata serapan, hasil tetap perlu diperiksa oleh guru.
+// Konversi Latin ke Aksara Jawa sederhana.
+// Gunakan é/è untuk taling dan ê/ě untuk pepet. Huruf e biasa tetap
+// diasumsikan taling karena bunyi e tidak dapat ditentukan dari ejaan Latin saja.
 const consonants: Record<string, string> = {
   ng: 'ꦔ', ny: 'ꦚ', th: 'ꦛ', dh: 'ꦝ',
   h: 'ꦲ', n: 'ꦤ', c: 'ꦕ', r: 'ꦫ', k: 'ꦏ',
   d: 'ꦢ', t: 'ꦠ', s: 'ꦱ', w: 'ꦮ', l: 'ꦭ',
   p: 'ꦥ', j: 'ꦗ', y: 'ꦪ', m: 'ꦩ', g: 'ꦒ', b: 'ꦧ',
 }
-const vowelMarks: Record<string, string> = { a: '', i: 'ꦶ', u: 'ꦸ', e: 'ꦺ', é: 'ꦺ', ê: 'ꦼ', 'ě': 'ꦼ', o: 'ꦺꦴ' }
-const independentVowels: Record<string, string> = { a: 'ꦄ', i: 'ꦆ', u: 'ꦈ', e: 'ꦌ', é: 'ꦌ', ê: 'ꦌ', 'ě': 'ꦌ', o: 'ꦎ' }
+const vowelMarks: Record<string, string> = {
+  a: '', i: 'ꦶ', u: 'ꦸ',
+  e: 'ꦺ', é: 'ꦺ', è: 'ꦺ', ê: 'ꦼ', 'ě': 'ꦼ',
+  o: 'ꦺꦴ',
+}
+const independentVowels: Record<string, string> = {
+  a: 'ꦄ', i: 'ꦆ', u: 'ꦈ',
+  e: 'ꦌ', é: 'ꦌ', è: 'ꦌ',
+  // Pepet di awal kata ditulis dengan aksara ha + sandhangan pepet,
+  // bukan aksara swara E.
+  ê: 'ꦲꦼ', 'ě': 'ꦲꦼ',
+  o: 'ꦎ',
+}
+const vowelPattern = /^(a|i|u|e|é|è|ê|ě|o)/
 
-function latinToJavanese(input: string): string {
-  // Aksara Jawa ditulis berurutan; spasi dari input Latin dihilangkan.
-  let rest = input.toLowerCase().normalize('NFC').replace(/\s+/g, '')
+function convertJavaneseWord(word: string): string {
+  let rest = word.toLowerCase().normalize('NFC')
   let output = ''
 
   while (rest.length > 0) {
-    const vowel = rest.match(/^(a|i|u|e|é|ê|ě|o)/)
+    const vowel = rest.match(vowelPattern)
     if (vowel) {
-      output += independentVowels[vowel[0]]
+      output += independentVowels[vowel[0]] ?? vowel[0]
       rest = rest.slice(vowel[0].length)
       continue
     }
 
     const onset = Object.keys(consonants).sort((a, b) => b.length - a.length)
       .find((key) => rest.startsWith(key))
-    if (onset) {
-      const base = consonants[onset]
-      rest = rest.slice(onset.length)
-      const nextVowel = rest.match(/^(a|i|u|e|é|ê|ě|o)/)
-      if (nextVowel) {
-        output += base + vowelMarks[nextVowel[0]]
-        rest = rest.slice(nextVowel[0].length)
-      } else if (rest.length > 0) {
-        if (onset === 'ng') output += 'ꦁ'
-        else if (onset === 'r') output += 'ꦂ'
-        else if (onset === 'h') output += 'ꦃ'
-        else output += base + '꧀'
-      } else {
-        // Pangkon hanya untuk konsonan mati di akhir seluruh rangkaian.
-        if (onset === 'ng') output += 'ꦁ'
-        else if (onset === 'r') output += 'ꦂ'
-        else if (onset === 'h') output += 'ꦃ'
-        else output += base + '꧀'
-      }
+
+    if (!onset) {
+      output += rest[0]
+      rest = rest.slice(1)
       continue
     }
 
-    output += rest[0]
-    rest = rest.slice(1)
+    const base = consonants[onset]
+    rest = rest.slice(onset.length)
+    const nextVowel = rest.match(vowelPattern)
+
+    if (nextVowel) {
+      output += base + vowelMarks[nextVowel[0]]
+      rest = rest.slice(nextVowel[0].length)
+      continue
+    }
+
+    // Konsonan tanpa vokal diikuti konsonan berikutnya membentuk
+    // rangkaian pangkon + aksara berikut (pasangan dalam font yang mendukung).
+    if (rest.length > 0) {
+      output += base + '꧀'
+      continue
+    }
+
+    // Sandhangan panyigeg wanda untuk konsonan penutup tertentu.
+    if (onset === 'ng') output += 'ꦁ'
+    else if (onset === 'r') output += 'ꦂ'
+    else if (onset === 'h') output += 'ꦃ'
+    else output += base + '꧀'
   }
 
   return output
+}
+
+function latinToJavanese(input: string): string {
+  // Pertahankan spasi antarkata; jangan gabungkan dua kata menjadi satu.
+  return input
+    .normalize('NFC')
+    .split(/(\\s+)/)
+    .map((part) => /^\\s+$/.test(part) ? part : convertJavaneseWord(part))
+    .join('')
 }
 
 export default function ScriptKeyboard({ editor, showLatinConversion = true }: ScriptKeyboardProps) {
@@ -186,7 +212,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
               </button>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Spasi Latin diabaikan agar rangkaian aksara tersambung. Huruf e memakai taling; gunakan ê atau ě untuk pepet. Periksa kembali pasangan dan ejaan sebelum menyimpan soal.
+              Spasi antarkata dipertahankan. Huruf e biasa diasumsikan taling; gunakan é atau è untuk taling yang jelas dan ê atau ě untuk pepet. Bunyi e harus diperiksa karena ejaan Latin biasa tidak selalu membedakannya. Periksa kembali pasangan dan ejaan sebelum menyimpan soal.
             </p>
           </div>
           )}
