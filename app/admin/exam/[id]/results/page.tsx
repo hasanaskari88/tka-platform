@@ -475,11 +475,15 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
       const userAnswers = answerMap.get(session.id) || []
       const totalQ = questionData ? questionData.length : 0
 
-      let correctCount = 0      // Penampung jumlah soal benar
-      let totalPointsEarned = 0 // Penampung total poin yang didapat
-      let totalMaxPoints = 0    // Penampung batas maksimal poin seluruh soal
+      let correctCount = 0
+      let totalPointsEarned = 0
+      let totalMaxPoints = 0
+      let autoPointsEarned = 0
+      let autoMaxPoints = 0
+      let pendingEssayCount = 0
 
-      // c. Evaluasi Per Soal secara Real-Time
+      // Nilai sementara hanya memakai soal otomatis. Essay yang sudah dinilai
+      // baru digabungkan ke nilai final dan essay kosong dihitung nol.
       if (questionData && questionData.length > 0) {
         questionData.forEach((q) => {
           const qMaxScore = Number(q.max_score) || 1
@@ -488,43 +492,44 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
           const ans = userAnswers.find((a) => a.question_id === q.id)
           const rawChoice = ans ? (ans.user_answer ?? ans.selected_answers ?? ans.selected_option) : null
           const evalRes = evaluateAnswer(q, rawChoice)
-
           const qType = q.question_type || 'multiple_choice'
 
-          // Evaluasi Soal Uraian / Essay vs Pilihan Ganda (PG / PGK / Matriks)
           if (qType === 'essay' || qType === 'uraian') {
-            const essayScore =
-                ans?.teacher_score !== undefined && ans?.teacher_score !== null
-                  ? Number(ans.teacher_score)
-                  : 0
-            totalPointsEarned += essayScore + (Number(ans?.teacher_bonus) || 0)
-            // Jika essay diberi skor > 0 oleh guru, hitung sebagai poin benar
+            const hasEssayAnswer = !evalRes.isUnanswered
+            if (hasEssayAnswer && (ans?.teacher_score === null || ans?.teacher_score === undefined)) {
+              pendingEssayCount += 1
+              return
+            }
+            const essayScore = ans?.teacher_score !== undefined && ans?.teacher_score !== null
+              ? Number(ans.teacher_score)
+              : 0
+            const essayPoints = Math.min(qMaxScore, Math.max(0, essayScore + (Number(ans?.teacher_bonus) || 0)))
+            totalPointsEarned += essayPoints
             if (essayScore > 0) correctCount += 1
           } else {
-            // Untuk pilihan ganda: jika benar penuh atau parsial (ratio >= 0.5)
+            autoMaxPoints += qMaxScore
+            const autoPoints = (Number(evalRes.ratio) || 0) * qMaxScore
+            autoPointsEarned += autoPoints
+            totalPointsEarned += autoPoints
             if (evalRes.isCorrect || evalRes.ratio >= 0.5) correctCount += 1
-            totalPointsEarned += evalRes.ratio * qMaxScore
           }
         })
       }
 
-      // d. Hitung Kalkulasi Nilai Akhir (Skala 0 - 100)
-      const calculatedScore = totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100) : 0
-      
-      // Utamakan skor tersimpan di Database `session.score` (jika pernah di-override / disimpan)
+      const temporaryScore = autoMaxPoints > 0
+        ? Math.round((autoPointsEarned / autoMaxPoints) * 100)
+        : 0
+      const calculatedFinalScore = totalMaxPoints > 0
+        ? Math.round((totalPointsEarned / totalMaxPoints) * 100)
+        : 0
+      const isProvisional = pendingEssayCount > 0
       const finalScore =
         session.score_override !== undefined && session.score_override !== null
           ? Number(session.score_override)
           : Math.min(
               100,
-              Math.max(0, calculatedScore + (Number(session.bonus_points) || 0))
+              Math.max(0, (isProvisional ? temporaryScore : calculatedFinalScore) + (Number(session.bonus_points) || 0))
             )
-
-      // e. 🟢 SINKRONISASI OTOMATIS (FALLBACK PERHITUNGAN JUMLAH BENAR)
-      // Jika rincian di DB tidak ada/kosong tetapi Nilai Akhir ada, estimasikan jumlah benar dari Nilai Akhir
-      if (correctCount === 0 && finalScore > 0 && totalQ > 0) {
-        correctCount = Math.round((finalScore / 100) * totalQ)
-      }
 
       const finishTime = session.end_time || session.submitted_at || session.completed_at || null
       const startTime = session.start_time || null
@@ -578,6 +583,10 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         total_questions: totalQ,
         earned_score: Math.round(finalScore),
         accuracy_percentage: Math.round(finalScore),
+        is_provisional: isProvisional,
+        temporary_score: Math.min(100, Math.max(0, temporaryScore + (Number(session.bonus_points) || 0))),
+        final_score: Math.min(100, Math.max(0, calculatedFinalScore + (Number(session.bonus_points) || 0))),
+        pending_essay_count: pendingEssayCount,
         rawAnswers: userAnswers,
       }
     })
@@ -2001,6 +2010,9 @@ const handleSaveAllQuestionScores = async () => {
                           <td className="p-3 text-center">
                             <span className="px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg font-bold">
                               {session.earned_score} / 100
+                              <span className="ml-1 block text-[9px] font-semibold text-slate-500">
+                                {session.is_provisional ? 'Nilai sementara' : 'Nilai final'}
+                              </span>
                             </span>
                           </td>
                           <td className="p-3 text-center">

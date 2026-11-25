@@ -360,8 +360,6 @@ function ExamSummaryContent() {
   let totalMaxPoints = 0
   let autoPointsEarned = 0
   let autoMaxPoints = 0
-  let manualPointsEarned = 0
-  let manualMaxPoints = 0
   let totalCorrect = 0
   let totalWrong = 0
   let totalUnanswered = 0
@@ -377,13 +375,11 @@ function ExamSummaryContent() {
     const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
 
     if (isEssay) {
-      manualMaxPoints += qMaxScore
       if (evalResult.isPending) {
         totalPendingEssay++
       } else if (evalResult.isUnanswered) {
         totalUnanswered++
       } else {
-        manualPointsEarned += evalResult.points || 0
         totalPointsEarned += evalResult.points || 0
         if (evalResult.isCorrect) totalCorrect++
         else totalWrong++
