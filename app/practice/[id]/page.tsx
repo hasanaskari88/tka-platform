@@ -209,6 +209,8 @@ function PracticeContent() {
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
 
       if (examData.activity_type === 'FLASHCARD') {
         questionQuery = questionQuery.eq('question_type', 'flashcard')
@@ -238,7 +240,7 @@ function PracticeContent() {
             )
           : examData.activity_type === 'MAZE_GAME' || examData.activity_type === 'FLASHCARD'
             ? [...rawQuestions].sort((a: any, b: any) =>
-                String(a.created_at || '').localeCompare(String(b.created_at || ''))
+                Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0) || String(a.created_at || '').localeCompare(String(b.created_at || ''))
               )
           : (() => {
               const typeOrder = ['multiple_choice', 'complex_multiple_choice', 'true_false_matrix']
