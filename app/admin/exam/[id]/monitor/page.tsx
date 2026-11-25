@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
@@ -18,6 +18,7 @@ function MonitorContent() {
   const [questionsCount, setQuestionsCount] = useState<number>(0)
   const [sessions, setSessions] = useState<any[]>([])
   const [profiles, setProfiles] = useState<any[]>([])
+  const profilesLoadedRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
 
@@ -29,7 +30,8 @@ function MonitorContent() {
   const [filterClass, setFilterClass] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true)
-  const [bulkActionLoading, setBulkActionLoading] = useState<'pause' | 'resume' | null>(null)
+  const [bulkActionLoading, setBulkActionLoading] = useState<'pause' | 'resume' | 'force-submit' | null>(null)
+  const [forceSubmitScope, setForceSubmitScope] = useState<'all' | 'ongoing'>('all')
 
   // Ticker State untuk memperbarui timer live setiap detik
   const [now, setNow] = useState<number>(Date.now())
@@ -65,20 +67,20 @@ function MonitorContent() {
       .select('id', { count: 'exact', head: true })
       .eq('exam_id', examId)
 
-    // 3. Fetch Data Sesi Ujian
-    const { data: sessionData } = await supabase
-      .from('exam_sessions')
-      .select('*')
-      .eq('exam_id', examId)
-      .order('created_at', { ascending: true })
-
-    // 4. Fetch Data Profil Siswa
-    const { data: profileData } = await supabase.from('profiles').select('id, full_name, username, class_code')
-
-    setExam(examData)
-    setQuestionsCount(qCount || 0)
-    setSessions(sessionData || [])
-    setProfiles(profileData || [])
+    // 3. Ambil sesi bertahap agar tidak terkena batas hasil API.
+    const sessionData: any[] = []
+    for (let offset = 0; ; offset += 500) {
+      const { data: pageData, error: pageError } = await supabase.from('exam_sessions').select('*').eq('exam_id', examId).order('created_at', { ascending: true }).range(offset, offset + 499)
+      if (pageError) { console.error('Gagal memuat sesi:', pageError); break }
+      sessionData.push(...(pageData || []))
+      if (!pageData || pageData.length < 500) break
+    }
+    let profileData = profiles
+    if (!profilesLoadedRef.current) {
+      const { data, error: profileError } = await supabase.from('profiles').select('id, full_name, username, class_code')
+      if (!profileError) { profileData = data || []; setProfiles(profileData); profilesLoadedRef.current = true }
+    }
+    setExam(examData); setQuestionsCount(qCount || 0); setSessions(sessionData); setProfiles(profileData)
     setLastUpdated(new Date())
     setLoading(false)
   }
@@ -286,32 +288,34 @@ function MonitorContent() {
 
   // 🛑 AKSI 3: Force Submit
   const handleForceSubmit = async (session: any) => {
-    const student = profileMap.get(session.user_id)
-    const studentName = student?.full_name || 'Siswa'
+    const studentName = profileMap.get(session.user_id)?.full_name || 'Siswa'
+    if (session.force_submit_state === 'requested') { alert('Perintah pengumpulan untuk siswa ini sudah berjalan.'); return }
+    if (!confirm(`Kirim permintaan pengumpulan kepada ${studentName}? Siswa memiliki waktu maksimal 5 menit. Jika tidak merespons, server akan menutup sesi dengan jawaban terakhir yang tersimpan.`)) return
+    const now = new Date()
+    const { error } = await createClient().from('exam_sessions').update({ force_submit_requested_at: now.toISOString(), force_submit_deadline_at: new Date(now.getTime() + 300000).toISOString(), force_submit_request_id: crypto.randomUUID(), force_submit_state: 'requested' }).eq('id', session.id).in('status', ['ongoing', 'paused'])
+    if (error) alert(`Gagal mengirim perintah: ${error.message}`); else await fetchData()
+  }
 
-    if (!confirm(`Apakah Anda yakin ingin memposting/memaksa SELESAI sesi ujian ${studentName}?`)) {
-      return
-    }
-
-    const supabase = createClient()
-    const nowIso = new Date().toISOString()
-
-    const { error } = await supabase
-      .from('exam_sessions')
-      .update({
-        status: 'completed',
-        completed_at: nowIso,
-        submitted_at: nowIso,
-        end_time: nowIso,
-      })
-      .eq('id', session.id)
-      .in('status', ['ongoing', 'paused'])
-
-    if (error) {
-      alert(`Gagal memproses Force Submit: ${error.message}`)
-    } else {
-      fetchData()
-    }
+  const handleForceSubmitAll = async () => {
+    const targets = sessions.filter((session) => {
+      const cls = profileMap.get(session.user_id)?.class_code || '-'
+      const classMatches = filterClass === 'ALL' || cls === filterClass
+      const statusMatches = forceSubmitScope === 'all' ? ['ongoing', 'paused'].includes(session.status) : session.status === 'ongoing'
+      return classMatches && statusMatches && session.force_submit_state !== 'requested'
+    })
+    if (!targets.length) { alert('Tidak ada sesi yang sesuai.'); return }
+    if (!confirm(`Kirim Force Submit ke ${targets.length} sesi? Siswa mendapat waktu maksimal 5 menit.`)) return
+    setBulkActionLoading('force-submit')
+    try {
+      const supabase = createClient(), requestedAt = new Date().toISOString(), deadlineAt = new Date(Date.now() + 300000).toISOString()
+      for (let offset = 0; offset < targets.length; offset += 50) {
+        const ids = targets.slice(offset, offset + 50).map((x) => x.id)
+        const { error } = await supabase.from('exam_sessions').update({ force_submit_requested_at: requestedAt, force_submit_deadline_at: deadlineAt, force_submit_request_id: crypto.randomUUID(), force_submit_state: 'requested' }).in('id', ids).in('status', forceSubmitScope === 'all' ? ['ongoing', 'paused'] : ['ongoing'])
+        if (error) throw error
+      }
+      await fetchData(); alert(`Perintah dikirim ke ${targets.length} sesi. Batas respons 5 menit.`)
+    } catch (error: any) { alert(`Force Submit All gagal: ${error?.message || 'Kesalahan tidak diketahui'}`); await fetchData() }
+    finally { setBulkActionLoading(null) }
   }
 
   
@@ -573,6 +577,10 @@ function MonitorContent() {
               🔄 Refresh
             </button>
 
+            <div className="flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-800 p-1">
+              <select value={forceSubmitScope} onChange={(e) => setForceSubmitScope(e.target.value as 'all' | 'ongoing')} className="rounded-lg bg-slate-700 px-2 py-2 text-[10px] font-bold text-white"><option value="all">Ongoing + Pause</option><option value="ongoing">Ongoing saja</option></select>
+              <button onClick={handleForceSubmitAll} disabled={bulkActionLoading !== null} className="rounded-lg bg-rose-600 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50">{bulkActionLoading === 'force-submit' ? 'Mengirim...' : 'Force Submit All'}</button>
+            </div>
             <button
               onClick={handleExportExcel}
               className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl border border-emerald-500 transition-colors flex items-center space-x-1 shadow-sm"

@@ -16,6 +16,7 @@ function HomePageContent() {
   const [materials, setMaterials] = useState<any[]>([])
   const [homePinOrder, setHomePinOrder] = useState({ cbt: {} as Record<string, number>, cbtCategories: {} as Record<string, number>, material: {} as Record<string, number>, announcement: {} as Record<string, number> })
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [resumeSessions, setResumeSessions] = useState<any[]>([])
   const [globalLeaderboard, setGlobalLeaderboard] = useState<any[]>([])
   const [globalStudentScores, setGlobalStudentScores] = useState<any[]>([])
   const [classLeaderboard, setClassLeaderboard] = useState<any[]>([])
@@ -105,11 +106,15 @@ function HomePageContent() {
 
         // Profil diperlukan untuk identitas siswa dan peringkat kelas.
         if (user) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, full_name, username, class_code, avatar_url, xp, level, badges')
-            .eq('id', user.id)
-            .maybeSingle()
+          const [{ data: profile, error: profileError }, { data: activeSessions, error: activeSessionsError }] = await Promise.all([
+            supabase.from('profiles').select('id, full_name, username, class_code, avatar_url, xp, level, badges').eq('id', user.id).maybeSingle(),
+            supabase.from('exam_sessions').select('id, exam_id, status, created_at').eq('user_id', user.id).in('status', ['ongoing', 'paused']).order('created_at', { ascending: false }).limit(5),
+          ])
+          if (activeSessionsError) console.error('Gagal memuat sesi ujian yang belum selesai:', activeSessionsError)
+          else {
+            const examRows = examResult.data || []
+            setResumeSessions((activeSessions || []).map((session: any) => ({ ...session, exam: examRows.find((item: any) => item.id === session.exam_id) || null })).filter((session: any) => session.exam))
+          }
 
           if (profileError) {
             console.error('Gagal memuat profil pengguna:', profileError)
@@ -1014,6 +1019,18 @@ const filteredExams = useMemo(() => {
           </div>
           )}
         </section>
+
+        {resumeSessions.length > 0 && (
+          <section className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-slate-800 shadow-sm">
+            <div className="mb-1 flex items-center gap-2 text-xs font-extrabold"><span>⏳</span><span>Ada ujian yang belum selesai</span><span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-[10px]">{resumeSessions.length}</span></div>
+            <div className="space-y-1">{resumeSessions.map((session: any) => (
+              <div key={session.id} className="flex items-center justify-between gap-2 border-t border-amber-200 py-1.5">
+                <div className="min-w-0"><p className="truncate text-xs font-bold">{session.exam?.title || 'Ujian sebelumnya'}</p><p className="text-[10px] text-slate-500">{session.exam?.subtest || 'Ujian'} · {session.status === 'paused' ? 'Dijeda' : 'Belum selesai'}</p></div>
+                <Link href={`/exam/${session.exam_id}`} className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 text-[10px] font-black text-white hover:bg-amber-600">Lanjutkan</Link>
+              </div>
+            ))}</div>
+          </section>
+        )}
 
         {/* Pengumuman sekolah */}
         {announcements.length > 0 && (

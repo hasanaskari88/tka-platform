@@ -78,6 +78,8 @@ function ExamEngineContent() {
   const [photoUploadInProgress, setPhotoUploadInProgress] = useState(false)
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved')
   const [isOnline, setIsOnline] = useState(true)
+  const [forceSubmitDeadline, setForceSubmitDeadline] = useState<string | null>(null)
+  const [forceSubmitSeconds, setForceSubmitSeconds] = useState(0)
   const [participantName, setParticipantName] = useState('')
   const [participantIdentifier, setParticipantIdentifier] = useState('')
   const [participantClass, setParticipantClass] = useState('')
@@ -633,7 +635,7 @@ function ExamEngineContent() {
 
       const { data: activeSession, error } = await supabase
         .from('exam_sessions')
-        .select('id, status')
+        .select('id, status, force_submit_state, force_submit_deadline_at')
         .eq('id', currentId)
         .eq('user_id', currentUserId)
         .maybeSingle()
@@ -652,6 +654,12 @@ function ExamEngineContent() {
       }
 
       setSessionStatus(activeSession.status)
+      if (activeSession.force_submit_state === 'requested' && activeSession.force_submit_deadline_at) {
+        setForceSubmitDeadline(activeSession.force_submit_deadline_at)
+      } else {
+        setForceSubmitDeadline(null)
+        setForceSubmitSeconds(0)
+      }
 
       // Sesi dipaksa selesai oleh proktor.
       if (activeSession.status === 'completed') {
@@ -667,6 +675,14 @@ function ExamEngineContent() {
 
     return () => clearInterval(statusInterval)
 }, [examId, loading, sessionId, router])
+
+  useEffect(() => {
+    if (!forceSubmitDeadline) return
+    const tick = () => setForceSubmitSeconds(Math.max(0, Math.ceil((new Date(forceSubmitDeadline).getTime() - Date.now()) / 1000)))
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [forceSubmitDeadline])
 
   // Pantau koneksi. Saat tersambung kembali, kirim ulang snapshot jawaban sesi aktif.
   useEffect(() => {
@@ -864,7 +880,7 @@ function ExamEngineContent() {
       // jawaban; cukup bersihkan backup dan arahkan peserta ke ringkasan.
       const { data: latestSession, error: latestSessionError } = await supabase
         .from('exam_sessions')
-        .select('id, status')
+        .select('id, status, force_submit_state')
         .eq('id', activeSessId)
         .eq('exam_id', examId)
         .eq('user_id', user.id)
@@ -877,7 +893,7 @@ function ExamEngineContent() {
         router.replace(`/exam/${examId}/summary?session_id=${activeSessId}`)
         return
       }
-      if (latestSession.status !== 'ongoing') {
+      if (latestSession.status !== 'ongoing' && !(latestSession.status === 'paused' && latestSession.force_submit_state === 'requested')) {
         throw new Error('Sesi ujian tidak lagi aktif. Muat ulang halaman untuk memeriksa status terbaru.')
       }
 
@@ -1057,13 +1073,15 @@ function ExamEngineContent() {
           status: 'completed',
           score: finalScore,
           total_correct: totalCorrect,
+          force_submit_state: latestSession.force_submit_state === 'requested' ? 'responded' : 'completed',
+          force_submit_responded_at: latestSession.force_submit_state === 'requested' ? endTimeIso : null,
           completed_at: endTimeIso,
           submitted_at: endTimeIso,
           end_time: endTimeIso,
         })
         .eq('id', activeSessId)
         .eq('user_id', user.id)
-        .eq('status', 'ongoing')
+        .in('status', ['ongoing', 'paused'])
         .select('id')
         .maybeSingle()
 
@@ -1184,6 +1202,17 @@ function ExamEngineContent() {
         isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'
       }`}
     >
+      {forceSubmitDeadline && sessionStatus !== 'completed' && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border-2 border-amber-400 bg-white p-5 text-center text-slate-900 shadow-2xl">
+            <div className="mb-2 text-3xl">📢</div><h2 className="text-lg font-black">Guru meminta ujian dikumpulkan</h2>
+            <p className="mt-2 text-sm text-slate-600">Tekan tombol di bawah untuk mengirim jawaban terakhir. Jika tidak direspons, sistem akan mengumpulkan jawaban yang sudah tersimpan setelah waktu habis.</p>
+            <div className="my-4 text-3xl font-black tabular-nums text-rose-600">{String(Math.floor(forceSubmitSeconds / 60)).padStart(2, '0')}:{String(forceSubmitSeconds % 60).padStart(2, '0')}</div>
+            <button type="button" onClick={() => handleFinishExam(true)} disabled={isSubmitting || photoUploadInProgress || !isOnline || forceSubmitSeconds <= 0} className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50">{photoUploadInProgress ? 'Tunggu foto selesai dikirim...' : 'Kumpulkan Sekarang'}</button>
+            <p className="mt-2 text-[11px] text-slate-500">Perangkat offline tidak dapat menerima perintah; server akan menutup sesi setelah batas waktu.</p>
+          </div>
+        </div>
+      )}
       {/* HEADER CBT SISWA */}
       <header className="bg-slate-900 text-white px-6 py-3 flex flex-wrap justify-between items-center shadow-md gap-3">
         <div>
