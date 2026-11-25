@@ -711,8 +711,6 @@ const handleQuickExamAuthorSave = async (examId: string) => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/admin/konten" className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg">📢 Pengelolaan Konten</Link>
-            <Link href="/admin" className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg">← Dashboard Admin</Link>
             <button
               onClick={() => setIsSubtestModalOpen(true)}
               className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex items-center space-x-1"
@@ -729,19 +727,6 @@ const handleQuickExamAuthorSave = async (examId: string) => {
               <span>↕️</span>
               <span>Atur Urutan Jenis Soal</span>
             </button>
-            <Link
-              href="/admin/users"
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition-colors"
-            >
-              👥 Akun & Admin
-            </Link>
-            <Link
-              href="/admin/practice"
-              className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-2"
-            >
-              <span>🎮 Kelola Mode Latihan & Game Edukatif →</span>
-            </Link>
-            
           </div>
         </div>
 
