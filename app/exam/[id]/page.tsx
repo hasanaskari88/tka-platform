@@ -482,11 +482,12 @@ function ExamEngineContent() {
         is_flagged: false,
         updated_at: new Date().toISOString(),
       }))
-      const { error: placeholderError } = await supabase.from('answers').upsert(placeholders, {
-        onConflict: 'session_id,question_id',
-        ignoreDuplicates: true,
-      })
-      if (placeholderError) throw new Error(`Gagal membuat baris jawaban awal: ${placeholderError.message}`)
+      for (let offset = 0; offset < placeholders.length; offset += 50) {
+        const { error: placeholderError } = await supabase.from('answers').upsert(placeholders.slice(offset, offset + 50), {
+          onConflict: 'session_id,question_id', ignoreDuplicates: true,
+        })
+        if (placeholderError) throw new Error(`Gagal membuat batch jawaban awal: ${placeholderError.message}`)
+      }
     }
 
     const sessionLocalKeys = getSessionLocalKeys(currentSessId)
@@ -555,6 +556,11 @@ function ExamEngineContent() {
       const mergedFlags = hasLocalFlagBackup
         ? { ...remoteFlags, ...localFlags }
         : { ...remoteFlags }
+      Object.keys(mergedAnswers).forEach((questionId) => {
+        if (JSON.stringify(mergedAnswers[questionId] ?? null) !== JSON.stringify(remoteAnswers[questionId] ?? null) || Boolean(mergedFlags[questionId]) !== Boolean(remoteFlags[questionId])) {
+          dirtyQuestionIdsRef.current.add(questionId)
+        }
+      })
       localStorage.setItem(sessionLocalKeys.answers, JSON.stringify(mergedAnswers))
       localStorage.setItem(sessionLocalKeys.flags, JSON.stringify(mergedFlags))
       setUserAnswers(mergedAnswers)
@@ -1073,8 +1079,8 @@ function ExamEngineContent() {
           status: 'completed',
           score: finalScore,
           total_correct: totalCorrect,
-          force_submit_state: latestSession.force_submit_state === 'requested' ? 'responded' : 'completed',
-          force_submit_responded_at: latestSession.force_submit_state === 'requested' ? endTimeIso : null,
+          force_submit_state: forceSubmitDeadline ? 'responded' : 'completed',
+          force_submit_responded_at: forceSubmitDeadline ? endTimeIso : null,
           completed_at: endTimeIso,
           submitted_at: endTimeIso,
           end_time: endTimeIso,

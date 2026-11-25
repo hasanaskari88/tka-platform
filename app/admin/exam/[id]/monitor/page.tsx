@@ -19,6 +19,7 @@ function MonitorContent() {
   const [sessions, setSessions] = useState<any[]>([])
   const [profiles, setProfiles] = useState<any[]>([])
   const profilesLoadedRef = useRef(false)
+  const profilesCacheRef = useRef<any[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
 
@@ -30,8 +31,9 @@ function MonitorContent() {
   const [filterClass, setFilterClass] = useState<string>('ALL')
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true)
-  const [bulkActionLoading, setBulkActionLoading] = useState<'pause' | 'resume' | 'force-submit' | null>(null)
+  const [bulkActionLoading, setBulkActionLoading] = useState<'pause' | 'resume' | 'force-submit' | 'extend' | null>(null)
   const [forceSubmitScope, setForceSubmitScope] = useState<'all' | 'ongoing'>('all')
+  const [extendMinutes, setExtendMinutes] = useState(5)
 
   // Ticker State untuk memperbarui timer live setiap detik
   const [now, setNow] = useState<number>(Date.now())
@@ -75,10 +77,10 @@ function MonitorContent() {
       sessionData.push(...(pageData || []))
       if (!pageData || pageData.length < 500) break
     }
-    let profileData = profiles
+    let profileData = profilesCacheRef.current
     if (!profilesLoadedRef.current) {
       const { data, error: profileError } = await supabase.from('profiles').select('id, full_name, username, class_code')
-      if (!profileError) { profileData = data || []; setProfiles(profileData); profilesLoadedRef.current = true }
+      if (!profileError) { profileData = data || []; profilesCacheRef.current = profileData; setProfiles(profileData); profilesLoadedRef.current = true }
     }
     setExam(examData); setQuestionsCount(qCount || 0); setSessions(sessionData); setProfiles(profileData)
     setLastUpdated(new Date())
@@ -370,43 +372,48 @@ function MonitorContent() {
 
 
 
-  // ⏱️ AKSI 5: Perpanjang Waktu (+10 Menit)
-    const handleExtendTime = async (sessionId: string) => {
-    if (!confirm('Tambahkan waktu ujian 10 menit?')) return
-
+  // Tambahan waktu kelipatan lima menit, maksimal sepertiga alokasi asli.
+  const maxExtraMinutes = Math.floor((Number(exam?.duration_minutes || 0) / 3) / 5) * 5
+  const handleExtendTime = async (sessionId: string) => {
+    if (extendMinutes < 5 || extendMinutes % 5 !== 0 || extendMinutes > maxExtraMinutes) {
+      alert(`Maksimal tambahan waktu ujian ini ${maxExtraMinutes} menit.`); return
+    }
     const supabase = createClient()
-
-    const { data: session, error: fetchError } = await supabase
-      .from('exam_sessions')
-      .select('extra_time_seconds, status')
-      .eq('id', sessionId)
-      .maybeSingle()
-
-    if (fetchError || !session) {
-      alert(`Gagal membaca sesi: ${fetchError?.message || 'Sesi tidak ditemukan'}`)
-      return
-    }
-
-    if (!['ongoing', 'paused'].includes(session.status)) {
-      alert('Tambahan waktu hanya dapat diberikan pada sesi aktif atau pause.')
-      return
-    }
-
-    const { error } = await supabase
-      .from('exam_sessions')
-      .update({
-        extra_time_seconds:
-          (Number(session.extra_time_seconds) || 0) + 600,
-      })
-      .eq('id', sessionId)
-      .in('status', ['ongoing', 'paused'])
-
-    if (error) {
-      alert(`Gagal menambah waktu: ${error.message}`)
-      return
-    }
-
+    const { data: session, error: fetchError } = await supabase.from('exam_sessions').select('extra_time_seconds, status').eq('id', sessionId).maybeSingle()
+    if (fetchError || !session) { alert(`Gagal membaca sesi: ${fetchError?.message || 'Sesi tidak ditemukan'}`); return }
+    const previous = Number(session.extra_time_seconds) || 0
+    const next = previous + extendMinutes * 60
+    if (!['ongoing', 'paused'].includes(session.status)) { alert('Tambahan waktu hanya untuk sesi aktif atau pause.'); return }
+    if (next > maxExtraMinutes * 60) { alert('Batas tambahan waktu kumulatif siswa ini sudah tercapai.'); return }
+    const { error } = await supabase.from('exam_sessions').update({ extra_time_seconds: next }).eq('id', sessionId).eq('extra_time_seconds', previous).in('status', ['ongoing', 'paused'])
+    if (error) alert(`Gagal menambah waktu: ${error.message}`)
     await fetchData()
+  }
+
+  const handleExtendTimeAll = async () => {
+    if (extendMinutes < 5 || extendMinutes > maxExtraMinutes) { alert(`Maksimal tambahan waktu ujian ini ${maxExtraMinutes} menit.`); return }
+    const targets = sessions.filter((session) => {
+      const cls = profileMap.get(session.user_id)?.class_code || '-'
+      return (filterClass === 'ALL' || cls === filterClass) && ['ongoing', 'paused'].includes(session.status)
+    })
+    if (!targets.length) { alert('Tidak ada sesi aktif atau pause pada kelas yang dipilih.'); return }
+    if (!confirm(`Tambahkan ${extendMinutes} menit ke ${targets.length} sesi? Batas kumulatif per siswa ${maxExtraMinutes} menit.`)) return
+    setBulkActionLoading('extend')
+    try {
+      const supabase = createClient()
+      let updated = 0, skipped = 0
+      for (const session of targets) {
+        const previous = Number(session.extra_time_seconds) || 0
+        if (previous + extendMinutes * 60 > maxExtraMinutes * 60) { skipped++; continue }
+        const { data, error } = await supabase.from('exam_sessions').update({ extra_time_seconds: previous + extendMinutes * 60 })
+          .eq('id', session.id).eq('extra_time_seconds', previous).in('status', ['ongoing', 'paused']).select('id')
+        if (error) throw error
+        if (data?.length) updated++; else skipped++
+      }
+      await fetchData()
+      alert(`Tambahan waktu diberikan kepada ${updated} siswa. ${skipped} sesi dilewati karena batas tercapai atau data berubah.`)
+    } catch (error: any) { alert(`Tambah Waktu All gagal: ${error?.message || 'Kesalahan tidak diketahui'}`); await fetchData() }
+    finally { setBulkActionLoading(null) }
   }
 
   // FILTERING LOGIC SESI LIVE
@@ -580,6 +587,10 @@ function MonitorContent() {
             <div className="flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-800 p-1">
               <select value={forceSubmitScope} onChange={(e) => setForceSubmitScope(e.target.value as 'all' | 'ongoing')} className="rounded-lg bg-slate-700 px-2 py-2 text-[10px] font-bold text-white"><option value="all">Ongoing + Pause</option><option value="ongoing">Ongoing saja</option></select>
               <button onClick={handleForceSubmitAll} disabled={bulkActionLoading !== null} className="rounded-lg bg-rose-600 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50">{bulkActionLoading === 'force-submit' ? 'Mengirim...' : 'Force Submit All'}</button>
+              <select value={extendMinutes} onChange={(e) => setExtendMinutes(Number(e.target.value))} className="rounded-lg bg-slate-700 px-2 py-2 text-[10px] font-bold text-white">
+                {Array.from({ length: Math.floor(maxExtraMinutes / 5) }, (_, i) => (i + 1) * 5).map((minutes) => <option key={minutes} value={minutes}>{minutes} menit</option>)}
+              </select>
+              <button onClick={handleExtendTimeAll} disabled={bulkActionLoading !== null || maxExtraMinutes < 5} className="rounded-lg bg-indigo-600 px-3 py-2 text-[10px] font-black text-white disabled:opacity-50">{bulkActionLoading === 'extend' ? 'Menambah...' : 'Tambah Waktu All'}</button>
             </div>
             <button
               onClick={handleExportExcel}
