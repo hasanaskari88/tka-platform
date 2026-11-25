@@ -2461,7 +2461,7 @@ const handleSaveAllQuestionScores = async () => {
                               🎁 Terapkan bonus +1 poin untuk semua peserta pada soal ini
                             </span>
                             <span className="mt-1 block text-xs text-amber-800">
-                              Cakupan: {gradingScopeLabel} · {bonusScopeSessions.length} peserta. Tidak terpengaruh pencarian nama atau filter status.
+                              Cakupan: {filterClass === 'ALL' ? 'semua kelas' : filterClass === 'ASSIGNED' ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})` : `kelas ${filterClass}`} · {bonusScopeSessions.length} peserta. Tidak terpengaruh pencarian nama atau filter status.
                             </span>
                           </span>
                         </label>
