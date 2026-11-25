@@ -1118,7 +1118,7 @@ function BankSoalContent() {
             )}
           </div>
         ) : (
-          <div className="p-12 text-center text-slate-500 text-xs bg-slate-950 rounded-2xl border border-slate-800 space-y-3
+          <div className="p-12 text-center text-slate-500 text-xs bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
             <p>Belum ada item/level yang tersimpan di dalam modul ini.</p>
             <div className="flex justify-center gap-2">
               <button
