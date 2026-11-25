@@ -153,7 +153,7 @@ function BankSoalManagementContent() {
       true_false_matrix: 'Matriks Benar/Salah',
       essay: 'Essay / Uraian',
     }
-    return labels[type] || type.replace(/[_-]+/g, ' ').replace(/\\b\\w/g, (letter) => letter.toUpperCase())
+    return labels[type] || type.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
   }
 
   const openQuestionTypeOrderModal = async () => {
