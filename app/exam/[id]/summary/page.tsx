@@ -339,7 +339,7 @@ function ExamSummaryContent() {
               ans.teacher_score === null || ans.teacher_score === undefined
                 ? null
                 : Math.min(
-                    Number(questions.find((q: any) => q.id === ans.question_id)?.max_score) || 1,
+                    Number(questionData?.find((q: any) => q.id === ans.question_id)?.max_score) || 1,
                     Number(ans.teacher_score) + (Number(ans.teacher_bonus) || 0)
                   )
           })
