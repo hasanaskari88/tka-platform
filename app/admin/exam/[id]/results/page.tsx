@@ -1228,16 +1228,16 @@ const handleSaveAllQuestionScores = async () => {
 
       // Simpan bonus untuk semua rekaman jawaban dalam cakupan kelas.
       // Nilai manual hanya diperbarui jika siswa benar-benar mengisi jawaban.
-      const answerUpdate: Record<string, number> = {
+      const answerUpdate: Record<string, any> = {
+        session_id: session.id,
+        question_id: currentQuestion.id,
         teacher_bonus: applyQuestionBonus ? 1 : 0,
       }
       if (hasAnswer) answerUpdate.teacher_score = safeScore
 
       const { error: answerError } = await supabase
         .from('answers')
-        .update(answerUpdate)
-        .eq('session_id', session.id)
-        .eq('question_id', currentQuestion.id)
+        .upsert(answerUpdate, { onConflict: 'session_id,question_id' })
 
       if (answerError) throw answerError
 
