@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useEffect, useId } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
 
@@ -895,6 +895,10 @@ export default function RichTextEditor({
   showJavaneseLatinConversion = true,
 }: RichTextEditorProps) {
   const editorId = useId()
+  // HTML terakhir yang dikirim editor ke parent. Perubahan internal ini tidak boleh
+  // disinkronkan balik dengan setContent karena dapat memindahkan posisi kursor.
+  const lastEmittedContentRef = useRef<string | null>(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ underline: false }),
@@ -1135,13 +1139,25 @@ export default function RichTextEditor({
     },
 
     onUpdate: ({ editor }) => {
-      onChange?.(editor.getHTML())
+      const html = editor.getHTML()
+      lastEmittedContentRef.current = html
+      onChange?.(html)
     },
   })
 
   useEffect(() => {
     if (!editor) return
 
+    // Parent biasanya memperbarui state setiap kali satu karakter diketik.
+    // Jika nilai yang kembali adalah HTML yang baru saja dikirim editor,
+    // biarkan dokumen dan selection ProseMirror tetap utuh.
+    if (content === lastEmittedContentRef.current) {
+      lastEmittedContentRef.current = null
+      return
+    }
+
+    // Sinkronkan hanya perubahan dari luar editor (mis. membuka soal lain).
+    lastEmittedContentRef.current = null
     const preparedContent = prepareEditorContent(content || '')
     const currentContent = editor.getHTML()
 
