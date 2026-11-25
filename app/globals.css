@@ -1,3 +1,6 @@
+@import "katex/dist/katex.min.css";
+@import "tailwindcss";
+
 
 /* FONT ARAB DAN AKSARA JAWA */
 /* FONT ARAB LOKAL: TRANSLIT */
@@ -34,8 +37,6 @@
   font-display: swap;
 }
 
-@import "katex/dist/katex.min.css";
-@import "tailwindcss";
 
 /* Fondasi tampilan */
 :root {
@@ -47,7 +48,7 @@
 
 html {
   min-height: 100%;
-  font-family: var(--font-plus-jakarta-sans), sans-serif;
+  font-family: var(--font-plus-jakarta-sans), "Nyk Ngayogyan Jejeg", "Noto Naskh Arabic Local", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -99,6 +100,31 @@ input,
 textarea,
 select {
   font: inherit;
+  /* Font fallback per karakter: Latin tetap Plus Jakarta, Aksara Jawa memakai Nyk,
+     dan huruf Arab memakai Noto Naskh Arabic lokal secara otomatis. */
+  font-family: var(--font-plus-jakarta-sans), "Nyk Ngayogyan Jejeg", "Noto Naskh Arabic Local", sans-serif;
+}
+
+/* Area ketik Tiptap dan textarea juga memakai font lokal sesuai karakter,
+   tanpa mengharuskan guru memilih font secara manual dari toolbar. */
+.rich-text-editor .ProseMirror,
+.rich-text-editor textarea {
+  font-family: var(--font-plus-jakarta-sans), "Nyk Ngayogyan Jejeg", "Noto Naskh Arabic Local", sans-serif;
+  font-synthesis: none;
+}
+
+.rich-text-editor .ProseMirror [lang="ar"],
+.rich-text-editor .ProseMirror .font-arabic {
+  font-family: "Noto Naskh Arabic Local", serif !important;
+  direction: rtl;
+  text-align: right;
+  line-height: 2.2;
+}
+
+.rich-text-editor .ProseMirror [lang="jv"],
+.rich-text-editor .ProseMirror .font-aksara-jawa {
+  font-family: "Nyk Ngayogyan Jejeg", sans-serif !important;
+  line-height: 2.2;
 }
 
 input::placeholder,
