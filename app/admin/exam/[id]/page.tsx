@@ -371,7 +371,7 @@ function QuestionManagerContent() {
 
   // Checklist Seleksi Massal & Sorting/Filter
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<string>('created_asc')
+  const [sortBy, setSortBy] = useState<string>('manual')
   const [filterType, setFilterType] = useState<string>('ALL')
   const [orderSavingId, setOrderSavingId] = useState<string | null>(null)
   const [questionTypeOrder, setQuestionTypeOrder] = useState<string[]>([
