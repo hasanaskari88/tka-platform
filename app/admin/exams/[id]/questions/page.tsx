@@ -72,6 +72,7 @@ function BankSoalContent() {
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'edited' | 'done'>('all')
+  const [orderSavingId, setOrderSavingId] = useState<string | null>(null)
 
   // State Modal Form Editor Manual
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -796,6 +797,25 @@ function BankSoalContent() {
     }
   }
 
+  const handleMoveQuestion = async (questionId: string, direction: 'up' | 'down') => {
+    if (reviewFilter !== 'all' || orderSavingId) return
+
+    setOrderSavingId(questionId)
+    const supabase = createClient()
+    const { error } = await supabase.rpc('move_question_order', {
+      p_exam_id: examId,
+      p_question_id: questionId,
+      p_direction: direction,
+    })
+
+    if (error) {
+      alert(`Gagal mengubah urutan soal: ${error.message}`)
+    } else {
+      await fetchExamAndQuestions(false)
+    }
+    setOrderSavingId(null)
+  }
+
   const handleSetQuestionReviewStatus = async (questionId: string, status: 'pending' | 'edited' | 'done') => {
     const supabase = createClient()
     const { error } = await supabase
@@ -974,6 +994,11 @@ function BankSoalContent() {
                 style={{ width: `${reviewCounts.all ? (reviewCounts.done / reviewCounts.all) * 100 : 0}%` }}
               />
             </div>
+            {reviewFilter !== 'all' && (
+              <p className="text-[10px] text-amber-300">
+                Untuk mengatur urutan, pilih filter “Semua” terlebih dahulu agar soal yang tersembunyi tidak ikut bergeser.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               {([
                 ['all', 'Semua', reviewCounts.all],
@@ -997,7 +1022,7 @@ function BankSoalContent() {
         {/* DAFTAR ITEM/LEVEL TERSEDIA */}
         {questions.length > 0 ? (
           <div className="space-y-4">
-            {visibleQuestions.length > 0 ? visibleQuestions.map((q) => {
+            {visibleQuestions.length > 0 ? visibleQuestions.map((q, index) => {
               const correctOpt = String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
 
               return (
@@ -1010,6 +1035,29 @@ function BankSoalContent() {
                       {actType === 'QUIZ' ? `Soal Pilihan Ganda #${q.sort_order}` : actType === 'FLASHCARD' ? `Kartu Memori #${q.sort_order}` : `Misi Labirin #${q.sort_order}`}
                     </span>
                     <div className="flex flex-wrap items-center justify-end gap-2">
+                      <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+                        <button
+                          type="button"
+                          title="Naikkan satu posisi"
+                          aria-label={`Naikkan soal nomor ${q.sort_order}`}
+                          disabled={reviewFilter !== 'all' || index === 0 || orderSavingId !== null}
+                          onClick={() => handleMoveQuestion(q.id, 'up')}
+                          className="px-2 py-1 rounded-md text-xs font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ↑
+                        </button>
+                        <span className="text-[9px] text-slate-500 px-1">URUTAN</span>
+                        <button
+                          type="button"
+                          title="Turunkan satu posisi"
+                          aria-label={`Turunkan soal nomor ${q.sort_order}`}
+                          disabled={reviewFilter !== 'all' || index === visibleQuestions.length - 1 || orderSavingId !== null}
+                          onClick={() => handleMoveQuestion(q.id, 'down')}
+                          className="px-2 py-1 rounded-md text-xs font-bold text-slate-200 hover:bg-slate-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ↓
+                        </button>
+                      </div>
                       <span className={`px-2 py-1 rounded-lg border text-[10px] font-bold ${q.review_status === 'done' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : q.review_status === 'edited' ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300' : 'bg-amber-500/15 border-amber-500/30 text-amber-300'}`}>
                         {q.review_status === 'done' ? '✓ Selesai' : q.review_status === 'edited' ? 'Sudah diedit' : 'Belum diperiksa'}
                       </span>
