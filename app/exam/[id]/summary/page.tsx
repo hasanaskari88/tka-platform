@@ -335,7 +335,13 @@ function ExamSummaryContent() {
               }
             }
             map[ans.question_id] = rawVal
-            scores[ans.question_id] = ans.teacher_score === null || ans.teacher_score === undefined ? null : Number(ans.teacher_score)
+            scores[ans.question_id] =
+              ans.teacher_score === null || ans.teacher_score === undefined
+                ? null
+                : Math.min(
+                    Number(questions.find((q: any) => q.id === ans.question_id)?.max_score) || 1,
+                    Number(ans.teacher_score) + (Number(ans.teacher_bonus) || 0)
+                  )
           })
           setUserAnswersMap(map)
           setTeacherScoresMap(scores)
@@ -348,9 +354,14 @@ function ExamSummaryContent() {
     loadSummaryAndReview()
   }, [examId, sessionId])
 
-  // Hitung Skor & Statistik
+  // Hitung nilai otomatis dan nilai gabungan secara terpisah.
+  // Nilai sementara hanya memakai soal yang dapat dinilai otomatis.
   let totalPointsEarned = 0
   let totalMaxPoints = 0
+  let autoPointsEarned = 0
+  let autoMaxPoints = 0
+  let manualPointsEarned = 0
+  let manualMaxPoints = 0
   let totalCorrect = 0
   let totalWrong = 0
   let totalUnanswered = 0
@@ -360,25 +371,54 @@ function ExamSummaryContent() {
     const qMaxScore = Number(q.max_score) || 1
     totalMaxPoints += qMaxScore
 
+    const qType = q.question_type || 'multiple_choice'
+    const isEssay = qType === 'essay' || qType === 'uraian'
     const userAns = userAnswersMap[q.id]
     const evalResult = evaluateQuestion(q, userAns, teacherScoresMap[q.id])
 
-    if (evalResult.isPending) {
-      totalPendingEssay++
-    } else if (evalResult.isUnanswered) {
+    if (isEssay) {
+      manualMaxPoints += qMaxScore
+      if (evalResult.isPending) {
+        totalPendingEssay++
+      } else if (evalResult.isUnanswered) {
+        totalUnanswered++
+      } else {
+        manualPointsEarned += evalResult.points || 0
+        totalPointsEarned += evalResult.points || 0
+        if (evalResult.isCorrect) totalCorrect++
+        else totalWrong++
+      }
+      return
+    }
+
+    autoMaxPoints += qMaxScore
+    if (evalResult.isUnanswered) {
       totalUnanswered++
-    } else if (evalResult.isCorrect) {
-      totalCorrect++
-      totalPointsEarned += evalResult.points
     } else {
-      totalWrong++
-      totalPointsEarned += evalResult.points
+      autoPointsEarned += evalResult.points || 0
+      totalPointsEarned += evalResult.points || 0
+      if (evalResult.isCorrect) totalCorrect++
+      else totalWrong++
     }
   })
 
-  const calculatedScore = totalMaxPoints > 0
+  const temporaryScore = autoMaxPoints > 0
+    ? Math.round((autoPointsEarned / autoMaxPoints) * 100)
+    : 0
+  const finalCalculatedScore = totalMaxPoints > 0
     ? Math.round((totalPointsEarned / totalMaxPoints) * 100)
     : 0
+  const isFinalScore = totalPendingEssay === 0
+  const displayedScore = isFinalScore
+    ? (
+        sessionData?.score_override !== null && sessionData?.score_override !== undefined
+          ? Number(sessionData.score_override)
+          : finalCalculatedScore
+      )
+    : temporaryScore
+  const displayedPointsEarned = isFinalScore ? totalPointsEarned : autoPointsEarned
+  const displayedMaxPoints = isFinalScore ? totalMaxPoints : autoMaxPoints
+  const calculatedScore = displayedScore
 
   // Rekap poin berdasarkan tipe soal. Nilai essay yang belum diperiksa
   // tetap dihitung sebagai menunggu, bukan dianggap sudah mendapat nol final.
@@ -505,7 +545,7 @@ function ExamSummaryContent() {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left border-b border-white/10 pb-6">
           <div className="space-y-1">
             <span className={`inline-block px-3 py-1 rounded-full text-xs font-extrabold border uppercase tracking-wider ${themeStyles.badgeColor}`}>
-              {totalPendingEssay > 0 ? '⏳ HASIL UJIAN · NILAI SEMENTARA' : '🏆 HASIL UJIAN SELESAI'}
+              {!isFinalScore ? '⏳ HASIL UJIAN · NILAI SEMENTARA' : '🏆 HASIL UJIAN SELESAI'}
             </span>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
               {exam?.title || 'Evaluasi Ujian TKA'}
@@ -518,17 +558,15 @@ function ExamSummaryContent() {
           <div className="flex items-center space-x-3 bg-white/10 px-5 py-3 rounded-2xl border border-white/15">
             <div className="text-4xl animate-bounce">⭐</div>
             <div className="text-right">
-              <span className="text-[10px] font-extrabold uppercase opacity-75 block">{totalPendingEssay > 0 ? 'Nilai Sementara' : 'Skor Akhir'}</span>
+              <span className="text-[10px] font-extrabold uppercase opacity-75 block">{!isFinalScore ? 'Nilai Sementara' : 'Nilai Final'}</span>
               <span className="text-3xl font-black text-amber-400">
-                  {sessionData?.score !== null && sessionData?.score !== undefined
-                    ? Number(sessionData.score)
-                    : calculatedScore} / 100
+                  {displayedScore} / 100
                 </span>
             </div>
           </div>
         </div>
 
-        {totalPendingEssay > 0 ? (
+        {!isFinalScore ? (
           <div className="rounded-xl border border-amber-300/50 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed">
             <strong>Nilai belum final.</strong> Masih ada {totalPendingEssay} jawaban essay/uraian yang menunggu penilaian guru. Nilai dan rincian poin dapat berubah setelah guru menyelesaikan pemeriksaan.
           </div>
@@ -578,7 +616,7 @@ function ExamSummaryContent() {
               <p className="text-[11px] opacity-75 mt-1">Poin yang diperoleh dibandingkan dengan poin maksimal setiap tipe soal.</p>
             </div>
             <span className="text-[11px] font-bold opacity-80">
-              Total: {Number(totalPointsEarned.toFixed(2))} / {Number(totalMaxPoints.toFixed(2))} poin
+              Total: {Number(displayedPointsEarned.toFixed(2))} / {Number(displayedMaxPoints.toFixed(2))} poin
             </span>
           </div>
 
@@ -620,7 +658,7 @@ function ExamSummaryContent() {
           )}
           {totalPendingEssay > 0 && (
             <p className="text-[10px] leading-relaxed opacity-75">
-              Catatan: poin uraian yang belum diperiksa belum masuk ke perolehan poin. Rincian dan skor akhir akan berubah setelah guru memberikan nilai.
+              Catatan: nilai sementara dihitung dari poin soal otomatis dibagi poin maksimal soal otomatis. Setelah seluruh jawaban uraian dinilai, nilai final dihitung dari gabungan poin otomatis dan manual dibagi seluruh poin maksimal.
             </p>
           )}
         </section>
