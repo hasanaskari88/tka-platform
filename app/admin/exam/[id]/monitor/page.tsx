@@ -37,12 +37,18 @@ function MonitorContent() {
 
   // Ticker State untuk memperbarui timer live setiap detik
   const [now, setNow] = useState<number>(Date.now())
+  const serverClockOffsetRef = useRef(0)
 
   useEffect(() => {
-    const timerInterval = setInterval(() => {
-      setNow(Date.now())
-    }, 1000)
-    return () => clearInterval(timerInterval)
+    let active = true
+    fetch('/api/server-time', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((payload) => {
+      if (active && payload && Number.isFinite(Number(payload.now))) {
+        serverClockOffsetRef.current = Number(payload.now) - Date.now()
+        setNow(Date.now() + serverClockOffsetRef.current)
+      }
+    }).catch((error) => console.warn('Sinkronisasi waktu monitor gagal:', error))
+    const timerInterval = setInterval(() => setNow(Date.now() + serverClockOffsetRef.current), 1000)
+    return () => { active = false; clearInterval(timerInterval) }
   }, [])
 
   // 🔄 Fetch Data dari Supabase

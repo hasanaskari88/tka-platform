@@ -71,6 +71,7 @@ function ExamEngineContent() {
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
 
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
+  const [deadlineAtMs, setDeadlineAtMs] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [authCheckFailed, setAuthCheckFailed] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -95,6 +96,7 @@ function ExamEngineContent() {
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
   const dirtyQuestionIdsRef = useRef<Set<string>>(new Set())
+  const serverClockOffsetRef = useRef(0)
   const loadStartedRef = useRef(false)
 
   // Helper Acak Array (Fisher-Yates Shuffle)
@@ -274,6 +276,15 @@ function ExamEngineContent() {
 
     try {
     const supabase = createClient()
+    try {
+      const timeResponse = await fetch('/api/server-time', { cache: 'no-store' })
+      if (timeResponse.ok) {
+        const timePayload = await timeResponse.json()
+        if (Number.isFinite(Number(timePayload.now))) serverClockOffsetRef.current = Number(timePayload.now) - Date.now()
+      }
+    } catch (timeError) {
+      console.warn('Sinkronisasi jam server belum tersedia, memakai jam perangkat sementara.', timeError)
+    }
 
     let user = null
 
@@ -428,38 +439,35 @@ function ExamEngineContent() {
       startTimeIso = existingSession.start_time || startTimeIso
       setSessionStatus(existingSession.status)
     } else {
-      // Sesi baru hanya dibuat saat tidak ada sesi yang tersisa.
+      // Sesi baru hanya dibuat jika belum ada sesi aktif. Jika dua klik terjadi bersamaan,
+      // unique index aktif memastikan permintaan kedua mengambil sesi yang pertama.
       const { data: newSess, error: createError } = await supabase
         .from('exam_sessions')
         .insert({
-          exam_id: examId,
-          user_id: user.id,
-          status: 'ongoing',
-          start_time: startTimeIso,
-          paused_duration_seconds: 0,
-          extra_time_seconds: 0,
-        })
-        .select('*')
-        .single()
+          exam_id: examId, user_id: user.id, status: 'ongoing',
+          start_time: startTimeIso, paused_duration_seconds: 0, extra_time_seconds: 0,
+        }).select('*').single()
 
       if (createError || !newSess) {
-        console.error('Gagal membuat sesi:', createError)
-
-        alert(
-          `Gagal membuat sesi ujian baru: ${
-            createError?.message || 'Data sesi tidak dikembalikan oleh database.'
-          }`
-        )
-
-        setLoading(false)
-        return
+        const { data: racedSession, error: raceLookupError } = await supabase
+          .from('exam_sessions').select('*').eq('exam_id', examId).eq('user_id', user.id)
+          .in('status', ['ongoing', 'paused']).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        if (raceLookupError || !racedSession) {
+          console.error('Gagal membuat sesi:', createError, raceLookupError)
+          alert(`Gagal membuat sesi ujian baru: ${createError?.message || raceLookupError?.message || 'Data sesi tidak dikembalikan oleh database.'}`)
+          setLoading(false)
+          return
+        }
+        currentSession = racedSession
+        currentSessId = racedSession.id
+        startTimeIso = racedSession.start_time || startTimeIso
+        setSessionStatus(racedSession.status)
+      } else {
+        currentSession = newSess
+        currentSessId = newSess.id
+        startTimeIso = newSess.start_time || startTimeIso
+        setSessionStatus('ongoing')
       }
-
-      currentSession = newSess
-      currentSessId = newSess.id
-      // Gunakan waktu mulai dari database agar timer sama dengan dasar penetapan sesi.
-      startTimeIso = newSess.start_time || startTimeIso
-      setSessionStatus('ongoing')
     }
 
     if (currentSessId) {
@@ -584,7 +592,7 @@ function ExamEngineContent() {
     const durationSeconds =
       (Number(examData.duration_minutes) || 15) * 60
 
-    const nowMs = Date.now()
+    const nowMs = Date.now() + serverClockOffsetRef.current
     const startMs = new Date(startTimeIso).getTime()
 
     const pausedAtMs = currentSession?.paused_at
@@ -613,6 +621,7 @@ function ExamEngineContent() {
       durationSeconds + extraTime - elapsedSeconds
     )
 
+    setDeadlineAtMs(startMs + (durationSeconds + accumulatedPause + extraTime) * 1000)
     setTimeLeft(remainingSeconds)
     } catch (error) {
       console.error('Gagal memuat ruang ujian:', error)
@@ -641,7 +650,7 @@ function ExamEngineContent() {
 
       const { data: activeSession, error } = await supabase
         .from('exam_sessions')
-        .select('id, status, force_submit_state, force_submit_deadline_at')
+        .select('id, status, start_time, paused_at, paused_duration_seconds, extra_time_seconds, force_submit_state, force_submit_deadline_at')
         .eq('id', currentId)
         .eq('user_id', currentUserId)
         .maybeSingle()
@@ -660,6 +669,9 @@ function ExamEngineContent() {
       }
 
       setSessionStatus(activeSession.status)
+      if (activeSession.start_time && exam?.duration_minutes) {
+        setDeadlineAtMs(new Date(activeSession.start_time).getTime() + (Number(exam.duration_minutes) * 60 + (Number(activeSession.paused_duration_seconds) || 0) + (Number(activeSession.extra_time_seconds) || 0)) * 1000)
+      }
       if (activeSession.force_submit_state === 'requested' && activeSession.force_submit_deadline_at) {
         setForceSubmitDeadline(activeSession.force_submit_deadline_at)
       } else {
@@ -680,7 +692,7 @@ function ExamEngineContent() {
     const statusInterval = setInterval(checkSessionStatus, 3000)
 
     return () => clearInterval(statusInterval)
-}, [examId, loading, sessionId, router])
+}, [examId, loading, sessionId, router, exam])
 
   useEffect(() => {
     if (!forceSubmitDeadline) return
@@ -726,32 +738,23 @@ function ExamEngineContent() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [loading, sessionStatus])
 
-  // 🟢 TIMER COUNTDOWN PRESISI (HENTIKAN TIMER JIKA DIPAUSE)
-      useEffect(() => {
-        if (
-      timeLeft === null ||
-      timeLeft <= 0 ||
-      sessionStatus === 'paused' ||
-      sessionStatus === 'missing' ||
-      sessionStatus === 'completed'
-    ) {
-      return
+  // Hitung mundur selalu dari deadline server, bukan mengurangi angka lokal.
+  useEffect(() => {
+    if (deadlineAtMs === null || sessionStatus === 'paused' || sessionStatus === 'missing' || sessionStatus === 'completed') return
+    const updateRemaining = () => {
+      const remaining = Math.max(0, Math.ceil((deadlineAtMs - (Date.now() + serverClockOffsetRef.current)) / 1000))
+      setTimeLeft(remaining)
     }
-
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev !== null && prev <= 1) {
-          clearInterval(timer)
-          // Auto-submit ditangani oleh effect setelah timeLeft menjadi 0.
-          // Jika sedang offline, pengiriman menunggu koneksi pulih.
-          return 0
-        }
-        return prev !== null ? prev - 1 : null
-      })
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [timeLeft, sessionStatus])
+    updateRemaining()
+    const timer = setInterval(updateRemaining, 1000)
+    document.addEventListener('visibilitychange', updateRemaining)
+    window.addEventListener('focus', updateRemaining)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', updateRemaining)
+      window.removeEventListener('focus', updateRemaining)
+    }
+  }, [deadlineAtMs, sessionStatus])
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
