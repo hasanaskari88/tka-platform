@@ -277,6 +277,7 @@ function ExamEngineContent() {
         .from('questions')
         .select('*')
         .eq('exam_id', examId)
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true }),
       supabase
         .from('exam_sessions')
