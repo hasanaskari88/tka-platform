@@ -939,7 +939,7 @@ const getFilteredGradingQuestions = () => {
       })
       setEssayScores(updatedEssayScores)
       if (!overrideActive) {
-        setCustomFinalScore(calculateAutoScore(map, updatedEssayScores, savedBonus))
+        setCustomFinalScore(calculateAutoScore(map, updatedEssayScores, savedBonus, initialEssayBonuses))
       }
     } catch (error) {
       console.error('Gagal memuat foto jawaban siswa:', error)
