@@ -92,6 +92,7 @@ function ExamEngineContent() {
   const flaggedQuestionsRef = useRef<{ [key: string]: boolean }>({})
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveQueueRef = useRef<Promise<void>>(Promise.resolve())
+  const dirtyQuestionIdsRef = useRef<Set<string>>(new Set())
   const loadStartedRef = useRef(false)
 
   // Helper Acak Array (Fisher-Yates Shuffle)
@@ -123,19 +124,27 @@ function ExamEngineContent() {
     return val
   }
 
-  // Simpan seluruh jawaban dan status ragu-ragu ke Supabase secara berurutan.
-  const persistAnswersToSupabase = async () => {
+  // Autosave hanya mengirim jawaban yang berubah. Submit akhir meminta snapshot lengkap.
+  const persistAnswersToSupabase = async (forceAll = false) => {
     const activeSessId = sessionIdRef.current
     const currentQuestions = questionsRef.current
     if (!activeSessId || currentQuestions.length === 0) return
 
     const answers = userAnswersRef.current
     const flags = flaggedQuestionsRef.current
+    const questionIds = forceAll
+      ? currentQuestions.map((question) => question.id)
+      : Array.from(dirtyQuestionIdsRef.current)
+    if (questionIds.length === 0) return
+
+    const questionsById = new Map(currentQuestions.map((question) => [question.id, question]))
     const updatedAt = new Date().toISOString()
-    const records = currentQuestions.map((q) => {
+    const records = questionIds.flatMap((questionId) => {
+      const q = questionsById.get(questionId)
+      if (!q) return []
       const raw = answers[q.id]
       const isObjectiveMultiple = q.question_type === 'complex_multiple_choice' || q.question_type === 'true_false_matrix'
-      return {
+      return [{
         session_id: activeSessId,
         question_id: q.id,
         user_answer: raw === undefined || raw === null ? null : (typeof raw === 'string' ? raw : JSON.stringify(raw)),
@@ -143,23 +152,53 @@ function ExamEngineContent() {
         selected_answers: isObjectiveMultiple && raw !== undefined && raw !== null ? raw : null,
         is_flagged: Boolean(flags[q.id]),
         updated_at: updatedAt,
-      }
+      }]
     })
 
     // Jangan menulis ke sesi yang sudah berganti/dihapus.
     if (sessionIdRef.current !== activeSessId) return
-    const { error } = await createClient().from('answers').upsert(records, {
-      onConflict: 'session_id,question_id',
-    })
-    if (error) throw error
-    setSaveStatus('saved')
+    const supabase = createClient()
+    for (let offset = 0; offset < records.length; offset += 50) {
+      if (sessionIdRef.current !== activeSessId) return
+      const batch = records.slice(offset, offset + 50)
+      const { error } = await supabase.from('answers').upsert(batch, {
+        onConflict: 'session_id,question_id',
+      })
+      if (error) throw error
+
+      // Hapus dirty marker hanya jika tidak ada perubahan baru selama batch berjalan.
+      batch.forEach((record) => {
+        const questionId = record.question_id
+        const currentAnswer = userAnswersRef.current[questionId]
+        const savedAnswer = record.user_answer === null
+          ? undefined
+          : (typeof record.user_answer === 'string'
+              ? record.user_answer
+              : record.user_answer)
+        const currentSerialized = currentAnswer === undefined ? null : JSON.stringify(currentAnswer)
+        const savedSerialized = record.user_answer === null ? null : JSON.stringify(
+          typeof record.user_answer === 'string' &&
+          ['complex_multiple_choice', 'true_false_matrix'].includes(
+            questionsById.get(questionId)?.question_type
+          )
+            ? record.selected_answers
+            : record.user_answer
+        )
+        const sameAnswer = currentSerialized === savedSerialized
+        const sameFlag = Boolean(flaggedQuestionsRef.current[questionId]) === Boolean(record.is_flagged)
+        if (sameAnswer && sameFlag) dirtyQuestionIdsRef.current.delete(questionId)
+      })
+    }
+    if (sessionIdRef.current === activeSessId && dirtyQuestionIdsRef.current.size === 0) {
+      setSaveStatus('saved')
+    }
   }
 
-  const queueAutosave = () => {
+  const queueAutosave = (forceAll = false) => {
     // Pulihkan antrean setelah satu kegagalan agar penyimpanan berikutnya tetap dapat berjalan.
     const nextSave = saveQueueRef.current
       .catch(() => undefined)
-      .then(() => persistAnswersToSupabase())
+      .then(() => persistAnswersToSupabase(forceAll))
     saveQueueRef.current = nextSave
     return nextSave
   }
@@ -183,7 +222,7 @@ function ExamEngineContent() {
     let lastError: unknown = null
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await queueAutosave()
+        await queueAutosave(true)
         return
       } catch (error) {
         lastError = error
@@ -194,6 +233,13 @@ function ExamEngineContent() {
 
   // Update state, ref, cadangan lokal, lalu jadwalkan autosave 800 ms.
   const updateAnswersState = (newAnswersMap: { [key: string]: any }) => {
+    const previousAnswers = userAnswersRef.current
+    const changedIds = new Set([...Object.keys(previousAnswers), ...Object.keys(newAnswersMap)])
+    changedIds.forEach((questionId) => {
+      if (JSON.stringify(previousAnswers[questionId] ?? null) !== JSON.stringify(newAnswersMap[questionId] ?? null)) {
+        dirtyQuestionIdsRef.current.add(questionId)
+      }
+    })
     setUserAnswers(newAnswersMap)
     userAnswersRef.current = newAnswersMap
     setSaveStatus('saving')
@@ -742,6 +788,7 @@ function ExamEngineContent() {
       [questionId]: !flaggedQuestionsRef.current[questionId],
     }
     flaggedQuestionsRef.current = updated
+    dirtyQuestionIdsRef.current.add(questionId)
     setFlaggedQuestions(updated)
     setSaveStatus('saving')
     if (examId) localStorage.setItem(getSessionLocalKeys().flags, JSON.stringify(updated))
@@ -862,13 +909,15 @@ function ExamEngineContent() {
     const currentFlags = { ...localFlagSnapshot, ...flaggedQuestionsRef.current }
 
     let totalPointsEarned = 0
-    let totalMaxPoints = 0
+    let autoMaxPoints = 0
+    let totalCorrect = 0
 
     currentQuestions.forEach((q) => {
       const qMaxScore = Number(q.max_score) || 1
-      totalMaxPoints += qMaxScore
-
       const qType = q.question_type || 'multiple_choice'
+      const isEssayQuestion = qType === 'essay' || qType === 'uraian'
+      if (!isEssayQuestion) autoMaxPoints += qMaxScore
+      const pointsBeforeQuestion = totalPointsEarned
       const userAns = currentAnswers[q.id]
 
       const isUnattempted =
@@ -933,10 +982,14 @@ function ExamEngineContent() {
           }
         }
       }
+
+      if (!isEssayQuestion && totalPointsEarned - pointsBeforeQuestion >= qMaxScore - 0.000001) {
+        totalCorrect += 1
+      }
     })
 
     const finalScore =
-      totalMaxPoints > 0 ? Math.round((totalPointsEarned / totalMaxPoints) * 100 * 100) / 100 : 0
+      autoMaxPoints > 0 ? Math.round((totalPointsEarned / autoMaxPoints) * 100 * 100) / 100 : 0
 
     
     const endTimeIso = new Date().toISOString()
@@ -983,16 +1036,17 @@ function ExamEngineContent() {
 
       // 4. Simpan atau perbarui jawaban sebelum menyelesaikan sesi
       if (answerRecords.length > 0) {
-        const { error: answersError } = await supabase
-          .from('answers')
-          .upsert(answerRecords, {
-            onConflict: 'session_id,question_id',
-          })
+        for (let offset = 0; offset < answerRecords.length; offset += 50) {
+          const batch = answerRecords.slice(offset, offset + 50)
+          const { error: answersError } = await supabase
+            .from('answers')
+            .upsert(batch, {
+              onConflict: 'session_id,question_id',
+            })
 
-        if (answersError) {
-          throw new Error(
-            `Gagal menyimpan jawaban: ${answersError.message}`
-          )
+          if (answersError) {
+            throw new Error(`Gagal menyimpan batch jawaban ${Math.floor(offset / 50) + 1}: ${answersError.message}`)
+          }
         }
       }
 
@@ -1002,6 +1056,7 @@ function ExamEngineContent() {
         .update({
           status: 'completed',
           score: finalScore,
+          total_correct: totalCorrect,
           completed_at: endTimeIso,
           submitted_at: endTimeIso,
           end_time: endTimeIso,
