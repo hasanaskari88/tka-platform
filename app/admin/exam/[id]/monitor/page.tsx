@@ -832,6 +832,14 @@ function MonitorContent() {
                                 >
                                   🛑 Submit
                                 </button>
+                                <button
+                                  onClick={() => handleExtendTime(s.id)}
+                                  disabled={maxExtraMinutes < 5 || extendMinutes > maxExtraMinutes}
+                                  className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[10px] transition-colors disabled:opacity-40"
+                                  title={`Tambah waktu ${extendMinutes} menit`}
+                                >
+                                  +{extendMinutes}m
+                                </button>
                               </>
                             )}
 
@@ -850,6 +858,14 @@ function MonitorContent() {
                                   title="Paksa Selesai & Simpan Nilai"
                                 >
                                   🛑 Submit
+                                </button>
+                                <button
+                                  onClick={() => handleExtendTime(s.id)}
+                                  disabled={maxExtraMinutes < 5 || extendMinutes > maxExtraMinutes}
+                                  className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded text-[10px] transition-colors disabled:opacity-40"
+                                  title={`Tambah waktu ${extendMinutes} menit`}
+                                >
+                                  +{extendMinutes}m
                                 </button>
                               </>
                             )}
