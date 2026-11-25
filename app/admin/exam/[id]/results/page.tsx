@@ -279,6 +279,7 @@ function ExamResultsContent() {
 // STATE KHUSUS MODE PENILAIAN PER SOAL
 const [questionScores, setQuestionScores] = useState<Record<string, number>>({})
 const [questionBonuses, setQuestionBonuses] = useState<Record<string, boolean>>({})
+const [questionBonusAmount, setQuestionBonusAmount] = useState<number>(1)
 const [questionGradingHasChanges, setQuestionGradingHasChanges] = useState(false)
 const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
 
@@ -739,7 +740,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
     answersMap: { [qId: string]: any },
     currentEssayScores: { [qId: string]: number },
     bonus: number = 0,
-    currentEssayBonuses: { [qId: string]: boolean } = {}
+    currentEssayBonuses: { [qId: string]: number | boolean } = {}
   ) => {
     let totalPoints = 0
     let maxPoints = 0
@@ -754,7 +755,8 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         currentEssayScores[q.id] !== undefined
           ? Number(currentEssayScores[q.id])
           : 0
-        totalPoints += Math.min(qMax, Math.max(0, manualScore)) + (currentEssayBonuses[q.id] ? 1 : 0)
+        const bonusValue = Number(currentEssayBonuses[q.id]) || (currentEssayBonuses[q.id] ? 1 : 0)
+        totalPoints += Math.min(qMax, Math.max(0, manualScore) + Math.min(qMax, Math.max(0, bonusValue)))
       } else {
         const rawAns = answersMap[q.id]
         const evalRes = evaluateAnswer(q, rawAns)
@@ -1229,7 +1231,9 @@ const handleSaveAllQuestionScores = async () => {
       const answerUpdate: Record<string, any> = {
         session_id: session.id,
         question_id: currentQuestion.id,
-        teacher_bonus: applyQuestionBonus ? 1 : 0,
+        teacher_bonus: applyQuestionBonus
+          ? Math.min(maxScore, Math.max(0, Number(questionBonusAmount) || 0))
+          : 0,
       }
       if (hasAnswer) answerUpdate.teacher_score = safeScore
 
@@ -1262,12 +1266,12 @@ const handleSaveAllQuestionScores = async () => {
         }
       })
 
-      const currentEssayBonuses: { [qId: string]: boolean } = {}
+      const currentEssayBonuses: { [qId: string]: number } = {}
       essayQuestions.forEach((q) => {
         const savedAnswer = (session.rawAnswers || []).find((ans: any) => String(ans.question_id) === String(q.id))
         currentEssayBonuses[q.id] = String(q.id) === String(currentQuestion.id)
-          ? applyQuestionBonus
-          : Number(savedAnswer?.teacher_bonus) > 0
+          ? (applyQuestionBonus ? Math.min(maxScore, Math.max(0, Number(questionBonusAmount) || 0)) : 0)
+          : Number(savedAnswer?.teacher_bonus) || 0
       })
 
       // 3. Siapkan jawaban otomatis peserta
@@ -1313,7 +1317,7 @@ const handleSaveAllQuestionScores = async () => {
 
     await loadData()
 
-    alert('Nilai seluruh peserta berhasil disimpan.')
+    alert('Nilai dan bonus seluruh peserta berhasil disimpan.')
 
   } catch (error: any) {
     alert(`Gagal menyimpan nilai: ${error.message}`)
@@ -2458,10 +2462,29 @@ const handleSaveAllQuestionScores = async () => {
                           />
                           <span>
                             <span className="block text-sm font-bold text-amber-900">
-                              🎁 Terapkan bonus +1 poin untuk semua peserta pada soal ini
+                              🎁 Terapkan bonus untuk semua peserta pada soal ini
                             </span>
                             <span className="mt-1 block text-xs text-amber-800">
                               Cakupan: {filterClass === 'ALL' ? 'semua kelas' : filterClass === 'ASSIGNED' ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})` : `kelas ${filterClass}`} · {bonusScopeSessions.length} peserta. Tidak terpengaruh pencarian nama atau filter status.
+                            </span>
+                            <span className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-900">
+                              Jumlah bonus:
+                              <input
+                                type="number"
+                                min="0"
+                                max={Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1}
+                                step="0.5"
+                                value={questionBonusAmount}
+                                onChange={(e) => {
+                                  const max = Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1
+                                  const value = e.target.value === '' ? 0 : Number(e.target.value)
+                                  setQuestionBonusAmount(Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0)))
+                                  setQuestionGradingHasChanges(true)
+                                }}
+                                disabled={isSavingQuestionScores}
+                                className="w-20 rounded-lg border border-amber-300 bg-white px-2 py-1 text-center font-bold text-amber-900"
+                              />
+                              <span>poin (maksimal {Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1} poin)</span>
                             </span>
                           </span>
                         </label>
