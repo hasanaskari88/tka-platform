@@ -2430,66 +2430,6 @@ const handleSaveAllQuestionScores = async () => {
                         </p>
                       </div>
 
-                      <div className="border-b border-slate-200 bg-amber-50 p-4">
-                        <label className="flex cursor-pointer items-start gap-3">
-                          <input
-                            type="checkbox"
-                            checked={
-                              bonusScopeSessions.length > 0 &&
-                              bonusScopeSessions.every((session) => {
-                                const answer = (session.rawAnswers || []).find(
-                                  (ans: any) => String(ans.question_id) === String(essayQuestions[gradingQuestionIndex]?.id)
-                                )
-                                const key = `${session.id}_${essayQuestions[gradingQuestionIndex]?.id}`
-                                return questionBonuses[key] ?? (Number(answer?.teacher_bonus) > 0)
-                              })
-                            }
-                            onChange={(e) => {
-                              const enabled = e.target.checked
-                              const questionId = essayQuestions[gradingQuestionIndex]?.id
-                              if (!questionId) return
-                              setQuestionBonuses((prev) => {
-                                const next = { ...prev }
-                                bonusScopeSessions.forEach((session) => {
-                                  next[`${session.id}_${questionId}`] = enabled
-                                })
-                                return next
-                              })
-                              setQuestionGradingHasChanges(true)
-                            }}
-                            disabled={bonusScopeSessions.length === 0 || isSavingQuestionScores}
-                            className="mt-0.5 h-5 w-5 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
-                          />
-                          <span>
-                            <span className="block text-sm font-bold text-amber-900">
-                              🎁 Terapkan bonus untuk semua peserta pada soal ini
-                            </span>
-                            <span className="mt-1 block text-xs text-amber-800">
-                              Cakupan: {filterClass === 'ALL' ? 'semua kelas' : filterClass === 'ASSIGNED' ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})` : `kelas ${filterClass}`} · {bonusScopeSessions.length} peserta. Tidak terpengaruh pencarian nama atau filter status.
-                            </span>
-                            <span className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-900">
-                              Jumlah bonus:
-                              <input
-                                type="number"
-                                min="0"
-                                max={Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1}
-                                step="0.5"
-                                value={questionBonusAmount}
-                                onChange={(e) => {
-                                  const max = Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1
-                                  const value = e.target.value === '' ? 0 : Number(e.target.value)
-                                  setQuestionBonusAmount(Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0)))
-                                  setQuestionGradingHasChanges(true)
-                                }}
-                                disabled={isSavingQuestionScores}
-                                className="w-20 rounded-lg border border-amber-300 bg-white px-2 py-1 text-center font-bold text-amber-900"
-                              />
-                              <span>poin (maksimal {Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1} poin)</span>
-                            </span>
-                          </span>
-                        </label>
-                      </div>
-
                       <div className="divide-y divide-slate-200">
                         {getQuestionGradingData().map((item, idx) => {
                           const scoreKey = `${item.sessionId}_${essayQuestions[gradingQuestionIndex].id}`
@@ -2588,7 +2528,66 @@ const handleSaveAllQuestionScores = async () => {
                       </div>
 
                       {/* TOMBOL SIMPAN SEMUA NILAI */}
-                      <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end">
+                      <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                        <div className="flex-1 min-w-0 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              checked={
+                                bonusScopeSessions.length > 0 &&
+                                bonusScopeSessions.every((session) => {
+                                  const answer = (session.rawAnswers || []).find(
+                                    (ans: any) => String(ans.question_id) === String(essayQuestions[gradingQuestionIndex]?.id)
+                                  )
+                                  const key = `${session.id}_${essayQuestions[gradingQuestionIndex]?.id}`
+                                  return questionBonuses[key] ?? (Number(answer?.teacher_bonus) > 0)
+                                })
+                              }
+                              onChange={(e) => {
+                                const enabled = e.target.checked
+                                const questionId = essayQuestions[gradingQuestionIndex]?.id
+                                if (!questionId) return
+                                setQuestionBonuses((prev) => {
+                                  const next = { ...prev }
+                                  bonusScopeSessions.forEach((session) => {
+                                    next[`${session.id}_${questionId}`] = enabled
+                                  })
+                                  return next
+                                })
+                                setQuestionGradingHasChanges(true)
+                              }}
+                              disabled={bonusScopeSessions.length === 0 || isSavingQuestionScores}
+                              className="mt-0.5 h-5 w-5 shrink-0 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <label className="block cursor-pointer text-sm font-bold text-amber-900">
+                                🎁 Terapkan bonus untuk semua peserta pada soal ini
+                              </label>
+                              <p className="mt-1 text-xs text-amber-800">
+                                Cakupan: {filterClass === 'ALL' ? 'semua kelas' : filterClass === 'ASSIGNED' ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})` : `kelas ${filterClass}`} · {bonusScopeSessions.length} peserta.
+                              </p>
+                              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-amber-900">
+                                Jumlah bonus:
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1}
+                                  step="0.5"
+                                  value={questionBonusAmount}
+                                  onChange={(e) => {
+                                    const max = Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1
+                                    const value = e.target.value === '' ? 0 : Number(e.target.value)
+                                    setQuestionBonusAmount(Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0)))
+                                    setQuestionGradingHasChanges(true)
+                                  }}
+                                  disabled={isSavingQuestionScores}
+                                  className="w-20 rounded-lg border border-amber-300 bg-white px-2 py-1 text-center font-bold text-amber-900"
+                                />
+                                <span>poin (maks. {Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1})</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         <button
                           type="button"
                           onClick={handleSaveAllQuestionScores}
