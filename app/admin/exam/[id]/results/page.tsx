@@ -1193,12 +1193,10 @@ const handleSaveAllQuestionScores = async () => {
           String(ans.question_id) === String(currentQuestion.id)
       )
 
-      if (!answer) continue
-
       const rawAnswer =
-        answer.user_answer ??
-        answer.selected_answers ??
-        answer.selected_option
+        answer?.user_answer ??
+        answer?.selected_answers ??
+        answer?.selected_option
 
       const hasAnswer =
         rawAnswer !== null &&
@@ -1213,8 +1211,8 @@ const handleSaveAllQuestionScores = async () => {
 
       const manualScore =
         questionScores[scoreKey] ??
-        (answer.teacher_score !== null &&
-        answer.teacher_score !== undefined
+        (answer?.teacher_score !== null &&
+        answer?.teacher_score !== undefined
           ? Number(answer.teacher_score)
           : 0)
 
@@ -1224,7 +1222,7 @@ const handleSaveAllQuestionScores = async () => {
         0,
         Math.min(maxScore, Number(manualScore) || 0)
       )
-      const applyQuestionBonus = questionBonuses[scoreKey] ?? (Number(answer.teacher_bonus) > 0)
+      const applyQuestionBonus = questionBonuses[scoreKey] ?? (Number(answer?.teacher_bonus) > 0)
 
       // Simpan bonus untuk semua rekaman jawaban dalam cakupan kelas.
       // Nilai manual hanya diperbarui jika siswa benar-benar mengisi jawaban.
