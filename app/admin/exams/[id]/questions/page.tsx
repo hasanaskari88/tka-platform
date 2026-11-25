@@ -71,6 +71,7 @@ function BankSoalContent() {
   const [exam, setExam] = useState<any>(null)
   const [questions, setQuestions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'edited' | 'done'>('all')
 
   // State Modal Form Editor Manual
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -134,9 +135,9 @@ function BankSoalContent() {
   }
 
   // 🟢 1. FETCH DATA EXAM & SOAL
-  const fetchExamAndQuestions = async () => {
+  const fetchExamAndQuestions = async (showLoader = true) => {
     if (!examId) return
-    setLoading(true)
+    if (showLoader) setLoading(true)
     const supabase = createClient()
 
     const { data: examData, error: examErr } = await supabase
@@ -156,10 +157,11 @@ function BankSoalContent() {
       .from('questions')
       .select('*')
       .eq('exam_id', examId)
+      .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true })
 
     if (questionData) setQuestions(questionData)
-    setLoading(false)
+    if (showLoader) setLoading(false)
   }
 
   useEffect(() => {
@@ -596,6 +598,7 @@ function BankSoalContent() {
     const type = quickEditData.question_type
     const payload: any = {
       question_text: quickEditData.question_text,
+      review_status: 'edited',
       image_url: String(quickEditData.image_url || '').trim() || null,
       explanation: quickEditData.explanation || null,
       max_score: score,
@@ -677,7 +680,7 @@ function BankSoalContent() {
       setIsQuickEditOpen(false)
       setQuickEditQuestion(null)
       setQuickEditData(null)
-      await fetchExamAndQuestions()
+      await fetchExamAndQuestions(false)
     } catch (error: any) {
       alert(error?.message || 'Terjadi kesalahan saat menyimpan Quick Edit.')
     } finally {
@@ -745,6 +748,7 @@ function BankSoalContent() {
       exam_id: examId,
       question_text: formData.question_text,
       explanation: formData.explanation,
+      ...(editingQuestion ? { review_status: 'edited' } : {}),
       image_url: formData.image_url.trim() || null,
     }
 
@@ -777,7 +781,7 @@ function BankSoalContent() {
       } else {
         alert('✅ Data berhasil diperbarui!')
         setIsModalOpen(false)
-        fetchExamAndQuestions()
+        fetchExamAndQuestions(false)
       }
     } else {
       const { error } = await supabase.from('questions').insert([payload])
@@ -790,6 +794,24 @@ function BankSoalContent() {
         fetchExamAndQuestions()
       }
     }
+  }
+
+  const handleSetQuestionReviewStatus = async (questionId: string, status: 'pending' | 'edited' | 'done') => {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from('questions')
+      .update({ review_status: status })
+      .eq('id', questionId)
+      .eq('exam_id', examId)
+
+    if (error) {
+      alert(`Gagal memperbarui status pemeriksaan: ${error.message}`)
+      return
+    }
+
+    setQuestions((current) => current.map((question) =>
+      question.id === questionId ? { ...question, review_status: status } : question
+    ))
   }
 
   const handleDeleteQuestion = async (qId: string) => {
@@ -805,6 +827,15 @@ function BankSoalContent() {
   }
 
   const actType = exam?.activity_type || 'QUIZ'
+  const reviewCounts = {
+    all: questions.length,
+    pending: questions.filter((question) => (question.review_status || 'pending') === 'pending').length,
+    edited: questions.filter((question) => question.review_status === 'edited').length,
+    done: questions.filter((question) => question.review_status === 'done').length,
+  }
+  const visibleQuestions = questions.filter((question) =>
+    reviewFilter === 'all' || (question.review_status || 'pending') === reviewFilter
+  )
 
   if (loading) {
     return (
@@ -923,10 +954,50 @@ function BankSoalContent() {
           </div>
         </div>
 
+        {/* PROGRES PEMERIKSAAN SOAL */}
+        {questions.length > 0 && (
+          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-black text-white">Progres pemeriksaan soal</h2>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {reviewCounts.done} dari {reviewCounts.all} soal selesai diperiksa
+                </p>
+              </div>
+              <span className="text-xs font-bold text-emerald-300">
+                {reviewCounts.all ? Math.round((reviewCounts.done / reviewCounts.all) * 100) : 0}% selesai
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-emerald-500 transition-all"
+                style={{ width: `${reviewCounts.all ? (reviewCounts.done / reviewCounts.all) * 100 : 0}%` }}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {([
+                ['all', 'Semua', reviewCounts.all],
+                ['pending', 'Belum diperiksa', reviewCounts.pending],
+                ['edited', 'Sudah diedit', reviewCounts.edited],
+                ['done', 'Selesai', reviewCounts.done],
+              ] as const).map(([value, label, count]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setReviewFilter(value)}
+                  className={`px-3 py-2 rounded-xl border text-xs font-bold transition-colors ${reviewFilter === value ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'}`}
+                >
+                  {label} ({count})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* DAFTAR ITEM/LEVEL TERSEDIA */}
         {questions.length > 0 ? (
           <div className="space-y-4">
-            {questions.map((q, idx) => {
+            {visibleQuestions.length > 0 ? visibleQuestions.map((q) => {
               const correctOpt = String(q.correct_option ?? q.correct_answer ?? '').trim().toUpperCase()
 
               return (
@@ -936,9 +1007,19 @@ function BankSoalContent() {
                 >
                   <div className="flex justify-between items-start gap-4 border-b border-slate-800 pb-3">
                     <span className="font-extrabold text-indigo-400 text-xs font-mono">
-                      {actType === 'QUIZ' ? `Soal Pilihan Ganda #${idx + 1}` : actType === 'FLASHCARD' ? `Kartu Memori #${idx + 1}` : `Misi Labirin #${idx + 1}`}
+                      {actType === 'QUIZ' ? `Soal Pilihan Ganda #${q.sort_order}` : actType === 'FLASHCARD' ? `Kartu Memori #${q.sort_order}` : `Misi Labirin #${q.sort_order}`}
                     </span>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <span className={`px-2 py-1 rounded-lg border text-[10px] font-bold ${q.review_status === 'done' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300' : q.review_status === 'edited' ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300' : 'bg-amber-500/15 border-amber-500/30 text-amber-300'}`}>
+                        {q.review_status === 'done' ? '✓ Selesai' : q.review_status === 'edited' ? 'Sudah diedit' : 'Belum diperiksa'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleSetQuestionReviewStatus(q.id, q.review_status === 'done' ? 'pending' : 'done')}
+                        className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold ${q.review_status === 'done' ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30'}`}
+                      >
+                        {q.review_status === 'done' ? 'Buka pemeriksaan' : 'Tandai selesai'}
+                      </button>
                       {actType === 'QUIZ' && (
                         <button
                           type="button"
@@ -1030,10 +1111,14 @@ function BankSoalContent() {
                   )}
                 </div>
               )
-            })}
+            }) : (
+              <div className="text-center py-10 bg-slate-950 rounded-2xl border border-dashed border-slate-800 text-slate-400 text-sm">
+                Tidak ada soal pada status “{reviewFilter === 'pending' ? 'Belum diperiksa' : reviewFilter === 'edited' ? 'Sudah diedit' : 'Selesai'}”.
+              </div>
+            )}
           </div>
         ) : (
-          <div className="p-12 text-center text-slate-500 text-xs bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+          <div className="p-12 text-center text-slate-500 text-xs bg-slate-950 rounded-2xl border border-slate-800 space-y-3
             <p>Belum ada item/level yang tersimpan di dalam modul ini.</p>
             <div className="flex justify-center gap-2">
               <button
