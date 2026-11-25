@@ -278,6 +278,7 @@ function ExamResultsContent() {
   
 // STATE KHUSUS MODE PENILAIAN PER SOAL
 const [questionScores, setQuestionScores] = useState<Record<string, number>>({})
+const [questionBonuses, setQuestionBonuses] = useState<Record<string, boolean>>({})
 const [questionGradingHasChanges, setQuestionGradingHasChanges] = useState(false)
 const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
 
@@ -286,6 +287,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
   const [sessionAnswersMap, setSessionAnswersMap] = useState<{ [qId: string]: any }>({})
   const [sessionAnswerPhotos, setSessionAnswerPhotos] = useState<Record<string, { id: string; signedUrl: string; created_at: string }[]>>({})
   const [essayScores, setEssayScores] = useState<{ [qId: string]: number }>({})
+  const [essayBonuses, setEssayBonuses] = useState<{ [qId: string]: boolean }>({})
   const [aiEssaySuggestions, setAiEssaySuggestions] = useState<Record<string, { suggestedScore: number; maxScore: number; provider: string; feedback: string; strengths: string; improvements: string; error?: string }>>({})
   const [aiEssayLoading, setAiEssayLoading] = useState<Record<string, boolean>>({})
   const [bonusPoints, setBonusPoints] = useState<number>(0)
@@ -494,7 +496,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
                 ans?.teacher_score !== undefined && ans?.teacher_score !== null
                   ? Number(ans.teacher_score)
                   : 0
-            totalPointsEarned += essayScore
+            totalPointsEarned += essayScore + (Number(ans?.teacher_bonus) || 0)
             // Jika essay diberi skor > 0 oleh guru, hitung sebagai poin benar
             if (essayScore > 0) correctCount += 1
           } else {
@@ -736,7 +738,8 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
   const calculateAutoScore = (
     answersMap: { [qId: string]: any },
     currentEssayScores: { [qId: string]: number },
-    bonus: number = 0
+    bonus: number = 0,
+    currentEssayBonuses: { [qId: string]: boolean } = {}
   ) => {
     let totalPoints = 0
     let maxPoints = 0
@@ -751,7 +754,7 @@ const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
         currentEssayScores[q.id] !== undefined
           ? Number(currentEssayScores[q.id])
           : 0
-        totalPoints += Math.min(qMax, Math.max(0, manualScore))
+        totalPoints += Math.min(qMax, Math.max(0, manualScore)) + (currentEssayBonuses[q.id] ? 1 : 0)
       } else {
         const rawAns = answersMap[q.id]
         const evalRes = evaluateAnswer(q, rawAns)
@@ -857,6 +860,7 @@ const getFilteredGradingQuestions = () => {
     setSessionAnswersMap(map)
 
     const initialEssayScores: { [key: string]: number } = {}
+    const initialEssayBonuses: { [key: string]: boolean } = {}
     questions.forEach((q) => {
       const qType = q.question_type || 'multiple_choice'
       if (qType !== 'essay' && qType !== 'uraian') return
@@ -877,14 +881,17 @@ const getFilteredGradingQuestions = () => {
         )
 
       initialEssayScores[q.id] = savedScore !== undefined ? savedScore : hasAnswer ? 1 : 0
+      const savedAnswer = (session.rawAnswers || []).find((ans: any) => String(ans.question_id) === String(q.id))
+      initialEssayBonuses[q.id] = Number(savedAnswer?.teacher_bonus) > 0
     })
 
     setEssayScores(initialEssayScores)
+    setEssayBonuses(initialEssayBonuses)
     const savedBonus = Number(session.bonus_points) || 0
     const overrideActive = session.score_override !== null && session.score_override !== undefined
     setBonusPoints(savedBonus)
     setIsOverrideScore(overrideActive)
-    const autoCalculated = calculateAutoScore(map, initialEssayScores, savedBonus)
+    const autoCalculated = calculateAutoScore(map, initialEssayScores, savedBonus, initialEssayBonuses)
     setCustomFinalScore(overrideActive ? Number(session.score_override) : autoCalculated)
 
     const currentIndex = gradingSortedSessions.findIndex((s) => s.id === session.id)
@@ -975,7 +982,7 @@ const goToGradingSession = (nextIndex: number) => {
     setGradingHasChanges(true)
 
     if (!isOverrideScore) {
-      const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores, bonusPoints)
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, updatedEssayScores, bonusPoints, essayBonuses)
       setCustomFinalScore(autoCalculated)
     }
   }
@@ -1029,7 +1036,7 @@ const goToGradingSession = (nextIndex: number) => {
     setBonusPoints(val)
     setGradingHasChanges(true)
     if (!isOverrideScore) {
-      const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, val)
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, val, essayBonuses)
       setCustomFinalScore(autoCalculated)
     }
   }
@@ -1038,7 +1045,7 @@ const goToGradingSession = (nextIndex: number) => {
     setIsOverrideScore(checked)
     setGradingHasChanges(true)
     if (!checked) {
-      const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, bonusPoints)
+      const autoCalculated = calculateAutoScore(sessionAnswersMap, essayScores, bonusPoints, essayBonuses)
       setCustomFinalScore(autoCalculated)
     }
   }
@@ -1057,7 +1064,7 @@ const handleSaveAssessment = async () => {
     for (const [qId, eScore] of Object.entries(essayScores)) {
       const { error: answerError } = await supabase
         .from('answers')
-        .update({ teacher_score: eScore })
+        .update({ teacher_score: eScore, teacher_bonus: essayBonuses[qId] ? 1 : 0 })
         .eq('session_id', selectedSessionForDetail.id)
         .eq('question_id', qId)
 
@@ -1135,6 +1142,7 @@ const getQuestionGradingData = () => {
         : '',
       hasAnswer,
       score: savedScore,
+      teacherBonus: Number(answer?.teacher_bonus) > 0,
       maxScore: Number(currentQuestion.max_score) || 1,
     }
   })
@@ -1218,11 +1226,12 @@ const handleSaveAllQuestionScores = async () => {
         0,
         Math.min(maxScore, Number(manualScore) || 0)
       )
+      const applyQuestionBonus = questionBonuses[scoreKey] ?? (Number(answer.teacher_bonus) > 0)
 
       // 1. Simpan nilai essay pada tabel answers
       const { error: answerError } = await supabase
         .from('answers')
-        .update({ teacher_score: safeScore })
+        .update({ teacher_score: safeScore, teacher_bonus: applyQuestionBonus ? 1 : 0 })
         .eq('session_id', session.id)
         .eq('question_id', currentQuestion.id)
 
@@ -1253,6 +1262,14 @@ const handleSaveAllQuestionScores = async () => {
         }
       })
 
+      const currentEssayBonuses: { [qId: string]: boolean } = {}
+      essayQuestions.forEach((q) => {
+        const savedAnswer = (session.rawAnswers || []).find((ans: any) => String(ans.question_id) === String(q.id))
+        currentEssayBonuses[q.id] = String(q.id) === String(currentQuestion.id)
+          ? applyQuestionBonus
+          : Number(savedAnswer?.teacher_bonus) > 0
+      })
+
       // 3. Siapkan jawaban otomatis peserta
       const answersMap: { [qId: string]: any } = {}
 
@@ -1269,7 +1286,8 @@ const handleSaveAllQuestionScores = async () => {
       const calculatedScore = calculateAutoScore(
         answersMap,
         currentEssayScores,
-        bonus
+        bonus,
+        currentEssayBonuses
       )
 
       // Override tetap menjadi prioritas
@@ -1290,6 +1308,7 @@ const handleSaveAllQuestionScores = async () => {
 
     // 6. Muat ulang data terbaru
     setQuestionScores({})
+    setQuestionBonuses({})
     setQuestionGradingHasChanges(false)
 
     await loadData()
@@ -2405,6 +2424,7 @@ const handleSaveAllQuestionScores = async () => {
 
                           const currentScore =
                             questionScores[scoreKey] ?? item.score ?? 0
+                          const currentBonus = questionBonuses[scoreKey] ?? item.teacherBonus
 
                           return (
                             <div
@@ -2483,6 +2503,20 @@ const handleSaveAllQuestionScores = async () => {
                                     / {item.maxScore}
                                   </span>
                                 </div>
+
+                                <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-amber-800">
+                                  <input
+                                    type="checkbox"
+                                    checked={currentBonus}
+                                    disabled={!item.hasAnswer}
+                                    onChange={(e) => {
+                                      setQuestionBonuses((prev) => ({ ...prev, [scoreKey]: e.target.checked }))
+                                      setQuestionGradingHasChanges(true)
+                                    }}
+                                    className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                                  />
+                                  🎁 Tambah bonus +1 poin
+                                </label>
                               </div>
                             </div>
                           )
