@@ -338,10 +338,17 @@ function ExamSummaryContent() {
             scores[ans.question_id] =
               ans.teacher_score === null || ans.teacher_score === undefined
                 ? null
-                : Math.min(
-                    Number(questionData?.find((q: any) => q.id === ans.question_id)?.max_score) || 1,
-                    Number(ans.teacher_score) + (Number(ans.teacher_bonus) || 0)
-                  )
+                : (() => {
+                    const questionMax = Number(
+                      questionData?.find((q: any) => q.id === ans.question_id)?.max_score
+                    ) || 1
+                    const manualScore = Math.max(0, Number(ans.teacher_score) || 0)
+                    const bonusValue = Math.max(0, Number(ans.teacher_bonus) || 0)
+                    return Math.min(
+                      questionMax,
+                      manualScore + Math.min(questionMax, bonusValue)
+                    )
+                  })()
           })
           setUserAnswersMap(map)
           setTeacherScoresMap(scores)
@@ -405,13 +412,25 @@ function ExamSummaryContent() {
     ? Math.round((totalPointsEarned / totalMaxPoints) * 100)
     : 0
   const isFinalScore = totalPendingEssay === 0
-  const displayedScore = isFinalScore
-    ? (
-        sessionData?.score_override !== null && sessionData?.score_override !== undefined
-          ? Number(sessionData.score_override)
-          : finalCalculatedScore
-      )
-    : temporaryScore
+  const sessionBonus = Number(sessionData?.bonus_points) || 0
+  const temporaryScoreWithBonus = Math.min(
+    100,
+    Math.max(0, temporaryScore + sessionBonus)
+  )
+  const finalScoreWithBonus = Math.min(
+    100,
+    Math.max(0, finalCalculatedScore + sessionBonus)
+  )
+  const hasScoreOverride =
+    sessionData?.score_override !== null &&
+    sessionData?.score_override !== undefined
+  // Samakan prioritas dengan halaman admin: override selalu mengungguli
+  // nilai otomatis; jika tidak ada, gunakan nilai sementara/final + bonus.
+  const displayedScore = hasScoreOverride
+    ? Number(sessionData.score_override)
+    : isFinalScore
+      ? finalScoreWithBonus
+      : temporaryScoreWithBonus
   const displayedPointsEarned = isFinalScore ? totalPointsEarned : autoPointsEarned
   const displayedMaxPoints = isFinalScore ? totalMaxPoints : autoMaxPoints
   const calculatedScore = displayedScore
