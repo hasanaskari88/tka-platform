@@ -16,7 +16,7 @@ function parseKeys(value: any): string[] {
     try {
       const parsed = JSON.parse(trimmed)
       if (Array.isArray(parsed)) return parsed.map((item: any) => String(item).trim().toUpperCase()).filter(Boolean)
-      if (parsed && typeof parsed === 'object') return Object.keys(parsed)
+      if (parsed && typeof parsed === 'object') return Object.keys(parsed).map((key) => key.trim().toUpperCase())
     } catch {}
     return trimmed.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean)
   }
@@ -159,7 +159,7 @@ export default function ExamPreviewPage() {
     <main className="min-h-screen bg-slate-100 text-slate-900">
       <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white shadow-lg sm:px-6">
         <div className="min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">{exam?.subtest || 'TKA'} · MODE PREVIEW</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-300">{exam?.subtest || 'TKA'} · MODE PREVIEW CBT</div>
           <h1 className="truncate text-base font-bold">{exam?.title}</h1>
         </div>
         <div className="flex items-center gap-3 text-xs">
@@ -180,7 +180,7 @@ export default function ExamPreviewPage() {
           {question?.image_url && <button type="button" onClick={() => setZoomedImageUrl(question.image_url)} className="my-4 block max-w-full cursor-zoom-in text-left"><img src={question.image_url} alt="Ilustrasi soal" className="max-h-80 max-w-full rounded-lg object-contain" /><span className="mt-1 block text-xs text-slate-500">Ketuk gambar untuk memperbesar</span></button>}
 
           {type === 'essay' || type === 'uraian' ? (
-            <div className="mt-5 space-y-2">
+            <div className="mt-5 space-y-2" style={{ fontSize: questionFontSize }}>
               <label className="block text-sm font-bold text-slate-700">
                 Jawaban Anda
               </label>
@@ -197,7 +197,7 @@ export default function ExamPreviewPage() {
             </div>
           ) : type === 'true_false_matrix' ? (
             <div className="mt-5 space-y-3" style={{ fontSize: questionFontSize }}>{options.map((option: any, optionIndex: number) => {
-              const key = String(option?.id || option?.key || optionIndex + 1)
+              const key = String(option?.id || optionIndex + 1)
               return <div key={key} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3"><div className="flex min-w-0 flex-1 items-start gap-2"><span className="shrink-0 font-bold">{optionIndex + 1}.</span><div className="min-w-0 flex-1"><MathRenderer content={renderOptionText(option)} />{option?.image_url && <img src={option.image_url} alt={`Gambar pernyataan ${optionIndex + 1}`} onClick={() => setZoomedImageUrl(option.image_url)} className="mt-2 max-h-40 max-w-full cursor-zoom-in rounded-lg object-contain" />}</div></div><select value={currentAnswer?.[key] || ''} onChange={(event) => setAnswer({ ...(currentAnswer || {}), [key]: event.target.value })} className="rounded-lg border border-slate-300 bg-white p-2 text-sm"><option value="">Pilih jawaban</option><option value="Benar">Benar</option><option value="Salah">Salah</option></select></div>
             })}</div>
           ) : (
