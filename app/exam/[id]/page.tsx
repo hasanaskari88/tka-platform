@@ -91,6 +91,7 @@ function ExamEngineContent() {
   const questionsRef = useRef<any[]>([])
   const isSubmittingRef = useRef<boolean>(false)
   const sessionIdRef = useRef<string | null>(null)
+  const sessionCompletedRef = useRef(false)
   const userIdRef = useRef<string | null>(null)
   const flaggedQuestionsRef = useRef<{ [key: string]: boolean }>({})
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -128,11 +129,22 @@ function ExamEngineContent() {
     return val
   }
 
+  // Batasi satu permintaan simpan agar antrean tidak tertahan tanpa batas.
+  const upsertWithTimeout = async (request: any) => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
+    try {
+      return await request.abortSignal(controller.signal)
+    } finally {
+      clearTimeout(timeoutId)
+    }
+  }
+
   // Autosave hanya mengirim jawaban yang berubah. Submit akhir meminta snapshot lengkap.
   const persistAnswersToSupabase = async (forceAll = false) => {
     const activeSessId = sessionIdRef.current
     const currentQuestions = questionsRef.current
-    if (!activeSessId || currentQuestions.length === 0) return
+    if (!activeSessId || currentQuestions.length === 0 || sessionCompletedRef.current) return
 
     const answers = userAnswersRef.current
     const flags = flaggedQuestionsRef.current
@@ -163,11 +175,13 @@ function ExamEngineContent() {
     if (sessionIdRef.current !== activeSessId) return
     const supabase = createClient()
     for (let offset = 0; offset < records.length; offset += 50) {
-      if (sessionIdRef.current !== activeSessId) return
+      if (sessionIdRef.current !== activeSessId || sessionCompletedRef.current) return
       const batch = records.slice(offset, offset + 50)
-      const { error } = await supabase.from('answers').upsert(batch, {
-        onConflict: 'session_id,question_id',
-      })
+      const { error } = await upsertWithTimeout(
+        supabase.from('answers').upsert(batch, {
+          onConflict: 'session_id,question_id',
+        })
+      )
       if (error) throw error
 
       // Hapus dirty marker hanya jika tidak ada perubahan baru selama batch berjalan.
@@ -413,7 +427,7 @@ function ExamEngineContent() {
 
     // E. 🟢 PROSES SESI REAL-TIME DI SUPABASE (AGAR MUNCUL DI LIVE PROCTORING)
     let currentSessId: string | null = null
-    let startTimeIso = new Date().toISOString()
+    let startTimeIso = ''
     let currentSession: any = null
 
     const { data: existingSession, error: sessionError } = sessionResult
@@ -445,7 +459,7 @@ function ExamEngineContent() {
         .from('exam_sessions')
         .insert({
           exam_id: examId, user_id: user.id, status: 'ongoing',
-          start_time: startTimeIso, paused_duration_seconds: 0, extra_time_seconds: 0,
+          paused_duration_seconds: 0, extra_time_seconds: 0,
         }).select('*').single()
 
       if (createError || !newSess) {
@@ -473,6 +487,10 @@ function ExamEngineContent() {
     if (currentSessId) {
       setSessionId(currentSessId)
       sessionIdRef.current = currentSessId
+      sessionCompletedRef.current = false
+    }
+    if (!startTimeIso) {
+      throw new Error('Database tidak mengembalikan waktu mulai sesi ujian.')
     }
 
     // Hapus penanda start dari URL setelah sesi ditemukan/dibuat. Reload berikutnya
@@ -491,9 +509,11 @@ function ExamEngineContent() {
         updated_at: new Date().toISOString(),
       }))
       for (let offset = 0; offset < placeholders.length; offset += 50) {
-        const { error: placeholderError } = await supabase.from('answers').upsert(placeholders.slice(offset, offset + 50), {
-          onConflict: 'session_id,question_id', ignoreDuplicates: true,
-        })
+        const { error: placeholderError } = await upsertWithTimeout(
+          supabase.from('answers').upsert(placeholders.slice(offset, offset + 50), {
+            onConflict: 'session_id,question_id', ignoreDuplicates: true,
+          })
+        )
         if (placeholderError) throw new Error(`Gagal membuat batch jawaban awal: ${placeholderError.message}`)
       }
     }
@@ -681,9 +701,14 @@ function ExamEngineContent() {
 
       // Sesi dipaksa selesai oleh proktor.
       if (activeSession.status === 'completed') {
+        sessionCompletedRef.current = true
+        setSaveStatus('saved')
+        isSubmittingRef.current = false
+        setIsSubmitting(false)
         router.replace(
           `/exam/${examId}/summary?session_id=${activeSession.id}`
         )
+        return
       }
 
     }
@@ -879,6 +904,7 @@ function ExamEngineContent() {
 
     const currentQuestions = questionsRef.current
     const activeSessId = sessionIdRef.current || sessionId
+    let isForceSubmitResponse = false
 
     try {
       if (!user) throw new Error('Sesi login tidak ditemukan. Silakan login kembali.')
@@ -898,16 +924,44 @@ function ExamEngineContent() {
       if (latestSessionError) throw new Error(`Gagal memeriksa status sesi: ${latestSessionError.message}`)
       if (!latestSession) throw new Error('Sesi ujian tidak ditemukan. Cadangan jawaban lokal tetap dipertahankan.')
       if (latestSession.status === 'completed') {
+        sessionCompletedRef.current = true
         clearLocalSubmissionBackup(activeSessId)
         router.replace(`/exam/${examId}/summary?session_id=${activeSessId}`)
         return
       }
-      if (latestSession.status !== 'ongoing' && !(latestSession.status === 'paused' && latestSession.force_submit_state === 'requested')) {
+      isForceSubmitResponse = latestSession.force_submit_state === 'requested'
+      if (latestSession.status !== 'ongoing' && !(latestSession.status === 'paused' && isForceSubmitResponse)) {
         throw new Error('Sesi ujian tidak lagi aktif. Muat ulang halaman untuk memeriksa status terbaru.')
       }
 
       setSaveStatus('saving')
       await flushAutosave()
+
+      // Force-submit timeout dapat menyelesaikan sesi ketika antrean autosave berjalan.
+      // Periksa ulang status database sebelum menghitung dan menutup sesi dari browser.
+      const { data: postFlushSession, error: postFlushError } = await supabase
+        .from('exam_sessions')
+        .select('id, status, force_submit_state')
+        .eq('id', activeSessId)
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      if (postFlushError) throw new Error(`Gagal memeriksa status sesi setelah penyimpanan: ${postFlushError.message}`)
+      if (!postFlushSession) throw new Error('Sesi ujian tidak ditemukan setelah penyimpanan.')
+      if (postFlushSession.status === 'completed') {
+        sessionCompletedRef.current = true
+        setSessionStatus('completed')
+        setSaveStatus('saved')
+        isSubmittingRef.current = false
+        setIsSubmitting(false)
+        router.replace(`/exam/${examId}/summary?session_id=${activeSessId}`)
+        return
+      }
+      isForceSubmitResponse = postFlushSession.force_submit_state === 'requested'
+      if (postFlushSession.status !== 'ongoing' && !(postFlushSession.status === 'paused' && isForceSubmitResponse)) {
+        throw new Error('Status sesi berubah sebelum ujian dapat dikumpulkan. Muat ulang halaman untuk memeriksa status terbaru.')
+      }
     } catch (error) {
       console.error('Verifikasi sesi atau autosave terakhir gagal:', error)
       setSaveStatus('error')
@@ -917,21 +971,14 @@ function ExamEngineContent() {
       return
     }
     let localAnswerSnapshot: { [key: string]: any } = {}
-    let localFlagSnapshot: { [key: string]: boolean } = {}
     const submitLocalKeys = getSessionLocalKeys(activeSessId)
     try {
       localAnswerSnapshot = JSON.parse(localStorage.getItem(submitLocalKeys.answers) || '{}') || {}
     } catch (error) {
       console.error('Cadangan jawaban lokal tidak dapat dibaca:', error)
     }
-    try {
-      localFlagSnapshot = JSON.parse(localStorage.getItem(submitLocalKeys.flags) || '{}') || {}
-    } catch (error) {
-      console.error('Cadangan status ragu lokal tidak dapat dibaca:', error)
-    }
     // Ref terbaru menjadi prioritas; localStorage menjadi cadangan untuk nilai yang belum ada di ref.
     const currentAnswers = { ...localAnswerSnapshot, ...userAnswersRef.current }
-    const currentFlags = { ...localFlagSnapshot, ...flaggedQuestionsRef.current }
 
     let totalPointsEarned = 0
     let autoMaxPoints = 0
@@ -1017,76 +1064,21 @@ function ExamEngineContent() {
       autoMaxPoints > 0 ? Math.round((totalPointsEarned / autoMaxPoints) * 100 * 100) / 100 : 0
 
     
-    const endTimeIso = new Date().toISOString()
-
     try {
-      // 1. Pastikan pengguna masih login
+      // Jawaban sudah tersimpan oleh flushAutosave(true); hindari upsert ulang
+      // seluruh jawaban agar beban database tidak berlipat saat banyak siswa submit.
       if (!user) {
         throw new Error('Sesi login tidak ditemukan. Silakan login kembali.')
       }
 
-      // Status sesi sudah diverifikasi sebelum flushAutosave agar sesi selesai
-      // tidak menerima penulisan ulang dari proses autosave.
-      // 3. Siapkan semua jawaban, termasuk soal yang tidak dijawab
-      const answerRecords = currentQuestions.map((q) => {
-        const rawAns = currentAnswers[q.id]
-
-        const formattedAns =
-          rawAns === undefined || rawAns === null
-            ? null
-            : typeof rawAns === 'string'
-              ? rawAns
-              : JSON.stringify(rawAns)
-
-        return {
-          session_id: activeSessId,
-          question_id: q.id,
-          user_answer: formattedAns,
-          selected_option:
-            q.question_type === 'multiple_choice' &&
-            typeof rawAns === 'string'
-              ? rawAns
-              : null,
-          selected_answers:
-            (q.question_type === 'complex_multiple_choice' ||
-              q.question_type === 'true_false_matrix') &&
-            rawAns !== undefined &&
-            rawAns !== null
-              ? rawAns
-              : null,
-          is_flagged: !!currentFlags[q.id],
-          updated_at: endTimeIso,
-        }
-      })
-
-      // 4. Simpan atau perbarui jawaban sebelum menyelesaikan sesi
-      if (answerRecords.length > 0) {
-        for (let offset = 0; offset < answerRecords.length; offset += 50) {
-          const batch = answerRecords.slice(offset, offset + 50)
-          const { error: answersError } = await supabase
-            .from('answers')
-            .upsert(batch, {
-              onConflict: 'session_id,question_id',
-            })
-
-          if (answersError) {
-            throw new Error(`Gagal menyimpan batch jawaban ${Math.floor(offset / 50) + 1}: ${answersError.message}`)
-          }
-        }
-      }
-
-      // 5. Tandai sesi selesai hanya setelah penyimpanan jawaban berhasil
+      // Tandai sesi selesai hanya setelah snapshot jawaban berhasil disimpan
       const { data: completedSession, error: finishError } = await supabase
         .from('exam_sessions')
         .update({
           status: 'completed',
           score: finalScore,
           total_correct: totalCorrect,
-          force_submit_state: forceSubmitDeadline ? 'responded' : 'completed',
-          force_submit_responded_at: forceSubmitDeadline ? endTimeIso : null,
-          completed_at: endTimeIso,
-          submitted_at: endTimeIso,
-          end_time: endTimeIso,
+          force_submit_state: isForceSubmitResponse ? 'responded' : 'completed',
         })
         .eq('id', activeSessId)
         .eq('user_id', user.id)
@@ -1106,6 +1098,7 @@ function ExamEngineContent() {
           .maybeSingle()
 
         if (!verifyError && verifiedSession?.status === 'completed') {
+          sessionCompletedRef.current = true
           clearLocalSubmissionBackup(activeSessId)
           router.replace(`/exam/${examId}/summary?session_id=${activeSessId}`)
           return
@@ -1119,6 +1112,7 @@ function ExamEngineContent() {
       }
 
       // 6. Hapus cadangan lokal hanya setelah penyimpanan dan status selesai terkonfirmasi.
+      sessionCompletedRef.current = true
       clearLocalSubmissionBackup(activeSessId)
 
       router.push(

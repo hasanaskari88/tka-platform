@@ -164,14 +164,10 @@ function MonitorContent() {
     if (!confirm('Jeda ujian siswa ini?')) return
 
     const supabase = createClient()
-    const pausedAt = new Date().toISOString()
 
     const { error } = await supabase
       .from('exam_sessions')
-      .update({
-        status: 'paused',
-        paused_at: pausedAt,
-      })
+      .update({ status: 'paused' })
       .eq('id', sessionId)
       .eq('status', 'ongoing')
 
@@ -211,7 +207,7 @@ function MonitorContent() {
         const sessionIds = targetSessions.map((session) => session.id)
         const { data: pausedRows, error } = await supabase
           .from('exam_sessions')
-          .update({ status: 'paused', paused_at: new Date().toISOString() })
+          .update({ status: 'paused' })
           .eq('exam_id', examId)
           .eq('status', 'ongoing')
           .in('id', sessionIds)
@@ -222,22 +218,15 @@ function MonitorContent() {
           throw new Error(`Hanya ${(pausedRows || []).length} dari ${sessionIds.length} sesi yang berhasil dipause. Sebagian status sesi mungkin sudah berubah.`)
         }
       } else {
-        const now = Date.now()
-        const results = await Promise.all(targetSessions.map((session) => {
-          const pausedAtMs = session.paused_at ? new Date(session.paused_at).getTime() : now
-          const pauseSeconds = Math.max(0, Math.floor((now - pausedAtMs) / 1000))
-          return supabase
+        const results = await Promise.all(targetSessions.map((session) =>
+          supabase
             .from('exam_sessions')
-            .update({
-              status: 'ongoing',
-              paused_at: null,
-              paused_duration_seconds: (Number(session.paused_duration_seconds) || 0) + pauseSeconds,
-            })
+            .update({ status: 'ongoing' })
             .eq('exam_id', examId)
             .eq('id', session.id)
             .eq('status', 'paused')
             .select('id')
-        }))
+        ))
         const failed = results.filter((result) => result.error || !result.data?.length)
         if (failed.length > 0) {
           throw new Error(`${failed.length} dari ${targetSessions.length} sesi gagal dilanjutkan. ${failed[0].error?.message || 'Sebagian status sesi mungkin sudah berubah.'}`)
@@ -259,24 +248,10 @@ function MonitorContent() {
     if (!confirm('Lanjutkan ujian siswa ini?')) return
 
     const supabase = createClient()
-    const now = Date.now()
-    const pausedAtMs = session.paused_at
-      ? new Date(session.paused_at).getTime()
-      : now
-
-    const pauseSeconds = Math.max(
-      0,
-      Math.floor((now - pausedAtMs) / 1000)
-    )
 
     const { error } = await supabase
       .from('exam_sessions')
-      .update({
-        status: 'ongoing',
-        paused_at: null,
-        paused_duration_seconds:
-          (Number(session.paused_duration_seconds) || 0) + pauseSeconds,
-      })
+      .update({ status: 'ongoing' })
       .eq('id', session.id)
       .eq('status', 'paused')
 
@@ -293,8 +268,7 @@ function MonitorContent() {
     const studentName = profileMap.get(session.user_id)?.full_name || 'Siswa'
     if (session.force_submit_state === 'requested') { alert('Perintah pengumpulan untuk siswa ini sudah berjalan.'); return }
     if (!confirm(`Kirim permintaan pengumpulan kepada ${studentName}? Siswa memiliki waktu maksimal 5 menit. Jika tidak merespons, server akan menutup sesi dengan jawaban terakhir yang tersimpan.`)) return
-    const now = new Date(Date.now() + serverClockOffsetRef.current)
-    const { error } = await createClient().from('exam_sessions').update({ force_submit_requested_at: now.toISOString(), force_submit_deadline_at: new Date(now.getTime() + 300000).toISOString(), force_submit_request_id: crypto.randomUUID(), force_submit_state: 'requested' }).eq('id', session.id).in('status', ['ongoing', 'paused'])
+    const { error } = await createClient().from('exam_sessions').update({ force_submit_state: 'requested' }).eq('id', session.id).in('status', ['ongoing', 'paused'])
     if (error) alert(`Gagal mengirim perintah: ${error.message}`); else await fetchData()
   }
 
@@ -309,10 +283,10 @@ function MonitorContent() {
     if (!confirm(`Kirim Force Submit ke ${targets.length} sesi? Siswa mendapat waktu maksimal 5 menit.`)) return
     setBulkActionLoading('force-submit')
     try {
-      const supabase = createClient(), serverNow = Date.now() + serverClockOffsetRef.current, requestedAt = new Date(serverNow).toISOString(), deadlineAt = new Date(serverNow + 300000).toISOString()
+      const supabase = createClient()
       for (let offset = 0; offset < targets.length; offset += 50) {
         const ids = targets.slice(offset, offset + 50).map((x) => x.id)
-        const { error } = await supabase.from('exam_sessions').update({ force_submit_requested_at: requestedAt, force_submit_deadline_at: deadlineAt, force_submit_request_id: crypto.randomUUID(), force_submit_state: 'requested' }).in('id', ids).in('status', forceSubmitScope === 'all' ? ['ongoing', 'paused'] : ['ongoing'])
+        const { error } = await supabase.from('exam_sessions').update({ force_submit_state: 'requested' }).in('id', ids).in('status', forceSubmitScope === 'all' ? ['ongoing', 'paused'] : ['ongoing'])
         if (error) throw error
       }
       await fetchData(); alert(`Perintah dikirim ke ${targets.length} sesi. Batas respons 5 menit.`)
