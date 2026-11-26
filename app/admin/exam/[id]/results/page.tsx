@@ -281,6 +281,8 @@ const [questionScores, setQuestionScores] = useState<Record<string, number>>({})
 const [questionBonuses, setQuestionBonuses] = useState<Record<string, boolean>>({})
 const [questionBonusAmount, setQuestionBonusAmount] = useState<number>(1)
 const [questionGradingHasChanges, setQuestionGradingHasChanges] = useState(false)
+const [questionBonusSettingsChanged, setQuestionBonusSettingsChanged] = useState(false)
+const questionGradingTopRef = useRef<HTMLDivElement | null>(null)
 const [isSavingQuestionScores, setIsSavingQuestionScores] = useState(false)
 
   // Panel pengaturan nilai akhir
@@ -1167,6 +1169,23 @@ const getQuestionGradingData = () => {
   })
 }
 
+const goToGradingQuestion = (nextIndex: number) => {
+  if (isSavingQuestionScores || nextIndex < 0 || nextIndex >= essayQuestions.length || nextIndex === gradingQuestionIndex) return
+
+  if (questionGradingHasChanges) {
+    const confirmLeave = window.confirm(
+      'Ada perubahan penilaian yang belum disimpan. Jika berpindah soal, perubahan tersebut akan dibuang. Apakah Anda yakin ingin melanjutkan?'
+    )
+    if (!confirmLeave) return
+  }
+
+  setQuestionScores({})
+  setQuestionBonuses({})
+  setQuestionGradingHasChanges(false)
+  setQuestionBonusSettingsChanged(false)
+  setGradingQuestionIndex(nextIndex)
+}
+
 const handleSaveAllQuestionScores = async () => {
   const currentQuestion = essayQuestions[gradingQuestionIndex]
 
@@ -1175,8 +1194,24 @@ const handleSaveAllQuestionScores = async () => {
     return
   }
 
-  if (questionGradingHasChanges === false) {
+  if (!questionGradingHasChanges) {
     alert('Belum ada perubahan nilai yang perlu disimpan.')
+    return
+  }
+
+  const hasBonusChanges = questionBonusSettingsChanged
+  const changedScoreSessions = bonusScopeSessions.filter((session) =>
+    Object.prototype.hasOwnProperty.call(
+      questionScores,
+      `${session.id}_${currentQuestion.id}`
+    )
+  )
+  const affectedSessions = hasBonusChanges
+    ? bonusScopeSessions
+    : changedScoreSessions
+
+  if (affectedSessions.length === 0) {
+    alert('Tidak ada perubahan yang dapat disimpan pada cakupan peserta ini.')
     return
   }
 
@@ -1187,147 +1222,181 @@ const handleSaveAllQuestionScores = async () => {
         ? `kelas yang Anda ampu (${assignedClassCodes.join(', ')})`
         : `kelas ${filterClass}`
 
-  const confirmSave = window.confirm(
-    `Simpan nilai dan pengaturan bonus soal ini untuk ${bonusScopeSessions.length} peserta pada ${gradingScopeLabel}?\n\nBonus diterapkan kepada semua peserta dalam cakupan kelas, termasuk yang belum menjawab jika rekaman jawabannya tersedia.`
-  )
+  const saveDescription = hasBonusChanges
+    ? `pengaturan bonus untuk ${bonusScopeSessions.length} peserta pada ${gradingScopeLabel} dan nilai manual untuk ${changedScoreSessions.length} peserta`
+    : `nilai manual untuk ${changedScoreSessions.length} peserta`
 
-  if (!confirmSave) return
+  if (!window.confirm(`Simpan ${saveDescription}?\n\nHanya perubahan yang diperlukan yang akan diproses.`)) return
 
   setIsSavingQuestionScores(true)
-
   const supabase = createClient()
+  const maxScore = Number(currentQuestion.max_score) || 1
+  const bonusValue = Math.min(maxScore, Math.max(0, Number(questionBonusAmount) || 0))
 
   try {
-    for (const session of bonusScopeSessions) {
+    // Siapkan perubahan jawaban dalam satu permintaan batch.
+    // Bonus global tetap mencakup semua peserta, termasuk yang belum menjawab.
+    const answerUpdates = affectedSessions.map((session) => {
       const answer = (session.rawAnswers || []).find(
-        (ans: any) =>
-          String(ans.question_id) === String(currentQuestion.id)
+        (ans: any) => String(ans.question_id) === String(currentQuestion.id)
       )
-
       const rawAnswer =
         answer?.user_answer ??
         answer?.selected_answers ??
         answer?.selected_option
-
-      const hasAnswer =
-        rawAnswer !== null &&
-        rawAnswer !== undefined &&
-        (
-          Array.isArray(rawAnswer)
-            ? rawAnswer.some((item: any) => String(item).trim() !== '')
-            : String(rawAnswer).trim() !== ''
-        )
-
+      const hasAnswer = hasMeaningfulGradingAnswer(rawAnswer)
       const scoreKey = `${session.id}_${currentQuestion.id}`
-
-      const manualScore =
-        questionScores[scoreKey] ??
-        (answer?.teacher_score !== null &&
-        answer?.teacher_score !== undefined
+      const hasScoreChange = Object.prototype.hasOwnProperty.call(questionScores, scoreKey)
+      const manualScore = questionScores[scoreKey] ??
+        (answer?.teacher_score !== null && answer?.teacher_score !== undefined
           ? Number(answer.teacher_score)
           : 0)
-
-      const maxScore = Number(currentQuestion.max_score) || 1
-
-      const safeScore = Math.max(
-        0,
-        Math.min(maxScore, Number(manualScore) || 0)
-      )
-      const applyQuestionBonus = questionBonuses[scoreKey] ?? (Number(answer?.teacher_bonus) > 0)
-
-      // Simpan bonus untuk semua rekaman jawaban dalam cakupan kelas.
-      // Nilai manual hanya diperbarui jika siswa benar-benar mengisi jawaban.
-      const answerUpdate: Record<string, any> = {
+      const update: Record<string, any> = {
         session_id: session.id,
         question_id: currentQuestion.id,
-        teacher_bonus: applyQuestionBonus
-          ? Math.min(maxScore, Math.max(0, Number(questionBonusAmount) || 0))
-          : 0,
       }
-      if (hasAnswer) answerUpdate.teacher_score = safeScore
 
+      // Kolom dalam setiap baris batch dibuat seragam agar nilai lama
+      // tidak tertimpa NULL ketika hanya bonus atau hanya skor yang berubah.
+      update.teacher_score = hasScoreChange && hasAnswer
+        ? Math.max(0, Math.min(maxScore, Number(manualScore) || 0))
+        : (answer?.teacher_score ?? null)
+
+      if (hasBonusChanges) {
+        const applyQuestionBonus =
+          questionBonuses[scoreKey] ?? (Number(answer?.teacher_bonus) > 0)
+        update.teacher_bonus = applyQuestionBonus ? bonusValue : 0
+      }
+
+      return update
+    })
+
+    if (answerUpdates.length > 0) {
       const { error: answerError } = await supabase
         .from('answers')
-        .upsert(answerUpdate, { onConflict: 'session_id,question_id' })
-
+        .upsert(answerUpdates, { onConflict: 'session_id,question_id' })
       if (answerError) throw answerError
+    }
 
-      // 2. Siapkan seluruh nilai essay peserta
-      const currentEssayScores: { [qId: string]: number } = {}
+    // Hitung ulang hanya sesi yang terdampak. Soal lain memakai nilai tersimpan.
+    const sessionScoreUpdates = affectedSessions.map((session) => {
+      const currentAnswer = (session.rawAnswers || []).find(
+        (ans: any) => String(ans.question_id) === String(currentQuestion.id)
+      )
+      const rawCurrentAnswer =
+        currentAnswer?.user_answer ??
+        currentAnswer?.selected_answers ??
+        currentAnswer?.selected_option
+      const hasCurrentAnswer = hasMeaningfulGradingAnswer(rawCurrentAnswer)
+      const scoreKey = `${session.id}_${currentQuestion.id}`
+      const currentManualScore = questionScores[scoreKey] ??
+        (currentAnswer?.teacher_score !== null && currentAnswer?.teacher_score !== undefined
+          ? Number(currentAnswer.teacher_score)
+          : 0)
+      const safeCurrentScore = Math.max(0, Math.min(maxScore, Number(currentManualScore) || 0))
+      const applyQuestionBonus =
+        questionBonuses[scoreKey] ?? (Number(currentAnswer?.teacher_bonus) > 0)
+      const currentBonus = hasBonusChanges
+        ? (applyQuestionBonus ? bonusValue : 0)
+        : Number(currentAnswer?.teacher_bonus) || 0
 
-      essayQuestions.forEach((q) => {
-        const savedAnswer = (session.rawAnswers || []).find(
-          (ans: any) =>
-            String(ans.question_id) === String(q.id)
-        )
-
-        if (String(q.id) === String(currentQuestion.id) && hasAnswer) {
-          currentEssayScores[q.id] = safeScore
-        } else if (
-          savedAnswer?.teacher_score !== null &&
-          savedAnswer?.teacher_score !== undefined
-        ) {
-          currentEssayScores[q.id] = Number(
-            savedAnswer.teacher_score
-          )
-        } else {
-          currentEssayScores[q.id] = 0
-        }
-      })
-
-      const currentEssayBonuses: { [qId: string]: number } = {}
-      essayQuestions.forEach((q) => {
-        const savedAnswer = (session.rawAnswers || []).find((ans: any) => String(ans.question_id) === String(q.id))
-        currentEssayBonuses[q.id] = String(q.id) === String(currentQuestion.id)
-          ? (applyQuestionBonus ? Math.min(maxScore, Math.max(0, Number(questionBonusAmount) || 0)) : 0)
-          : Number(savedAnswer?.teacher_bonus) || 0
-      })
-
-      // 3. Siapkan jawaban otomatis peserta
-      const answersMap: { [qId: string]: any } = {}
+      const currentEssayScores: Record<string, number> = {}
+      const currentEssayBonuses: Record<string, number> = {}
+      const answersMap: Record<string, any> = {}
 
       ;(session.rawAnswers || []).forEach((ans: any) => {
         answersMap[ans.question_id] =
-          ans.user_answer ??
-          ans.selected_answers ??
-          ans.selected_option
+          ans.user_answer ?? ans.selected_answers ?? ans.selected_option
       })
 
-      // 4. Hitung nilai akhir
-      const bonus = Number(session.bonus_points) || 0
+      essayQuestions.forEach((question) => {
+        const savedAnswer = (session.rawAnswers || []).find(
+          (ans: any) => String(ans.question_id) === String(question.id)
+        )
+        if (String(question.id) === String(currentQuestion.id)) {
+          currentEssayScores[question.id] = hasCurrentAnswer
+            ? safeCurrentScore
+            : (savedAnswer?.teacher_score !== null && savedAnswer?.teacher_score !== undefined
+                ? Number(savedAnswer.teacher_score)
+                : 0)
+          currentEssayBonuses[question.id] = currentBonus
+        } else {
+          currentEssayScores[question.id] =
+            savedAnswer?.teacher_score !== null && savedAnswer?.teacher_score !== undefined
+              ? Number(savedAnswer.teacher_score)
+              : 0
+          currentEssayBonuses[question.id] = Number(savedAnswer?.teacher_bonus) || 0
+        }
+      })
 
       const calculatedScore = calculateAutoScore(
         answersMap,
         currentEssayScores,
-        bonus,
+        Number(session.bonus_points) || 0,
         currentEssayBonuses
       )
-
-      // Override tetap menjadi prioritas
       const finalScore =
-        session.score_override !== null &&
-        session.score_override !== undefined
+        session.score_override !== null && session.score_override !== undefined
           ? Number(session.score_override)
           : calculatedScore
 
-      // 5. Perbarui nilai akhir peserta
-      const { error: sessionError } = await supabase
-        .from('exam_sessions')
-        .update({ score: finalScore })
-        .eq('id', session.id)
+      return { session, finalScore, safeCurrentScore, hasCurrentAnswer, currentBonus }
+    })
 
-      if (sessionError) throw sessionError
+    // Perbarui nilai akhir secara paralel dalam kelompok kecil.
+    for (let index = 0; index < sessionScoreUpdates.length; index += 10) {
+      const batch = sessionScoreUpdates.slice(index, index + 10)
+      const results = await Promise.all(batch.map(async ({ session, finalScore }) => {
+        const { error } = await supabase
+          .from('exam_sessions')
+          .update({ score: finalScore })
+          .eq('id', session.id)
+        return error
+      }))
+      const failedUpdate = results.find((error) => error)
+      if (failedUpdate) throw failedUpdate
     }
 
-    // 6. Muat ulang data terbaru
+    // Perbarui tampilan lokal tanpa memuat ulang semua data ujian.
+    const updatedById: Record<string, any> = {}
+    sessionScoreUpdates.forEach(({ session, finalScore, safeCurrentScore, hasCurrentAnswer, currentBonus }) => {
+      const existingAnswers = [...(session.rawAnswers || [])]
+      const answerIndex = existingAnswers.findIndex(
+        (ans: any) => String(ans.question_id) === String(currentQuestion.id)
+      )
+      const existingAnswer = answerIndex >= 0 ? existingAnswers[answerIndex] : {
+        session_id: session.id,
+        question_id: currentQuestion.id,
+      }
+      const updatedAnswer = {
+        ...existingAnswer,
+        ...(hasCurrentAnswer && Object.prototype.hasOwnProperty.call(questionScores, `${session.id}_${currentQuestion.id}`)
+          ? { teacher_score: safeCurrentScore }
+          : {}),
+        ...(hasBonusChanges ? { teacher_bonus: currentBonus } : {}),
+      }
+      if (answerIndex >= 0) existingAnswers[answerIndex] = updatedAnswer
+      else if (hasBonusChanges) existingAnswers.push(updatedAnswer)
+
+      updatedById[session.id] = {
+        score: finalScore,
+        earned_score: Math.round(finalScore),
+        accuracy_percentage: Math.round(finalScore),
+        final_score: Math.round(finalScore),
+        rawAnswers: existingAnswers,
+      }
+    })
+
+    setSessions((previous) => previous.map((session) => {
+      const updated = updatedById[session.id]
+      return updated ? { ...session, ...updated } : session
+    }))
+
     setQuestionScores({})
     setQuestionBonuses({})
     setQuestionGradingHasChanges(false)
-
-    await loadData()
-
-    alert('Nilai dan bonus seluruh peserta berhasil disimpan.')
-
+    setQuestionBonusSettingsChanged(false)
+    alert(`Berhasil menyimpan penilaian. ${changedScoreSessions.length} nilai peserta diperbarui${hasBonusChanges ? ` dan bonus diterapkan pada ${bonusScopeSessions.length} peserta` : ''}.`)
   } catch (error: any) {
     alert(`Gagal menyimpan nilai: ${error.message}`)
   } finally {
@@ -2325,7 +2394,7 @@ const handleSaveAllQuestionScores = async () => {
             
             {/* MODE PENILAIAN PER SOAL */}
             {gradingMode === 'question' && (
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div ref={questionGradingTopRef} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden scroll-mt-4">
             
                 {/* HEADER MODE PER SOAL */}
                 <div className="p-5 border-b border-slate-200">
@@ -2340,9 +2409,7 @@ const handleSaveAllQuestionScores = async () => {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() =>
-                          setGradingQuestionIndex((prev) => Math.max(0, prev - 1))
-                        }
+                        onClick={() => goToGradingQuestion(gradingQuestionIndex - 1)}
                         disabled={gradingQuestionIndex <= 0}
                         className="px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold disabled:opacity-30"
                       >
@@ -2351,11 +2418,7 @@ const handleSaveAllQuestionScores = async () => {
             
                       <button
                         type="button"
-                        onClick={() =>
-                          setGradingQuestionIndex((prev) =>
-                            Math.min(essayQuestions.length - 1, prev + 1)
-                          )
-                        }
+                        onClick={() => goToGradingQuestion(gradingQuestionIndex + 1)}
                         disabled={gradingQuestionIndex >= essayQuestions.length - 1}
                         className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs font-bold disabled:opacity-30"
                       >
@@ -2379,7 +2442,7 @@ const handleSaveAllQuestionScores = async () => {
             
                   <select
                     value={gradingQuestionIndex}
-                    onChange={(e) => setGradingQuestionIndex(Number(e.target.value))}
+                    onChange={(e) => goToGradingQuestion(Number(e.target.value))}
                     disabled={essayQuestions.length === 0}
                     className="w-full md:w-96 p-3 border border-slate-300 rounded-xl bg-white text-sm font-semibold"
                   >
@@ -2426,8 +2489,15 @@ const handleSaveAllQuestionScores = async () => {
                       <summary className="cursor-pointer font-bold text-blue-800 text-xs">
                         📖 Lihat Pembahasan / Rubrik
                       </summary>
-                      <div className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">
-                        {essayQuestions[gradingQuestionIndex]?.explanation || 'Belum ada pembahasan atau rubrik penilaian.'}
+                      <div className="mt-3 text-sm text-slate-700">
+                        {essayQuestions[gradingQuestionIndex]?.explanation ? (
+                          <MathRenderer
+                            content={essayQuestions[gradingQuestionIndex].explanation}
+                            className="w-full max-w-none text-slate-700"
+                          />
+                        ) : (
+                          'Belum ada pembahasan atau rubrik penilaian.'
+                        )}
                       </div>
                     </details>
             
@@ -2566,6 +2636,7 @@ const handleSaveAllQuestionScores = async () => {
                                   })
                                   return next
                                 })
+                                setQuestionBonusSettingsChanged(true)
                                 setQuestionGradingHasChanges(true)
                               }}
                               disabled={bonusScopeSessions.length === 0 || isSavingQuestionScores}
@@ -2590,6 +2661,7 @@ const handleSaveAllQuestionScores = async () => {
                                     const max = Number(essayQuestions[gradingQuestionIndex]?.max_score) || 1
                                     const value = e.target.value === '' ? 0 : Number(e.target.value)
                                     setQuestionBonusAmount(Math.max(0, Math.min(max, Number.isFinite(value) ? value : 0)))
+                                    setQuestionBonusSettingsChanged(true)
                                     setQuestionGradingHasChanges(true)
                                   }}
                                   disabled={isSavingQuestionScores}
@@ -2623,6 +2695,49 @@ const handleSaveAllQuestionScores = async () => {
               </div>
             )}
 
+            {gradingMode === 'question' && essayQuestions.length > 0 && (
+              <div className="fixed bottom-4 right-4 z-50 flex flex-row items-center gap-2 sm:bottom-6 sm:right-6" aria-label="Navigasi penilaian per soal">
+                <button
+                  type="button"
+                  onClick={handleSaveAllQuestionScores}
+                  disabled={isSavingQuestionScores || !questionGradingHasChanges}
+                  title="Simpan perubahan penilaian"
+                  aria-label="Simpan perubahan penilaian"
+                  className="flex h-11 items-center justify-center gap-2 rounded-full bg-indigo-600 px-4 text-sm font-bold text-white shadow-lg ring-2 ring-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {isSavingQuestionScores ? '…' : '💾 Simpan'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => questionGradingTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                  title="Kembali ke atas"
+                  aria-label="Kembali ke atas"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-800 text-xl font-bold text-white shadow-lg ring-2 ring-white transition hover:bg-slate-700"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToGradingQuestion(gradingQuestionIndex - 1)}
+                  disabled={gradingQuestionIndex <= 0 || isSavingQuestionScores}
+                  title="Soal sebelumnya"
+                  aria-label="Soal sebelumnya"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-bold text-slate-800 shadow-lg ring-2 ring-white transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToGradingQuestion(gradingQuestionIndex + 1)}
+                  disabled={gradingQuestionIndex >= essayQuestions.length - 1 || isSavingQuestionScores}
+                  title="Soal berikutnya"
+                  aria-label="Soal berikutnya"
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl font-bold text-slate-800 shadow-lg ring-2 ring-white transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+            )}
           </div>
         )}
 
