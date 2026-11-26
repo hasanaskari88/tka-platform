@@ -8,6 +8,23 @@ import { createClient } from '@/lib/supabase/client'
 type Student = { id:string; full_name:string|null; username:string|null; class_code:string|null; xp:number; level:number; practiceXp:number; practiceAttempts:number; practiceBest:number; examCount:number; examAverage:number }
 type ExamMeta = { id:string; title:string; subtest:string|null; target_mode:string|null; activity_type:string|null; duration_minutes:number|null }
 
+const DASHBOARD_PAGE_SIZE = 1000
+
+// Supabase/PostgREST membatasi jumlah baris per respons. Ambil seluruh halaman
+// dengan urutan stabil agar data dashboard tidak terpotong setelah 1.000 baris.
+async function fetchAllRows<T>(
+  buildPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>
+): Promise<{ data: T[]; error: any }> {
+  const rows: T[] = []
+  for (let from = 0; ; from += DASHBOARD_PAGE_SIZE) {
+    const { data, error } = await buildPage(from, from + DASHBOARD_PAGE_SIZE - 1)
+    if (error) return { data: [], error }
+    const batch = data || []
+    rows.push(...batch)
+    if (batch.length < DASHBOARD_PAGE_SIZE) return { data: rows, error: null }
+  }
+}
+
 export default function AdminDashboardPage() {
   const [students,setStudents]=useState<Student[]>([])
   const [teacherProfile,setTeacherProfile]=useState<{full_name:string|null;role:string|null;avatar_url:string|null;email:string|null}>({full_name:null,role:null,avatar_url:null,email:null})
@@ -57,14 +74,15 @@ export default function AdminDashboardPage() {
           if(active)setTeacherProfile({full_name:currentProfile?.full_name||null,role:currentProfile?.role||null,avatar_url:currentProfile?.avatar_url||null,email:currentUser.email||null})
         }
         const [p,pr,ex,em,ec,qc,qmeta,mc,ac]=await Promise.all([
-          db.from('profiles').select('id,full_name,username,class_code,role,xp,level').eq('role','student').order('full_name'),
-          // select * keeps the dashboard compatible before/after the staged credited_xp migration
-          db.from('practice_attempts').select('*'),
-          db.from('exam_sessions').select('*'),
-          db.from('exams').select('id,title,subtest,target_mode,activity_type,duration_minutes'),
+          fetchAllRows<any>((from,to)=>db.from('profiles').select('id,full_name,username,class_code,role,xp,level').eq('role','student').order('id').range(from,to)),
+          // select * keeps compatibility before/after the staged credited_xp migration.
+          // Pagination also keeps dashboard totals/rankings complete above 1,000 attempts.
+          fetchAllRows<any>((from,to)=>db.from('practice_attempts').select('*').order('id').range(from,to)),
+          fetchAllRows<any>((from,to)=>db.from('exam_sessions').select('*').order('id').range(from,to)),
+          fetchAllRows<ExamMeta>((from,to)=>db.from('exams').select('id,title,subtest,target_mode,activity_type,duration_minutes').order('id').range(from,to)),
           db.from('exams').select('id',{count:'exact',head:true}),
           db.from('questions').select('id',{count:'exact',head:true}),
-          db.from('questions').select('id,exam_id,question_type'),
+          fetchAllRows<any>((from,to)=>db.from('questions').select('id,exam_id,question_type').order('id').range(from,to)),
           db.from('study_materials').select('id',{count:'exact',head:true}),
           db.from('announcements').select('id',{count:'exact',head:true}),
         ])
@@ -79,10 +97,15 @@ export default function AdminDashboardPage() {
         const essayQuestionIds=(qmeta.data||[])
           .filter((question:any)=>['essay','uraian'].includes(String(question.question_type||'').toLowerCase()))
           .map((question:any)=>question.id)
-        // Ambil jawaban essay saja. Mengambil semua jawaban dari seluruh sesi dapat
-        // melewati batas 1.000 baris PostgREST dan membuat jawaban essay terbaru terpotong.
+        // Ambil semua jawaban essay secara bertahap; filter question_id saja tidak
+        // menghilangkan batas 1.000 baris dari PostgREST.
         const answerResult=essayQuestionIds.length
-          ? await db.from('answers').select('session_id,question_id,user_answer,selected_answers,selected_option,teacher_score').in('question_id',essayQuestionIds)
+          ? await fetchAllRows<any>((from,to)=>db.from('answers')
+              .select('session_id,question_id,user_answer,selected_answers,selected_option,teacher_score')
+              .in('question_id',essayQuestionIds)
+              .order('session_id')
+              .order('question_id')
+              .range(from,to))
           : {data:[],error:null}
         if(answerResult.error)problems.push('jawaban ujian: '+answerResult.error.message)
         if(problems.length)setWarning('Sebagian data belum dapat dibaca — '+problems.join(' | '))
@@ -127,8 +150,10 @@ export default function AdminDashboardPage() {
           const ungraded=essayQuestions.filter((question:any)=>{
             const answer=answerMap.get(session.id+'|'+question.id)
             if(!answer)return false
-            const raw=answer.user_answer??answer.selected_answers??answer.selected_option
-            const hasResponse=Array.isArray(raw)?raw.length>0:typeof raw==='string'?raw.trim().length>0:raw!==null&&raw!==undefined
+            const hasValue=(value:any)=>Array.isArray(value)?value.length>0:typeof value==='string'?value.trim().length>0:typeof value==='object'&&value!==null?Object.keys(value).length>0:value!==null&&value!==undefined
+            // Periksa semua kolom jawaban. Nilai kosong di satu kolom tidak boleh
+            // menutupi jawaban yang tersimpan di kolom alternatif.
+            const hasResponse=[answer.user_answer,answer.selected_answers,answer.selected_option].some(hasValue)
             return hasResponse&&(answer.teacher_score===null||answer.teacher_score===undefined||answer.teacher_score==='')
           })
           if(!unfinished&&!ungraded.length)return []
