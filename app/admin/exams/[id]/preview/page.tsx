@@ -217,7 +217,7 @@ export default function ExamPreviewPage() {
   }
 
   function renderOptionText(option: any): string {
-    return typeof option === 'string' ? option : option?.text || option?.title || option?.label || ''
+    return typeof option === 'string' ? option : option?.text || option?.statement || option?.statement_text || option?.title || option?.content || option?.label || ''
   }
 
   if (loading) {
@@ -297,7 +297,7 @@ export default function ExamPreviewPage() {
           ) : type === 'true_false_matrix' ? (
             <div className="mt-5 space-y-3" style={{ fontSize: questionFontSize }}>
               {options.map((option: any, optionIndex: number) => {
-                const key = String(typeof option === 'object' && option?.key ? option.key : optionIndex + 1)
+                const key = String(typeof option === 'object' && option?.id ? option.id : optionIndex + 1)
                 const label = renderOptionText(option) || (typeof option === 'string' ? option : '')
                 const selectedValue = currentAnswer?.[key] || ''
 
@@ -358,17 +358,16 @@ export default function ExamPreviewPage() {
                     <span className="min-w-0 flex-1">
                       <MathRenderer content={label} />
                       {option?.image_url && (
-                        <button
-                          type="button"
+                        <img
+                          src={option.image_url}
+                          alt={`Gambar opsi ${displayLabel}`}
                           onClick={(event) => {
                             event.preventDefault()
                             event.stopPropagation()
                             setZoomedImageUrl(option.image_url)
                           }}
-                          className="mt-2 block cursor-zoom-in"
-                        >
-                          <img src={option.image_url} alt={`Gambar opsi ${displayLabel}`} className="max-h-40 max-w-full rounded-lg object-contain" />
-                        </button>
+                          className="mt-2 max-h-40 max-w-full cursor-zoom-in rounded-lg object-contain"
+                        />
                       )}
                     </span>
                   </label>
