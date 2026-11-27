@@ -183,14 +183,12 @@ export default function StudentAnswerPhotos({
         .createSignedUrl(storagePath, 60 * 60)
       if (signedError) throw signedError
 
-      setPhotos((current) => {
-        const updated = [...current, {
-          ...inserted,
-          signedUrl: signed.signedUrl,
-        }]
-        onPhotosChange?.(updated.length)
-        return updated
-      })
+      const updatedPhotos = [...photos, {
+        ...inserted,
+        signedUrl: signed.signedUrl,
+      }]
+      setPhotos(updatedPhotos)
+      onPhotosChange?.(updatedPhotos.length)
       setPendingFile(null)
       if (pendingPreview) URL.revokeObjectURL(pendingPreview)
       setPendingPreview('')
@@ -219,11 +217,9 @@ export default function StudentAnswerPhotos({
         .remove([photo.storage_path])
       if (fileError) console.warn('Metadata foto terhapus, tetapi file belum terhapus:', fileError)
 
-      setPhotos((current) => {
-        const updated = current.filter((item) => item.id !== photo.id)
-        onPhotosChange?.(updated.length)
-        return updated
-      })
+      const updatedPhotos = photos.filter((item) => item.id !== photo.id)
+      setPhotos(updatedPhotos)
+      onPhotosChange?.(updatedPhotos.length)
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Foto gagal dihapus.')
     } finally {
