@@ -85,6 +85,12 @@ function ExamEngineContent() {
   const [participantIdentifier, setParticipantIdentifier] = useState('')
   const [participantClass, setParticipantClass] = useState('')
   const [showQuestionNav, setShowQuestionNav] = useState(true)
+  const [proctorViolationCount, setProctorViolationCount] = useState(0)
+  const [fullscreenActive, setFullscreenActive] = useState(false)
+  const [fullscreenError, setFullscreenError] = useState<string | null>(null)
+  const [proctorNotice, setProctorNotice] = useState<string | null>(null)
+  const hasEnteredFullscreenRef = useRef(false)
+  const lastProctorEventAtRef = useRef(0)
 
   // Ref untuk menghindari stale closure dan submit ganda
   const userAnswersRef = useRef<{ [key: string]: any }>({})
@@ -510,6 +516,7 @@ function ExamEngineContent() {
       setSessionId(currentSessId)
       sessionIdRef.current = currentSessId
       sessionCompletedRef.current = false
+      setProctorViolationCount(Number(currentSession?.proctor_violation_count) || 0)
     }
     if (!startTimeIso) {
       throw new Error('Database tidak mengembalikan waktu mulai sesi ujian.')
@@ -772,7 +779,80 @@ function ExamEngineContent() {
     }
   }, [])
 
-  // 🟢 PROTEKSI RELOAD & BACK BROWSER
+  // Pengawasan perpindahan tab dan keluarnya Full Screen.
+  // Server menghitung pelanggaran secara atomik dan menjeda sesi ketika batas tercapai.
+  useEffect(() => {
+    if (!exam?.proctor_enabled || !sessionId || sessionStatus !== 'ongoing') return
+
+    const sendProctorEvent = async (eventType: 'tab_hidden' | 'fullscreen_exit') => {
+      const now = Date.now()
+      if (now - lastProctorEventAtRef.current < 1500) return
+      lastProctorEventAtRef.current = now
+
+      try {
+        const response = await fetch('/api/exam/proctor-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, eventType }),
+          keepalive: true,
+        })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Pelanggaran belum tercatat.')
+        if (Number.isFinite(Number(payload.violation_count))) {
+          setProctorViolationCount(Number(payload.violation_count))
+        }
+        if (payload.accepted) {
+          const label = eventType === 'tab_hidden' ? 'berpindah tab' : 'keluar dari Full Screen'
+          setProctorNotice(`Terdeteksi ${label}. Peringatan ${payload.violation_count} dari ${payload.max_violations}.`)
+        }
+        if (payload.paused || payload.status === 'paused') {
+          setSessionStatus('paused')
+          setProctorNotice('Batas pelanggaran tercapai. Ujian dijeda dan menunggu izin admin.')
+        }
+      } catch (error) {
+        console.error('Gagal mengirim catatan pengawasan:', error)
+        setProctorNotice('Catatan pengawasan belum terkirim. Periksa koneksi dan jangan tutup halaman.')
+      }
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') sendProctorEvent('tab_hidden')
+    }
+    const handleFullscreenChange = () => {
+      const active = Boolean(document.fullscreenElement)
+      setFullscreenActive(active)
+      if (active) {
+        hasEnteredFullscreenRef.current = true
+        setFullscreenError(null)
+      } else if (hasEnteredFullscreenRef.current) {
+        sendProctorEvent('fullscreen_exit')
+      }
+    }
+
+    setFullscreenActive(Boolean(document.fullscreenElement))
+    if (document.fullscreenElement) hasEnteredFullscreenRef.current = true
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      document.removeEventListener('fullscreenchange', handleFullscreenChange)
+    }
+  }, [exam?.proctor_enabled, sessionId, sessionStatus])
+
+  const enterExamFullscreen = async () => {
+    try {
+      if (!document.documentElement.requestFullscreen) {
+        throw new Error('Browser atau perangkat ini tidak mendukung Full Screen. Hubungi pengawas untuk penyesuaian.')
+      }
+      await document.documentElement.requestFullscreen()
+      setFullscreenActive(Boolean(document.fullscreenElement))
+      setFullscreenError(null)
+    } catch (error) {
+      setFullscreenError(error instanceof Error ? error.message : 'Full Screen tidak dapat diaktifkan.')
+    }
+  }
+
+    // 🟢 PROTEKSI RELOAD & BACK BROWSER
   useEffect(() => {
     if (loading || sessionStatus !== 'ongoing') return
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -1779,15 +1859,37 @@ function ExamEngineContent() {
         </div>
       )}
 
-      {sessionStatus === 'paused' && (
+      {exam?.proctor_enabled && exam?.proctor_require_fullscreen && sessionStatus === 'ongoing' && !fullscreenActive && (
+        <div className="fixed inset-0 z-[80] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center text-white">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="text-2xl font-black">Ujian Wajib Full Screen</h2>
+          <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-300">
+            Untuk menjaga ketertiban ujian, aktifkan layar penuh sebelum melanjutkan. Jika keluar dari layar penuh, sistem akan mencatatnya sebagai pelanggaran.
+          </p>
+          {fullscreenError && <p className="mt-3 max-w-md rounded-lg bg-rose-500/15 p-3 text-xs text-rose-200">{fullscreenError}</p>}
+          <button type="button" onClick={enterExamFullscreen} className="mt-6 rounded-xl bg-indigo-500 px-6 py-3 text-sm font-black text-white shadow-lg hover:bg-indigo-400">
+            Aktifkan Full Screen
+          </button>
+          <p className="mt-3 text-[11px] text-slate-400">Jika perangkat tidak mendukung, minta bantuan pengawas. Jangan membuat sesi ujian baru.</p>
+        </div>
+      )}
+
+      {exam?.proctor_enabled && proctorNotice && sessionStatus === 'ongoing' && (
+        <div className="fixed bottom-4 left-4 right-4 z-[65] mx-auto max-w-lg rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-xs font-bold text-amber-900 shadow-xl">
+          {proctorNotice} · {proctorViolationCount}/{exam.proctor_max_violations || 3}
+        </div>
+      )}
+
+            {sessionStatus === 'paused' && (
         <div className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white p-6 text-center font-sans">
           <div className="w-20 h-20 bg-amber-500/20 border-2 border-amber-400 rounded-full flex items-center justify-center text-4xl animate-bounce mb-4">
             ⏸️
           </div>
           <h2 className="text-2xl font-black">Ujian Dipause oleh Pengawas</h2>
           <p className="text-slate-300 text-xs max-w-md mt-2 leading-relaxed">
-            Pengawas sedang menghentikan sementara aktivitas ujian Anda (misal untuk penanganan kendala teknis/jaringan).
+            {sessionStatus === 'paused' ? 'Aktivitas ujian dihentikan sementara oleh pengawas atau sistem pengawasan.' : 'Pengawas sedang menghentikan sementara aktivitas ujian Anda.'}
             <br />
+            {proctorViolationCount > 0 && <span className="font-bold text-amber-300">Catatan pelanggaran: {proctorViolationCount} kali. </span>}
             <strong>Jawaban Anda telah tersimpan aman.</strong> Silakan tunggu hingga pengawas melanjutkan ujian.
           </p>
           <div className="mt-6 px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-mono text-amber-300 animate-pulse">

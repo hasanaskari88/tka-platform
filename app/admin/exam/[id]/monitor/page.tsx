@@ -34,6 +34,11 @@ function MonitorContent() {
   const [bulkActionLoading, setBulkActionLoading] = useState<'pause' | 'resume' | 'force-submit' | 'extend' | null>(null)
   const [forceSubmitScope, setForceSubmitScope] = useState<'all' | 'ongoing'>('all')
   const [extendMinutes, setExtendMinutes] = useState(5)
+  const [proctorEnabled, setProctorEnabled] = useState(false)
+  const [proctorRequireFullscreen, setProctorRequireFullscreen] = useState(true)
+  const [proctorMaxViolations, setProctorMaxViolations] = useState(3)
+  const [proctorSaving, setProctorSaving] = useState(false)
+  const [proctorEvents, setProctorEvents] = useState<any[]>([])
 
   // Ticker State untuk memperbarui timer live setiap detik
   const [now, setNow] = useState<number>(Date.now())
@@ -88,7 +93,20 @@ function MonitorContent() {
       const { data, error: profileError } = await supabase.from('profiles').select('id, full_name, username, class_code')
       if (!profileError) { profileData = data || []; profilesCacheRef.current = profileData; setProfiles(profileData); profilesLoadedRef.current = true }
     }
-    setExam(examData); setQuestionsCount(qCount || 0); setSessions(sessionData); setProfiles(profileData)
+    setExam(examData)
+    setProctorEnabled(Boolean(examData.proctor_enabled))
+    setProctorRequireFullscreen(examData.proctor_require_fullscreen !== false)
+    setProctorMaxViolations(Number(examData.proctor_max_violations) || 3)
+    setQuestionsCount(qCount || 0); setSessions(sessionData); setProfiles(profileData)
+    try {
+      const eventResponse = await fetch(`/api/admin/exams/${examId}/proctor-events`, { cache: 'no-store' })
+      if (eventResponse.ok) {
+        const eventPayload = await eventResponse.json()
+        setProctorEvents(Array.isArray(eventPayload.events) ? eventPayload.events : [])
+      }
+    } catch (error) {
+      console.warn('Riwayat pengawasan belum dapat dimuat:', error)
+    }
     setLastUpdated(new Date())
     setLoading(false)
   }
@@ -159,7 +177,31 @@ function MonitorContent() {
     return { isExpired: false, displayTime, remainingSeconds: remSec }
   }
 
-  // ⏸️ AKSI 1: PAUSE SESI UJIAN (Bekukan Layar & Waktu Siswa)
+  const handleSaveProctorSettings = async () => {
+    setProctorSaving(true)
+    try {
+      const response = await fetch(`/api/admin/exams/${examId}/proctor-settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: proctorEnabled,
+          requireFullscreen: proctorRequireFullscreen,
+          maxViolations: proctorMaxViolations,
+        }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Pengaturan gagal disimpan.')
+      setExam((current: any) => ({ ...current, ...payload.settings }))
+      alert('Pengaturan pengawasan berhasil disimpan.')
+      await fetchData()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Pengaturan pengawasan gagal disimpan.')
+    } finally {
+      setProctorSaving(false)
+    }
+  }
+
+    // ⏸️ AKSI 1: PAUSE SESI UJIAN (Bekukan Layar & Waktu Siswa)
     const handlePauseSession = async (sessionId: string) => {
     if (!confirm('Jeda ujian siswa ini?')) return
 
@@ -247,20 +289,18 @@ function MonitorContent() {
     const handleResumeSession = async (session: any) => {
     if (!confirm('Lanjutkan ujian siswa ini?')) return
 
-    const supabase = createClient()
-
-    const { error } = await supabase
-      .from('exam_sessions')
-      .update({ status: 'ongoing' })
-      .eq('id', session.id)
-      .eq('status', 'paused')
-
-    if (error) {
-      alert(`Gagal melanjutkan ujian: ${error.message}`)
-      return
+    try {
+      const response = await fetch(`/api/admin/exams/${examId}/resume-session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: session.id }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(payload.error || 'Gagal melanjutkan sesi.')
+      await fetchData()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Gagal melanjutkan ujian.')
     }
-
-    await fetchData()
   }
 
   // 🛑 AKSI 3: Force Submit
@@ -583,6 +623,50 @@ function MonitorContent() {
           </div>
         </div>
 
+        <section className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-black text-slate-800">🔐 Pengaturan Pengawasan Ujian</h2>
+              <p className="mt-1 text-[11px] text-slate-500">Pelanggaran mencapai batas akan menjeda sesi. Jawaban tidak dikumpulkan otomatis.</p>
+            </div>
+            <button type="button" onClick={handleSaveProctorSettings} disabled={proctorSaving} className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-black text-white disabled:opacity-50">
+              {proctorSaving ? 'Menyimpan...' : 'Simpan Pengaturan'}
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
+              <input type="checkbox" checked={proctorEnabled} onChange={(e) => setProctorEnabled(e.target.checked)} />
+              Aktifkan pengawasan
+            </label>
+            <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
+              <input type="checkbox" checked={proctorRequireFullscreen} onChange={(e) => setProctorRequireFullscreen(e.target.checked)} disabled={!proctorEnabled} />
+              Wajib Full Screen
+            </label>
+            <label className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
+              Batas pelanggaran
+              <select value={proctorMaxViolations} onChange={(e) => setProctorMaxViolations(Number(e.target.value))} disabled={!proctorEnabled} className="rounded-lg border border-slate-300 bg-white px-2 py-1">
+                {[1,2,3,4,5,6,7,8,9,10,15,20,25,30,50].map((value) => <option key={value} value={value}>{value} kali</option>)}
+              </select>
+            </label>
+          </div>
+          {proctorEvents.length > 0 && (
+            <div className="border-t border-slate-100 pt-3">
+              <h3 className="mb-2 text-xs font-black text-slate-700">Riwayat Pelanggaran Terbaru</h3>
+              <div className="max-h-56 space-y-1 overflow-y-auto">
+                {proctorEvents.slice(0, 12).map((event) => {
+                  const student = profiles.find((profile) => profile.id === event.user_id)
+                  return (
+                    <div key={event.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px]">
+                      <span className="font-bold text-slate-700">{student?.full_name || 'Siswa'} · {event.event_type === 'tab_hidden' ? 'Berpindah tab' : 'Keluar Full Screen'}</span>
+                      <span className="text-slate-500">Pelanggaran {event.violation_number} · {new Date(event.occurred_at).toLocaleString('id-ID')}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+
         {/* 🟢 KARTU STATISTIK RINGKASAN */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -756,6 +840,14 @@ function MonitorContent() {
                               <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-300">
                                 ✅ Selesai
                               </span>
+                            )}
+                            {Number(s.proctor_violation_count) > 0 && (
+                              <div className="mt-1 text-[10px] font-black text-rose-700">
+                                ⚠ {s.proctor_violation_count} pelanggaran{s.proctor_auto_paused ? ' · Auto-pause' : ''}
+                              </div>
+                            )}
+                            {s.proctor_pause_reason && s.status === 'paused' && (
+                              <div className="mt-1 max-w-[180px] text-[9px] leading-tight text-amber-800">{s.proctor_pause_reason}</div>
                             )}
                           </td>
                           <td className="p-3 text-center font-mono font-bold">
