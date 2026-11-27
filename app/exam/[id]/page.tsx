@@ -824,7 +824,7 @@ function ExamEngineContent() {
       if (active) {
         hasEnteredFullscreenRef.current = true
         setFullscreenError(null)
-      } else if (hasEnteredFullscreenRef.current) {
+      } else if (hasEnteredFullscreenRef.current && exam?.proctor_require_fullscreen) {
         sendProctorEvent('fullscreen_exit')
       }
     }
