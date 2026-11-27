@@ -1366,113 +1366,86 @@ function ExamEngineContent() {
           </div>
         </div>
       )}
-      {/* HEADER CBT SISWA */}
-      <header className="sticky top-0 z-40 bg-slate-900 text-white px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between items-stretch sm:items-center shadow-md gap-2 sm:gap-3">
-        <div>
-          <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
-            {exam?.subtest || 'TKA'}
-          </span>
-          <h1 className="text-base font-bold mt-0.5">{exam?.title}</h1>
-        </div>
-
-        <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-4">
-          {/* 🔠 CONTROLS FONT SIZE (UKURAN TEKS) */}
-          <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
-            <span className="text-[10px] text-slate-400 font-bold px-1 uppercase hidden sm:inline">
-              Teks:
+      {/* HEADER CBT SISWA — ringkas dan tidak sticky pada semua ukuran layar */}
+      <header className="relative z-10 bg-slate-900 text-white px-3 sm:px-6 py-2 sm:py-3 shadow-md">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-[9px] sm:text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
+              {exam?.subtest || 'TKA'}
             </span>
-            <button
-              onClick={() => setFontSize('normal')}
-              className={`px-2 py-0.5 rounded-lg font-bold text-[10px] transition-all ${
-                fontSize === 'normal'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
-              title="Ukuran Teks Normal"
-            >
-              A
-            </button>
-            <button
-              onClick={() => setFontSize('large')}
-              className={`px-2 py-0.5 rounded-lg font-bold text-xs transition-all ${
-                fontSize === 'large'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
-              title="Ukuran Teks Besar"
-            >
-              A+
-            </button>
-            <button
-              onClick={() => setFontSize('xlarge')}
-              className={`px-2 py-0.5 rounded-lg font-bold text-sm transition-all ${
-                fontSize === 'xlarge'
-                  ? 'bg-indigo-600 text-white'
-                  : 'text-slate-300 hover:bg-slate-700'
-              }`}
-              title="Ukuran Teks Sangat Besar"
-            >
-              A++
-            </button>
+            <h1 className="truncate text-sm sm:text-base font-bold mt-0.5">{exam?.title}</h1>
           </div>
 
-          {/* 🌗 CONTROLS TEMA (DARK / LIGHT MODE) */}
-          <button
-            onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors flex items-center space-x-1"
-            title="Ganti Tema Tampilan Ujian"
-          >
-            <span>{isDark ? '☀️ Mode Terang' : '🌙 Mode Gelap'}</span>
-          </button>
-
-          {/* TIMER */}
-          <div className="text-right ml-auto sm:ml-0 rounded-lg bg-slate-800/80 px-2 py-1 sm:bg-transparent sm:px-0 sm:py-0">
-            <span className="text-[10px] text-slate-400 block font-bold uppercase">
-              Sisa Waktu
-            </span>
-            <span className="font-mono text-lg font-bold text-amber-400">
+          {/* Timer selalu terlihat, tetapi tidak mengambil satu baris sendiri di HP. */}
+          <div className="shrink-0 rounded-lg bg-slate-800 px-2.5 py-1 text-right">
+            <span className="block text-[9px] text-slate-400 font-bold uppercase">Sisa waktu</span>
+            <span className="font-mono text-base sm:text-lg font-bold tabular-nums text-amber-400">
               ⏱ {timeLeft !== null ? formatTime(timeLeft) : '00:00'}
             </span>
           </div>
+        </div>
 
+        {/* Pengaturan tampilan disimpan di panel lipat pada HP. */}
+        <details className="mt-2 sm:hidden">
+          <summary className="inline-flex min-h-8 cursor-pointer items-center rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-slate-200">
+            ⚙ Pengaturan tampilan
+          </summary>
+          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 p-2">
+            <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
+              <span className="px-1 text-[9px] font-bold uppercase text-slate-400">Teks</span>
+              <button type="button" onClick={() => setFontSize('normal')} aria-pressed={fontSize === 'normal'} className={`rounded-md px-2.5 py-1 text-xs font-bold ${fontSize === 'normal' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}>A</button>
+              <button type="button" onClick={() => setFontSize('large')} aria-pressed={fontSize === 'large'} className={`rounded-md px-2.5 py-1 text-xs font-bold ${fontSize === 'large' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}>A+</button>
+              <button type="button" onClick={() => setFontSize('xlarge')} aria-pressed={fontSize === 'xlarge'} className={`rounded-md px-2.5 py-1 text-xs font-bold ${fontSize === 'xlarge' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}>A++</button>
+            </div>
+            <button type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')} className="min-h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-slate-200">
+              {isDark ? '☀️ Mode Terang' : '🌙 Mode Gelap'}
+            </button>
+          </div>
+        </details>
+
+        {/* Kontrol lengkap tetap satu baris/terbungkus wajar di layar besar. */}
+        <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:mt-2">
+          <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
+            <span className="text-[10px] text-slate-400 font-bold px-1 uppercase">Teks:</span>
+            <button type="button" onClick={() => setFontSize('normal')} aria-pressed={fontSize === 'normal'} className={`px-2 py-1 rounded-lg font-bold text-[10px] ${fontSize === 'normal' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A</button>
+            <button type="button" onClick={() => setFontSize('large')} aria-pressed={fontSize === 'large'} className={`px-2 py-1 rounded-lg font-bold text-xs ${fontSize === 'large' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A+</button>
+            <button type="button" onClick={() => setFontSize('xlarge')} aria-pressed={fontSize === 'xlarge'} className={`px-2 py-1 rounded-lg font-bold text-sm ${fontSize === 'xlarge' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A++</button>
+          </div>
+          <button type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700">
+            {isDark ? '☀️ Mode Terang' : '🌙 Mode Gelap'}
+          </button>
           <div className="hidden md:flex flex-col items-end max-w-[190px] leading-tight">
             <span className="text-[10px] text-slate-400 font-bold uppercase">Peserta</span>
-            <span className="text-xs text-white font-semibold truncate max-w-full" title={participantName}>
-              {participantName || 'Memuat identitas...'}
-            </span>
-            {participantIdentifier && (
-              <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Username: ${participantIdentifier}`}>
-                @{participantIdentifier}
-              </span>
-            )}
-            {participantClass && (
-              <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Kelas: ${participantClass}`}>
-                Kelas {participantClass}
-              </span>
-            )}
+            <span className="text-xs text-white font-semibold truncate max-w-full" title={participantName}>{participantName || 'Memuat identitas...'}</span>
+            {participantIdentifier && <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Username: ${participantIdentifier}`}>@{participantIdentifier}</span>}
+            {participantClass && <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Kelas: ${participantClass}`}>Kelas {participantClass}</span>}
           </div>
+        </div>
 
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
+            type="button"
             onClick={() => setShowQuestionNav((visible) => !visible)}
-            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition-colors"
+            className="min-h-9 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-slate-200 hover:bg-slate-700"
             title={showQuestionNav ? 'Sembunyikan navigasi nomor soal' : 'Tampilkan navigasi nomor soal'}
             aria-label={showQuestionNav ? 'Sembunyikan navigasi nomor soal' : 'Tampilkan navigasi nomor soal'}
           >
             {showQuestionNav ? 'Sembunyikan Nomor' : 'Tampilkan Nomor'}
           </button>
 
-          <div className="w-full sm:w-auto text-[10px] font-bold" aria-live="polite">
-            {!isOnline ? <span className="text-rose-300">⚠ Offline — jawaban tersimpan sementara di perangkat</span> : saveStatus === 'saving' ? <span className="text-amber-300">⏳ Menyimpan jawaban…</span> : saveStatus === 'error' ? <span className="text-rose-300">⚠ Gagal menyimpan — akan dicoba lagi</span> : <span className="text-emerald-300">✓ Semua perubahan tersimpan</span>}
-          </div>
-
           <button
+            type="button"
             onClick={openSubmitReview}
             disabled={isSubmitting || sessionStatus !== 'ongoing'}
-            className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+            className="min-h-9 flex-1 sm:flex-none rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
             suppressHydrationWarning
           >
             {isSubmitting ? 'Menyimpan...' : 'Selesaikan Ujian ✓'}
           </button>
+
+          <div className="w-full text-[10px] font-bold sm:w-auto sm:ml-auto" aria-live="polite">
+            {!isOnline ? <span className="text-rose-300">⚠ Offline — jawaban tersimpan sementara di perangkat</span> : saveStatus === 'saving' ? <span className="text-amber-300">⏳ Menyimpan jawaban…</span> : saveStatus === 'error' ? <span className="text-rose-300">⚠ Gagal menyimpan — akan dicoba lagi</span> : <span className="text-emerald-300">✓ Semua perubahan tersimpan</span>}
+          </div>
         </div>
       </header>
 
