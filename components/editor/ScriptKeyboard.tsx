@@ -208,30 +208,28 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
                 ))}
               </div>
             </>
+          ) : javaneseTab === 'sandhangan' ? (
+            <div className="grid grid-cols-5 gap-1.5">
+              {javaneseMarks.map(({ character, label }) => (
+                <button key={label} type="button" title={label} aria-label={label}
+                  onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                  className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
+                  <span className="text-xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
+                  <span className="text-[10px] leading-tight text-slate-500">{label}</span>
+                </button>
+              ))}
+            </div>
           ) : (
-            {javaneseTab === 'sandhangan' ? (
-              <div className="grid grid-cols-5 gap-1.5">
-                {javaneseMarks.map(({ character, label }) => (
-                  <button key={label} type="button" title={label} aria-label={label}
-                    onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
-                    className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
-                    <span className="text-xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
-                    <span className="text-[10px] leading-tight text-slate-500">{label}</span>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
-                {javaneseKeys.map((character, index) => (
-                  <button key={character + index} type="button" title={character}
-                    onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
-                    className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
-                    style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>
-                    {character}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+              {javaneseKeys.map((character, index) => (
+                <button key={character + index} type="button" title={character}
+                  onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                  className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
+                  style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>
+                  {character}
+                </button>
+              ))}
+            </div>
           )}
           {showLatinConversion && (
           <div className="mt-3 rounded-lg bg-slate-50 p-3">
