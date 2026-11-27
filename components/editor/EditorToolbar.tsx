@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 
@@ -50,6 +50,40 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
   const [scriptKeyboardOpen, setScriptKeyboardOpen] = useState(false)
+
+  // Saat keyboard aksara khusus aktif, minta browser tidak membuka keyboard HP.
+  // Saat dinonaktifkan, pulihkan perilaku keyboard bawaan pada editor.
+  useEffect(() => {
+    const editorElement = editor?.view.dom
+    if (!editorElement) return
+
+    if (scriptKeyboardOpen) {
+      editorElement.setAttribute('inputmode', 'none')
+    } else {
+      editorElement.removeAttribute('inputmode')
+    }
+
+    return () => {
+      editorElement.removeAttribute('inputmode')
+    }
+  }, [editor, scriptKeyboardOpen])
+
+  const toggleScriptKeyboard = () => {
+    const nextOpen = !scriptKeyboardOpen
+    const editorElement = editor.view.dom
+    setScriptKeyboardOpen(nextOpen)
+
+    if (nextOpen) {
+      editorElement.setAttribute('inputmode', 'none')
+      editor.commands.focus()
+    } else {
+      editorElement.removeAttribute('inputmode')
+      // Lepas dan kembalikan fokus dalam aksi sentuhan yang sama agar
+      // browser Android berkesempatan menampilkan keyboard bawaan.
+      editorElement.blur()
+      editorElement.focus()
+    }
+  }
 
   // Memantau perubahan format sesuai posisi kursor atau teks terpilih.
   const state = useEditorState({
@@ -132,7 +166,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
             className={`h-9 shrink-0 rounded-md border px-2.5 text-sm font-semibold ${scriptKeyboardOpen ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-violet-200 bg-white text-violet-800 hover:bg-violet-50'}`}
             aria-expanded={scriptKeyboardOpen}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => setScriptKeyboardOpen((open) => !open)}>⌨ Huruf</button>
+            onClick={toggleScriptKeyboard}>{scriptKeyboardOpen ? '⌨ Aksara Aktif' : '⌨ Keyboard Aksara'}</button>
           <MathFormulaDialog editor={editor} editorId={editorId} compact />
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
