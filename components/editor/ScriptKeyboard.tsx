@@ -216,7 +216,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
                     onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
                     className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
                     <span className="text-xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
-                    <span className="text-[9px] leading-tight text-slate-500">{label}</span>
+                    <span className="text-[10px] leading-tight text-slate-500">{label}</span>
                   </button>
                 ))}
               </div>
