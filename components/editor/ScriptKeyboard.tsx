@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
 
 type ScriptKeyboardProps = { editor: Editor; showLatinConversion?: boolean; initialLanguage?: 'jv' | 'ar'; onLanguageChange?: (language: 'jv' | 'ar') => void }
@@ -9,7 +9,15 @@ const javaneseRows = [
   ['ꦲ', 'ꦤ', 'ꦕ', 'ꦫ', 'ꦏ', 'ꦢ', 'ꦠ', 'ꦱ', 'ꦮ', 'ꦭ'],
   ['ꦥ', 'ꦝ', 'ꦗ', 'ꦪ', 'ꦚ', 'ꦩ', 'ꦒ', 'ꦧ', 'ꦛ', 'ꦔ'],
 ]
-const javaneseVowels = ['ꦄ', 'ꦆ', 'ꦈ', 'ꦌ', 'ꦎ']
+const javaneseVowels = [
+  { character: 'ꦄ', label: 'A' },
+  { character: 'ꦆ', label: 'I' },
+  { character: 'ꦈ', label: 'U' },
+  { character: 'ꦌ', label: 'E' },
+  { character: 'ꦎ', label: 'O' },
+  { character: 'ꦉ', label: 'Pa Cerek' },
+  { character: 'ꦊ', label: 'Nga Lelet' },
+]
 const javanesePasangan = [
   ['ꦲ', 'Ha'], ['ꦤ', 'Na'], ['ꦕ', 'Ca'], ['ꦫ', 'Ra'], ['ꦏ', 'Ka'],
   ['ꦢ', 'Da'], ['ꦠ', 'Ta'], ['ꦱ', 'Sa'], ['ꦮ', 'Wa'], ['ꦭ', 'La'],
@@ -20,12 +28,14 @@ const javaneseMarks = [
   { character: 'ꦶ', label: 'Wulu' },
   { character: 'ꦸ', label: 'Suku' },
   { character: 'ꦺ', label: 'Taling' },
-  { character: 'ꦼ', label: 'Pepet' },
-  { character: 'ꦴ', label: 'Tarung' },
   { character: 'ꦺꦴ', label: 'Taling Tarung' },
+  { character: 'ꦼ', label: 'Pepet' },
   { character: 'ꦁ', label: 'Cecak' },
   { character: 'ꦂ', label: 'Layar' },
   { character: 'ꦃ', label: 'Wignyan (h)' },
+  { character: 'ꦿ', label: 'Cakra' },
+  { character: 'ꦽ', label: 'Keret' },
+  { character: 'ꦾ', label: 'Pengkal' },
   { character: '꧀', label: 'Pangkon' },
 ]
 const javanesePunctuation = ['꧈', '꧉', '꧊', '꧋', '꧌', '꧍', '꧇']
@@ -133,6 +143,10 @@ function latinToJavanese(input: string): string {
 
 export default function ScriptKeyboard({ editor, showLatinConversion = true, initialLanguage = 'jv', onLanguageChange }: ScriptKeyboardProps) {
   const [language, setLanguage] = useState<'jv' | 'ar'>(initialLanguage)
+  useEffect(() => {
+    setLanguage(initialLanguage)
+  }, [initialLanguage])
+
   const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'pasangan' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
   const [latin, setLatin] = useState('')
 
@@ -158,7 +172,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
     javaneseTab === 'aksara' ? javaneseRows.flat()
       : javaneseTab === 'pasangan' ? javanesePasangan.map(([character]) => character)
       : javaneseTab === 'sandhangan' ? []
-        : javaneseTab === 'swara' ? javaneseVowels
+        : javaneseTab === 'swara' ? javaneseVowels.map(({ character }) => character)
           : javanesePunctuation
 
   return (
@@ -215,6 +229,17 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
                   onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
                   className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
                   <span className="text-xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
+                  <span className="text-[10px] leading-tight text-slate-500">{label}</span>
+                </button>
+              ))}
+            </div>
+          ) : javaneseTab === 'swara' ? (
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+              {javaneseVowels.map(({ character, label }) => (
+                <button key={character} type="button" title={label} aria-label={label}
+                  onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                  className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
+                  <span className="text-2xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
                   <span className="text-[10px] leading-tight text-slate-500">{label}</span>
                 </button>
               ))}
