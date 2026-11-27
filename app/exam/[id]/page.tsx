@@ -284,6 +284,12 @@ function ExamEngineContent() {
   // 1. MEMUAT DATA UJIAN, BUKA/HUBUNGKAN SESI ONGOING SUPABASE, & HITUNG TIMER AKURAT
   const loadExamData = async () => {
     if (!examId) return
+    const launchIntentKey = `cbt_launch_intent_${examId}`
+    const hasLaunchIntent =
+      explicitStart && sessionStorage.getItem(launchIntentKey) === '1'
+    // Niat mulai hanya boleh dipakai sekali. Refresh berikutnya tidak boleh
+    // dianggap sebagai perintah membuat percobaan baru.
+    if (hasLaunchIntent) sessionStorage.removeItem(launchIntentKey)
     setLoading(true)
     setAuthCheckFailed(false)
     setLoadError(null)
@@ -440,10 +446,26 @@ function ExamEngineContent() {
     }
 
 
-    if (!existingSession && !explicitStart) {
-      alert('Tidak ada sesi ujian aktif untuk dilanjutkan. Silakan kembali ke halaman utama dan tekan Mulai Kerjakan jika memang ingin memulai percobaan baru.')
-      setLoading(false)
-      router.replace('/')
+    if (!existingSession && !hasLaunchIntent) {
+      // Refresh/URL lama setelah submit harus kembali ke hasil sesi terakhir,
+      // bukan membuka percobaan baru secara diam-diam.
+      const { data: lastSession, error: lastSessionError } = await supabase
+        .from('exam_sessions')
+        .select('id, status')
+        .eq('exam_id', examId)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (lastSessionError) {
+        throw new Error(`Gagal memeriksa riwayat sesi: ${lastSessionError.message}`)
+      }
+      if (lastSession?.status === 'completed') {
+        router.replace(`/exam/${examId}/summary?session_id=${lastSession.id}`)
+      } else {
+        router.replace('/')
+      }
       return
     }
 

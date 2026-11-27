@@ -115,7 +115,9 @@ export default function ExamTokenModal({
         return
       }
 
-      // Jika Semua Validasi Lolos -> Pindah ke Ruang Ujian CBT
+      // Penanda sekali pakai membedakan klik Mulai yang disengaja dari refresh.
+      // Halaman CBT menghapusnya sebelum proses jaringan dimulai.
+      sessionStorage.setItem(`cbt_launch_intent_${exam.id}`, '1')
       router.push(`/exam/${exam.id}?start=1`)
     } catch (err) {
       setErrorMsg('Terjadi kesalahan koneksi. Silahkan reload halaman dan coba lagi.')

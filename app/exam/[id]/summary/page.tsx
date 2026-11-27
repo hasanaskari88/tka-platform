@@ -238,128 +238,93 @@ function ExamSummaryContent() {
   const [userAnswersMap, setUserAnswersMap] = useState<{ [key: string]: any }>({})
   const [teacherScoresMap, setTeacherScoresMap] = useState<{ [key: string]: number | null }>({})
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   // Filter pembahasan: 'all' | 'correct' | 'wrong'
   const [filterType, setFilterType] = useState<'all' | 'correct' | 'wrong'>('all')
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    triggerVictoryConfetti()
+    let cancelled = false
 
     async function loadSummaryAndReview() {
-      if (!examId) return
-      const supabase = createClient()
+      setLoading(true)
+      setLoadError(null)
+      try {
+        if (!examId) throw new Error('ID paket ujian tidak ditemukan.')
+        if (!sessionId) throw new Error('ID sesi hasil tidak tersedia. Silakan buka hasil dari riwayat ujian.')
 
-      // 1. Data Ujian
-      const { data: examData } = await supabase
-        .from('exams')
-        .select('*')
-        .eq('id', examId)
-        .single()
-
-      if (examData) setExam(examData)
-
-      // 2. Daftar Soal Ujian
-      const { data: questionData } = await supabase
-        .from('questions')
-        .select('*')
-        .eq('exam_id', examId)
-        .order('created_at', { ascending: true })
-
-      if (questionData) setQuestions(questionData)
-
-      // 3. Data Sesi Ujian & Jawaban Siswa
-      // Ringkasan hanya boleh dibuka oleh pemilik sesi yang sedang login.
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.replace('/login')
-        setLoading(false)
-        return
-      }
-
-      let currentSessionId = sessionId
-
-      if (!currentSessionId) {
-        const { data: lastSession } = await supabase
-          .from('exam_sessions')
-          .select('*')
-          .eq('exam_id', examId)
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single()
-
-        if (lastSession) {
-          currentSessionId = lastSession.id
-          setSessionData(lastSession)
-        }
-      } else {
-        const { data: session } = await supabase
-          .from('exam_sessions')
-          .select('*')
-          .eq('id', currentSessionId)
-          .eq('user_id', user.id)
-          .single()
-
-        if (!session) {
-          // Jangan memuat jawaban jika sesi bukan milik akun ini atau tidak ditemukan.
-          setLoading(false)
-          router.replace('/')
+        const supabase = createClient()
+        const { data: authData, error: authError } = await supabase.auth.getUser()
+        if (authError) throw new Error(`Gagal memeriksa akun: ${authError.message}`)
+        if (!authData.user) {
+          router.replace('/login')
           return
         }
 
-        setSessionData(session)
-      }
-
-      // 4. Jawaban Rinci dengan Auto-Parsing JSON
-      if (currentSessionId) {
-        const { data: answersData } = await supabase
-          .from('answers')
+        // Hasil selalu terikat pada sesi spesifik, pemilik, paket, dan status selesai.
+        const { data: session, error: sessionError } = await supabase
+          .from('exam_sessions')
           .select('*')
-          .eq('session_id', currentSessionId)
-
-        if (answersData) {
-          const map: { [key: string]: any } = {}
-          const scores: { [key: string]: number | null } = {}
-          answersData.forEach((ans) => {
-            let rawVal = ans.user_answer !== undefined && ans.user_answer !== null
-              ? ans.user_answer
-              : ans.selected_option
-
-            if (typeof rawVal === 'string') {
-              try {
-                const parsed = JSON.parse(rawVal)
-                if (parsed !== null) rawVal = parsed
-              } catch {
-                // Biarkan string biasa
-              }
-            }
-            map[ans.question_id] = rawVal
-            scores[ans.question_id] =
-              ans.teacher_score === null || ans.teacher_score === undefined
-                ? null
-                : (() => {
-                    const questionMax = Number(
-                      questionData?.find((q: any) => q.id === ans.question_id)?.max_score
-                    ) || 1
-                    const manualScore = Math.max(0, Number(ans.teacher_score) || 0)
-                    const bonusValue = Math.max(0, Number(ans.teacher_bonus) || 0)
-                    return Math.min(
-                      questionMax,
-                      manualScore + Math.min(questionMax, bonusValue)
-                    )
-                  })()
-          })
-          setUserAnswersMap(map)
-          setTeacherScoresMap(scores)
+          .eq('id', sessionId)
+          .eq('exam_id', examId)
+          .eq('user_id', authData.user.id)
+          .single()
+        if (sessionError || !session) {
+          throw new Error('Sesi hasil tidak ditemukan atau bukan milik akun ini. Jawaban tidak diubah.')
         }
+        if (session.status !== 'completed') {
+          throw new Error('Sesi ini belum berstatus selesai. Silakan kembali ke ruang ujian atau hubungi pengawas.')
+        }
+
+        const [examResult, questionResult, answersResult] = await Promise.all([
+          supabase.from('exams').select('*').eq('id', examId).single(),
+          supabase.from('questions').select('*').eq('exam_id', examId).order('created_at', { ascending: true }),
+          supabase.from('answers').select('*').eq('session_id', session.id),
+        ])
+        if (examResult.error || !examResult.data) {
+          throw new Error(`Gagal memuat paket ujian: ${examResult.error?.message || 'Data tidak ditemukan'}`)
+        }
+        if (questionResult.error) throw new Error(`Gagal memuat daftar soal: ${questionResult.error.message}`)
+        if (answersResult.error) throw new Error(`Gagal memuat jawaban: ${answersResult.error.message}`)
+        if (cancelled) return
+
+        const map: { [key: string]: any } = {}
+        const scores: { [key: string]: number | null } = {}
+        ;(answersResult.data || []).forEach((ans: any) => {
+          let rawVal = ans.user_answer !== undefined && ans.user_answer !== null ? ans.user_answer : ans.selected_option
+          if (typeof rawVal === 'string') {
+            try { const parsed = JSON.parse(rawVal); if (parsed !== null) rawVal = parsed } catch { /* string biasa */ }
+          }
+          map[ans.question_id] = rawVal
+          scores[ans.question_id] = ans.teacher_score === null || ans.teacher_score === undefined
+            ? null
+            : (() => {
+                const questionMax = Number(questionResult.data?.find((q: any) => q.id === ans.question_id)?.max_score) || 1
+                const manualScore = Math.max(0, Number(ans.teacher_score) || 0)
+                const bonusValue = Math.max(0, Number(ans.teacher_bonus) || 0)
+                return Math.min(questionMax, manualScore + Math.min(questionMax, bonusValue))
+              })()
+        })
+        setExam(examResult.data)
+        setQuestions(questionResult.data || [])
+        setSessionData(session)
+        setUserAnswersMap(map)
+        setTeacherScoresMap(scores)
+        triggerVictoryConfetti()
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Gagal memuat ringkasan ujian:', error)
+          setLoadError(error instanceof Error ? error.message : 'Ringkasan ujian gagal dimuat.')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-
-      setLoading(false)
     }
-
     loadSummaryAndReview()
-  }, [examId, sessionId])
+    return () => { cancelled = true }
+  }, [examId, sessionId, retryCount, router])
 
   // Hitung nilai otomatis dan nilai gabungan secara terpisah.
   // Nilai sementara hanya memakai soal yang dapat dinilai otomatis.
@@ -532,6 +497,23 @@ function ExamSummaryContent() {
       <div className="min-h-screen flex items-center justify-center font-sans">
         <div className="p-6 rounded-2xl bg-slate-900/70 text-white backdrop-blur-md border border-white/10 text-sm font-semibold">
           Memuat ringkasan & pembahasan nilai... ⏳
+        </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 font-sans">
+        <div className="w-full max-w-lg rounded-2xl border border-amber-200 bg-white p-6 text-center shadow-xl">
+          <div className="text-4xl">⚠️</div>
+          <h1 className="mt-3 text-lg font-black text-slate-800">Hasil ujian belum dapat dimuat</h1>
+          <p className="mt-2 text-sm leading-relaxed text-slate-600">{loadError}</p>
+          <p className="mt-2 text-xs text-slate-500">Sesi yang sudah selesai tidak dibuat ulang dan jawaban tidak dihapus.</p>
+          <div className="mt-5 flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={() => setRetryCount((value) => value + 1)} className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-indigo-700">Coba Muat Kembali</button>
+            <Link href="/history" className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700">Buka Riwayat Ujian</Link>
+          </div>
         </div>
       </div>
     )
