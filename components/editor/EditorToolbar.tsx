@@ -1,20 +1,23 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useEditorState } from '@tiptap/react'
 import type { Editor } from '@tiptap/react'
 
 import MathFormulaDialog from './MathFormulaDialog'
 import ImageDialog from './ImageDialog'
 import TableControls from './TableControls'
-import ScriptKeyboard from './ScriptKeyboard'
 
 interface EditorToolbarProps {
   editor: Editor | null
   editorId: string
   mode?: 'full' | 'essay'
   showJavaneseLatinConversion?: boolean
+  scriptKeyboardOpen: boolean
+  onToggleScriptKeyboard: () => void
+  scriptLanguage: 'jv' | 'ar'
+  onScriptLanguageChange: (language: 'jv' | 'ar') => void
 }
 
 const buttonClass =
@@ -46,47 +49,9 @@ const alignments = [
   { value: 'justify', label: '☰ Rata', title: 'Rata kiri-kanan' },
 ] as const
 
-export default function EditorToolbar({ editor, editorId, mode = 'full', showJavaneseLatinConversion = true }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, editorId, mode = 'full', showJavaneseLatinConversion = true, scriptKeyboardOpen, onToggleScriptKeyboard, scriptLanguage, onScriptLanguageChange }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
-  const [scriptKeyboardOpen, setScriptKeyboardOpen] = useState(false)
-  const [scriptLanguage, setScriptLanguage] = useState<'jv' | 'ar'>('jv')
-
-  // Saat keyboard aksara khusus aktif, minta browser tidak membuka keyboard HP.
-  // Saat dinonaktifkan, pulihkan perilaku keyboard bawaan pada editor.
-  useEffect(() => {
-    const editorElement = editor?.view.dom
-    if (!editorElement) return
-
-    if (scriptKeyboardOpen) {
-      editorElement.setAttribute('inputmode', 'none')
-    } else {
-      editorElement.removeAttribute('inputmode')
-    }
-
-    return () => {
-      editorElement.removeAttribute('inputmode')
-    }
-  }, [editor, scriptKeyboardOpen])
-
-  const toggleScriptKeyboard = () => {
-    if (!editor) return
-
-    const nextOpen = !scriptKeyboardOpen
-    const editorElement = editor.view.dom
-    setScriptKeyboardOpen(nextOpen)
-
-    if (nextOpen) {
-      editorElement.setAttribute('inputmode', 'none')
-      editor.chain().focus().setFontFamily(scriptLanguage === 'jv' ? 'Nyk Ngayogyan Jejeg' : 'Noto Naskh Arabic Local').setTextAlign(scriptLanguage === 'jv' ? 'left' : 'right').run()
-    } else {
-      editorElement.removeAttribute('inputmode')
-      // Lepas dan kembalikan fokus dalam aksi sentuhan yang sama agar
-      // browser Android berkesempatan menampilkan keyboard bawaan.
-      editorElement.blur()
-      editorElement.focus()
-    }
-  }
 
   // Memantau perubahan format sesuai posisi kursor atau teks terpilih.
   const state = useEditorState({
@@ -169,16 +134,16 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
             className={`h-9 shrink-0 rounded-md border px-2 text-xs font-semibold ${scriptKeyboardOpen ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-violet-200 bg-white text-violet-800 hover:bg-violet-50'}`}
             aria-expanded={scriptKeyboardOpen}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={toggleScriptKeyboard}>⌨ Huruf</button>
+            onClick={onToggleScriptKeyboard}>⌨ Huruf</button>
           <MathFormulaDialog editor={editor} editorId={editorId} compact />
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => { setScriptLanguage('ar'); editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').run() }}>عربي</button>
+            onClick={() => { onScriptLanguageChange('ar'); editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').run() }}>عربي</button>
           <button type="button" title="Mode Aksara Jawa" aria-label="Mode Aksara Jawa"
             className="h-9 shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => { setScriptLanguage('jv'); editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run() }}>ꦗꦮ</button>
+            onClick={() => { onScriptLanguageChange('jv'); editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run() }}>ꦗꦮ</button>
           {mode !== 'essay' && (
             <button type="button" title="Sisipkan gambar" aria-label="Sisipkan gambar"
               className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg text-slate-700 hover:bg-slate-100"
@@ -459,7 +424,6 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
         )}
       </div>
 
-      {scriptKeyboardOpen && <ScriptKeyboard editor={editor} showLatinConversion={showJavaneseLatinConversion} initialLanguage={scriptLanguage} onLanguageChange={setScriptLanguage} />}
       {toolbarOpen && <TableControls editor={editor} />}
 
       <ImageDialog
