@@ -16,6 +16,7 @@ type StudentAnswerPhotosProps = {
   userId: string
   disabled?: boolean
   onUploadingChange?: (uploading: boolean) => void
+  onPhotosChange?: (count: number) => void
 }
 
 async function compressPhoto(file: File): Promise<Blob> {
@@ -55,6 +56,7 @@ export default function StudentAnswerPhotos({
   userId,
   disabled = false,
   onUploadingChange,
+  onPhotosChange,
 }: StudentAnswerPhotosProps) {
   const supabase = useMemo(() => createClient(), [])
   const [photos, setPhotos] = useState<SavedPhoto[]>([])
@@ -100,6 +102,7 @@ export default function StudentAnswerPhotos({
           signedUrl: signedRows?.[index]?.signedUrl || '',
         })))
       }
+      onPhotosChange?.(rows.length)
       setLoading(false)
     }
 
@@ -180,10 +183,14 @@ export default function StudentAnswerPhotos({
         .createSignedUrl(storagePath, 60 * 60)
       if (signedError) throw signedError
 
-      setPhotos((current) => [...current, {
-        ...inserted,
-        signedUrl: signed.signedUrl,
-      }])
+      setPhotos((current) => {
+        const updated = [...current, {
+          ...inserted,
+          signedUrl: signed.signedUrl,
+        }]
+        onPhotosChange?.(updated.length)
+        return updated
+      })
       setPendingFile(null)
       if (pendingPreview) URL.revokeObjectURL(pendingPreview)
       setPendingPreview('')
@@ -212,7 +219,11 @@ export default function StudentAnswerPhotos({
         .remove([photo.storage_path])
       if (fileError) console.warn('Metadata foto terhapus, tetapi file belum terhapus:', fileError)
 
-      setPhotos((current) => current.filter((item) => item.id !== photo.id))
+      setPhotos((current) => {
+        const updated = current.filter((item) => item.id !== photo.id)
+        onPhotosChange?.(updated.length)
+        return updated
+      })
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Foto gagal dihapus.')
     } finally {
