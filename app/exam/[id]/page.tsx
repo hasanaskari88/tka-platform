@@ -1367,7 +1367,7 @@ function ExamEngineContent() {
         </div>
       )}
       {/* HEADER CBT SISWA */}
-      <header className="bg-slate-900 text-white px-3 sm:px-6 py-3 flex flex-wrap justify-between items-center shadow-md gap-3">
+      <header className="sticky top-0 z-40 bg-slate-900 text-white px-3 sm:px-6 py-2.5 sm:py-3 flex flex-col sm:flex-row sm:flex-wrap sm:justify-between items-stretch sm:items-center shadow-md gap-2 sm:gap-3">
         <div>
           <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
             {exam?.subtest || 'TKA'}
@@ -1375,7 +1375,7 @@ function ExamEngineContent() {
           <h1 className="text-base font-bold mt-0.5">{exam?.title}</h1>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+        <div className="w-full sm:w-auto flex flex-wrap items-center gap-2 sm:gap-4">
           {/* 🔠 CONTROLS FONT SIZE (UKURAN TEKS) */}
           <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
             <span className="text-[10px] text-slate-400 font-bold px-1 uppercase hidden sm:inline">
@@ -1426,7 +1426,7 @@ function ExamEngineContent() {
           </button>
 
           {/* TIMER */}
-          <div className="text-right">
+          <div className="text-right ml-auto sm:ml-0 rounded-lg bg-slate-800/80 px-2 py-1 sm:bg-transparent sm:px-0 sm:py-0">
             <span className="text-[10px] text-slate-400 block font-bold uppercase">
               Sisa Waktu
             </span>
@@ -1461,14 +1461,14 @@ function ExamEngineContent() {
             {showQuestionNav ? 'Sembunyikan Nomor' : 'Tampilkan Nomor'}
           </button>
 
-          <div className="text-[10px] font-bold" aria-live="polite">
+          <div className="w-full sm:w-auto text-[10px] font-bold" aria-live="polite">
             {!isOnline ? <span className="text-rose-300">⚠ Offline — jawaban tersimpan sementara di perangkat</span> : saveStatus === 'saving' ? <span className="text-amber-300">⏳ Menyimpan jawaban…</span> : saveStatus === 'error' ? <span className="text-rose-300">⚠ Gagal menyimpan — akan dicoba lagi</span> : <span className="text-emerald-300">✓ Semua perubahan tersimpan</span>}
           </div>
 
           <button
             onClick={openSubmitReview}
             disabled={isSubmitting || sessionStatus !== 'ongoing'}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
+            className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
             suppressHydrationWarning
           >
             {isSubmitting ? 'Menyimpan...' : 'Selesaikan Ujian ✓'}
@@ -1477,10 +1477,10 @@ function ExamEngineContent() {
       </header>
 
       {/* BODY KONTEN SOAL & NAVIGASI */}
-      <div className={`flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 grid grid-cols-1 ${showQuestionNav ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-6`}>
+      <div className={`flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-6 grid grid-cols-1 ${showQuestionNav ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-3 sm:gap-6`}>
         {/* LEMBAR SOAL */}
         <div
-          className={`${showQuestionNav ? 'lg:col-span-3' : 'lg:col-span-1'} p-4 sm:p-6 rounded-2xl border shadow-sm flex flex-col justify-between space-y-6 ${
+          className={`${showQuestionNav ? 'lg:col-span-3' : 'lg:col-span-1'} p-3.5 sm:p-6 rounded-xl sm:rounded-2xl border shadow-sm flex flex-col justify-between space-y-4 sm:space-y-6 ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -1863,7 +1863,7 @@ function ExamEngineContent() {
 
         {/* SIDEBAR NAVIGASI NOMOR SOAL */}
         {showQuestionNav && <div
-          className={`p-5 rounded-2xl border shadow-sm space-y-4 h-fit ${
+          className={`p-3.5 sm:p-5 rounded-xl sm:rounded-2xl border shadow-sm space-y-3 sm:space-y-4 h-fit ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
