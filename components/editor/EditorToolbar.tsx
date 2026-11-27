@@ -69,6 +69,8 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
   }, [editor, scriptKeyboardOpen])
 
   const toggleScriptKeyboard = () => {
+    if (!editor) return
+
     const nextOpen = !scriptKeyboardOpen
     const editorElement = editor.view.dom
     setScriptKeyboardOpen(nextOpen)
