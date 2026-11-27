@@ -86,6 +86,7 @@ function ExamEngineContent() {
   const [participantClass, setParticipantClass] = useState('')
   const [showQuestionNav, setShowQuestionNav] = useState(true)
   const [proctorViolationCount, setProctorViolationCount] = useState(0)
+  const [proctorPauseReason, setProctorPauseReason] = useState<string | null>(null)
   const [fullscreenActive, setFullscreenActive] = useState(false)
   const [fullscreenError, setFullscreenError] = useState<string | null>(null)
   const [proctorNotice, setProctorNotice] = useState<string | null>(null)
@@ -517,6 +518,7 @@ function ExamEngineContent() {
       sessionIdRef.current = currentSessId
       sessionCompletedRef.current = false
       setProctorViolationCount(Number(currentSession?.proctor_violation_count) || 0)
+      setProctorPauseReason(currentSession?.proctor_pause_reason || null)
     }
     if (!startTimeIso) {
       throw new Error('Database tidak mengembalikan waktu mulai sesi ujian.')
@@ -699,7 +701,7 @@ function ExamEngineContent() {
 
       const { data: activeSession, error } = await supabase
         .from('exam_sessions')
-        .select('id, status, start_time, paused_at, paused_duration_seconds, extra_time_seconds, force_submit_state, force_submit_deadline_at')
+        .select('id, status, start_time, paused_at, paused_duration_seconds, extra_time_seconds, force_submit_state, force_submit_deadline_at, proctor_violation_count, proctor_pause_reason')
         .eq('id', currentId)
         .eq('user_id', currentUserId)
         .maybeSingle()
@@ -718,6 +720,8 @@ function ExamEngineContent() {
       }
 
       setSessionStatus(activeSession.status)
+      setProctorViolationCount(Number(activeSession.proctor_violation_count) || 0)
+      setProctorPauseReason(activeSession.proctor_pause_reason || null)
       if (activeSession.start_time && exam?.duration_minutes) {
         setDeadlineAtMs(new Date(activeSession.start_time).getTime() + (Number(exam.duration_minutes) * 60 + (Number(activeSession.paused_duration_seconds) || 0) + (Number(activeSession.extra_time_seconds) || 0)) * 1000)
       }
@@ -837,7 +841,7 @@ function ExamEngineContent() {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
     }
-  }, [exam?.proctor_enabled, sessionId, sessionStatus])
+  }, [exam?.proctor_enabled, exam?.proctor_require_fullscreen, sessionId, sessionStatus])
 
   const enterExamFullscreen = async () => {
     try {
@@ -1885,9 +1889,9 @@ function ExamEngineContent() {
           <div className="w-20 h-20 bg-amber-500/20 border-2 border-amber-400 rounded-full flex items-center justify-center text-4xl animate-bounce mb-4">
             ⏸️
           </div>
-          <h2 className="text-2xl font-black">Ujian Dipause oleh Pengawas</h2>
+          <h2 className="text-2xl font-black">{proctorPauseReason ? 'Ujian Dijeda Otomatis' : 'Ujian Dipause oleh Pengawas'}</h2>
           <p className="text-slate-300 text-xs max-w-md mt-2 leading-relaxed">
-            {sessionStatus === 'paused' ? 'Aktivitas ujian dihentikan sementara oleh pengawas atau sistem pengawasan.' : 'Pengawas sedang menghentikan sementara aktivitas ujian Anda.'}
+            {proctorPauseReason || 'Pengawas sedang menghentikan sementara aktivitas ujian Anda.'}
             <br />
             {proctorViolationCount > 0 && <span className="font-bold text-amber-300">Catatan pelanggaran: {proctorViolationCount} kali. </span>}
             <strong>Jawaban Anda telah tersimpan aman.</strong> Silakan tunggu hingga pengawas melanjutkan ujian.
