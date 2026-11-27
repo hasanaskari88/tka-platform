@@ -1689,7 +1689,7 @@ function ExamEngineContent() {
                       isDark ? 'border-slate-800 bg-slate-900' : 'border-slate-300 bg-white'
                     }`}
                   >
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full min-w-[320px] text-left border-collapse">
                       <thead
                         className={`font-bold border-b ${
                           isDark
@@ -1698,8 +1698,8 @@ function ExamEngineContent() {
                         }`}
                       >
                         <tr>
-                          <th className="p-3 font-extrabold text-xs">Pernyataan</th>
-                          <th className="p-3 w-36 text-center border-l font-extrabold text-xs">
+                          <th className="p-2 sm:p-3 font-extrabold text-xs">Pernyataan</th>
+                          <th className="p-2 sm:p-3 w-28 sm:w-36 text-center border-l font-extrabold text-xs">
                             Pilihan Jawaban
                           </th>
                         </tr>
@@ -1729,7 +1729,7 @@ function ExamEngineContent() {
                               key={stId || sIdx}
                               className={`transition-colors ${isDark ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}`}
                             >
-                              <td className="p-3">
+                              <td className="p-2 sm:p-3">
                                 <div className="flex items-start space-x-2">
                                   <span className="font-bold text-xs shrink-0">{sIdx + 1}.</span>
                                   <div className={`flex-1 font-semibold ${textClass}`}>
@@ -1745,7 +1745,7 @@ function ExamEngineContent() {
                                   </div>
                                 </div>
                               </td>
-                              <td className={`p-3 border-l ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
+                              <td className={`p-2 sm:p-3 border-l ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                                 <div className="flex justify-center gap-2">
                                   <button
                                     type="button"
@@ -1891,7 +1891,7 @@ function ExamEngineContent() {
                 type="button"
                 onClick={() => setQuestionNavFilter(filter.value)}
                 aria-pressed={questionNavFilter === filter.value}
-                className={'rounded-lg border px-2 py-2 text-[10px] font-bold transition-colors ' + (
+                className={'min-h-10 rounded-lg border px-1.5 sm:px-2 py-2 text-[10px] font-bold transition-colors ' + (
                   questionNavFilter === filter.value
                     ? 'border-indigo-500 bg-indigo-600 text-white'
                     : isDark
@@ -1916,11 +1916,11 @@ function ExamEngineContent() {
               questions.every((q) => isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)) ||
               isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'
             }
-            className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-bold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full min-h-11 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-bold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
           >
             Cari soal belum lengkap berikutnya →
           </button>
-          <div className="grid grid-cols-6 sm:grid-cols-5 gap-1">
+          <div className="grid grid-cols-6 sm:grid-cols-5 gap-1.5">
             {questions.map((q, idx) => {
               const isAnswered = isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)
               const isFlagged = !!flaggedQuestions[q.id]
@@ -1943,7 +1943,7 @@ function ExamEngineContent() {
                   onClick={() => setCurrentIndex(idx)}
                   disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                   aria-label={'Soal ' + (idx + 1) + ', ' + (isAnswered ? 'sudah dijawab' : 'belum dijawab') + (isFlagged ? ', ragu-ragu' : '')}
-                  className={'relative h-8 rounded-md text-xs font-mono transition-all border flex items-center justify-center ' + btnClass + (isFlagged ? ' outline outline-2 outline-amber-400 outline-offset-[-2px]' : '')}
+                  className={'relative min-h-10 rounded-md text-xs font-mono transition-all border flex items-center justify-center ' + btnClass + (isFlagged ? ' outline outline-2 outline-amber-400 outline-offset-[-2px]' : '')}
                   suppressHydrationWarning
                 >
                   {idx + 1}
