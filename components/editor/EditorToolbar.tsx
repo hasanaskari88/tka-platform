@@ -77,7 +77,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
 
     if (nextOpen) {
       editorElement.setAttribute('inputmode', 'none')
-      editor.commands.focus()
+      editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()
     } else {
       editorElement.removeAttribute('inputmode')
       // Lepas dan kembalikan fokus dalam aksi sentuhan yang sama agar
@@ -151,7 +151,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
     <>
       <div className="border-b border-slate-200 bg-slate-50">
         {/* Toolbar ringkas: selalu satu baris, termasuk pada layar HP. */}
-        <div className="flex flex-nowrap items-center gap-1 overflow-x-auto px-2 py-2">
+        <div className="flex flex-wrap items-center gap-1 px-2 py-2">
           <button type="button" title="Tebal" aria-label="Tebal"
             className={`h-9 min-w-9 rounded-md border border-slate-200 bg-white px-2 text-sm font-bold text-slate-700 hover:bg-slate-100 ${current?.bold ? activeClass : ''}`}
             onMouseDown={(e) => e.preventDefault()}
@@ -165,10 +165,10 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => editor.chain().focus().toggleUnderline().run()}>U</button>
           <button type="button" title="Buka keyboard virtual Arab dan Aksara Jawa" aria-label="Keyboard virtual"
-            className={`h-9 shrink-0 rounded-md border px-2.5 text-sm font-semibold ${scriptKeyboardOpen ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-violet-200 bg-white text-violet-800 hover:bg-violet-50'}`}
+            className={`h-9 shrink-0 rounded-md border px-2 text-xs font-semibold ${scriptKeyboardOpen ? 'border-violet-300 bg-violet-50 text-violet-800' : 'border-violet-200 bg-white text-violet-800 hover:bg-violet-50'}`}
             aria-expanded={scriptKeyboardOpen}
             onMouseDown={(e) => e.preventDefault()}
-            onClick={toggleScriptKeyboard}>{scriptKeyboardOpen ? '⌨ Aksara Aktif' : '⌨ Keyboard Aksara'}</button>
+            onClick={toggleScriptKeyboard}>⌨ Huruf</button>
           <MathFormulaDialog editor={editor} editorId={editorId} compact />
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
