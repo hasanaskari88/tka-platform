@@ -1571,7 +1571,7 @@ function ExamEngineContent() {
                         key={optKey || oIdx}
                         onClick={() => handleSelectSingleOption(currentQuestion.id, optKey)}
                         disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                        className={`w-full text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
+                        className={`w-full min-h-14 text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-950/70 ring-2 ring-indigo-500 text-indigo-200 font-bold'
                             : isDark
@@ -1636,7 +1636,7 @@ function ExamEngineContent() {
                         key={optKey || oIdx}
                         onClick={() => handleToggleComplexOption(currentQuestion.id, optKey)}
                         disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                        className={`w-full text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
+                        className={`w-full min-h-14 text-left p-3.5 rounded-xl border flex items-center space-x-3 transition-all ${
                           isSelected
                             ? 'border-indigo-500 bg-indigo-950/70 ring-2 ring-indigo-500 text-indigo-200 font-bold'
                             : isDark
@@ -1746,14 +1746,14 @@ function ExamEngineContent() {
                                 </div>
                               </td>
                               <td className={`p-3 border-l ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                                <div className="flex justify-center space-x-1.5">
+                                <div className="flex justify-center gap-2">
                                   <button
                                     type="button"
                                     onClick={() =>
                                       handleSelectMatrixValue(currentQuestion.id, stId, 'Benar')
                                     }
                                     disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                                    className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
+                                    className={`min-h-11 min-w-16 px-3 py-2 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Benar'
                                         ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400'
                                         : isDark
@@ -1770,7 +1770,7 @@ function ExamEngineContent() {
                                       handleSelectMatrixValue(currentQuestion.id, stId, 'Salah')
                                     }
                                     disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                                    className={`px-3 py-1 rounded-lg font-bold text-xs transition-all ${
+                                    className={`min-h-11 min-w-16 px-3 py-2 rounded-lg font-bold text-xs transition-all ${
                                       selectedVal === 'Salah'
                                         ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400'
                                         : isDark
@@ -1835,14 +1835,14 @@ function ExamEngineContent() {
 
           {/* NAVIGASI SEBELUMNYA / SELANJUTNYA */}
           <div
-            className={`flex justify-between items-center pt-4 border-t ${
+            className={`grid grid-cols-2 gap-2 pt-4 border-t ${
               isDark ? 'border-slate-800' : 'border-slate-200'
             }`}
           >
             <button
               disabled={currentIndex === 0 || isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
               onClick={() => setCurrentIndex((prev) => prev - 1)}
-              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors disabled:opacity-40 ${
+              className={`w-full min-h-11 px-3 py-2 text-xs font-bold rounded-xl transition-colors disabled:opacity-40 ${
                 isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-200' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
               }`}
               suppressHydrationWarning
@@ -1853,7 +1853,7 @@ function ExamEngineContent() {
             <button
               disabled={currentIndex === questions.length - 1 || isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
               onClick={() => setCurrentIndex((prev) => prev + 1)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
+              className="w-full min-h-11 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40"
               suppressHydrationWarning
             >
               Selanjutnya →
