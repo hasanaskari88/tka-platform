@@ -39,6 +39,25 @@ function isQuestionAnswered(question: any, answer: any): boolean {
   const type = question?.question_type || 'multiple_choice'
   if (answer === undefined || answer === null) return false
   if (type === 'essay' || type === 'uraian') return getPlainAnswerText(answer).length > 0
+  if (type === 'true_false_matrix') {
+    if (typeof answer !== 'object' || Array.isArray(answer)) return false
+    const statements = Array.isArray(question?.options) && question.options.length > 0
+      ? question.options
+      : Array.isArray(question?.statements) && question.statements.length > 0
+        ? question.statements
+        : Array.isArray(question?.matrix_statements)
+          ? question.matrix_statements
+          : []
+    const isSelected = (value: any) =>
+      ['benar', 'salah'].includes(String(value ?? '').trim().toLowerCase())
+    if (statements.length > 0) {
+      return statements.every((statement: any, index: number) =>
+        isSelected(answer[String(statement?.id || index + 1)])
+      )
+    }
+    const values = Object.values(answer)
+    return values.length > 0 && values.every(isSelected)
+  }
   if (Array.isArray(answer)) return answer.length > 0
   if (typeof answer === 'object') return Object.values(answer).some((value) => String(value ?? '').trim() !== '')
   return String(answer).trim().length > 0
@@ -1347,7 +1366,7 @@ function ExamEngineContent() {
         </div>
       )}
       {/* HEADER CBT SISWA */}
-      <header className="bg-slate-900 text-white px-6 py-3 flex flex-wrap justify-between items-center shadow-md gap-3">
+      <header className="bg-slate-900 text-white px-3 sm:px-6 py-3 flex flex-wrap justify-between items-center shadow-md gap-3">
         <div>
           <span className="text-[10px] bg-indigo-500 px-2 py-0.5 rounded font-bold uppercase">
             {exam?.subtest || 'TKA'}
@@ -1355,7 +1374,7 @@ function ExamEngineContent() {
           <h1 className="text-base font-bold mt-0.5">{exam?.title}</h1>
         </div>
 
-        <div className="flex flex-wrap items-center space-x-4 sm:space-x-6">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
           {/* 🔠 CONTROLS FONT SIZE (UKURAN TEKS) */}
           <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
             <span className="text-[10px] text-slate-400 font-bold px-1 uppercase hidden sm:inline">
@@ -1457,10 +1476,10 @@ function ExamEngineContent() {
       </header>
 
       {/* BODY KONTEN SOAL & NAVIGASI */}
-      <div className={`flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 ${showQuestionNav ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-6`}>
+      <div className={`flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 grid grid-cols-1 ${showQuestionNav ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-6`}>
         {/* LEMBAR SOAL */}
         <div
-          className={`${showQuestionNav ? 'lg:col-span-3' : 'lg:col-span-1'} p-6 rounded-2xl border shadow-sm flex flex-col justify-between space-y-6 ${
+          className={`${showQuestionNav ? 'lg:col-span-3' : 'lg:col-span-1'} p-4 sm:p-6 rounded-2xl border shadow-sm flex flex-col justify-between space-y-6 ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}
         >
@@ -1857,7 +1876,7 @@ function ExamEngineContent() {
 
           <div className={'mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold ' + (isDark ? 'text-slate-400' : 'text-slate-500')}>
             <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-500" />Dijawab {questions.filter((q) => isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)).length}</span>
-            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm border border-slate-400" />Kosong {questions.filter((q) => !isQuestionAnswered(q, userAnswers[q.id]) && !reviewPhotoQuestionIds.includes(q.id)).length}</span>
+            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm border border-slate-400" />Belum lengkap {questions.filter((q) => !isQuestionAnswered(q, userAnswers[q.id]) && !reviewPhotoQuestionIds.includes(q.id)).length}</span>
             <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-amber-500" />Ragu-ragu {questions.filter((q) => flaggedQuestions[q.id]).length}</span>
           </div>
           <div className="grid grid-cols-5 gap-1.5">
@@ -1909,12 +1928,12 @@ function ExamEngineContent() {
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                 <div className="rounded-lg bg-emerald-500/10 px-2 py-2"><div className="text-lg font-black text-emerald-600">{answeredCount}</div><div className="text-[10px] font-semibold">Dijawab</div></div>
-                <div className="rounded-lg bg-rose-500/10 px-2 py-2"><div className="text-lg font-black text-rose-600">{unansweredQuestions.length}</div><div className="text-[10px] font-semibold">Belum dijawab</div></div>
+                <div className="rounded-lg bg-rose-500/10 px-2 py-2"><div className="text-lg font-black text-rose-600">{unansweredQuestions.length}</div><div className="text-[10px] font-semibold">Belum lengkap</div></div>
                 <div className="rounded-lg bg-amber-500/10 px-2 py-2"><div className="text-lg font-black text-amber-600">{flaggedCount}</div><div className="text-[10px] font-semibold">Ragu-ragu</div></div>
               </div>
               {unansweredQuestions.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-1.5 text-[11px] font-bold">Soal yang belum dijawab — tekan nomor untuk memeriksa:</p>
+                  <p className="mb-1.5 text-[11px] font-bold">Soal yang belum lengkap — tekan nomor untuk memeriksa:</p>
                   <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
                     {unansweredQuestions.map((q) => {
                       const index = questions.findIndex((item) => item.id === q.id)
