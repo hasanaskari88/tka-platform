@@ -177,8 +177,7 @@ export default function AdminReportPage(){
    used.add(value)
    return value
   }
-  selectedStudents.filter(student=>selectedRecords.some(row=>row.user_id===student.id)).forEach(student=>{   const rows=selectedRecords.filter(row=>row.user_id===student.id).slice().sort((a,b)=>a.key.localeCompare(b.key))   const average=averageOf(rows)
-   const band=average>=90?'excellent':average>=settings.kkm?'achieved':'developing'
+  selectedStudents.filter(student=>selectedRecords.some(row=>row.user_id===student.id)).forEach(student=>{   const rows=selectedRecords.filter(row=>row.user_id===student.id).slice().sort((a,b)=>a.key.localeCompare(b.key))   const average=averageOf(rows)   const band=average>=90?'excellent':average>=settings.kkm?'achieved':'developing'
    const seed=hash(student.id+'|'+rows.map(row=>row.key+':'+row.score).join('|'))
    const highest=rows.reduce<ResultRow|undefined>((best,row)=>!best||row.score>best.score?row:best,undefined)
    const lowest=rows.reduce<ResultRow|undefined>((best,row)=>!best||row.score<best.score?row:best,undefined)
@@ -192,7 +191,7 @@ export default function AdminReportPage(){
     const focusedNotes=[
      'Pada '+focus+', kamu masih punya ruang untuk berkembang. Ulangi materi sedikit demi sedikit dan bertanyalah jika ada yang belum dipahami.',
      'Ayo tingkatkan hasil pada '+focus+'. Berlatihlah secara rutin, baca soal dengan teliti, lalu periksa kembali jawabanmu.',
-     'Kita kuatkan pemahaman pada '+focus bersama-sama. Latihan singkat dan teratur akan membuatmu semakin percaya diri.',
+     'Kita kuatkan pemahaman pada '+focus+'. Latihan singkat dan teratur akan membuatmu semakin percaya diri.',
      'Terus berlatih pada '+focus+', ya. Mintalah contoh tambahan kepada guru jika ada bagian yang terasa sulit.'
     ]
     note=usedPick(focusedNotes,seed>>>3,usedNotes)
