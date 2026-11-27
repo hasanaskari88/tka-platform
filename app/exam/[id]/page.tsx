@@ -11,7 +11,7 @@ const RichTextEditor = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="min-h-[180px] rounded-xl border border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
+      <div className="min-h-[240px] rounded-xl border border-slate-300 bg-slate-50 p-4 text-xs text-slate-500">
         Menyiapkan editor jawaban...
       </div>
     ),
@@ -1794,11 +1794,15 @@ function ExamEngineContent() {
 
               {/* 4. URAIAN / ESSAY */}
               {(qType === 'essay' || qType === 'uraian') && (
-                <div className="space-y-2 pt-2">
-                  <label className="block text-xs font-bold uppercase">Lembar Jawaban Essay Anda:</label>
-                  <p className="text-[11px] text-slate-500">
-                    Untuk menulis Arab, tekan tombol عربي pada toolbar. Untuk Aksara Jawa, tekan ꦗꦮ. Pastikan keyboard bahasa yang sesuai sudah aktif di HP.
-                  </p>
+                <div className="space-y-3 pt-3">
+                  <label className="block text-sm font-bold uppercase tracking-wide">
+                    Lembar Jawaban Essay Anda
+                  </label>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
+                    <p>
+                      Gunakan toolbar di atas area menulis untuk memformat jawaban. Tekan عربي untuk tulisan Arab atau ꦗꦮ untuk Aksara Jawa. Pastikan keyboard bahasa yang sesuai sudah aktif di HP.
+                    </p>
+                  </div>
                   <RichTextEditor
                     content={typeof userAnswers[currentQuestion.id] === 'string' ? userAnswers[currentQuestion.id] : ''}
                     onChange={(html) => handleEssayChange(currentQuestion.id, html)}
@@ -1806,25 +1810,27 @@ function ExamEngineContent() {
                     editable={!isSubmitting && timeLeft !== 0 && sessionStatus === 'ongoing'}
                     toolbarMode="essay"
                     showJavaneseLatinConversion={false}
-                    minHeight={180}
-                    className="w-full shadow-inner select-text"
+                    minHeight={240}
+                    className="w-full shadow-sm select-text"
                   />
                   {sessionId && userIdRef.current && (
-                    <StudentAnswerPhotos
-                      sessionId={sessionId}
-                      questionId={currentQuestion.id}
-                      userId={userIdRef.current}
-                      disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                      onUploadingChange={setPhotoUploadInProgress}
-                      onPhotosChange={(count) => {
-                        setReviewPhotoQuestionIds((current) => {
-                          const hasPhoto = current.includes(currentQuestion.id)
-                          if (count > 0 && !hasPhoto) return [...current, currentQuestion.id]
-                          if (count === 0 && hasPhoto) return current.filter((id) => id !== currentQuestion.id)
-                          return current
-                        })
-                      }}
-                    />
+                    <div className="pt-1">
+                      <StudentAnswerPhotos
+                        sessionId={sessionId}
+                        questionId={currentQuestion.id}
+                        userId={userIdRef.current}
+                        disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
+                        onUploadingChange={setPhotoUploadInProgress}
+                        onPhotosChange={(count) => {
+                          setReviewPhotoQuestionIds((current) => {
+                            const hasPhoto = current.includes(currentQuestion.id)
+                            if (count > 0 && !hasPhoto) return [...current, currentQuestion.id]
+                            if (count === 0 && hasPhoto) return current.filter((id) => id !== currentQuestion.id)
+                            return current
+                          })
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
               )}
