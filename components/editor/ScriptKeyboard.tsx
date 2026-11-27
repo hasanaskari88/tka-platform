@@ -149,6 +149,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
 
   const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'pasangan' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
   const [latin, setLatin] = useState('')
+  const [numbersOpen, setNumbersOpen] = useState(false)
 
   const selectLanguage = (nextLanguage: 'jv' | 'ar') => {
     setLanguage(nextLanguage)
@@ -177,6 +178,65 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
 
   return (
     <section className="border-t border-slate-200 bg-white p-3" aria-label="Keyboard virtual">
+      {/* Tombol fungsi bersama untuk mode Aksara Jawa dan Arab. */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5" aria-label="Tombol fungsi editor">
+        <button type="button" title="Hapus karakter sebelum kursor" aria-label="Backspace"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().keyboardShortcut('Backspace').run()}
+          className="min-h-10 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          ⌫ Backspace
+        </button>
+        <button type="button" title="Sisipkan spasi" aria-label="Spasi"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => insert(' ')}
+          className="min-h-10 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          ␣ Spasi
+        </button>
+        <button type="button" title="Buat baris baru" aria-label="Enter"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().splitBlock().run()}
+          className="min-h-10 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          ↵ Enter
+        </button>
+        <button type="button" title="Tampilkan atau sembunyikan tombol angka" aria-label="Angka"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setNumbersOpen((open) => !open)}
+          aria-expanded={numbersOpen}
+          className={`min-h-10 rounded-md border px-3 py-2 text-sm font-semibold ${numbersOpen ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
+          123 Angka
+        </button>
+        <button type="button" title="Batalkan perubahan terakhir" aria-label="Undo"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().undo().run()}
+          className="min-h-10 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          ↶ Undo
+        </button>
+        <button type="button" title="Ulangi perubahan yang dibatalkan" aria-label="Redo"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().redo().run()}
+          className="min-h-10 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          ↷ Redo
+        </button>
+        <button type="button" title="Hapus teks atau objek yang sedang dipilih" aria-label="Hapus pilihan"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => editor.chain().focus().deleteSelection().run()}
+          className="min-h-10 rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100">
+          ⌦ Hapus
+        </button>
+      </div>
+
+      {numbersOpen && (
+        <div className="mb-3 grid grid-cols-5 gap-1.5 sm:grid-cols-10" aria-label="Tombol angka">
+          {'1234567890'.split('').map((number) => (
+            <button key={number} type="button" onMouseDown={(event) => event.preventDefault()}
+              onClick={() => insert(number)}
+              className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-lg font-semibold text-slate-800 hover:border-blue-300 hover:bg-blue-50">
+              {number}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectLanguage('jv')}
           className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold ${language === 'jv' ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600'}`}>
