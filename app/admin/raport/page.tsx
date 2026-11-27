@@ -177,7 +177,15 @@ export default function AdminReportPage(){
    used.add(value)
    return value
   }
-  selectedStudents.filter(student=>selectedRecords.some(row=>row.user_id===student.id)).forEach(student=>{   const rows=selectedRecords.filter(row=>row.user_id===student.id).slice().sort((a,b)=>a.key.localeCompare(b.key))   const average=averageOf(rows)   const band=average>=90?'excellent':average>=settings.kkm?'achieved':'developing'
+  selectedStudents
+   .filter(student => selectedRecords.some(row => row.user_id === student.id))
+   .forEach(student => {
+    const rows = selectedRecords
+     .filter(row => row.user_id === student.id)
+     .slice()
+     .sort((a, b) => a.key.localeCompare(b.key));
+    const average = averageOf(rows);
+    const band = average >= 90 ? 'excellent' : average >= settings.kkm ? 'achieved' : 'developing'
    const seed=hash(student.id+'|'+rows.map(row=>row.key+':'+row.score).join('|'))
    const highest=rows.reduce<ResultRow|undefined>((best,row)=>!best||row.score>best.score?row:best,undefined)
    const lowest=rows.reduce<ResultRow|undefined>((best,row)=>!best||row.score<best.score?row:best,undefined)
