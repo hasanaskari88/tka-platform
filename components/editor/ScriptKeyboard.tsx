@@ -16,7 +16,18 @@ const javanesePasangan = [
   ['ꦥ', 'Pa'], ['ꦝ', 'Dha'], ['ꦗ', 'Ja'], ['ꦪ', 'Ya'], ['ꦚ', 'Nya'],
   ['ꦩ', 'Ma'], ['ꦒ', 'Ga'], ['ꦧ', 'Ba'], ['ꦛ', 'Tha'], ['ꦔ', 'Nga'],
 ] as const
-const javaneseMarks = ['ꦶ', 'ꦸ', 'ꦺ', 'ꦼ', 'ꦴ', 'ꦁ', 'ꦂ', 'ꦃ', '꧀']
+const javaneseMarks = [
+  { character: 'ꦶ', label: 'Wulu' },
+  { character: 'ꦸ', label: 'Suku' },
+  { character: 'ꦺ', label: 'Taling' },
+  { character: 'ꦼ', label: 'Pepet' },
+  { character: 'ꦴ', label: 'Tarung' },
+  { character: 'ꦺꦴ', label: 'Taling Tarung' },
+  { character: 'ꦁ', label: 'Cecak' },
+  { character: 'ꦂ', label: 'Layar' },
+  { character: 'ꦃ', label: 'Wignyan (h)' },
+  { character: '꧀', label: 'Pangkon' },
+]
 const javanesePunctuation = ['꧈', '꧉', '꧊', '꧋', '꧌', '꧍', '꧇']
 
 const arabicLetters = [
@@ -125,6 +136,15 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
   const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'pasangan' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
   const [latin, setLatin] = useState('')
 
+  const selectLanguage = (nextLanguage: 'jv' | 'ar') => {
+    setLanguage(nextLanguage)
+    if (nextLanguage === 'jv') {
+      editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()
+    } else {
+      editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').run()
+    }
+  }
+
   const insert = (value: string, lang: 'jv' | 'ar' = language) => {
     if (lang === 'jv') {
       editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').insertContent(value).run()
@@ -136,18 +156,18 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
   const javaneseKeys =
     javaneseTab === 'aksara' ? javaneseRows.flat()
       : javaneseTab === 'pasangan' ? javanesePasangan.map(([character]) => character)
-      : javaneseTab === 'sandhangan' ? javaneseMarks
+      : javaneseTab === 'sandhangan' ? []
         : javaneseTab === 'swara' ? javaneseVowels
           : javanesePunctuation
 
   return (
     <section className="border-t border-slate-200 bg-white p-3" aria-label="Keyboard virtual">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => setLanguage('jv')}
-          className={`rounded-md border px-3 py-2 text-sm font-semibold ${language === 'jv' ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600'}`}>
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
+        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectLanguage('jv')}
+          className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold ${language === 'jv' ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-200 bg-white text-slate-600'}`}>
           ꦗꦮ Aksara Jawa
         </button>
-        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => setLanguage('ar')}
+        <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => selectLanguage('ar')}
           className={`rounded-md border px-3 py-2 text-sm font-semibold ${language === 'ar' ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-600'}`}>
           عربي Arab
         </button>
@@ -157,15 +177,15 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
         <>
           <div className="mb-2 flex flex-wrap gap-1">
             {([
-              ['aksara', 'Aksara nglegena'],
+              ['aksara', 'Nglegena'],
               ['pasangan', 'Pasangan'],
               ['sandhangan', 'Sandhangan'],
-              ['swara', 'Aksara swara'],
+              ['swara', 'Swara'],
               ['tanda', 'Tanda baca'],
             ] as const).map(([value, label]) => (
               <button key={value} type="button" onMouseDown={(event) => event.preventDefault()}
                 onClick={() => setJavaneseTab(value)}
-                className={`rounded border px-2 py-1 text-xs ${javaneseTab === value ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600'}`}>
+                className={`rounded border px-2 py-1 text-[11px] leading-tight ${javaneseTab === value ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-slate-200 text-slate-600'}`}>
                 {label}
               </button>
             ))}
@@ -188,16 +208,29 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true }: S
               </div>
             </>
           ) : (
-            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
-              {javaneseKeys.map((character, index) => (
-                <button key={character + index} type="button" title={character}
-                  onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
-                  className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
-                  style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>
-                  {character}
-                </button>
-              ))}
-            </div>
+            {javaneseTab === 'sandhangan' ? (
+              <div className="grid grid-cols-5 gap-1.5">
+                {javaneseMarks.map(({ character, label }) => (
+                  <button key={label} type="button" title={label} aria-label={label}
+                    onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                    className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
+                    <span className="text-xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
+                    <span className="text-[9px] leading-tight text-slate-500">{label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
+                {javaneseKeys.map((character, index) => (
+                  <button key={character + index} type="button" title={character}
+                    onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                    className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
+                    style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>
+                    {character}
+                  </button>
+                ))}
+              </div>
+            )}
           )}
           {showLatinConversion && (
           <div className="mt-3 rounded-lg bg-slate-50 p-3">
