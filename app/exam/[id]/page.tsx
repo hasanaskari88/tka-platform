@@ -1385,40 +1385,21 @@ function ExamEngineContent() {
           </div>
         </div>
 
-        {/* Pengaturan tampilan disimpan di panel lipat pada HP. */}
-        <details className="mt-2 sm:hidden">
-          <summary className="inline-flex min-h-8 cursor-pointer items-center rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-slate-200">
-            ⚙ Pengaturan tampilan
-          </summary>
-          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/80 p-2">
-            <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-900 p-1">
-              <span className="px-1 text-[9px] font-bold uppercase text-slate-400">Teks</span>
-              <button type="button" onClick={() => setFontSize('normal')} aria-pressed={fontSize === 'normal'} className={`rounded-md px-2.5 py-1 text-xs font-bold ${fontSize === 'normal' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}>A</button>
-              <button type="button" onClick={() => setFontSize('large')} aria-pressed={fontSize === 'large'} className={`rounded-md px-2.5 py-1 text-xs font-bold ${fontSize === 'large' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}>A+</button>
-              <button type="button" onClick={() => setFontSize('xlarge')} aria-pressed={fontSize === 'xlarge'} className={`rounded-md px-2.5 py-1 text-xs font-bold ${fontSize === 'xlarge' ? 'bg-indigo-600 text-white' : 'text-slate-300'}`}>A++</button>
-            </div>
-            <button type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')} className="min-h-9 rounded-lg border border-slate-700 bg-slate-900 px-3 text-xs font-bold text-slate-200">
-              {isDark ? '☀️ Mode Terang' : '🌙 Mode Gelap'}
-            </button>
+        {/* Pengaturan dasar langsung terlihat dengan label ringkas. */}
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-slate-700 bg-slate-800 p-1">
+            <button type="button" onClick={() => setFontSize('normal')} aria-pressed={fontSize === 'normal'} aria-label="Ukuran huruf normal" className={`min-h-8 min-w-8 rounded-md px-2 text-xs font-bold ${fontSize === 'normal' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A</button>
+            <button type="button" onClick={() => setFontSize('large')} aria-pressed={fontSize === 'large'} aria-label="Perbesar huruf" className={`min-h-8 min-w-9 rounded-md px-2 text-xs font-bold ${fontSize === 'large' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A+</button>
+            <button type="button" onClick={() => setFontSize('xlarge')} aria-pressed={fontSize === 'xlarge'} aria-label="Perbesar huruf maksimal" className={`min-h-8 min-w-10 rounded-md px-2 text-xs font-bold ${fontSize === 'xlarge' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A++</button>
           </div>
-        </details>
-
-        {/* Kontrol lengkap tetap satu baris/terbungkus wajar di layar besar. */}
-        <div className="hidden sm:flex sm:flex-wrap sm:items-center sm:justify-end sm:gap-3 sm:mt-2">
-          <div className="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
-            <span className="text-[10px] text-slate-400 font-bold px-1 uppercase">Teks:</span>
-            <button type="button" onClick={() => setFontSize('normal')} aria-pressed={fontSize === 'normal'} className={`px-2 py-1 rounded-lg font-bold text-[10px] ${fontSize === 'normal' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A</button>
-            <button type="button" onClick={() => setFontSize('large')} aria-pressed={fontSize === 'large'} className={`px-2 py-1 rounded-lg font-bold text-xs ${fontSize === 'large' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A+</button>
-            <button type="button" onClick={() => setFontSize('xlarge')} aria-pressed={fontSize === 'xlarge'} className={`px-2 py-1 rounded-lg font-bold text-sm ${fontSize === 'xlarge' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-700'}`}>A++</button>
-          </div>
-          <button type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700">
-            {isDark ? '☀️ Mode Terang' : '🌙 Mode Gelap'}
+          <button type="button" onClick={() => setTheme(isDark ? 'light' : 'dark')} aria-label={isDark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'} className="min-h-8 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-700">
+            {isDark ? '☀ Terang' : '🌙 Gelap'}
           </button>
-          <div className="hidden md:flex flex-col items-end max-w-[190px] leading-tight">
-            <span className="text-[10px] text-slate-400 font-bold uppercase">Peserta</span>
-            <span className="text-xs text-white font-semibold truncate max-w-full" title={participantName}>{participantName || 'Memuat identitas...'}</span>
-            {participantIdentifier && <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Username: ${participantIdentifier}`}>@{participantIdentifier}</span>}
-            {participantClass && <span className="text-[10px] text-slate-400 truncate max-w-full" title={`Kelas: ${participantClass}`}>Kelas {participantClass}</span>}
+          <div className="hidden md:flex flex-col items-end leading-tight">
+            <span className="text-[9px] text-slate-400 font-semibold uppercase">Peserta</span>
+            <span className="max-w-[190px] truncate text-[11px] font-semibold text-white" title={participantName}>{participantName || 'Memuat identitas...'}</span>
+            {participantIdentifier && <span className="max-w-[190px] truncate text-[9px] text-slate-400" title={`Username: ${participantIdentifier}`}>@{participantIdentifier}</span>}
+            {participantClass && <span className="max-w-[190px] truncate text-[9px] text-slate-400" title={`Kelas: ${participantClass}`}>Kelas {participantClass}</span>}
           </div>
         </div>
 
@@ -1773,7 +1754,7 @@ function ExamEngineContent() {
                   </label>
                   <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
                     <p>
-                      Gunakan toolbar di atas area menulis untuk memformat jawaban. Tekan عربي untuk tulisan Arab atau ꦗꦮ untuk Aksara Jawa. Pastikan keyboard bahasa yang sesuai sudah aktif di HP.
+                      Gunakan toolbar untuk memformat jawaban. Pilih عربي untuk tulisan Arab atau ꦗꦮ untuk Aksara Jawa. Tombol ⌨ Huruf membuka keyboard khusus.
                     </p>
                   </div>
                   <RichTextEditor
