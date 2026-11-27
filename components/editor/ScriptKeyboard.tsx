@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { Editor } from '@tiptap/react'
 
-type ScriptKeyboardProps = { editor: Editor; showLatinConversion?: boolean }
+type ScriptKeyboardProps = { editor: Editor; showLatinConversion?: boolean; initialLanguage?: 'jv' | 'ar'; onLanguageChange?: (language: 'jv' | 'ar') => void }
 
 const javaneseRows = [
   ['ꦲ', 'ꦤ', 'ꦕ', 'ꦫ', 'ꦏ', 'ꦢ', 'ꦠ', 'ꦱ', 'ꦮ', 'ꦭ'],
@@ -131,13 +131,14 @@ function latinToJavanese(input: string): string {
     .join('')
 }
 
-export default function ScriptKeyboard({ editor, showLatinConversion = true }: ScriptKeyboardProps) {
-  const [language, setLanguage] = useState<'jv' | 'ar'>('jv')
+export default function ScriptKeyboard({ editor, showLatinConversion = true, initialLanguage = 'jv', onLanguageChange }: ScriptKeyboardProps) {
+  const [language, setLanguage] = useState<'jv' | 'ar'>(initialLanguage)
   const [javaneseTab, setJavaneseTab] = useState<'aksara' | 'pasangan' | 'sandhangan' | 'swara' | 'tanda'>('aksara')
   const [latin, setLatin] = useState('')
 
   const selectLanguage = (nextLanguage: 'jv' | 'ar') => {
     setLanguage(nextLanguage)
+    onLanguageChange?.(nextLanguage)
     if (nextLanguage === 'jv') {
       editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()
     } else {
