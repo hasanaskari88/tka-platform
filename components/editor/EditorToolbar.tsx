@@ -13,7 +13,6 @@ interface EditorToolbarProps {
   editor: Editor | null
   editorId: string
   mode?: 'full' | 'essay'
-  showJavaneseLatinConversion?: boolean
   scriptKeyboardOpen: boolean
   onToggleScriptKeyboard: () => void
   scriptLanguage: 'jv' | 'ar'
@@ -49,7 +48,7 @@ const alignments = [
   { value: 'justify', label: '☰ Rata', title: 'Rata kiri-kanan' },
 ] as const
 
-export default function EditorToolbar({ editor, editorId, mode = 'full', showJavaneseLatinConversion = true, scriptKeyboardOpen, onToggleScriptKeyboard, scriptLanguage, onScriptLanguageChange }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, editorId, mode = 'full', scriptKeyboardOpen, onToggleScriptKeyboard, scriptLanguage, onScriptLanguageChange }: EditorToolbarProps) {
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
 
@@ -137,11 +136,11 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
             onClick={onToggleScriptKeyboard}>⌨ Huruf</button>
           <MathFormulaDialog editor={editor} editorId={editorId} compact />
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
-            className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
+            className={`h-9 shrink-0 rounded-md border px-2.5 text-sm font-bold ${scriptLanguage === 'ar' ? 'border-amber-300 bg-amber-100 text-amber-950 ring-1 ring-amber-200' : 'border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100'}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => { onScriptLanguageChange('ar'); editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').run() }}>عربي</button>
           <button type="button" title="Mode Aksara Jawa" aria-label="Mode Aksara Jawa"
-            className="h-9 shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
+            className={`h-9 shrink-0 rounded-md border px-2.5 text-sm font-bold ${scriptLanguage === 'jv' ? 'border-emerald-300 bg-emerald-100 text-emerald-950 ring-1 ring-emerald-200' : 'border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100'}`}
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => { onScriptLanguageChange('jv'); editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run() }}>ꦗꦮ</button>
           {mode !== 'essay' && (
