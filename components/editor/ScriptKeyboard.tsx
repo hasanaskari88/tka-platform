@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import type { Editor } from '@tiptap/react'
+import { chainCommands, deleteSelection, joinBackward, selectNodeBackward } from '@tiptap/pm/commands'
 
 type ScriptKeyboardProps = { editor: Editor; showLatinConversion?: boolean; initialLanguage?: 'jv' | 'ar'; onLanguageChange?: (language: 'jv' | 'ar') => void }
 
@@ -182,7 +183,11 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
       <div className="mb-3 flex flex-wrap items-center gap-1.5" aria-label="Tombol fungsi editor">
         <button type="button" title="Hapus karakter sebelum kursor" aria-label="Backspace"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() => editor.chain().focus().keyboardShortcut('Backspace').run()}
+          onClick={() => {
+            editor.chain().focus().command(({ state, dispatch }) =>
+              chainCommands(deleteSelection, joinBackward, selectNodeBackward)(state, dispatch)
+            ).run()
+          }}
           className="min-h-10 rounded-md border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
           ⌫ Backspace
         </button>
