@@ -521,6 +521,19 @@ function ExamEngineContent() {
       sessionCompletedRef.current = false
       setProctorViolationCount(Number(currentSession?.proctor_violation_count) || 0)
       setProctorPauseReason(currentSession?.proctor_pause_reason || null)
+
+      // Muat status foto sejak sesi dibuka agar navigasi langsung akurat.
+      try {
+        const { data: photoRows, error: photoRowsError } = await supabase
+          .from('answer_images')
+          .select('question_id')
+          .eq('session_id', currentSessId)
+        if (photoRowsError) throw photoRowsError
+        setReviewPhotoQuestionIds(Array.from(new Set((photoRows || []).map((row: any) => row.question_id))))
+      } catch (photoLoadError) {
+        console.warn('Status foto jawaban belum dapat dimuat:', photoLoadError)
+        setReviewPhotoQuestionIds([])
+      }
     }
     if (!startTimeIso) {
       throw new Error('Database tidak mengembalikan waktu mulai sesi ujian.')
@@ -1783,6 +1796,14 @@ function ExamEngineContent() {
                       userId={userIdRef.current}
                       disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                       onUploadingChange={setPhotoUploadInProgress}
+                      onPhotosChange={(count) => {
+                        setReviewPhotoQuestionIds((current) => {
+                          const hasPhoto = current.includes(currentQuestion.id)
+                          if (count > 0 && !hasPhoto) return [...current, currentQuestion.id]
+                          if (count === 0 && hasPhoto) return current.filter((id) => id !== currentQuestion.id)
+                          return current
+                        })
+                      }}
                     />
                   )}
                 </div>
