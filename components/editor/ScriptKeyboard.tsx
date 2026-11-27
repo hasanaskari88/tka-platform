@@ -39,7 +39,15 @@ const javaneseMarks = [
   { character: 'ꦾ', label: 'Pengkal' },
   { character: '꧀', label: 'Pangkon' },
 ]
-const javanesePunctuation = ['꧈', '꧉', '꧊', '꧋', '꧌', '꧍', '꧇']
+const javanesePunctuation = [
+  { character: '꧈', label: 'Pada Lingsa', meaning: 'Koma' },
+  { character: '꧉', label: 'Pada Lungsi', meaning: 'Titik' },
+  { character: '꧊', label: 'Pada Adeg', meaning: 'Tanda pemisah' },
+  { character: '꧋', label: 'Pada Adeg-adeg', meaning: 'Awal paragraf' },
+  { character: '꧌', label: 'Pada Piseleh', meaning: 'Tanda kurung' },
+  { character: '꧍', label: 'Pada Piseleh', meaning: 'Tanda kurung' },
+  { character: '꧇', label: 'Pada Pangkat', meaning: 'Tanda angka/pangkat' },
+]
 
 const arabicLetters = [
   'ء', 'آ', 'أ', 'ؤ', 'إ', 'ئ', 'ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ',
@@ -175,7 +183,7 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
       : javaneseTab === 'pasangan' ? javanesePasangan.map(([character]) => character)
       : javaneseTab === 'sandhangan' ? []
         : javaneseTab === 'swara' ? javaneseVowels.map(({ character }) => character)
-          : javanesePunctuation
+          : javanesePunctuation.map(({ character }) => character)
 
   return (
     <section className="border-t border-slate-200 bg-white p-3" aria-label="Keyboard virtual">
@@ -247,8 +255,17 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-5 gap-1 sm:grid-cols-10">
-              {javaneseKeys.map((character, index) => (
+            <div className={javaneseTab === 'tanda' ? 'grid grid-cols-3 gap-1.5 sm:grid-cols-4' : 'grid grid-cols-5 gap-1 sm:grid-cols-10'}>
+              {javaneseTab === 'tanda' ? javanesePunctuation.map(({ character, label, meaning }) => (
+                <button key={character} type="button" title={label + ' — ' + meaning}
+                  aria-label={label + ', ' + meaning}
+                  onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
+                  className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-1 text-slate-800 hover:border-emerald-300 hover:bg-emerald-50">
+                  <span className="text-2xl leading-tight" style={{ fontFamily: 'Nyk Ngayogyan Jejeg' }}>{character}</span>
+                  <span className="text-[10px] font-semibold leading-tight text-slate-700">{label}</span>
+                  <span className="text-[9px] leading-tight text-slate-500">{meaning}</span>
+                </button>
+              )) : javaneseKeys.map((character, index) => (
                 <button key={character + index} type="button" title={character}
                   onMouseDown={(event) => event.preventDefault()} onClick={() => insert(character, 'jv')}
                   className="min-h-11 rounded-md border border-slate-200 bg-slate-50 text-2xl text-slate-800 hover:border-emerald-300 hover:bg-emerald-50"
