@@ -39,6 +39,7 @@ function MonitorContent() {
   const [proctorMaxViolations, setProctorMaxViolations] = useState(3)
   const [proctorSaving, setProctorSaving] = useState(false)
   const [proctorEvents, setProctorEvents] = useState<any[]>([])
+  const proctorDirtyRef = useRef(false)
 
   // Ticker State untuk memperbarui timer live setiap detik
   const [now, setNow] = useState<number>(Date.now())
@@ -94,9 +95,11 @@ function MonitorContent() {
       if (!profileError) { profileData = data || []; profilesCacheRef.current = profileData; setProfiles(profileData); profilesLoadedRef.current = true }
     }
     setExam(examData)
-    setProctorEnabled(Boolean(examData.proctor_enabled))
-    setProctorRequireFullscreen(examData.proctor_require_fullscreen !== false)
-    setProctorMaxViolations(Number(examData.proctor_max_violations) || 3)
+    if (!proctorDirtyRef.current) {
+      setProctorEnabled(Boolean(examData.proctor_enabled))
+      setProctorRequireFullscreen(examData.proctor_require_fullscreen !== false)
+      setProctorMaxViolations(Number(examData.proctor_max_violations) || 3)
+    }
     setQuestionsCount(qCount || 0); setSessions(sessionData); setProfiles(profileData)
     try {
       const eventResponse = await fetch(`/api/admin/exams/${examId}/proctor-events`, { cache: 'no-store' })
@@ -192,6 +195,7 @@ function MonitorContent() {
       const payload = await response.json()
       if (!response.ok) throw new Error(payload.error || 'Pengaturan gagal disimpan.')
       setExam((current: any) => ({ ...current, ...payload.settings }))
+      proctorDirtyRef.current = false
       alert('Pengaturan pengawasan berhasil disimpan.')
       await fetchData()
     } catch (error) {
@@ -260,18 +264,18 @@ function MonitorContent() {
           throw new Error(`Hanya ${(pausedRows || []).length} dari ${sessionIds.length} sesi yang berhasil dipause. Sebagian status sesi mungkin sudah berubah.`)
         }
       } else {
-        const results = await Promise.all(targetSessions.map((session) =>
-          supabase
-            .from('exam_sessions')
-            .update({ status: 'ongoing' })
-            .eq('exam_id', examId)
-            .eq('id', session.id)
-            .eq('status', 'paused')
-            .select('id')
-        ))
-        const failed = results.filter((result) => result.error || !result.data?.length)
+        const results = await Promise.all(targetSessions.map(async (session) => {
+          const response = await fetch(`/api/admin/exams/${examId}/resume-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: session.id }),
+          })
+          const payload = await response.json()
+          return { ok: response.ok, error: payload.error }
+        }))
+        const failed = results.filter((result) => !result.ok)
         if (failed.length > 0) {
-          throw new Error(`${failed.length} dari ${targetSessions.length} sesi gagal dilanjutkan. ${failed[0].error?.message || 'Sebagian status sesi mungkin sudah berubah.'}`)
+          throw new Error(`${failed.length} dari ${targetSessions.length} sesi gagal dilanjutkan. ${failed[0].error || 'Sebagian status sesi mungkin sudah berubah.'}`)
         }
       }
 
@@ -635,16 +639,16 @@ function MonitorContent() {
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
-              <input type="checkbox" checked={proctorEnabled} onChange={(e) => setProctorEnabled(e.target.checked)} />
+              <input type="checkbox" checked={proctorEnabled} onChange={(e) => { proctorDirtyRef.current = true; setProctorEnabled(e.target.checked) }} />
               Aktifkan pengawasan
             </label>
             <label className="flex items-center gap-2 rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
-              <input type="checkbox" checked={proctorRequireFullscreen} onChange={(e) => setProctorRequireFullscreen(e.target.checked)} disabled={!proctorEnabled} />
+              <input type="checkbox" checked={proctorRequireFullscreen} onChange={(e) => { proctorDirtyRef.current = true; setProctorRequireFullscreen(e.target.checked) }} disabled={!proctorEnabled} />
               Wajib Full Screen
             </label>
             <label className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 p-3 text-xs font-bold text-slate-700">
               Batas pelanggaran
-              <select value={proctorMaxViolations} onChange={(e) => setProctorMaxViolations(Number(e.target.value))} disabled={!proctorEnabled} className="rounded-lg border border-slate-300 bg-white px-2 py-1">
+              <select value={proctorMaxViolations} onChange={(e) => { proctorDirtyRef.current = true; setProctorMaxViolations(Number(e.target.value)) }} disabled={!proctorEnabled} className="rounded-lg border border-slate-300 bg-white px-2 py-1">
                 {[1,2,3,4,5,6,7,8,9,10,15,20,25,30,50].map((value) => <option key={value} value={value}>{value} kali</option>)}
               </select>
             </label>
