@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
 
@@ -24,6 +24,7 @@ import {
 } from '@tiptap/extension-table'
 
 import EditorToolbar from './EditorToolbar'
+import ScriptKeyboard from './ScriptKeyboard'
 import { FontSize } from './FontSize'
 import ResizableImage from './ResizableImage'
 
@@ -895,6 +896,8 @@ export default function RichTextEditor({
   showJavaneseLatinConversion = true,
 }: RichTextEditorProps) {
   const editorId = useId()
+  const [scriptKeyboardOpen, setScriptKeyboardOpen] = useState(false)
+  const [scriptLanguage, setScriptLanguage] = useState<'jv' | 'ar'>('jv')
   // HTML terakhir yang dikirim editor ke parent. Perubahan internal ini tidak boleh
   // disinkronkan balik dengan setContent karena dapat memindahkan posisi kursor.
   const lastEmittedContentRef = useRef<string | null>(null)
@@ -1173,13 +1176,62 @@ export default function RichTextEditor({
     editor.setEditable(editable)
   }, [editor, editable])
 
+  // Keyboard aksara khusus ditampilkan setelah area pengetikan, bukan di toolbar.
+  // Saat aktif, cegah keyboard bawaan HP menutupi keyboard virtual aplikasi.
+  useEffect(() => {
+    const editorElement = editor?.view.dom
+    if (!editorElement) return
+
+    if (scriptKeyboardOpen) editorElement.setAttribute('inputmode', 'none')
+    else editorElement.removeAttribute('inputmode')
+
+    return () => editorElement.removeAttribute('inputmode')
+  }, [editor, scriptKeyboardOpen])
+
+  const toggleScriptKeyboard = () => {
+    if (!editor) return
+    const editorElement = editor.view.dom
+    const nextOpen = !scriptKeyboardOpen
+    setScriptKeyboardOpen(nextOpen)
+
+    if (nextOpen) {
+      editorElement.setAttribute('inputmode', 'none')
+      editor.chain().focus()
+        .setFontFamily(scriptLanguage === 'jv' ? 'Nyk Ngayogyan Jejeg' : 'Noto Naskh Arabic Local')
+        .setTextAlign(scriptLanguage === 'jv' ? 'left' : 'right')
+        .run()
+    } else {
+      editorElement.removeAttribute('inputmode')
+      editorElement.blur()
+      editorElement.focus()
+    }
+  }
+
   return (
     <div
       className={`rich-text-editor overflow-hidden rounded-xl border border-slate-300 bg-white ${className}`}
     >
-      {editable && showToolbar && <EditorToolbar editor={editor} editorId={editorId} mode={toolbarMode} showJavaneseLatinConversion={showJavaneseLatinConversion} />}
+      {editable && showToolbar && <EditorToolbar
+        editor={editor}
+        editorId={editorId}
+        mode={toolbarMode}
+        showJavaneseLatinConversion={showJavaneseLatinConversion}
+        scriptKeyboardOpen={scriptKeyboardOpen}
+        onToggleScriptKeyboard={toggleScriptKeyboard}
+        scriptLanguage={scriptLanguage}
+        onScriptLanguageChange={setScriptLanguage}
+      />}
 
       <EditorContent editor={editor} />
+
+      {editable && scriptKeyboardOpen && editor && (
+        <ScriptKeyboard
+          editor={editor}
+          showLatinConversion={showJavaneseLatinConversion}
+          initialLanguage={scriptLanguage}
+          onLanguageChange={setScriptLanguage}
+        />
+      )}
     </div>
   )
 }
