@@ -1215,7 +1215,6 @@ export default function RichTextEditor({
         editor={editor}
         editorId={editorId}
         mode={toolbarMode}
-        showJavaneseLatinConversion={showJavaneseLatinConversion}
         scriptKeyboardOpen={scriptKeyboardOpen}
         onToggleScriptKeyboard={toggleScriptKeyboard}
         scriptLanguage={scriptLanguage}
