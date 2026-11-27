@@ -104,6 +104,7 @@ function ExamEngineContent() {
   const [participantIdentifier, setParticipantIdentifier] = useState('')
   const [participantClass, setParticipantClass] = useState('')
   const [showQuestionNav, setShowQuestionNav] = useState(true)
+  const [questionNavFilter, setQuestionNavFilter] = useState<'all' | 'incomplete' | 'flagged'>('all')
   const [showSubmitReview, setShowSubmitReview] = useState(false)
   const [reviewPhotoQuestionIds, setReviewPhotoQuestionIds] = useState<string[]>([])
   const [proctorViolationCount, setProctorViolationCount] = useState(0)
@@ -1879,11 +1880,56 @@ function ExamEngineContent() {
             <span><span className="mr-1 inline-block h-2 w-2 rounded-sm border border-slate-400" />Belum lengkap {questions.filter((q) => !isQuestionAnswered(q, userAnswers[q.id]) && !reviewPhotoQuestionIds.includes(q.id)).length}</span>
             <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-amber-500" />Ragu-ragu {questions.filter((q) => flaggedQuestions[q.id]).length}</span>
           </div>
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
+            {([
+              { value: 'all', label: 'Semua' },
+              { value: 'incomplete', label: 'Belum lengkap' },
+              { value: 'flagged', label: 'Ragu-ragu' },
+            ] as const).map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => setQuestionNavFilter(filter.value)}
+                aria-pressed={questionNavFilter === filter.value}
+                className={'rounded-lg border px-2 py-2 text-[10px] font-bold transition-colors ' + (
+                  questionNavFilter === filter.value
+                    ? 'border-indigo-500 bg-indigo-600 text-white'
+                    : isDark
+                      ? 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
+                )}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const incomplete = questions
+                .map((q, idx) => ({ q, idx }))
+                .filter(({ q }) => !isQuestionAnswered(q, userAnswers[q.id]) && !reviewPhotoQuestionIds.includes(q.id))
+              const next = incomplete.find(({ idx }) => idx > currentIndex) || incomplete[0]
+              if (next) setCurrentIndex(next.idx)
+            }}
+            disabled={
+              questions.every((q) => isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)) ||
+              isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'
+            }
+            className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-bold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Cari soal belum lengkap berikutnya →
+          </button>
+          <div className="grid grid-cols-6 sm:grid-cols-5 gap-1">
             {questions.map((q, idx) => {
               const isAnswered = isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)
               const isFlagged = !!flaggedQuestions[q.id]
               const isCurrent = idx === currentIndex
+              const shouldShow =
+                questionNavFilter === 'all' ||
+                (questionNavFilter === 'incomplete' && !isAnswered) ||
+                (questionNavFilter === 'flagged' && isFlagged)
+              if (!shouldShow) return null
               let btnClass = isAnswered
                 ? 'bg-emerald-600 text-white border-emerald-600'
                 : isDark
@@ -1906,6 +1952,16 @@ function ExamEngineContent() {
               )
             })}
           </div>
+          {questions.filter((q) => {
+            const answered = isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)
+            return questionNavFilter === 'all' ||
+              (questionNavFilter === 'incomplete' && !answered) ||
+              (questionNavFilter === 'flagged' && !!flaggedQuestions[q.id])
+          }).length === 0 && (
+            <p className={'rounded-lg px-3 py-4 text-center text-[11px] ' + (isDark ? 'bg-slate-800 text-slate-400' : 'bg-slate-50 text-slate-500')}>
+              {questionNavFilter === 'incomplete' ? 'Semua soal sudah lengkap.' : 'Belum ada soal yang ditandai ragu-ragu.'}
+            </p>
+          )}
         </div>}
       </div>
 
