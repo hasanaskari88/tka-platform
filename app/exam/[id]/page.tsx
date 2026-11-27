@@ -1752,11 +1752,6 @@ function ExamEngineContent() {
                   <label className="block text-sm font-bold uppercase tracking-wide">
                     Lembar Jawaban Essay Anda
                   </label>
-                  <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-3 py-2.5 text-xs leading-relaxed text-slate-600">
-                    <p>
-                      Gunakan toolbar untuk memformat jawaban. Pilih عربي untuk tulisan Arab atau ꦗꦮ untuk Aksara Jawa. Tombol ⌨ Huruf membuka keyboard khusus.
-                    </p>
-                  </div>
                   <RichTextEditor
                     content={typeof userAnswers[currentQuestion.id] === 'string' ? userAnswers[currentQuestion.id] : ''}
                     onChange={(html) => handleEssayChange(currentQuestion.id, html)}
