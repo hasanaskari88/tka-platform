@@ -1,9 +1,8 @@
 
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import katex from 'katex'
-import DOMPurify from 'isomorphic-dompurify'
 import 'katex/dist/katex.min.css'
 
 interface MathRendererProps {
@@ -187,40 +186,41 @@ export default function MathRenderer({
 }: MathRendererProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
-  let htmlContent = ''
+  const [htmlContent, setHtmlContent] = useState('')
 
-  try {
-    // 1. Bersihkan HTML sumber sebelum diproses.
-    const safeInput = String(
-      DOMPurify.sanitize(content, {
-        ADD_ATTR: ['data-type', 'data-latex', 'data-rotation'],
-      })
-    )
+  // isomorphic-dompurify memuat jsdom pada saat modul diimpor. Pada runtime
+  // Next.js/Turbopack, dependensi jsdom tertentu dapat gagal dimuat di server.
+  // Muat sanitizer hanya di browser agar halaman CBT dan ringkasan tidak gagal SSR.
+  useEffect(() => {
+    let cancelled = false
 
-    // 2. Render node rumus yang berasal dari Tiptap.
-    const tiptapRendered = renderTiptapMathNodes(safeInput)
+    async function renderSafeContent() {
+      try {
+        const { default: DOMPurify } = await import('isomorphic-dompurify')
+        const safeInput = String(
+          DOMPurify.sanitize(content, {
+            ADD_ATTR: ['data-type', 'data-latex', 'data-rotation'],
+          })
+        )
+        const tiptapRendered = renderTiptapMathNodes(safeInput)
+        const legacyRendered = renderLegacyMath(tiptapRendered)
+        const javaneseRendered = applyJavaneseFont(legacyRendered)
+        const sanitized = String(
+          DOMPurify.sanitize(javaneseRendered, {
+            ADD_ATTR: ['class', 'style', 'data-type', 'data-latex', 'data-rotation'],
+          })
+        )
+        if (!cancelled) setHtmlContent(sanitized)
+      } catch (error) {
+        console.error('MathRenderer Error:', error)
+        if (!cancelled) setHtmlContent('')
+      }
+    }
 
-    // 3. Render rumus lama yang menggunakan tanda dolar.
-    const legacyRendered = renderLegacyMath(tiptapRendered)
-    const javaneseRendered = applyJavaneseFont(legacyRendered)
-
-    // 4. Bersihkan kembali hasil akhir, termasuk HTML KaTeX.
-    htmlContent = String(
-      DOMPurify.sanitize(javaneseRendered, {
-        ADD_ATTR: [
-          'class',
-          'style',
-          'data-type',
-          'data-latex',
-          'data-rotation',
-        ],
-      })
-    )
-  } catch (error) {
-    console.error('MathRenderer Error:', error)
-
-    htmlContent = String(DOMPurify.sanitize(content))
-  }
+    setHtmlContent('')
+    if (content) renderSafeContent()
+    return () => { cancelled = true }
+  }, [content])
 
 
   useEffect(() => {
@@ -331,7 +331,7 @@ export default function MathRenderer({
     observer.observe(container)
 
     return () => observer.disconnect()
-  }, [content, normalizeRotatedImages])
+  }, [htmlContent, normalizeRotatedImages])
 
   if (!content) return null
 
