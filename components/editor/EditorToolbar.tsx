@@ -50,6 +50,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
   const [imageOpen, setImageOpen] = useState(false)
   const [toolbarOpen, setToolbarOpen] = useState(false)
   const [scriptKeyboardOpen, setScriptKeyboardOpen] = useState(false)
+  const [scriptLanguage, setScriptLanguage] = useState<'jv' | 'ar'>('jv')
 
   // Saat keyboard aksara khusus aktif, minta browser tidak membuka keyboard HP.
   // Saat dinonaktifkan, pulihkan perilaku keyboard bawaan pada editor.
@@ -77,7 +78,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
 
     if (nextOpen) {
       editorElement.setAttribute('inputmode', 'none')
-      editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()
+      editor.chain().focus().setFontFamily(scriptLanguage === 'jv' ? 'Nyk Ngayogyan Jejeg' : 'Noto Naskh Arabic Local').setTextAlign(scriptLanguage === 'jv' ? 'left' : 'right').run()
     } else {
       editorElement.removeAttribute('inputmode')
       // Lepas dan kembalikan fokus dalam aksi sentuhan yang sama agar
@@ -173,11 +174,11 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
           <button type="button" title="Mode tulisan Arab (rata kanan)" aria-label="Mode tulisan Arab"
             className="h-9 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2.5 text-sm font-bold text-amber-900 hover:bg-amber-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').run()}>عربي</button>
+            onClick={() => { setScriptLanguage('ar'); editor.chain().focus().setFontFamily('Noto Naskh Arabic Local').setTextAlign('right').run() }}>عربي</button>
           <button type="button" title="Mode Aksara Jawa" aria-label="Mode Aksara Jawa"
             className="h-9 shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-sm font-bold text-emerald-900 hover:bg-emerald-100"
             onMouseDown={(e) => e.preventDefault()}
-            onClick={() => editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run()}>ꦗꦮ</button>
+            onClick={() => { setScriptLanguage('jv'); editor.chain().focus().setFontFamily('Nyk Ngayogyan Jejeg').setTextAlign('left').run() }}>ꦗꦮ</button>
           {mode !== 'essay' && (
             <button type="button" title="Sisipkan gambar" aria-label="Sisipkan gambar"
               className="inline-flex h-9 min-w-9 items-center justify-center rounded-md border border-slate-200 bg-white px-2 text-lg text-slate-700 hover:bg-slate-100"
@@ -458,7 +459,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', showJav
         )}
       </div>
 
-      {scriptKeyboardOpen && <ScriptKeyboard editor={editor} showLatinConversion={showJavaneseLatinConversion} />}
+      {scriptKeyboardOpen && <ScriptKeyboard editor={editor} showLatinConversion={showJavaneseLatinConversion} initialLanguage={scriptLanguage} onLanguageChange={setScriptLanguage} />}
       {toolbarOpen && <TableControls editor={editor} />}
 
       <ImageDialog
