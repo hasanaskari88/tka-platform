@@ -329,9 +329,43 @@ export default function ScriptKeyboard({ editor, showLatinConversion = true, ini
         <button type="button" title="Hapus karakter sebelum kursor" aria-label="Backspace"
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => {
-            editor.chain().focus().command(({ state, dispatch }) =>
-              chainCommands(deleteSelection, joinBackward, selectNodeBackward)(state, dispatch)
-            ).run()
+            const { state, view } = editor
+            const { selection } = state
+
+            // Jika ada teks yang dipilih, hapus seluruh pilihan.
+            if (!selection.empty) {
+              view.dispatch(state.tr.deleteSelection())
+              view.focus()
+              return
+            }
+
+            const { $from, from } = selection
+
+            // Di tengah paragraf, hapus satu karakter/grup aksara tepat sebelum kursor.
+            if ($from.parentOffset > 0) {
+              const textBefore = $from.parent.textBetween(0, $from.parentOffset, '', '')
+              let previousLength = 1
+
+              if (typeof Intl !== 'undefined' && 'Segmenter' in Intl) {
+                const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+                const segments = Array.from(segmenter.segment(textBefore))
+                const previous = segments[segments.length - 1]?.segment
+                if (previous) previousLength = previous.length
+              } else {
+                const previous = Array.from(textBefore).pop()
+                if (previous) previousLength = previous.length
+              }
+
+              view.dispatch(state.tr.delete(Math.max($from.start(), from - previousLength), from))
+              view.focus()
+              return
+            }
+
+            // Jika kursor di awal paragraf, gabungkan dengan paragraf sebelumnya.
+            if (!joinBackward(state, view.dispatch)) {
+              selectNodeBackward(state, view.dispatch)
+            }
+            view.focus()
           }}
           className="min-h-9 rounded-md border border-slate-300 bg-slate-50 px-1.5 py-1 text-[10px] font-semibold leading-tight text-slate-700 hover:bg-slate-100">
           ⌫ Backspace
