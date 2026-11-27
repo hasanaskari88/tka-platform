@@ -85,6 +85,8 @@ function ExamEngineContent() {
   const [participantIdentifier, setParticipantIdentifier] = useState('')
   const [participantClass, setParticipantClass] = useState('')
   const [showQuestionNav, setShowQuestionNav] = useState(true)
+  const [showSubmitReview, setShowSubmitReview] = useState(false)
+  const [reviewPhotoQuestionIds, setReviewPhotoQuestionIds] = useState<string[]>([])
   const [proctorViolationCount, setProctorViolationCount] = useState(0)
   const [proctorPauseReason, setProctorPauseReason] = useState<string | null>(null)
   const [fullscreenActive, setFullscreenActive] = useState(false)
@@ -951,8 +953,31 @@ function ExamEngineContent() {
     scheduleAutosave()
   }
 
+  const openSubmitReview = async () => {
+    if (photoUploadInProgress) {
+      alert('Tunggu sampai foto jawaban selesai dikirim sebelum memeriksa ujian.')
+      return
+    }
+    if (!sessionIdRef.current) {
+      alert('Sesi ujian tidak ditemukan. Silakan muat ulang halaman.')
+      return
+    }
+    try {
+      const { data, error } = await createClient()
+        .from('answer_images')
+        .select('question_id')
+        .eq('session_id', sessionIdRef.current)
+      if (error) throw error
+      setReviewPhotoQuestionIds(Array.from(new Set((data || []).map((item: any) => item.question_id))))
+      setShowSubmitReview(true)
+    } catch (error) {
+      console.error('Gagal memeriksa foto jawaban:', error)
+      alert('Foto jawaban belum dapat diverifikasi. Periksa koneksi internet lalu coba kembali.')
+    }
+  }
+
   // 🟢 SELAYAKAN UJIAN, POPULASI NILAI PRESISI, & SIMPAN HASIL KE DATABASE
-    const handleFinishExam = async (autoFinish = false) => {
+    const handleFinishExam = async (autoFinish = false, reviewConfirmed = false) => {
     if (photoUploadInProgress) {
       alert('Tunggu sampai foto jawaban selesai dikirim sebelum mengumpulkan ujian.')
       return
@@ -965,25 +990,11 @@ function ExamEngineContent() {
       alert('Sesi ujian tidak ditemukan. Silakan muat ulang halaman.')
       return
     }
-    if (!autoFinish) {
-      const questionsNow = questionsRef.current
-      const { data: photoAnswers, error: photoAnswerError } = await createClient()
-        .from('answer_images')
-        .select('question_id')
-        .eq('session_id', sessionIdRef.current)
-      if (photoAnswerError) {
-        console.error('Gagal memeriksa foto jawaban:', photoAnswerError)
-        alert('Foto jawaban belum dapat diverifikasi. Periksa koneksi internet lalu coba kumpulkan kembali.')
-        return
-      }
-      const questionsWithPhotos = new Set((photoAnswers || []).map((item: any) => item.question_id))
-      const unansweredCount = questionsNow.filter((q) =>
-        !isQuestionAnswered(q, userAnswersRef.current[q.id]) && !questionsWithPhotos.has(q.id)
-      ).length
-      const flaggedCount = questionsNow.filter((q) => Boolean(flaggedQuestionsRef.current[q.id])).length
-      const message = 'Apakah Anda yakin ingin mengumpulkan ujian?\n\nSoal belum dijawab: ' + unansweredCount + '\nSoal ditandai ragu-ragu: ' + flaggedCount + '\n\nSetelah dikumpulkan, jawaban tidak dapat diubah lagi.' + ((unansweredCount || flaggedCount) ? '\n\nSilakan periksa kembali soal yang belum dijawab atau masih ragu-ragu.' : '')
-      if (!confirm(message)) return
+    if (!autoFinish && !reviewConfirmed) {
+      await openSubmitReview()
+      return
     }
+    if (reviewConfirmed) setShowSubmitReview(false)
 
     isSubmittingRef.current = true
     setIsSubmitting(true)
@@ -1422,7 +1433,7 @@ function ExamEngineContent() {
           </div>
 
           <button
-            onClick={() => handleFinishExam(false)}
+            onClick={openSubmitReview}
             disabled={isSubmitting || sessionStatus !== 'ongoing'}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50"
             suppressHydrationWarning
@@ -1823,36 +1834,84 @@ function ExamEngineContent() {
             🧭 Navigasi Nomor Soal
           </h3>
 
-          <div className="grid grid-cols-5 gap-2">
+          <div className={'mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold ' + (isDark ? 'text-slate-400' : 'text-slate-500')}>
+            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-500" />Dijawab {questions.filter((q) => isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)).length}</span>
+            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm border border-slate-400" />Kosong {questions.filter((q) => !isQuestionAnswered(q, userAnswers[q.id]) && !reviewPhotoQuestionIds.includes(q.id)).length}</span>
+            <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-amber-500" />Ragu-ragu {questions.filter((q) => flaggedQuestions[q.id]).length}</span>
+          </div>
+          <div className="grid grid-cols-5 gap-1.5">
             {questions.map((q, idx) => {
-              const ans = userAnswers[q.id]
-              const isAnswered = isQuestionAnswered(q, ans)
+              const isAnswered = isQuestionAnswered(q, userAnswers[q.id]) || reviewPhotoQuestionIds.includes(q.id)
               const isFlagged = !!flaggedQuestions[q.id]
               const isCurrent = idx === currentIndex
-
-              let btnClass = isDark
-                ? 'bg-slate-800 text-slate-300 border-slate-700'
-                : 'bg-slate-100 text-slate-600 border-slate-200'
-
-              if (isAnswered) btnClass = 'bg-emerald-600 text-white border-emerald-600 font-bold'
-              if (isFlagged) btnClass = 'bg-amber-500 text-white border-amber-500 font-bold'
-              if (isCurrent) btnClass += ' ring-2 ring-indigo-600 ring-offset-1 font-bold'
-
+              let btnClass = isAnswered
+                ? 'bg-emerald-600 text-white border-emerald-600'
+                : isDark
+                  ? 'bg-slate-800 text-slate-300 border-slate-700'
+                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              if (isCurrent) btnClass += ' ring-2 ring-indigo-600 ring-offset-1 z-10 font-extrabold'
+              else btnClass += ' font-semibold'
               return (
                 <button
                   key={q.id}
                   onClick={() => setCurrentIndex(idx)}
                   disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
-                  className={`h-9 rounded-lg text-xs font-mono transition-all border flex items-center justify-center ${btnClass}`}
+                  aria-label={'Soal ' + (idx + 1) + ', ' + (isAnswered ? 'sudah dijawab' : 'belum dijawab') + (isFlagged ? ', ragu-ragu' : '')}
+                  className={'relative h-8 rounded-md text-xs font-mono transition-all border flex items-center justify-center ' + btnClass + (isFlagged ? ' outline outline-2 outline-amber-400 outline-offset-[-2px]' : '')}
                   suppressHydrationWarning
                 >
                   {idx + 1}
+                  {isFlagged && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-amber-400" />}
                 </button>
               )
             })}
           </div>
         </div>}
       </div>
+
+      {/* TINJAUAN SINGKAT SEBELUM MENGUMPULKAN UJIAN */}
+      {showSubmitReview && (() => {
+        const unansweredQuestions = questions.filter((q) =>
+          !isQuestionAnswered(q, userAnswers[q.id]) && !reviewPhotoQuestionIds.includes(q.id)
+        )
+        const flaggedCount = questions.filter((q) => Boolean(flaggedQuestions[q.id])).length
+        const answeredCount = questions.length - unansweredQuestions.length
+        return (
+          <div className="fixed inset-0 z-[75] flex items-center justify-center bg-slate-950/65 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="submit-review-title">
+            <div className={'w-full max-w-md rounded-xl border p-4 shadow-2xl ' + (isDark ? 'border-slate-700 bg-slate-900 text-slate-100' : 'border-slate-200 bg-white text-slate-900')}>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 id="submit-review-title" className="text-sm font-extrabold">Periksa sebelum mengumpulkan</h2>
+                  <p className={'mt-1 text-[11px] ' + (isDark ? 'text-slate-400' : 'text-slate-500')}>Pastikan tidak ada jawaban yang terlewat.</p>
+                </div>
+                <button type="button" onClick={() => setShowSubmitReview(false)} className={'rounded-md px-2 py-1 text-xs font-bold ' + (isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-600')} aria-label="Tutup tinjauan">✕</button>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-emerald-500/10 px-2 py-2"><div className="text-lg font-black text-emerald-600">{answeredCount}</div><div className="text-[10px] font-semibold">Dijawab</div></div>
+                <div className="rounded-lg bg-rose-500/10 px-2 py-2"><div className="text-lg font-black text-rose-600">{unansweredQuestions.length}</div><div className="text-[10px] font-semibold">Belum dijawab</div></div>
+                <div className="rounded-lg bg-amber-500/10 px-2 py-2"><div className="text-lg font-black text-amber-600">{flaggedCount}</div><div className="text-[10px] font-semibold">Ragu-ragu</div></div>
+              </div>
+              {unansweredQuestions.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-1.5 text-[11px] font-bold">Soal yang belum dijawab — tekan nomor untuk memeriksa:</p>
+                  <div className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                    {unansweredQuestions.map((q) => {
+                      const index = questions.findIndex((item) => item.id === q.id)
+                      return <button key={q.id} type="button" onClick={() => { setCurrentIndex(index); setShowSubmitReview(false) }} className="h-7 min-w-7 rounded-md border border-rose-300 bg-rose-50 px-2 text-xs font-bold text-rose-700 hover:bg-rose-100">{index + 1}</button>
+                    })}
+                  </div>
+                </div>
+              )}
+              {unansweredQuestions.length === 0 && flaggedCount === 0 && <p className="mt-3 text-xs font-semibold text-emerald-700">Semua soal sudah dijawab dan tidak ada yang ditandai ragu-ragu.</p>}
+              <p className={'mt-3 text-[11px] leading-relaxed ' + (isDark ? 'text-slate-400' : 'text-slate-500')}>Setelah dikumpulkan, jawaban tidak dapat diubah lagi.</p>
+              <div className="mt-4 flex gap-2">
+                <button type="button" onClick={() => setShowSubmitReview(false)} className={'flex-1 rounded-lg border px-3 py-2.5 text-xs font-bold ' + (isDark ? 'border-slate-700 bg-slate-800 text-slate-200' : 'border-slate-300 bg-white text-slate-700')}>Kembali periksa</button>
+                <button type="button" onClick={() => handleFinishExam(false, true)} disabled={isSubmitting || photoUploadInProgress} className="flex-1 rounded-lg bg-emerald-600 px-3 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50">Kumpulkan ujian</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* 🔒 OVERLAY LAYAR DIPAUSE / DIHENTIKAN SEMENTARA OLEH PENGAWAS */}
       {sessionStatus === 'missing' && (
