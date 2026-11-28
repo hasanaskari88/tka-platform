@@ -393,6 +393,15 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', scriptK
           </button>
 
           <MathFormulaDialog editor={editor} editorId={editorId} />
+          <button
+            type="button"
+            title="Sisipkan pemisah ringkasan seperti WordPress"
+            className={buttonClass + ' border-emerald-300 bg-emerald-50 text-emerald-800'}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => editor.chain().focus().insertContent({ type: 'readMore' }).run()}
+          >
+            ↧ Baca Selengkapnya
+          </button>
         </div>
 
         {/* BARIS 4: RIWAYAT */}
