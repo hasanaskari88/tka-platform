@@ -14,12 +14,12 @@ export function splitReadMoreContent(html: string) {
 
 export function getSummaryHtml(html: string, mode: SummaryMode = 'auto') {
   const parts = splitReadMoreContent(html)
-  return mode === 'manual' && parts.hasManualBreak ? parts.summary : String(html || '')
+  if (mode === 'manual' && parts.hasManualBreak) return parts.summary\n  return parts.hasManualBreak ? parts.summary + parts.remainder : String(html || '')
 }
 
 export function getDetailHtml(html: string, repeatSummary = true) {
   const parts = splitReadMoreContent(html)
-  return !repeatSummary && parts.hasManualBreak ? parts.remainder : String(html || '')
+  if (!parts.hasManualBreak) return String(html || '')\n  return repeatSummary ? parts.summary + parts.remainder : parts.remainder
 }
 
 export function legacyTextToHtml(value: string) {
