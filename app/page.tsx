@@ -1088,7 +1088,7 @@ const filteredExams = useMemo(() => {
                   >
                     <MathRenderer content={ann.content_html ? getSummaryHtml(ann.content_html, ann.summary_mode || 'auto') : ann.content || ''} />
                   </div>
-                  {ann.content_html && (
+                  {(ann.content_html || ann.content) && (
                     <Link href={'/pengumuman/' + ann.id} className="inline-flex rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-700">
                       Baca selengkapnya →
                     </Link>
