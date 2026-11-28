@@ -159,11 +159,17 @@ export default function MateriCatalogPage() {
                       </div>
                     )}
                   </div>
-                  {item.content_html ? (
-                    <Link href={'/materi/' + item.id} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Baca Materi ↗</Link>
-                  ) : item.file_url ? (
-                    <a href={item.file_url} target="_blank" rel="noopener noreferrer" className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Buka ↗</a>
-                  ) : <span className="shrink-0 text-[10px] font-semibold text-slate-400">Belum tersedia</span>}
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    {item.content_html && (
+                      <Link href={'/materi/' + item.id} className={`rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Baca Materi ↗</Link>
+                    )}
+                    {item.file_url && (
+                      <a href={item.file_url} target="_blank" rel="noopener noreferrer" className={`rounded-xl border border-current/15 px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>
+                        {/^https?:\\/\\/(docs\\.google\\.com|drive\\.google\\.com)\\//i.test(item.file_url) ? 'Buka Google Docs ↗' : 'Buka tautan ↗'}
+                      </a>
+                    )}
+                    {!item.content_html && !item.file_url && <span className="text-[10px] font-semibold text-slate-400">Belum tersedia</span>}
+                  </div>
                 </article>
               ))}
             </div>
