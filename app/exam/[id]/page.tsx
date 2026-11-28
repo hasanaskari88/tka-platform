@@ -878,7 +878,7 @@ function ExamEngineContent() {
       }
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [sessionId, studentNote, studentNoteLoaded, studentNoteStatus, sessionStatus])
+  }, [sessionId, studentNote, studentNoteLoaded, sessionStatus])
 
   // Pengawasan perpindahan tab dan keluarnya Full Screen.
   // Server menghitung pelanggaran secara atomik dan menjeda sesi ketika batas tercapai.
