@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar'
 import ExamTokenModal from '@/components/ExamTokenModal'
 import { useTheme } from '@/context/ThemeContext'
 import MathRenderer from '@/components/MathRenderer'
+import { getSummaryHtml } from '@/lib/content-summary'
 import Link from 'next/link'
 
 function HomePageContent() {
@@ -1081,9 +1082,17 @@ const filteredExams = useMemo(() => {
                     {ann.title}
                   </h3>
 
-                  <div className={`break-words text-[10px] sm:text-xs leading-relaxed ${themeDetails.textMuted}`}>
-                    <MathRenderer content={ann.content || ''} />
+                  <div
+                    className={`break-words text-[10px] sm:text-xs leading-relaxed ${themeDetails.textMuted} overflow-hidden`}
+                    style={ann.summary_mode === 'auto' ? { maxHeight: Math.min(900, Math.max(120, Number(ann.summary_height_px) || 280)) + 'px' } : undefined}
+                  >
+                    <MathRenderer content={ann.content_html ? getSummaryHtml(ann.content_html, ann.summary_mode || 'auto') : ann.content || ''} />
                   </div>
+                  {ann.content_html && (
+                    <Link href={'/pengumuman/' + ann.id} className="inline-flex rounded-lg bg-indigo-600 px-3 py-1.5 text-[10px] font-bold text-white hover:bg-indigo-700">
+                      Baca selengkapnya →
+                    </Link>
+                  )}
                 </article>
               ))}
             </div>
