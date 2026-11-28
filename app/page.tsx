@@ -35,6 +35,8 @@ function HomePageContent() {
   const MATERIALS_PER_PAGE = 5
   const [showMaterialFilters, setShowMaterialFilters] = useState(false)
   const [showExamFilters, setShowExamFilters] = useState(false)
+  const [showHallOfFame, setShowHallOfFame] = useState(false)
+  const [showPlayerDashboard, setShowPlayerDashboard] = useState(false)
   
   // FILTER UJIAN
   const [examSearch, setExamSearch] = useState('')
@@ -665,7 +667,7 @@ const filteredExams = useMemo(() => {
             <div className="absolute -bottom-24 right-1/4 h-72 w-72 rounded-full bg-cyan-400/20 blur-[100px]" />
             <div className="relative z-10 grid items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
               <div className="max-w-xl space-y-4">
-                <span className="inline-flex items-center gap-2 rounded-full border border-lime-300/50 bg-lime-300/10 px-3 py-1.5 text-[10px] font-black tracking-[0.18em] text-lime-200 shadow-[0_0_24px_rgba(190,242,100,0.18)]">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-lime-300/50 bg-lime-300/10 px-2 py-1 text-[8px] font-black tracking-[0.12em] text-lime-200 shadow-[0_0_24px_rgba(190,242,100,0.18)] sm:gap-2 sm:px-3 sm:py-1.5 sm:text-[10px] sm:tracking-[0.18em]">
                   <span className="h-2 w-2 animate-pulse rounded-full bg-lime-300" />
                   ARCADE GAME HUB • {userProfile?.username ? '@' + userProfile.username : 'PLAYER 1'}
                 </span>
@@ -694,14 +696,14 @@ const filteredExams = useMemo(() => {
                     </Link>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 pt-3">
+                <div className="flex flex-wrap items-center gap-1.5 pt-2 sm:gap-2 sm:pt-3">
                   <a href="#arcade-missions" className="arcade-3d-button rounded-xl border-2 border-yellow-100 bg-gradient-to-b from-yellow-300 to-orange-500 px-5 py-3 text-sm font-black text-[#32133d] shadow-[0_6px_0_#9a421b,0_10px_24px_rgba(249,115,22,.28)] transition hover:-translate-y-1 hover:shadow-[0_9px_0_#9a421b,0_16px_28px_rgba(249,115,22,.35)] active:translate-y-1 active:shadow-[0_2px_0_#9a421b]">
                     ▶ MULAI PETUALANGAN
                   </a>
-                  <span className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-cyan-100 backdrop-blur">
+                  <span className="rounded-lg border border-white/15 bg-white/10 px-2 py-1.5 text-[10px] font-bold text-cyan-100 backdrop-blur sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs">
                     ⭐ {userProfile?.xp || 0} XP <span className="mx-1 text-white/30">|</span> LEVEL {arcadeLevel}
                   </span>
-                  <span className="rounded-xl border border-amber-200/30 bg-amber-200/10 px-3 py-2 text-xs font-black text-amber-100">
+                  <span className="rounded-lg border border-amber-200/30 bg-amber-200/10 px-2 py-1.5 text-[9px] font-black text-amber-100 sm:rounded-xl sm:px-3 sm:py-2 sm:text-xs">
                     {arcadeTier.icon} {arcadeTier.name}
                   </span>
                 </div>
@@ -716,7 +718,7 @@ const filteredExams = useMemo(() => {
                           ? badge?.icon || badge?.emoji || '🏅'
                           : '🏅'
                         return (
-                          <span key={badgeName + '-' + index} title={badgeName} className="rounded-full border border-yellow-200/25 bg-yellow-200/10 px-2.5 py-1 text-[10px] font-bold text-yellow-100">
+                          <span key={badgeName + '-' + index} title={badgeName} className="rounded-full border border-yellow-200/25 bg-yellow-200/10 px-2 py-0.5 text-[8px] font-bold text-yellow-100 sm:px-2.5 sm:py-1 sm:text-[10px]">
                             {badgeIcon} {badgeName}
                           </span>
                         )
