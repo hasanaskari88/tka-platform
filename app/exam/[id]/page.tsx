@@ -90,10 +90,13 @@ function ExamEngineContent() {
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
   const [zoomScale, setZoomScale] = useState(1)
   const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null)
+  const panStartRef = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null)
+  const imageScrollRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     setZoomScale(1)
     pinchStartRef.current = null
+    panStartRef.current = null
   }, [zoomedImageUrl])
 
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
@@ -849,7 +852,7 @@ function ExamEngineContent() {
         console.error('Gagal memuat catatan pribadi:', error)
         if (active) {
           setStudentNoteStatus('error')
-          setStudentNoteLoaded(true)
+          setStudentNoteLoaded(false)
         }
       })
     return () => { active = false }
@@ -857,7 +860,7 @@ function ExamEngineContent() {
 
   // Simpan otomatis setelah siswa berhenti mengetik selama 700 ms.
   useEffect(() => {
-    if (!sessionId || !studentNoteLoaded || !['ongoing', 'paused'].includes(sessionStatus)) return
+    if (!sessionId || !studentNoteLoaded || studentNoteStatus === 'error' || !['ongoing', 'paused'].includes(sessionStatus)) return
     setStudentNoteStatus('saving')
     const timer = window.setTimeout(async () => {
       try {
@@ -875,7 +878,7 @@ function ExamEngineContent() {
       }
     }, 700)
     return () => window.clearTimeout(timer)
-  }, [sessionId, studentNote, studentNoteLoaded, sessionStatus])
+  }, [sessionId, studentNote, studentNoteLoaded, studentNoteStatus, sessionStatus])
 
   // Pengawasan perpindahan tab dan keluarnya Full Screen.
   // Server menghitung pelanggaran secara atomik dan menjeda sesi ketika batas tercapai.
@@ -1509,12 +1512,12 @@ function ExamEngineContent() {
                 <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Catatan ini bukan jawaban soal dan dapat dilihat pengawas ujian.</p>
               </div>
               <span className={`shrink-0 text-[10px] font-bold ${studentNoteStatus === 'error' ? 'text-rose-500' : studentNoteStatus === 'saving' ? 'text-amber-500' : 'text-emerald-600'}`}>
-                {!studentNoteLoaded ? 'Memuat…' : studentNoteStatus === 'saving' ? 'Menyimpan…' : studentNoteStatus === 'error' ? 'Belum tersimpan' : 'Tersimpan'}
+                {studentNoteStatus === 'error' ? 'Gagal memuat/menyimpan' : !studentNoteLoaded ? 'Memuat…' : studentNoteStatus === 'saving' ? 'Menyimpan…' : 'Tersimpan'}
               </span>
             </div>
             <textarea
               value={studentNote}
-              onChange={(event) => setStudentNote(event.target.value.slice(0, 10000))}
+              onChange={(event) => { setStudentNote(event.target.value.slice(0, 10000)); setStudentNoteStatus('saving') }}
               disabled={!studentNoteLoaded || !['ongoing', 'paused'].includes(sessionStatus)}
               rows={4}
               maxLength={10000}
@@ -2120,7 +2123,11 @@ function ExamEngineContent() {
             style={{ touchAction: 'none' }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => {
+              if (e.touches.length === 1 && zoomScale > 1) {
+                panStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, scrollLeft: imageScrollRef.current?.scrollLeft || 0, scrollTop: imageScrollRef.current?.scrollTop || 0 }
+              }
               if (e.touches.length === 2) {
+                panStartRef.current = null
                 const dx = e.touches[0].clientX - e.touches[1].clientX
                 const dy = e.touches[0].clientY - e.touches[1].clientY
                 pinchStartRef.current = { distance: Math.hypot(dx, dy), scale: zoomScale }
@@ -2134,9 +2141,19 @@ function ExamEngineContent() {
                 const distance = Math.hypot(dx, dy)
                 const nextScale = pinchStartRef.current.scale * distance / Math.max(1, pinchStartRef.current.distance)
                 setZoomScale(Math.min(5, Math.max(1, nextScale)))
+              } else if (e.touches.length === 1 && panStartRef.current && zoomScale > 1) {
+                e.preventDefault()
+                const element = imageScrollRef.current
+                if (element) {
+                  element.scrollLeft = panStartRef.current.scrollLeft - (e.touches[0].clientX - panStartRef.current.x)
+                  element.scrollTop = panStartRef.current.scrollTop - (e.touches[0].clientY - panStartRef.current.y)
+                }
               }
             }}
-            onTouchEnd={(e) => { if (e.touches.length < 2) pinchStartRef.current = null }}
+            onTouchEnd={(e) => {
+              if (e.touches.length < 2) pinchStartRef.current = null
+              if (e.touches.length === 0) panStartRef.current = null
+            }}
           >
             <div className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-xl bg-slate-800/95 p-1 shadow-lg">
               <button type="button" onClick={() => setZoomScale((scale) => Math.max(1, scale - 0.25))} className="h-9 w-9 rounded-lg text-lg font-black text-white hover:bg-slate-700" aria-label="Perkecil gambar">−</button>
@@ -2150,7 +2167,7 @@ function ExamEngineContent() {
               className="absolute right-3 top-3 z-20 h-9 w-9 rounded-full bg-slate-700 text-white font-bold hover:bg-slate-600"
               title="Tutup Gambar"
             >✕</button>
-            <div className="absolute inset-0 overflow-auto pt-16 pb-14">
+            <div ref={imageScrollRef} className="absolute inset-0 overflow-auto pt-16 pb-14">
               <div className="flex min-h-full min-w-full items-center justify-center p-3">
                 <img
                   src={zoomedImageUrl}
@@ -2158,7 +2175,7 @@ function ExamEngineContent() {
                   draggable={false}
                   style={{
                     width: zoomScale > 1 ? `${zoomScale * 100}%` : 'auto',
-                    height: zoomScale > 1 ? `${zoomScale * 100}%` : 'auto',
+                    height: 'auto',
                     maxWidth: zoomScale > 1 ? 'none' : '100%',
                     maxHeight: zoomScale > 1 ? 'none' : 'calc(92dvh - 8rem)',
                     objectFit: 'contain',
