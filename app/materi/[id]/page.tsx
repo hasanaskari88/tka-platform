@@ -67,11 +67,18 @@ function PublishedMaterialContent() {
               <p className={`mt-4 text-xs font-semibold ${styles.heroText}`}>✍️ {material.author_display_name || 'Tim Penyusun'}</p>
             </header>
             <div className="p-5 sm:p-8">
-              {material.content_html ? (
+              {material.content_html && (
                 <MathRenderer content={getDetailHtml(material.content_html, material.summary_repeat !== false)} className="material-content max-w-none text-sm leading-8 sm:text-base" />
-              ) : material.file_url ? (
-                <a href={material.file_url} target="_blank" rel="noopener noreferrer" className={`inline-flex rounded-xl px-4 py-3 text-sm font-black ${styles.button}`}>Buka berkas materi ↗</a>
-              ) : <p className={`text-sm ${styles.muted}`}>Isi materi belum tersedia.</p>}
+              )}
+              {material.file_url && (
+                <div className={`mt-6 border-t border-current/10 pt-5 ${material.content_html ? '' : 'mt-0 border-t-0 pt-0'}`}>
+                  <p className={`mb-3 text-sm font-bold ${styles.muted}`}>Tautan atau berkas pendukung materi</p>
+                  <a href={material.file_url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${styles.button}`}>
+                    {/^https?:\\/\\/(docs\\.google\\.com|drive\\.google\\.com)\\//i.test(material.file_url) ? 'Buka di Google Docs/Drive ↗' : 'Buka berkas materi ↗'}
+                  </a>
+                </div>
+              )}
+              {!material.content_html && !material.file_url && <p className={`text-sm ${styles.muted}`}>Isi materi belum tersedia.</p>}
             </div>
           </article>
         ) : null}
