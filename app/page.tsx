@@ -794,7 +794,12 @@ const filteredExams = useMemo(() => {
         )}
 
         {theme === 'gaming' && (
-          <section className="overflow-hidden rounded-3xl border border-cyan-300/25 bg-gradient-to-br from-[#101b3d]/95 via-[#17143c]/95 to-[#25123e]/95 p-4 shadow-[0_18px_40px_rgba(0,0,0,.22)] sm:p-5">
+          <section className="overflow-hidden rounded-2xl border border-cyan-300/25 bg-gradient-to-br from-[#101b3d]/95 via-[#17143c]/95 to-[#25123e]/95 p-2.5 shadow-[0_18px_40px_rgba(0,0,0,.22)] sm:rounded-3xl sm:p-5">
+            <button type="button" onClick={() => setShowHallOfFame((value) => !value)} aria-expanded={showHallOfFame} className="flex w-full items-center justify-between gap-2 rounded-xl px-2 py-1.5 text-left sm:hidden">
+              <span className="text-xs font-black text-cyan-100">🏆 HALL OF FAME · Arena Peringkat</span>
+              <span className="text-sm text-cyan-200">{showHallOfFame ? '⌃' : '⌄'}</span>
+            </button>
+            <div className={showHallOfFame ? 'block sm:block' : 'hidden sm:block'}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <span className="text-[10px] font-black tracking-[.22em] text-cyan-300">HALL OF FAME</span>
@@ -843,6 +848,7 @@ const filteredExams = useMemo(() => {
               <Link href="/practice" className="text-[10px] font-black text-cyan-200 underline decoration-cyan-300/50 underline-offset-4 hover:text-white">
                 Lihat papan peringkat lengkap →
               </Link>
+            </div>
             </div>
           </section>
         )}
