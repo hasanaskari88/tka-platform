@@ -112,6 +112,14 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', scriptK
     }).run()
   }
 
+  const addColumns = (count: 2 | 3) => {
+    editor.chain().focus().insertTable({
+      rows: 1,
+      cols: count,
+      withHeaderRow: false,
+    }).run()
+  }
+
   return (
     <>
       <div className="border-b border-slate-200 bg-slate-50">
