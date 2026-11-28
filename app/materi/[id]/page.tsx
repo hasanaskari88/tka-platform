@@ -74,7 +74,7 @@ function PublishedMaterialContent() {
                 <div className={`mt-6 border-t border-current/10 pt-5 ${material.content_html ? '' : 'mt-0 border-t-0 pt-0'}`}>
                   <p className={`mb-3 text-sm font-bold ${styles.muted}`}>Tautan atau berkas pendukung materi</p>
                   <a href={material.file_url} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black ${styles.button}`}>
-                    {/^https?:\\/\\/(docs\\.google\\.com|drive\\.google\\.com)\\//i.test(material.file_url) ? 'Buka di Google Docs/Drive ↗' : 'Buka berkas materi ↗'}
+                    {(material.file_url.includes('docs.google.com') || material.file_url.includes('drive.google.com')) ? 'Buka di Google Docs/Drive ↗' : 'Buka berkas materi ↗'}
                   </a>
                 </div>
               )}
