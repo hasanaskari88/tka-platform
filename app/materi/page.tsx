@@ -113,9 +113,24 @@ export default function MateriCatalogPage() {
         <section className={`space-y-4 rounded-3xl border p-4 sm:p-5 ${styles.panel}`}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-base font-black">Jelajahi koleksi</h2>
-            <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${styles.count}`}>{filtered.length} sumber ditemukan</span>
+            <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black sm:px-3 sm:py-1 sm:text-[11px] ${styles.count}`}>📚 {filtered.length} sumber</span>
           </div>
-          <div className="grid gap-3 sm:grid-cols-[1fr_220px_170px]">
+          <details className={`rounded-xl border p-2 sm:hidden ${styles.input}`}>
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-xs font-bold">
+              <span>🔎 Cari · 🗂️ Mapel · ↕️ Urutkan</span><span>⌄</span>
+            </summary>
+            <div className="mt-2 grid gap-2">
+              <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cari judul, deskripsi, penulis..." aria-label="Cari sumber belajar" className={`min-w-0 rounded-lg border px-2.5 py-2 text-xs outline-none ${styles.input}`} />
+              <select value={subject} onChange={(event) => setSubject(event.target.value)} aria-label="Pilih mata pelajaran" className={`rounded-lg border px-2.5 py-2 text-xs font-semibold outline-none ${styles.input}`}>
+                <option value="Semua">Semua mata pelajaran</option>
+                {subjects.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Urutkan sumber belajar" className={`rounded-lg border px-2.5 py-2 text-xs font-semibold outline-none ${styles.input}`}>
+                <option value="Prioritas">⭐ Prioritas Beranda</option><option value="Terbaru">Terbaru</option><option value="Terlama">Terlama</option><option value="Nama A-Z">Nama A–Z</option><option value="Nama Z-A">Nama Z–A</option><option value="Penulis A-Z">Penulis A–Z</option>
+              </select>
+            </div>
+          </details>
+          <div className="hidden gap-3 sm:grid sm:grid-cols-[1fr_220px_170px]">
             <input
               type="search"
               value={search}
@@ -141,9 +156,9 @@ export default function MateriCatalogPage() {
           {loading ? (
             <div className="py-16 text-center text-sm font-bold text-slate-500">Memuat sumber belajar...</div>
           ) : visibleMaterials.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-1.5 sm:space-y-3">
               {visibleMaterials.map((item, index) => (
-                <article key={item.id} className={`flex min-w-0 flex-col gap-3 rounded-2xl border p-3 transition hover:shadow-md sm:flex-row sm:items-start sm:p-4 ${styles.card}`}>
+                <article key={item.id} className={`flex min-w-0 flex-col gap-3 rounded-xl border p-2.5 transition hover:shadow-md sm:rounded-2xl sm:p-3 sm:flex-row sm:items-start sm:p-4 ${styles.card}`}>
                   <div className="flex min-w-0 items-start gap-3">
                     <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xl sm:h-11 sm:w-11 sm:text-2xl ${styles.icon}`}>{['📕', '📘', '📗', '📙', '📚'][((page - 1) * PAGE_SIZE + index) % 5]}</span>
                     <div className="min-w-0 flex-1">
