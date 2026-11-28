@@ -885,6 +885,28 @@ function ExamEngineContent() {
     }
   }, [exam?.proctor_enabled, exam?.proctor_require_fullscreen, sessionId, sessionStatus])
 
+  // Saat pengawasan Full Screen aktif, cegah pinch zoom pada halaman CBT.
+  // Modal gambar memiliki touch handler sendiri sehingga tetap dapat diperbesar.
+  useEffect(() => {
+    const shouldLockPageZoom = Boolean(
+      fullscreenActive && exam?.proctor_enabled && exam?.proctor_require_fullscreen
+    )
+    const root = document.documentElement
+    const body = document.body
+    const previousRootTouchAction = root.style.touchAction
+    const previousBodyTouchAction = body.style.touchAction
+
+    if (shouldLockPageZoom) {
+      root.style.touchAction = 'pan-y'
+      body.style.touchAction = 'pan-y'
+    }
+
+    return () => {
+      root.style.touchAction = previousRootTouchAction
+      body.style.touchAction = previousBodyTouchAction
+    }
+  }, [fullscreenActive, exam?.proctor_enabled, exam?.proctor_require_fullscreen])
+
   const enterExamFullscreen = async () => {
     try {
       if (!document.documentElement.requestFullscreen) {
@@ -2028,6 +2050,7 @@ function ExamEngineContent() {
         >
           <div
             className="relative w-full max-w-5xl h-[90vh] bg-slate-950 p-2 rounded-2xl shadow-2xl overflow-auto flex items-center justify-center"
+            style={{ touchAction: 'none' }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => {
               if (e.touches.length === 2) {
