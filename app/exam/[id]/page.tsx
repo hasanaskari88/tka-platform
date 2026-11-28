@@ -119,6 +119,10 @@ function ExamEngineContent() {
   const [fullscreenActive, setFullscreenActive] = useState(false)
   const [fullscreenError, setFullscreenError] = useState<string | null>(null)
   const [proctorNotice, setProctorNotice] = useState<string | null>(null)
+  const [studentNote, setStudentNote] = useState('')
+  const [studentNoteLoaded, setStudentNoteLoaded] = useState(false)
+  const [studentNoteStatus, setStudentNoteStatus] = useState<'saved' | 'saving' | 'error'>('saved')
+  const [showStudentNote, setShowStudentNote] = useState(false)
   const hasEnteredFullscreenRef = useRef(false)
   const lastProctorEventAtRef = useRef(0)
 
@@ -825,6 +829,54 @@ function ExamEngineContent() {
     }
   }, [])
 
+
+  // Muat catatan pribadi yang terikat pada sesi siswa; tidak pernah mengambil catatan siswa lain.
+  useEffect(() => {
+    if (!sessionId) return
+    let active = true
+    setStudentNoteLoaded(false)
+    fetch(`/api/exam/session-note?sessionId=${encodeURIComponent(sessionId)}`, { cache: 'no-store' })
+      .then(async (response) => {
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Catatan gagal dimuat.')
+        if (active) {
+          setStudentNote(typeof payload.note?.content === 'string' ? payload.note.content : '')
+          setStudentNoteStatus('saved')
+          setStudentNoteLoaded(true)
+        }
+      })
+      .catch((error) => {
+        console.error('Gagal memuat catatan pribadi:', error)
+        if (active) {
+          setStudentNoteStatus('error')
+          setStudentNoteLoaded(true)
+        }
+      })
+    return () => { active = false }
+  }, [sessionId])
+
+  // Simpan otomatis setelah siswa berhenti mengetik selama 700 ms.
+  useEffect(() => {
+    if (!sessionId || !studentNoteLoaded || !['ongoing', 'paused'].includes(sessionStatus)) return
+    setStudentNoteStatus('saving')
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch('/api/exam/session-note', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, content: studentNote }),
+        })
+        const payload = await response.json()
+        if (!response.ok) throw new Error(payload.error || 'Catatan gagal disimpan.')
+        setStudentNoteStatus('saved')
+      } catch (error) {
+        console.error('Gagal menyimpan catatan pribadi:', error)
+        setStudentNoteStatus('error')
+      }
+    }, 700)
+    return () => window.clearTimeout(timer)
+  }, [sessionId, studentNote, studentNoteLoaded, sessionStatus])
+
   // Pengawasan perpindahan tab dan keluarnya Full Screen.
   // Server menghitung pelanggaran secara atomik dan menjeda sesi ketika batas tercapai.
   useEffect(() => {
@@ -885,27 +937,8 @@ function ExamEngineContent() {
     }
   }, [exam?.proctor_enabled, exam?.proctor_require_fullscreen, sessionId, sessionStatus])
 
-  // Saat pengawasan Full Screen aktif, cegah pinch zoom pada halaman CBT.
-  // Modal gambar memiliki touch handler sendiri sehingga tetap dapat diperbesar.
-  useEffect(() => {
-    const shouldLockPageZoom = Boolean(
-      fullscreenActive && exam?.proctor_enabled && exam?.proctor_require_fullscreen
-    )
-    const root = document.documentElement
-    const body = document.body
-    const previousRootTouchAction = root.style.touchAction
-    const previousBodyTouchAction = body.style.touchAction
-
-    if (shouldLockPageZoom) {
-      root.style.touchAction = 'pan-y'
-      body.style.touchAction = 'pan-y'
-    }
-
-    return () => {
-      root.style.touchAction = previousRootTouchAction
-      body.style.touchAction = previousBodyTouchAction
-    }
-  }, [fullscreenActive, exam?.proctor_enabled, exam?.proctor_require_fullscreen])
+  // Zoom layar perangkat tetap diizinkan, termasuk saat Full Screen.
+  // Gerakan zoom bukan pelanggaran; hanya tab tersembunyi dan keluar Full Screen yang dicatat.
 
   const enterExamFullscreen = async () => {
     try {
@@ -1445,6 +1478,14 @@ function ExamEngineContent() {
 
           <button
             type="button"
+            onClick={() => setShowStudentNote((visible) => !visible)}
+            className="min-h-9 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-slate-200 hover:bg-slate-700"
+          >
+            {showStudentNote ? 'Tutup Catatan' : '📝 Catatan Pribadi'}
+          </button>
+
+          <button
+            type="button"
             onClick={openSubmitReview}
             disabled={isSubmitting || sessionStatus !== 'ongoing'}
             className="min-h-9 flex-1 sm:flex-none rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
@@ -1458,6 +1499,32 @@ function ExamEngineContent() {
           </div>
         </div>
       </header>
+
+      {showStudentNote && (
+        <section className={`mx-auto mt-3 w-full max-w-7xl px-3 sm:px-6`}>
+          <div className={`rounded-xl border p-3 shadow-sm ${isDark ? 'border-slate-700 bg-slate-900' : 'border-sky-200 bg-white'}`}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div>
+                <h2 className={`text-sm font-black ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>📝 Catatan Pribadi</h2>
+                <p className={`text-[11px] ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>Catatan ini bukan jawaban soal dan dapat dilihat pengawas ujian.</p>
+              </div>
+              <span className={`shrink-0 text-[10px] font-bold ${studentNoteStatus === 'error' ? 'text-rose-500' : studentNoteStatus === 'saving' ? 'text-amber-500' : 'text-emerald-600'}`}>
+                {!studentNoteLoaded ? 'Memuat…' : studentNoteStatus === 'saving' ? 'Menyimpan…' : studentNoteStatus === 'error' ? 'Belum tersimpan' : 'Tersimpan'}
+              </span>
+            </div>
+            <textarea
+              value={studentNote}
+              onChange={(event) => setStudentNote(event.target.value.slice(0, 10000))}
+              disabled={!studentNoteLoaded || !['ongoing', 'paused'].includes(sessionStatus)}
+              rows={4}
+              maxLength={10000}
+              placeholder="Tulis catatan atau pengingat pribadi di sini…"
+              className={`w-full rounded-lg border p-3 text-sm outline-none focus:ring-2 focus:ring-sky-500 disabled:opacity-60 ${isDark ? 'border-slate-700 bg-slate-950 text-slate-100 placeholder:text-slate-500' : 'border-slate-300 bg-white text-slate-800 placeholder:text-slate-400'}`}
+            />
+            <div className={`mt-1 text-right text-[10px] ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{studentNote.length}/10.000 karakter</div>
+          </div>
+        </section>
+      )}
 
       {/* BODY KONTEN SOAL & NAVIGASI */}
       <div className={`flex-1 max-w-7xl w-full mx-auto p-2.5 sm:p-6 grid grid-cols-1 ${showQuestionNav ? 'lg:grid-cols-4' : 'lg:grid-cols-1'} gap-3 sm:gap-6`}>
@@ -2042,14 +2109,14 @@ function ExamEngineContent() {
         </div>
       )}
 
-      {/* MODAL ZOOM GAMBAR: mendukung pinch dua jari tanpa memperbesar halaman CBT */}
+      {/* MODAL ZOOM GAMBAR: pinch, tombol zoom, dan area geser saat gambar diperbesar */}
       {zoomedImageUrl && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-3"
+          className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
           onClick={() => { setZoomedImageUrl(null); setZoomScale(1); pinchStartRef.current = null }}
         >
           <div
-            className="relative w-full max-w-5xl h-[90vh] bg-slate-950 p-2 rounded-2xl shadow-2xl overflow-auto flex items-center justify-center"
+            className="relative w-full max-w-5xl h-[92dvh] bg-slate-950 rounded-2xl shadow-2xl overflow-hidden"
             style={{ touchAction: 'none' }}
             onClick={(e) => e.stopPropagation()}
             onTouchStart={(e) => {
@@ -2065,38 +2132,49 @@ function ExamEngineContent() {
                 const dx = e.touches[0].clientX - e.touches[1].clientX
                 const dy = e.touches[0].clientY - e.touches[1].clientY
                 const distance = Math.hypot(dx, dy)
-                const nextScale = pinchStartRef.current.scale * distance / pinchStartRef.current.distance
-                setZoomScale(Math.min(4, Math.max(1, nextScale)))
+                const nextScale = pinchStartRef.current.scale * distance / Math.max(1, pinchStartRef.current.distance)
+                setZoomScale(Math.min(5, Math.max(1, nextScale)))
               }
             }}
-            onTouchEnd={(e) => {
-              if (e.touches.length < 2) pinchStartRef.current = null
-            }}
+            onTouchEnd={(e) => { if (e.touches.length < 2) pinchStartRef.current = null }}
           >
+            <div className="absolute left-3 top-3 z-20 flex items-center gap-1 rounded-xl bg-slate-800/95 p-1 shadow-lg">
+              <button type="button" onClick={() => setZoomScale((scale) => Math.max(1, scale - 0.25))} className="h-9 w-9 rounded-lg text-lg font-black text-white hover:bg-slate-700" aria-label="Perkecil gambar">−</button>
+              <span className="min-w-14 text-center text-xs font-bold tabular-nums text-white">{Math.round(zoomScale * 100)}%</span>
+              <button type="button" onClick={() => setZoomScale((scale) => Math.min(5, scale + 0.25))} className="h-9 w-9 rounded-lg text-lg font-black text-white hover:bg-slate-700" aria-label="Perbesar gambar">+</button>
+              <button type="button" onClick={() => setZoomScale(1)} className="rounded-lg px-2 py-2 text-[10px] font-bold text-sky-300 hover:bg-slate-700">Reset</button>
+            </div>
             <button
               type="button"
               onClick={() => { setZoomedImageUrl(null); setZoomScale(1); pinchStartRef.current = null }}
-              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-sm hover:bg-slate-600 transition-colors z-10"
+              className="absolute right-3 top-3 z-20 h-9 w-9 rounded-full bg-slate-700 text-white font-bold hover:bg-slate-600"
               title="Tutup Gambar"
-            >
-              ✕
-            </button>
-            <div className="w-full h-full flex items-center justify-center overflow-auto">
-              <img
-                src={zoomedImageUrl}
-                alt="Gambar Diperbesar"
-                draggable={false}
-                onTouchMove={(e) => { if (e.touches.length === 2) e.preventDefault() }}
-                style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center', touchAction: 'none' }}
-                className="max-h-[85vh] max-w-full object-contain rounded-xl select-none"
-              />
+            >✕</button>
+            <div className="absolute inset-0 overflow-auto pt-16 pb-14">
+              <div className="flex min-h-full min-w-full items-center justify-center p-3">
+                <img
+                  src={zoomedImageUrl}
+                  alt="Gambar Diperbesar"
+                  draggable={false}
+                  style={{
+                    width: zoomScale > 1 ? `${zoomScale * 100}%` : 'auto',
+                    height: zoomScale > 1 ? `${zoomScale * 100}%` : 'auto',
+                    maxWidth: zoomScale > 1 ? 'none' : '100%',
+                    maxHeight: zoomScale > 1 ? 'none' : 'calc(92dvh - 8rem)',
+                    objectFit: 'contain',
+                    touchAction: 'none',
+                  }}
+                  className="shrink-0 select-none rounded-xl"
+                />
+              </div>
             </div>
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-800/90 px-3 py-1.5 text-[11px] text-white">
-              Cubit dua jari untuk zoom · {Math.round(zoomScale * 100)}% · Ketuk ✕ untuk tutup
+            <div className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-full bg-slate-800/95 px-3 py-1.5 text-center text-[10px] text-white whitespace-nowrap">
+              Cubit dua jari atau gunakan + / − · Geser untuk melihat bagian gambar
             </div>
           </div>
         </div>
       )}
+
     </div>
   )
 }
