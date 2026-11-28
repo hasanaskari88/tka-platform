@@ -112,7 +112,9 @@ export default function AdminKontenPage() {
   const saveAnn = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true); setError('')
     const db = createClient()
-    const plainContent = htmlToPlainText(annContentHtml) || annContent.trim()\n    if (!plainContent) { setError('Isi pengumuman belum diisi.'); setSaving(false); return }\n    const payload = { title: annTitle.trim(), content: plainContent, content_html: annContentHtml, summary_mode: annSummaryMode, summary_height_px: annSummaryHeight, summary_repeat: annSummaryRepeat, category: annCategory, is_active: true }
+    const plainContent = htmlToPlainText(annContentHtml) || annContent.trim()
+    if (!plainContent) { setError('Isi pengumuman belum diisi.'); setSaving(false); return }
+    const payload = { title: annTitle.trim(), content: plainContent, content_html: annContentHtml, summary_mode: annSummaryMode, summary_height_px: annSummaryHeight, summary_repeat: annSummaryRepeat, category: annCategory, is_active: true }
     const result = annId ? await db.from('announcements').update(payload).eq('id', annId) : await db.from('announcements').insert(payload)
     if (result.error) setError(result.error.message)
     else { resetAnn(); await load() }
@@ -123,7 +125,9 @@ export default function AdminKontenPage() {
     const db = createClient()
     const { data: { user } } = await db.auth.getUser()
     if (!user) { setError('Sesi login tidak ditemukan. Silakan login kembali.'); setSaving(false); return }
-    const hasDigitalContent = htmlToPlainText(matContentHtml).length > 0\n    if (!matUrl.trim() && !hasDigitalContent) { setError('Isi materi digital atau URL file harus diisi.'); setSaving(false); return }\n    const payload = { title: matTitle.trim(), file_url: matUrl.trim() || null, description: matDesc.trim(), content_html: matContentHtml || null, summary_mode: matSummaryMode, summary_height_px: matSummaryHeight, summary_repeat: matSummaryRepeat, subject: matSubject, author_display_name: matAuthor.trim() || currentAuthor || null }
+    const hasDigitalContent = htmlToPlainText(matContentHtml).length > 0
+    if (!matUrl.trim() && !hasDigitalContent) { setError('Isi materi digital atau URL file harus diisi.'); setSaving(false); return }
+    const payload = { title: matTitle.trim(), file_url: matUrl.trim() || null, description: matDesc.trim(), content_html: matContentHtml || null, summary_mode: matSummaryMode, summary_height_px: matSummaryHeight, summary_repeat: matSummaryRepeat, subject: matSubject, author_display_name: matAuthor.trim() || currentAuthor || null }
     const result = matId ? await db.from('study_materials').update(payload).eq('id', matId) : await db.from('study_materials').insert({ ...payload, created_by: user.id })
     if (result.error) setError(result.error.message)
     else { resetMat(); await load() }
