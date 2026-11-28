@@ -854,8 +854,12 @@ const filteredExams = useMemo(() => {
         )}
 
         {theme === 'gaming' && (
-          <section id="arcade-missions" className="space-y-4">
-            <div className="flex flex-wrap items-end justify-between gap-3">
+          <section id="arcade-missions" className="space-y-2 sm:space-y-4">
+            <button type="button" onClick={() => setShowPlayerDashboard((value) => !value)} aria-expanded={showPlayerDashboard} className="flex w-full items-center justify-between gap-2 rounded-xl border border-cyan-300/20 bg-slate-950/25 px-3 py-2 text-left sm:hidden">
+              <span className="text-xs font-black text-cyan-100">🎮 PLAYER DASHBOARD · Pilih Misi</span>
+              <span className="text-sm text-cyan-200">{showPlayerDashboard ? '⌃' : '⌄'}</span>
+            </button>
+            <div className="hidden items-end justify-between gap-3 sm:flex">
               <div>
                 <span className="text-[10px] font-black tracking-[.22em] text-cyan-300">PLAYER DASHBOARD</span>
                 <h2 className="mt-1 text-xl font-black text-white sm:text-2xl">Pilih Misi Hari Ini</h2>
@@ -863,7 +867,9 @@ const filteredExams = useMemo(() => {
               </div>
               <div className="rounded-xl border border-fuchsia-300/30 bg-fuchsia-400/10 px-3 py-2 text-xs font-black text-fuchsia-100">🏅 LEVEL {userProfile?.level || 1}</div>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className={showPlayerDashboard ? 'block sm:block' : 'hidden sm:block'}>
+            <div className="mb-2 flex justify-end sm:hidden"><span className="rounded-lg border border-fuchsia-300/30 bg-fuchsia-400/10 px-2 py-1 text-[9px] font-black text-fuchsia-100">🏅 LEVEL {userProfile?.level || 1}</span></div>
+            <div className="grid gap-2 sm:gap-4 md:grid-cols-3">
               {[
                 { icon: '🧠', title: 'Latihan Otak', tag: 'PUZZLE RUN', desc: 'Asah kemampuan lewat latihan mandiri dan kumpulkan XP dari jawabanmu.', href: '/practice', color: 'from-cyan-400 to-blue-600', shadow: '#075985' },
                 { icon: '📚', title: 'Jelajah Buku', tag: 'KNOWLEDGE QUEST', desc: 'Temukan sumber belajar baru dan siapkan strategi sebelum ujian.', href: '/materi', color: 'from-lime-300 to-emerald-600', shadow: '#166534' },
@@ -888,6 +894,7 @@ const filteredExams = useMemo(() => {
                 <p className="mt-1 text-xs text-blue-100/70">{['Masuk ke ruang latihan untuk mencoba tantangan dan memperoleh XP.','Buka koleksi sumber belajar dan pilih bahan yang ingin kamu pelajari.','Lihat daftar ujian, pilih subtes, lalu kerjakan tantangan TKA.'][selectedArcadeMission]}</p>
               </div>
               <Link href={['/practice','/materi','#ujian'][selectedArcadeMission]} className="arcade-3d-button shrink-0 rounded-xl border-2 border-cyan-100 bg-gradient-to-b from-cyan-300 to-blue-500 px-5 py-3 text-center text-xs font-black text-[#07172d] shadow-[0_5px_0_#075985] transition hover:-translate-y-1 hover:shadow-[0_8px_0_#075985] active:translate-y-1">MULAI MISI TERPILIH →</Link>
+            </div>
             </div>
           </section>
         )}
