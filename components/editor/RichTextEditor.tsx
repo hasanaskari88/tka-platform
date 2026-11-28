@@ -3,6 +3,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { Node } from '@tiptap/core'
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model'
 
 import StarterKit from '@tiptap/starter-kit'
@@ -872,6 +873,23 @@ function convertWordDrawingImages(document: Document): void {
   })
 }
 
+
+
+// Penanda ringkasan manual seperti WordPress More Block.
+const ReadMore = Node.create({
+  name: 'readMore',
+  group: 'block',
+  atom: true,
+  selectable: true,
+  parseHTML() {
+    return [{ tag: 'div[data-type="read-more"]' }]
+  },
+  renderHTML() {
+    return ['div', { 'data-type': 'read-more', class: 'read-more-divider' },
+      ['span', {}, '— BACA SELENGKAPNYA —']]
+  },
+})
+
 interface RichTextEditorProps {
   content?: string
   onChange?: (html: string) => void
@@ -905,6 +923,7 @@ export default function RichTextEditor({
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ underline: false }),
+      ReadMore,
       Underline,
 
       TextStyle,
