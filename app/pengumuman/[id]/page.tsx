@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -18,7 +18,7 @@ type Announcement = {
   summary_repeat: boolean
 }
 
-export default function AnnouncementDetailPage() {
+function AnnouncementDetailContent() {
   const params = useParams<{ id: string }>()
   const [item, setItem] = useState<Announcement | null>(null)
   const [loading, setLoading] = useState(true)
@@ -58,12 +58,20 @@ export default function AnnouncementDetailPage() {
               <h1 className="mt-3 text-2xl font-black leading-tight text-slate-900 sm:text-3xl">{item.title}</h1>
               <p className="mt-3 text-xs text-slate-500">{new Date(item.created_at).toLocaleDateString('id-ID', { dateStyle: 'long' })}</p>
             </header>
-            <div className="p-5 text-sm leading-8 text-slate-700 sm:p-8 sm:text-base">
+            <div className="p-5 text-sm leading-8 text-slate-700 sm:p-8">
               <MathRenderer content={item.content_html ? getDetailHtml(item.content_html, item.summary_repeat !== false) : legacyTextToHtml(item.content || '')} className="material-content max-w-none" />
             </div>
           </article>
         ) : null}
       </main>
     </div>
+  )
+}
+
+export default function AnnouncementDetailPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen p-10 text-center text-sm">Memuat pengumuman...</div>}>
+      <AnnouncementDetailContent />
+    </Suspense>
   )
 }
