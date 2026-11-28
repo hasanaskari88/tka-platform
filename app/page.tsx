@@ -32,7 +32,7 @@ function HomePageContent() {
   const [selectedSubject, setSelectedSubject] = useState('Semua')
   const [materialSort, setMaterialSort] = useState('Prioritas')
   const [materialPage, setMaterialPage] = useState(0)
-  const MATERIALS_PER_PAGE = 3
+  const MATERIALS_PER_PAGE = 5
   const [showMaterialFilters, setShowMaterialFilters] = useState(false)
   const [showExamFilters, setShowExamFilters] = useState(false)
   
@@ -1194,26 +1194,27 @@ const filteredExams = useMemo(() => {
               </div>
 
               {filteredMaterials.length > 0 ? (
-                <div className="divide-y divide-current/10">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {visibleMaterials.map((mat, index) => (
-                    <article key={mat.id} className="flex items-center gap-3 py-3 first:pt-1 last:pb-1">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/40 bg-amber-100 text-xl">
-                        {['📕', '📘', '📗'][index % 3]}
+                    <article key={mat.id} className={`flex min-w-0 items-center gap-2 rounded-xl border border-current/10 p-2.5 transition hover:-translate-y-0.5 hover:shadow-md ${themeDetails.cardBg}`}>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-100 text-lg">
+                        {['📕', '📘', '📗', '📙', '📚'][(materialPage * MATERIALS_PER_PAGE + index) % 5]}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <h3 className={`truncate text-xs font-black ${themeDetails.cardTitle}`}>{mat.title}</h3>
-                        <p className={`mt-0.5 truncate text-[10px] ${themeDetails.textMuted}`}>
+                        <h3 className={`break-words text-[11px] font-black leading-snug sm:text-xs ${themeDetails.cardTitle}`}>{mat.title || 'Tanpa judul'}</h3>
+                        <p className={`mt-1 line-clamp-1 text-[9px] leading-snug sm:text-[10px] ${themeDetails.textMuted}`}>
                           {mat.subject || 'Umum'} · {mat.author_display_name || mat.author?.full_name || 'Tim Penyusun'}
                         </p>
                       </div>
-                      {mat.file_url ? (
-                        <a href={mat.file_url} target="_blank" rel="noopener noreferrer"
-                          className={`shrink-0 rounded-lg px-3 py-2 text-[10px] font-black ${themeDetails.btnBg}`}>
-                          Buka <span aria-hidden="true">↗</span>
-                        </a>
-                      ) : (
-                        <span className="shrink-0 text-[10px] text-slate-400">Belum tersedia</span>
-                      )}
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        {mat.content_html && (
+                          <Link href={'/materi/' + mat.id} className={`rounded-lg px-2 py-1.5 text-[9px] font-black ${themeDetails.btnBg}`}>Baca ↗</Link>
+                        )}
+                        {mat.file_url && (
+                          <a href={mat.file_url} target="_blank" rel="noopener noreferrer" className={`rounded-lg border border-current/15 px-2 py-1.5 text-[9px] font-black ${themeDetails.btnBg}`}>Buka ↗</a>
+                        )}
+                        {!mat.content_html && !mat.file_url && <span className="text-[9px] text-slate-400">Belum tersedia</span>}
+                      </div>
                     </article>
                   ))}
                 </div>
