@@ -395,6 +395,29 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', scriptK
           <MathFormulaDialog editor={editor} editorId={editorId} />
           <button
             type="button"
+            title="Sisipkan atau ubah tautan"
+            className={buttonClass}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const currentHref = editor.getAttributes('link').href as string | undefined
+              const href = window.prompt('Masukkan alamat tautan (URL):', currentHref || 'https://')
+              if (href === null) return
+              const normalized = href.trim()
+              if (!normalized) {
+                editor.chain().focus().extendMarkRange('link').unsetLink().run()
+                return
+              }
+              if (!/^https?:\\/\\//i.test(normalized) && !normalized.startsWith('mailto:')) {
+                window.alert('Gunakan URL yang diawali https:// atau http://, atau alamat email mailto:.')
+                return
+              }
+              editor.chain().focus().extendMarkRange('link').setLink({ href: normalized }).run()
+            }}
+          >
+            ↗ Tautan
+          </button>
+          <button
+            type="button"
             title="Sisipkan pemisah ringkasan seperti WordPress"
             className={buttonClass + ' border-emerald-300 bg-emerald-50 text-emerald-800'}
             onMouseDown={(e) => e.preventDefault()}
