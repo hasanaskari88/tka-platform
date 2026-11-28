@@ -916,9 +916,9 @@ const filteredExams = useMemo(() => {
           >
             <div className="relative z-10 max-w-md space-y-2">
               <span
-                className={`inline-block rounded-full border px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider ${themeDetails.badgeColor}`}
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[8px] font-extrabold uppercase tracking-wide sm:px-3 sm:py-1 sm:text-[10px] sm:tracking-wider ${themeDetails.badgeColor}`}
               >
-                🎮 PUSAT PETUALANGAN BELAJAR
+                🎮 PETUALANGAN BELAJAR
               </span>
 
               <h2 className="text-xl sm:text-2xl font-black leading-tight">
