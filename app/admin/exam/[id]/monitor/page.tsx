@@ -39,6 +39,7 @@ function MonitorContent() {
   const [proctorMaxViolations, setProctorMaxViolations] = useState(3)
   const [proctorSaving, setProctorSaving] = useState(false)
   const [proctorEvents, setProctorEvents] = useState<any[]>([])
+  const [sessionNotes, setSessionNotes] = useState<any[]>([])
   const proctorDirtyRef = useRef(false)
 
   // Ticker State untuk memperbarui timer live setiap detik
@@ -102,13 +103,20 @@ function MonitorContent() {
     }
     setQuestionsCount(qCount || 0); setSessions(sessionData); setProfiles(profileData)
     try {
-      const eventResponse = await fetch(`/api/admin/exams/${examId}/proctor-events`, { cache: 'no-store' })
+      const [eventResponse, noteResponse] = await Promise.all([
+        fetch(`/api/admin/exams/${examId}/proctor-events`, { cache: 'no-store' }),
+        fetch(`/api/admin/exams/${examId}/session-notes`, { cache: 'no-store' }),
+      ])
       if (eventResponse.ok) {
         const eventPayload = await eventResponse.json()
         setProctorEvents(Array.isArray(eventPayload.events) ? eventPayload.events : [])
       }
+      if (noteResponse.ok) {
+        const notePayload = await noteResponse.json()
+        setSessionNotes(Array.isArray(notePayload.notes) ? notePayload.notes : [])
+      }
     } catch (error) {
-      console.warn('Riwayat pengawasan belum dapat dimuat:', error)
+      console.warn('Riwayat pengawasan atau catatan siswa belum dapat dimuat:', error)
     }
     setLastUpdated(new Date())
     setLoading(false)
@@ -654,22 +662,49 @@ function MonitorContent() {
               </select>
             </label>
           </div>
-          {proctorEvents.length > 0 && (
-            <div className="border-t border-slate-100 pt-3">
-              <h3 className="mb-2 text-xs font-black text-slate-700">Riwayat Pelanggaran Terbaru</h3>
+          <div className="border-t border-slate-100 pt-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-black text-slate-700">📝 Catatan Pribadi Siswa</h3>
+              <span className="text-[10px] font-semibold text-slate-500">{sessionNotes.length} catatan tersimpan</span>
+            </div>
+            {sessionNotes.length > 0 ? (
+              <div className="max-h-72 space-y-2 overflow-y-auto">
+                {sessionNotes.map((note) => {
+                  const student = profiles.find((profile) => profile.id === note.user_id)
+                  const session = sessions.find((item) => item.id === note.session_id)
+                  return (
+                    <article key={note.id} className="rounded-xl border border-sky-100 bg-sky-50/70 p-3">
+                      <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                        <span className="text-xs font-black text-slate-800">{student?.full_name || 'Siswa'} <span className="font-normal text-slate-500">· Kelas {student?.class_code || '-'}</span></span>
+                        <span className="text-[10px] text-slate-500">{new Date(note.updated_at).toLocaleString('id-ID')} {session?.status ? `· ${session.status}` : ''}</span>
+                      </div>
+                      <p className="whitespace-pre-wrap break-words text-xs leading-relaxed text-slate-700">{note.content}</p>
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="rounded-lg bg-slate-50 px-3 py-3 text-[11px] text-slate-500">Belum ada catatan yang dikirim siswa. Catatan akan muncul otomatis setelah siswa menulis dan penyimpanan berhasil.</p>
+            )}
+          </div>
+          <div className="border-t border-slate-100 pt-3">
+            <h3 className="mb-2 text-xs font-black text-slate-700">Riwayat Pelanggaran Terbaru</h3>
+            {proctorEvents.length > 0 ? (
               <div className="max-h-56 space-y-1 overflow-y-auto">
-                {proctorEvents.slice(0, 12).map((event) => {
+                {proctorEvents.slice(0, 20).map((event) => {
                   const student = profiles.find((profile) => profile.id === event.user_id)
                   return (
                     <div key={event.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px]">
-                      <span className="font-bold text-slate-700">{student?.full_name || 'Siswa'} · {event.event_type === 'tab_hidden' ? 'Berpindah tab' : 'Keluar Full Screen'}</span>
+                      <span className="font-bold text-slate-700">{student?.full_name || 'Siswa'} · {event.event_type === 'tab_hidden' ? 'Berpindah tab / aplikasi' : 'Keluar Full Screen'}</span>
                       <span className="text-slate-500">Pelanggaran {event.violation_number} · {new Date(event.occurred_at).toLocaleString('id-ID')}</span>
                     </div>
                   )
                 })}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-[11px] text-slate-500">Belum ada pelanggaran tercatat.</p>
+            )}
+          </div>
         </section>
 
         {/* 🟢 KARTU STATISTIK RINGKASAN */}
