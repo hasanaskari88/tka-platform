@@ -382,6 +382,11 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', scriptK
             ▦ Tabel
           </button>
 
+          <button type="button" title="Buat layout dua kolom yang bisa diisi teks dan gambar" className={buttonClass}
+            onMouseDown={(e) => e.preventDefault()} onClick={() => addColumns(2)}>▥ 2 Kolom</button>
+          <button type="button" title="Buat layout tiga kolom yang bisa diisi teks dan gambar" className={buttonClass}
+            onMouseDown={(e) => e.preventDefault()} onClick={() => addColumns(3)}>▦ 3 Kolom</button>
+
           <button
             type="button"
             title="Sisipkan gambar"
