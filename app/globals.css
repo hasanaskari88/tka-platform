@@ -556,3 +556,44 @@ video {
 @media (prefers-reduced-motion: reduce) {
   .arcade-badge-medal, .arcade-practice-footer::after { animation: none !important; }
 }
+
+
+/* Tampilan kolom konten digital pada halaman baca siswa. */
+.material-content table:has(> tbody > tr:only-child) {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: .75rem 0;
+  table-layout: fixed;
+}
+.material-content table:has(> tbody > tr:only-child) td {
+  border: 1px dashed #cbd5e1;
+  border-radius: .65rem;
+  background: rgba(148, 163, 184, .08);
+  padding: .75rem;
+  vertical-align: top;
+}
+.material-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.material-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: .65rem;
+}
+@media (max-width: 640px) {
+  .material-content table:has(> tbody > tr:only-child),
+  .material-content table:has(> tbody > tr:only-child) tbody,
+  .material-content table:has(> tbody > tr:only-child) tr,
+  .material-content table:has(> tbody > tr:only-child) td {
+    display: block;
+    width: 100%;
+  }
+  .material-content table:has(> tbody > tr:only-child) {
+    border-spacing: 0;
+  }
+  .material-content table:has(> tbody > tr:only-child) td {
+    margin: .5rem 0;
+  }
+}
