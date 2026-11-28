@@ -8,6 +8,7 @@ import MathRenderer from '@/components/MathRenderer'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/context/ThemeContext'
 import { getMaterialTheme } from '@/lib/material-theme'
+import { getDetailHtml } from '@/lib/content-summary'
 
 type Material = {
   id: string
@@ -18,6 +19,7 @@ type Material = {
   file_url: string | null
   author_display_name: string | null
   created_at: string
+  summary_repeat?: boolean
 }
 
 function PublishedMaterialContent() {
@@ -34,7 +36,7 @@ function PublishedMaterialContent() {
     async function load() {
       const { data, error: queryError } = await createClient()
         .from('study_materials')
-        .select('id,title,description,subject,content_html,file_url,author_display_name,created_at')
+        .select('id,title,description,subject,content_html,file_url,author_display_name,created_at,summary_repeat')
         .eq('id', id)
         .eq('status', 'published')
         .maybeSingle()
@@ -66,7 +68,7 @@ function PublishedMaterialContent() {
             </header>
             <div className="p-5 sm:p-8">
               {material.content_html ? (
-                <MathRenderer content={material.content_html} className="material-content max-w-none text-sm leading-8 sm:text-base" />
+                <MathRenderer content={getDetailHtml(material.content_html, material.summary_repeat !== false)} className="material-content max-w-none text-sm leading-8 sm:text-base" />
               ) : material.file_url ? (
                 <a href={material.file_url} target="_blank" rel="noopener noreferrer" className={`inline-flex rounded-xl px-4 py-3 text-sm font-black ${styles.button}`}>Buka berkas materi ↗</a>
               ) : <p className={`text-sm ${styles.muted}`}>Isi materi belum tersedia.</p>}
