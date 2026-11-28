@@ -7,6 +7,7 @@ import MathRenderer from '@/components/MathRenderer'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme } from '@/context/ThemeContext'
 import { getMaterialTheme } from '@/lib/material-theme'
+import { getSummaryHtml } from '@/lib/content-summary'
 
 const PAGE_SIZE = 10
 
@@ -152,6 +153,11 @@ export default function MateriCatalogPage() {
                     </div>
                     <p className={`mt-1 text-[11px] font-semibold ${styles.muted}`}>✍️ {item.author_display_name || item.author?.full_name || 'Tim Penyusun'}</p>
                     {item.description && <div className={`mt-2 line-clamp-2 text-xs leading-relaxed ${styles.muted}`}><MathRenderer content={item.description} /></div>}
+                    {item.content_html && (
+                      <div className="mt-2 overflow-hidden text-xs leading-relaxed" style={item.summary_mode === 'auto' ? { maxHeight: Math.min(900, Math.max(120, Number(item.summary_height_px) || 280)) + 'px' } : undefined}>
+                        <MathRenderer content={getSummaryHtml(item.content_html, item.summary_mode || 'auto')} />
+                      </div>
+                    )}
                   </div>
                   {item.content_html ? (
                     <Link href={'/materi/' + item.id} className={`shrink-0 rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Baca Materi ↗</Link>
