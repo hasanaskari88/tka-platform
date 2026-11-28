@@ -420,7 +420,7 @@ export default function EditorToolbar({ editor, editorId, mode = 'full', scriptK
                 editor.chain().focus().extendMarkRange('link').unsetLink().run()
                 return
               }
-              if (!/^https?:\\/\\//i.test(normalized) && !normalized.startsWith('mailto:')) {
+              if (!(normalized.startsWith('https://') || normalized.startsWith('http://') || normalized.startsWith('mailto:'))) {
                 window.alert('Gunakan URL yang diawali https:// atau http://, atau alamat email mailto:.')
                 return
               }
