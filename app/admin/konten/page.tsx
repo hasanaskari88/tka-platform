@@ -10,7 +10,27 @@ import MathRenderer from '@/components/MathRenderer'
 type Announcement = { id: string; title: string; content: string; content_html?: string | null; category: string; is_active: boolean; summary_mode?: 'auto' | 'manual'; summary_height_px?: number; summary_repeat?: boolean; created_at: string }
 type Material = { id: string; title: string; file_url: string | null; content_html?: string | null; summary_mode?: 'auto' | 'manual'; summary_height_px?: number; summary_repeat?: boolean; status?: string; description: string; subject: string; author_display_name?: string | null; created_at: string }
 
-function legacyTextToHtml(value: string) {\n  return String(value || '').split(/\\r?\\n/).map(line => line.trim() ? '<p>' + line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' : '<p></p>').join('')\n}\n\nfunction htmlToPlainText(value: string) {\n  return String(value || '').replace(/<br\\s*\\/?\\s*>/gi, '\\n').replace(/<\\/(p|div|li|h[1-6])>/gi, '\\n').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\s+/g, ' ').trim()\n}\n\nfunction getEmbeddablePreviewUrl(rawUrl: string) {
+function legacyTextToHtml(value: string) {
+  return String(value || '').split(/\r?\n/).map(line => {
+    const safe = line.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    return safe.trim() ? '<p>' + safe + '</p>' : '<p></p>'
+  }).join('')
+}
+
+function htmlToPlainText(value: string) {
+  return String(value || '')
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getEmbeddablePreviewUrl(rawUrl: string) {
   try {
     const url = new URL(rawUrl)
     const driveFile = url.pathname.match(/\/file\/d\/([^/]+)/)
