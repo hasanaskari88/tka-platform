@@ -160,8 +160,9 @@ function MonitorContent() {
 
   // Hitung Sisa Waktu Pengerjaan Siswa
   const calculateLiveTimer = (session: any, durationMinutes: number) => {
-    if (!session?.start_time) return { isExpired: true, displayTime: '00:00', remainingSeconds: 0 }
+    if (!session?.start_time) return { isExpired: false, displayTime: 'Waktu belum tersedia', remainingSeconds: null }
     const startMs = new Date(session.start_time).getTime()
+    if (!Number.isFinite(startMs)) return { isExpired: false, displayTime: 'Waktu tidak valid', remainingSeconds: null }
     const totalSec = (durationMinutes || 15) * 60
     const accumulatedPause = Number(session.paused_duration_seconds) || 0
     const pausedAtMs = session.paused_at ? new Date(session.paused_at).getTime() : null
