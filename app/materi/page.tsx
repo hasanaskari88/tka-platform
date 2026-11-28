@@ -9,7 +9,7 @@ import { useTheme } from '@/context/ThemeContext'
 import { getMaterialTheme } from '@/lib/material-theme'
 import { getSummaryHtml } from '@/lib/content-summary'
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 5
 
 export default function MateriCatalogPage() {
   const { theme } = useTheme()
@@ -143,32 +143,34 @@ export default function MateriCatalogPage() {
           ) : visibleMaterials.length > 0 ? (
             <div className="space-y-3">
               {visibleMaterials.map((item, index) => (
-                <article key={item.id} className={`flex items-start gap-3 rounded-2xl border p-3 transition sm:p-4 ${styles.card}`}>
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border text-2xl ${styles.icon}`}>{['📕', '📘', '📗', '📙', '📚'][((page - 1) * PAGE_SIZE + index) % 5]}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-black">{item.title || 'Tanpa judul'}</h3>
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${styles.subject}`}>{item.subject || 'Umum'}</span>
-                      {pinOrder[item.id] !== undefined && <span className="rounded-full bg-amber-100 px-2 py-1 text-[9px] font-black text-amber-900">⭐ Prioritas</span>}
-                    </div>
-                    <p className={`mt-1 text-[11px] font-semibold ${styles.muted}`}>✍️ {item.author_display_name || item.author?.full_name || 'Tim Penyusun'}</p>
-                    {item.description && <div className={`mt-2 line-clamp-2 text-xs leading-relaxed ${styles.muted}`}><MathRenderer content={item.description} /></div>}
-                    {item.content_html && (
-                      <div className="mt-2 overflow-hidden text-xs leading-relaxed" style={item.summary_mode === 'auto' ? { maxHeight: Math.min(900, Math.max(120, Number(item.summary_height_px) || 280)) + 'px' } : undefined}>
-                        <MathRenderer content={getSummaryHtml(item.content_html, item.summary_mode || 'auto')} />
+                <article key={item.id} className={`flex min-w-0 flex-col gap-3 rounded-2xl border p-3 transition hover:shadow-md sm:flex-row sm:items-start sm:p-4 ${styles.card}`}>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-xl sm:h-11 sm:w-11 sm:text-2xl ${styles.icon}`}>{['📕', '📘', '📗', '📙', '📚'][((page - 1) * PAGE_SIZE + index) % 5]}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                        <h3 className="min-w-0 break-words text-xs font-black leading-snug sm:text-sm">{item.title || 'Tanpa judul'}</h3>
+                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${styles.subject}`}>{item.subject || 'Umum'}</span>
+                        {pinOrder[item.id] !== undefined && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-900">⭐ Prioritas</span>}
                       </div>
-                    )}
+                      <p className={`mt-1 text-[10px] font-semibold sm:text-[11px] ${styles.muted}`}>✍️ {item.author_display_name || item.author?.full_name || 'Tim Penyusun'}</p>
+                      {item.description && <div className={`mt-1.5 line-clamp-2 break-words text-[11px] leading-relaxed sm:text-xs ${styles.muted}`}><MathRenderer content={item.description} /></div>}
+                      {item.content_html && (
+                        <div className="mt-2 max-w-full overflow-hidden break-words text-[11px] leading-relaxed sm:text-xs" style={item.summary_mode === 'auto' ? { maxHeight: Math.min(900, Math.max(120, Number(item.summary_height_px) || 280)) + 'px' } : undefined}>
+                          <MathRenderer content={getSummaryHtml(item.content_html, item.summary_mode || 'auto')} />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:flex-col sm:items-end">
                     {item.content_html && (
-                      <Link href={'/materi/' + item.id} className={`rounded-xl px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>Baca Materi ↗</Link>
+                      <Link href={'/materi/' + item.id} className={`inline-flex min-w-0 flex-1 items-center justify-center rounded-lg px-3 py-2 text-[10px] font-black transition hover:-translate-y-0.5 sm:flex-none sm:text-[11px] ${styles.button}`}>Baca Materi ↗</Link>
                     )}
                     {item.file_url && (
-                      <a href={item.file_url} target="_blank" rel="noopener noreferrer" className={`rounded-xl border border-current/15 px-3 py-2 text-[11px] font-black transition hover:-translate-y-0.5 ${styles.button}`}>
+                      <a href={item.file_url} target="_blank" rel="noopener noreferrer" className={`inline-flex min-w-0 flex-1 items-center justify-center rounded-lg border border-current/15 px-3 py-2 text-[10px] font-black transition hover:-translate-y-0.5 sm:flex-none sm:text-[11px] ${styles.button}`}>
                         {(item.file_url.includes('docs.google.com') || item.file_url.includes('drive.google.com')) ? 'Buka Google Docs ↗' : 'Buka tautan ↗'}
                       </a>
                     )}
-                    {!item.content_html && !item.file_url && <span className="text-[10px] font-semibold text-slate-400">Belum tersedia</span>}
+                    {!item.content_html && !item.file_url && <span className="w-full text-center text-[10px] font-semibold text-slate-400 sm:w-auto">Belum tersedia</span>}
                   </div>
                 </article>
               ))}
