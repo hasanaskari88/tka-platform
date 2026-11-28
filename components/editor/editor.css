@@ -310,3 +310,31 @@
   flex: 1;
   border-top: 1px dashed #86efac;
 }
+
+
+/* Tabel satu baris berfungsi sebagai layout kolom fleksibel (teks + gambar). */
+.rich-text-editor .editor-content table:has(> tbody > tr:only-child) {
+  border-collapse: separate;
+  border-spacing: .75rem 0;
+}
+.rich-text-editor .editor-content table:has(> tbody > tr:only-child) td {
+  border: 1px dashed #cbd5e1;
+  border-radius: .65rem;
+  background: #f8fafc;
+  padding: .75rem;
+}
+@media (max-width: 640px) {
+  .rich-text-editor .editor-content table:has(> tbody > tr:only-child),
+  .rich-text-editor .editor-content table:has(> tbody > tr:only-child) tbody,
+  .rich-text-editor .editor-content table:has(> tbody > tr:only-child) tr,
+  .rich-text-editor .editor-content table:has(> tbody > tr:only-child) td {
+    display: block;
+    width: 100%;
+  }
+  .rich-text-editor .editor-content table:has(> tbody > tr:only-child) {
+    border-spacing: 0;
+  }
+  .rich-text-editor .editor-content table:has(> tbody > tr:only-child) td {
+    margin: .5rem 0;
+  }
+}
