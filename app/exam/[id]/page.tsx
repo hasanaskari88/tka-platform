@@ -88,6 +88,13 @@ function ExamEngineContent() {
 
   // State Modal Zoom Gambar (Lightbox)
   const [zoomedImageUrl, setZoomedImageUrl] = useState<string | null>(null)
+  const [zoomScale, setZoomScale] = useState(1)
+  const pinchStartRef = useRef<{ distance: number; scale: number } | null>(null)
+
+  useEffect(() => {
+    setZoomScale(1)
+    pinchStartRef.current = null
+  }, [zoomedImageUrl])
 
   const [timeLeft, setTimeLeft] = useState<number | null>(null)
   const [deadlineAtMs, setDeadlineAtMs] = useState<number | null>(null)
@@ -1885,11 +1892,13 @@ function ExamEngineContent() {
                 (questionNavFilter === 'incomplete' && !isAnswered) ||
                 (questionNavFilter === 'flagged' && isFlagged)
               if (!shouldShow) return null
-              let btnClass = isAnswered
-                ? 'bg-emerald-600 text-white border-emerald-600'
-                : isDark
-                  ? 'bg-slate-800 text-slate-300 border-slate-700'
-                  : 'bg-slate-100 text-slate-600 border-slate-200'
+              let btnClass = isFlagged
+                ? 'bg-amber-400 text-amber-950 border-amber-500'
+                : isAnswered
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : isDark
+                    ? 'bg-slate-800 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
               if (isCurrent) btnClass += ' ring-2 ring-indigo-600 ring-offset-1 z-10 font-extrabold'
               else btnClass += ' font-semibold'
               return (
@@ -1898,11 +1907,10 @@ function ExamEngineContent() {
                   onClick={() => setCurrentIndex(idx)}
                   disabled={isSubmitting || timeLeft === 0 || sessionStatus !== 'ongoing'}
                   aria-label={'Soal ' + (idx + 1) + ', ' + (isAnswered ? 'sudah dijawab' : 'belum dijawab') + (isFlagged ? ', ragu-ragu' : '')}
-                  className={'relative min-h-10 rounded-md text-xs font-mono transition-all border flex items-center justify-center ' + btnClass + (isFlagged ? ' outline outline-2 outline-amber-400 outline-offset-[-2px]' : '')}
+                  className={'relative min-h-10 rounded-md text-xs font-mono transition-all border flex items-center justify-center ' + btnClass}
                   suppressHydrationWarning
                 >
                   {idx + 1}
-                  {isFlagged && <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border border-white bg-amber-400" />}
                 </button>
               )
             })}
@@ -2012,29 +2020,57 @@ function ExamEngineContent() {
         </div>
       )}
 
-      {/* MODAL ZOOM GAMBAR (LIGHTBOX INTERAKTIF FULLSCREEN) */}
+      {/* MODAL ZOOM GAMBAR: mendukung pinch dua jari tanpa memperbesar halaman CBT */}
       {zoomedImageUrl && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setZoomedImageUrl(null)}
+          className="fixed inset-0 z-50 bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-3"
+          onClick={() => { setZoomedImageUrl(null); setZoomScale(1); pinchStartRef.current = null }}
         >
           <div
-            className="relative max-w-4xl max-h-[90vh] bg-white p-2 rounded-2xl shadow-2xl overflow-hidden flex flex-col items-center justify-center"
+            className="relative w-full max-w-5xl h-[90vh] bg-slate-950 p-2 rounded-2xl shadow-2xl overflow-auto flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX
+                const dy = e.touches[0].clientY - e.touches[1].clientY
+                pinchStartRef.current = { distance: Math.hypot(dx, dy), scale: zoomScale }
+              }
+            }}
+            onTouchMove={(e) => {
+              if (e.touches.length === 2 && pinchStartRef.current) {
+                e.preventDefault()
+                const dx = e.touches[0].clientX - e.touches[1].clientX
+                const dy = e.touches[0].clientY - e.touches[1].clientY
+                const distance = Math.hypot(dx, dy)
+                const nextScale = pinchStartRef.current.scale * distance / pinchStartRef.current.distance
+                setZoomScale(Math.min(4, Math.max(1, nextScale)))
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (e.touches.length < 2) pinchStartRef.current = null
+            }}
           >
             <button
               type="button"
-              onClick={() => setZoomedImageUrl(null)}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-slate-900/70 text-white flex items-center justify-center font-bold text-sm hover:bg-slate-900 transition-colors z-10"
+              onClick={() => { setZoomedImageUrl(null); setZoomScale(1); pinchStartRef.current = null }}
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold text-sm hover:bg-slate-600 transition-colors z-10"
               title="Tutup Gambar"
             >
               ✕
             </button>
-            <img
-              src={zoomedImageUrl}
-              alt="Gambar Diperbesar"
-              className="max-h-[85vh] max-w-full object-contain rounded-xl"
-            />
+            <div className="w-full h-full flex items-center justify-center overflow-auto">
+              <img
+                src={zoomedImageUrl}
+                alt="Gambar Diperbesar"
+                draggable={false}
+                onTouchMove={(e) => { if (e.touches.length === 2) e.preventDefault() }}
+                style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center', touchAction: 'none' }}
+                className="max-h-[85vh] max-w-full object-contain rounded-xl select-none"
+              />
+            </div>
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-800/90 px-3 py-1.5 text-[11px] text-white">
+              Cubit dua jari untuk zoom · {Math.round(zoomScale * 100)}% · Ketuk ✕ untuk tutup
+            </div>
           </div>
         </div>
       )}
