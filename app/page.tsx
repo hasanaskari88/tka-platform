@@ -13,6 +13,8 @@ function HomePageContent() {
   const { theme } = useTheme()
   const [exams, setExams] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
+  const [announcementPage, setAnnouncementPage] = useState(0)
+  const ANNOUNCEMENTS_PER_PAGE = 2
   const [materials, setMaterials] = useState<any[]>([])
   const [homePinOrder, setHomePinOrder] = useState({ cbt: {} as Record<string, number>, cbtCategories: {} as Record<string, number>, material: {} as Record<string, number>, announcement: {} as Record<string, number> })
   const [userProfile, setUserProfile] = useState<any>(null)
@@ -563,6 +565,16 @@ const filteredExams = useMemo(() => {
     })
   }, [announcements, homePinOrder.announcement])
 
+  const totalAnnouncementPages = Math.max(1, Math.ceil(orderedAnnouncements.length / ANNOUNCEMENTS_PER_PAGE))
+  const visibleAnnouncements = orderedAnnouncements.slice(
+    announcementPage * ANNOUNCEMENTS_PER_PAGE,
+    (announcementPage + 1) * ANNOUNCEMENTS_PER_PAGE,
+  )
+
+  useEffect(() => {
+    setAnnouncementPage((page) => Math.min(page, totalAnnouncementPages - 1))
+  }, [totalAnnouncementPages])
+
   // Gelar Arcade mengikuti peringkat XP global. Peringkat pertama selalu
   // mendapat Legenda Arena, berapa pun jumlah siswa; siswa dengan XP seri
   // memperoleh peringkat dan gelar yang sama.
@@ -1041,23 +1053,23 @@ const filteredExams = useMemo(() => {
             </h2>
 
             <div
-              className={`grid gap-4 ${
-                announcements.length === 1
+              className={`grid gap-3 ${
+                visibleAnnouncements.length === 1
                   ? 'grid-cols-1'
-                  : 'grid-cols-1 md:grid-cols-2'
+                  : 'grid-cols-2'
               }`}
             >
-              {orderedAnnouncements.map((ann) => (
+              {visibleAnnouncements.map((ann) => (
                 <article
                   key={ann.id}
-                  className={`space-y-3 rounded-2xl border p-5 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${themeDetails.boxBg}`}
+                  className={`min-w-0 space-y-2 rounded-2xl border p-3 sm:p-4 backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${themeDetails.boxBg}`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`rounded px-2 py-0.5 text-[10px] font-bold uppercase ${themeDetails.badgeColor}`}>
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className={`rounded px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase ${themeDetails.badgeColor}`}>
                       📌 {ann.category || 'Penting'}
                     </span>
 
-                    <span className="text-[11px] font-mono opacity-75">
+                    <span className="text-[9px] sm:text-[10px] font-mono opacity-75">
                       {new Date(ann.created_at).toLocaleDateString('id-ID', {
                         day: 'numeric',
                         month: 'short',
@@ -1065,16 +1077,40 @@ const filteredExams = useMemo(() => {
                     </span>
                   </div>
 
-                  <h3 className="text-sm sm:text-base font-extrabold">
+                  <h3 className="break-words text-xs sm:text-sm font-extrabold">
                     {ann.title}
                   </h3>
 
-                  <div className={`text-xs leading-relaxed ${themeDetails.textMuted}`}>
+                  <div className={`break-words text-[10px] sm:text-xs leading-relaxed ${themeDetails.textMuted}`}>
                     <MathRenderer content={ann.content || ''} />
                   </div>
                 </article>
               ))}
             </div>
+
+            {orderedAnnouncements.length > ANNOUNCEMENTS_PER_PAGE && (
+              <div className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 ${themeDetails.boxBg}`}>
+                <button
+                  type="button"
+                  onClick={() => setAnnouncementPage((page) => Math.max(0, page - 1))}
+                  disabled={announcementPage === 0}
+                  className="rounded-lg border border-current/20 px-3 py-1.5 text-[10px] font-bold transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  ← Sebelumnya
+                </button>
+                <span className="text-[10px] font-bold tabular-nums">
+                  {announcementPage + 1} / {totalAnnouncementPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setAnnouncementPage((page) => Math.min(totalAnnouncementPages - 1, page + 1))}
+                  disabled={announcementPage >= totalAnnouncementPages - 1}
+                  className="rounded-lg border border-current/20 px-3 py-1.5 text-[10px] font-bold transition hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  Berikutnya →
+                </button>
+              </div>
+            )}
           </section>
         )}
 
