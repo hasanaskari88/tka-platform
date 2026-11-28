@@ -34,6 +34,7 @@ function HomePageContent() {
   const [materialPage, setMaterialPage] = useState(0)
   const MATERIALS_PER_PAGE = 5
   const [showMaterialFilters, setShowMaterialFilters] = useState(false)
+  const [showMaterialSearch, setShowMaterialSearch] = useState(false)
   const [showExamFilters, setShowExamFilters] = useState(false)
   const [showHallOfFame, setShowHallOfFame] = useState(false)
   const [showPlayerDashboard, setShowPlayerDashboard] = useState(false)
@@ -1140,8 +1141,8 @@ const filteredExams = useMemo(() => {
 
         {/* Pusat Sumber Belajar — pratinjau ringkas */}
         {materials.length > 0 && (
-          <section className="space-y-3">
-            <div className="flex flex-wrap items-end justify-between gap-3">
+          <section className="space-y-2 sm:space-y-3">
+            <div className="flex flex-wrap items-end justify-between gap-2 sm:gap-3">
               <div>
                 <h2 className={`flex items-center gap-2 text-lg sm:text-xl ${themeDetails.sectionTitle}`}>
                   <span>📚</span>
@@ -1151,24 +1152,42 @@ const filteredExams = useMemo(() => {
                   Materi dan bahan belajar pilihan untuk menemani kegiatanmu.
                 </p>
               </div>
-              <span className={`rounded-full border px-3 py-1.5 text-xs font-extrabold ${themeDetails.badgeColor}`}>
-                {materials.length} sumber
-              </span>
+
             </div>
 
-            <div className={`space-y-3 rounded-2xl border p-3 sm:p-4 ${themeDetails.boxBg}`}>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  type="search"
-                  value={materialSearch}
-                  onChange={(e) => {
-                    setMaterialSearch(e.target.value)
-                    setMaterialPage(0)
-                  }}
-                  placeholder="Cari judul atau mata pelajaran..."
-                  aria-label="Cari sumber belajar"
-                  className="min-w-0 flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-medium text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                />
+            <div className={`space-y-2 rounded-xl border p-2 sm:space-y-3 sm:rounded-2xl sm:p-4 ${themeDetails.boxBg}`}>
+              <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:flex-[2]">
+                  <button
+                    type="button"
+                    onClick={() => setShowMaterialSearch(true)}
+                    aria-label="Buka pencarian materi"
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-2 border-slate-200 bg-white text-base text-slate-700 sm:hidden ${showMaterialSearch || materialSearch ? 'hidden' : 'flex'}`}
+                  >
+                    🔎
+                  </button>
+                  <input
+                    type="search"
+                    value={materialSearch}
+                    onChange={(e) => {
+                      setMaterialSearch(e.target.value)
+                      setMaterialPage(0)
+                      setShowMaterialSearch(true)
+                    }}
+                    onFocus={() => setShowMaterialSearch(true)}
+                    placeholder="Cari..."
+                    aria-label="Cari judul atau mata pelajaran"
+                    className={`min-w-0 flex-1 rounded-lg border-2 border-slate-200 bg-white px-2.5 py-2 text-[11px] font-medium text-slate-800 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-xs ${showMaterialSearch || materialSearch ? 'block' : 'hidden sm:block'}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setMaterialSearch(''); setMaterialPage(0); setShowMaterialSearch(false) }}
+                    aria-label="Tutup pencarian"
+                    className={`h-9 w-8 shrink-0 items-center justify-center rounded-lg text-slate-500 sm:hidden ${showMaterialSearch || materialSearch ? 'flex' : 'hidden'}`}
+                  >
+                    ✕
+                  </button>
+                </div>
                 <select
                   value={selectedSubject}
                   onChange={(e) => {
@@ -1176,28 +1195,29 @@ const filteredExams = useMemo(() => {
                     setMaterialPage(0)
                   }}
                   aria-label="Filter mata pelajaran"
-                  className="rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-xs font-bold text-slate-800 outline-none focus:border-amber-400"
+                  className="min-w-0 flex-1 rounded-lg border-2 border-slate-200 bg-white px-2 py-2 text-[10px] font-bold text-slate-800 outline-none focus:border-amber-400 sm:flex-1 sm:rounded-xl sm:px-3 sm:py-2.5 sm:text-xs"
                 >
-                  <option value="Semua">Semua mata pelajaran</option>
+                  <option value="Semua">Semua mapel</option>
                   {materialSubjects.map((subject) => (
                     <option key={subject} value={subject}>{subject}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-current/10 pt-2">
-                <span className="text-[11px] font-semibold opacity-80">
-                  Menampilkan {filteredMaterials.length === 0 ? 0 : materialPage * MATERIALS_PER_PAGE + 1}–{Math.min((materialPage + 1) * MATERIALS_PER_PAGE, filteredMaterials.length)} dari {filteredMaterials.length} hasil
+              <div className="flex items-center justify-between gap-2 border-t border-current/10 pt-1.5 sm:pt-2">
+                <span className="text-[9px] font-medium opacity-75 sm:text-[11px]">
+                  {filteredMaterials.length === 0 ? 0 : materialPage * MATERIALS_PER_PAGE + 1}–{Math.min((materialPage + 1) * MATERIALS_PER_PAGE, filteredMaterials.length)} dari {filteredMaterials.length}
                 </span>
-                <label className="flex items-center gap-2 text-[11px] font-semibold">
-                  <span>Urutkan</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="hidden text-[11px] font-semibold sm:inline">Urutkan</span>
                   <select
                     value={materialSort}
                     onChange={(e) => {
                       setMaterialSort(e.target.value)
                       setMaterialPage(0)
                     }}
-                    className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-800"
+                    aria-label="Urutkan sumber belajar"
+                    className="max-w-[142px] rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-[10px] font-bold text-slate-800 sm:max-w-none sm:text-[11px]"
                   >
                     <option value="Prioritas">⭐ Prioritas</option>
                     <option value="Terbaru">Terbaru</option>
@@ -1205,7 +1225,7 @@ const filteredExams = useMemo(() => {
                     <option value="Nama A-Z">Nama A–Z</option>
                     <option value="Penulis A-Z">Penulis A–Z</option>
                   </select>
-                </label>
+                </div>
               </div>
 
               {filteredMaterials.length > 0 ? (
